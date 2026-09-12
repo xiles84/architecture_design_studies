@@ -1,0 +1,45 @@
+@startuml d10_embedded_hybrid_locked
+!include _style.puml
+title D10 — embedded-hybrid-locked  (D9's tables; a trigger that stays correct under concurrency)
+
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id, full_name, email, joined_at
+  --
+  <back:#E7DDF5>* recent_donations : JSONB — newest 20</back>
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id, <back:#FFF3CD>charity_id</back>, amount_cents, currency, donated_at, note
+}
+p ||--o{ d
+d -[#2E7D32,thickness=2]-> p : "trigger (fixed)"
+
+note right of p
+  **Identical to D9** in schema, indexes,
+  queries and write statements.
+  Only triggers.sql differs.
+end note
+
+note bottom of d
+  **D9's trigger corrupted 3-5 donor caches per 30 s**
+  under concurrent reads and writes, while passing
+  every isolated audit. Two bugs, two fixes:
+
+  |= bug |= symptom |= fix |
+  | ordering race | adjacent ids swapped | <back:#D8F0DE>merge + sort by (donated_at, id)</back> instead of prepend |
+  | lost update | a committed donation missing | <back:#D8F0DE>lock person FOR UPDATE</back> before the rebuild |
+
+  The lost update is the subtle one. The rebuild's
+  UPDATE waits on the row lock; PostgreSQL re-checks
+  the target row after the wait but does not re-run the
+  subquery against a fresh snapshot, so it writes a
+  cache missing the donation that just committed.
+  Locking in a separate statement first gives the
+  rebuild a snapshot taken after the competitor commits.
+
+  **D9 → D10 prices correctness itself.**
+end note
+@enduml

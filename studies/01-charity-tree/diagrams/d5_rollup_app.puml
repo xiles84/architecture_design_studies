@@ -1,0 +1,47 @@
+@startuml d5_rollup_app
+!include _style.puml
+title D5 — rollup-app  (D4's columns; the application maintains them)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  ...identical to D4...
+  <back:#D8F0DE>* donation_count, total_donated_cents</back>
+  <back:#D8F0DE>last_donation_id, last_donation_at, last_donor_person_id</back>
+  --
+  <back:#CFE2F3>* version : BIGINT — for the optimistic strategy</back>
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  ...identical to D4...
+  <back:#D8F0DE>* donation_count, total_donated_cents</back>
+  <back:#D8F0DE>first_donation_at, last_donation_at, last_donation_id</back>
+  --
+  <back:#CFE2F3>* version : BIGINT</back>
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id, <back:#FFF3CD>charity_id</back>, amount_cents
+  * currency, donated_at, note
+}
+c ||--o{ p
+p ||--o{ d
+
+note bottom of d
+  **No triggers.** The client runs the same three
+  statements inside one transaction, which makes the
+  concurrency control a parameter instead of a
+  property of the schema:
+
+  |= strategy |= how the parent row is claimed |
+  | blind | plain UPDATE; the engine's row lock decides |
+  | forupdate | SELECT ... FOR UPDATE first (pessimistic) |
+  | optimistic | read version, UPDATE ... WHERE version = n, retry |
+
+  D4 and D5 read identically by construction, so any
+  measured read difference between them is the
+  harness's own noise floor — a free control.
+end note
+@enduml

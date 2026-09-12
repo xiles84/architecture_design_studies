@@ -1,0 +1,45 @@
+@startuml d2_normalized_indexed
+!include _style.puml
+title D2 — normalized-indexed  (same tables as D1, same SQL as D1)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name : TEXT
+  * country : TEXT
+  * founded_on : DATE
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id : BIGINT <<FK>>
+  * full_name : TEXT
+  * email : TEXT
+  * joined_at : TIMESTAMPTZ
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id : BIGINT <<FK>>
+  * amount_cents : BIGINT
+  * currency : CHAR(3)
+  * donated_at : TIMESTAMPTZ
+  note : TEXT
+}
+c ||--o{ p
+p ||--o{ d
+
+note right of p
+  **+ person_charity_idx** (charity_id)
+end note
+
+note bottom of d
+  **+ donation_person_time_idx** (person_id, donated_at DESC)
+  **+ donation_time_idx** (donated_at DESC)
+
+  Not one character of SQL differs from D1.
+  Everything D2 buys, it buys through the planner.
+  The D1/D2 pair is the controlled experiment on
+  indexing alone.
+end note
+@enduml

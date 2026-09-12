@@ -1,0 +1,67 @@
+@startuml d9_embedded_hybrid
+!include _style.puml
+title D9 — embedded-hybrid  (embed a BOUNDED slice, keep the table)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name, country, founded_on
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id : BIGINT <<FK>>
+  * full_name, email, joined_at
+  --
+  <back:#E7DDF5>* recent_donations : JSONB</back>
+  <back:#E7DDF5>  — the 20 newest, newest FIRST</back>
+  <back:#E7DDF5>  — a cache, not the truth</back>
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id : BIGINT <<FK>>
+  <back:#FFF3CD>* charity_id : BIGINT <<FK>></back>
+  * amount_cents, currency, donated_at, note
+  --
+  //still the source of truth, fully indexed//
+}
+c ||--o{ p
+p ||--o{ d
+d -[#B03A2E,thickness=2]-> p : "AFTER INSERT trigger\nprepends, truncates at 20"
+
+note right of p
+  **q09 — "this donor's recent gifts"** is answered
+  from this one row: no second table, no index
+  descent, no sort. It is the highest-QPS query in
+  a system like this, so it is the one worth
+  buying outright.
+
+  Every OTHER question still goes to the real
+  donation table, so none of D6's cross-person
+  collapse applies here.
+end note
+
+note bottom of d
+  **The fix for what D6 broke.** In D6 the embedded
+  array is unbounded, so appending one donation
+  rewrites a document that grows with the donor's
+  whole history — write cost is O(history).
+
+  Here the array is capped at 20, so the rewrite is
+  <back:#D8F0DE>a constant</back>, no matter how much the donor has
+  given before.
+
+  **What it costs**
+   * a second copy of recent data that can drift
+   * a trigger on the hot write path
+   * the cache size is now a design constant. The
+     catalogue asks for exactly 20; a query asking
+     for 21 falls off the cache entirely and has to
+     go back to the table.
+   * backdated inserts land at the front of the
+     cache where they do not belong — the table
+     underneath still has the truth, and such a
+     system would rebuild rather than prepend.
+end note
+@enduml

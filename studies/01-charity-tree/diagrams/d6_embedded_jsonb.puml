@@ -1,0 +1,60 @@
+@startuml d6_embedded_jsonb
+!include _style.puml
+title D6 — embedded-jsonb  (the child table folded into its parent)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name : TEXT
+  * country : TEXT
+  * founded_on : DATE
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id : BIGINT <<FK>>
+  * full_name : TEXT
+  * email : TEXT
+  * joined_at : TIMESTAMPTZ
+  --
+  <back:#E7DDF5>* donations : JSONB  — the whole child table</back>
+}
+c ||--o{ p
+
+note right of p
+  **array element shape**
+  {
+    "i": donation_id,
+    "a": amount_cents,
+    "c": currency,
+    "t": donated_at,
+    "n": note
+  }
+  Appended in chronological order, so
+  donations->0 is the first donation and
+  donations->-1 is the last — both
+  reachable with no unnesting at all.
+
+  Single-character keys on purpose: JSONB
+  stores every key of every element, so
+  key names multiply by the element count.
+end note
+
+note bottom of p
+  **+ person_charity_idx** (charity_id)
+  **+ person_donations_gin** GIN (donations jsonb_path_ops)
+
+  There is no donation table, so there is no
+  index on donated_at, on amount, or on
+  donation_id. A GIN index can answer
+  "which document contains this?" but it can
+  neither order nor aggregate across documents.
+
+  Wins: everything about ONE person is one row.
+  Loses: everything ACROSS persons unnests the
+  whole table; and appending one donation
+  rewrites the entire row, so under MVCC the
+  cost of a write grows with the history it
+  already has.
+end note
+@enduml

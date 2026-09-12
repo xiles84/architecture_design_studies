@@ -1,0 +1,48 @@
+@startuml d8_flattened_nofk
+!include _style.puml
+title D8 — flattened-nofk  (D3 with referential integrity switched off)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name, country, founded_on
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  <back:#F5D0D0>* charity_id : BIGINT  — plain column, no FK</back>
+  * full_name, email, joined_at
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  <back:#F5D0D0>* person_id : BIGINT  — plain column, no FK</back>
+  <back:#F5D0D0>* charity_id : BIGINT  — plain column, no FK</back>
+  * amount_cents, currency, donated_at, note
+}
+c ..o{ p : "convention only"
+p ..o{ d : "convention only"
+
+note bottom of d
+  **Identical to D3 in every other respect:** same columns,
+  same five indexes, same queries, same write statements.
+  The D3/D8 pair isolates one variable — the cost of
+  enforcing referential integrity.
+
+  **What a foreign key does on every INSERT:**
+   1. look up the parent person row
+   2. look up the parent charity row
+   3. take a KEY SHARE lock on each, held to commit
+
+  So a "single-row insert" is three row accesses and two
+  shared locks — on rows other concurrent inserts are
+  touching too. On PostgreSQL those are local buffer reads.
+  <back:#FFE0E0>On YugabyteDB the parent may live on another node,</back>
+  <back:#FFE0E0>so each check can become a cross-node RPC.</back>
+
+  **What you give up:** nothing prevents a donation pointing
+  at a person who does not exist, and nothing keeps
+  donation.charity_id agreeing with person.charity_id.
+  The numbers say what that risk is worth.
+end note
+@enduml

@@ -1,0 +1,1 @@
+-- D1 deliberately has no secondary indexes.

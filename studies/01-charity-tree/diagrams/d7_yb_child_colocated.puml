@@ -1,0 +1,58 @@
+@startuml d7_yb_child_colocated
+!include _style.puml
+title D7 — yb-child-colocated  (D3's columns; the key rebuilt for placement) — YugabyteDB only
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name, country, founded_on
+}
+entity "person" as p {
+  * person_id : BIGINT
+  --
+  <back:#D6EAF8>PRIMARY KEY ((person_id) HASH)</back>
+  * charity_id : BIGINT <<FK>>
+  * full_name, email, joined_at
+}
+entity "donation" as d {
+  * donation_id : BIGINT
+  * person_id : BIGINT <<FK>>
+  --
+  <back:#D6EAF8>PRIMARY KEY (</back>
+  <back:#D6EAF8>  (person_id) HASH,</back>
+  <back:#D6EAF8>  donated_at DESC,</back>
+  <back:#D6EAF8>  donation_id ASC )</back>
+  --
+  <back:#FFF3CD>* charity_id : BIGINT <<FK>></back>
+  * amount_cents, currency, note
+}
+c ||--o{ p
+p ||--o{ d
+
+note bottom of d
+  YugabyteDB shards a table by hashing the leading
+  HASH column of its primary key.
+
+  **With the default** donation_id BIGINT PRIMARY KEY,
+  one person's 40 donations hash to ~40 different
+  tablets. "The last 20 donations of person X" becomes
+  a scatter-gather across every node in the cluster.
+
+  **Here**, person_id leads the key, so all of a
+  person's donations live in one tablet on one node,
+  already stored newest-first. The parent/child
+  locality of the tree survives into the physical
+  layout.
+
+  **The cost:** donation_id is no longer the primary
+  key, so identity lookups need
+  **+ donation_id_idx** UNIQUE (donation_id HASH) —
+  and in YugabyteDB a secondary index is itself a
+  distributed table, making that a two-hop read.
+
+  The same lever exists elsewhere: PARTITION BY HASH
+  with local indexes in PostgreSQL, the partition key
+  in Cassandra-family stores. It is a general
+  tree-design decision, not a YugabyteDB quirk.
+end note
+@enduml

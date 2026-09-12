@@ -1,0 +1,52 @@
+@startuml d3_flattened_fk
+!include _style.puml
+title D3 — flattened-fk  (the grandparent key copied down to the grandchild)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name : TEXT
+  * country : TEXT
+  * founded_on : DATE
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id : BIGINT <<FK>>
+  * full_name : TEXT
+  * email : TEXT
+  * joined_at : TIMESTAMPTZ
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id : BIGINT <<FK>>
+  <back:#FFF3CD>* charity_id : BIGINT <<FK>> — denormalised</back>
+  * amount_cents : BIGINT
+  * currency : CHAR(3)
+  * donated_at : TIMESTAMPTZ
+  note : TEXT
+}
+c ||--o{ p
+p ||--o{ d
+c ||..o{ d : "redundant shortcut\n(derivable via person)"
+
+note bottom of d
+  **all D2 indexes, plus**
+  **+ donation_charity_time_idx** (charity_id, donated_at DESC)
+  **+ donation_charity_amount_idx** (charity_id) INCLUDE (amount_cents)
+
+  charity_id on donation is pure redundancy — it is
+  always equal to the donation's person's charity_id.
+  Buying with that redundancy:
+   * six of twelve queries lose a join
+   * "total donated to a charity" becomes an
+     index-only scan, never touching the heap
+
+  Paying with it:
+   * a wider row and another index to maintain
+   * an invariant the database does not enforce.
+     Move a person between charities and every
+     donation row is now lying.
+end note
+@enduml

@@ -1,0 +1,30 @@
+# Benchmark client for study 01.
+#
+# The client runs in a container like everything else: a viewer needs Podman and
+# nothing else -- no Go toolchain, no PostgreSQL client, no Python.
+#
+# The SQL catalogue is compiled into the binary via go:embed rather than
+# bind-mounted, so a result can never be produced by a binary running SQL that
+# differs from the SQL shipped beside it.
+
+FROM docker.io/library/golang:1.26-bookworm AS build
+WORKDIR /src
+
+# Dependencies first so that editing the harness does not re-download the module
+# graph on every rebuild.
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY sqlfs.go ./
+COPY sql/ ./sql/
+COPY harness/ ./harness/
+
+# Static, stripped, and with the build path trimmed so the binary is
+# byte-identical across machines that check the repo out to different paths.
+RUN CGO_ENABLED=0 GOFLAGS=-trimpath go build -ldflags="-s -w" -o /out/bench ./harness
+
+FROM scratch
+COPY --from=build /out/bench /bench
+# Mount point for the results volume.
+WORKDIR /results
+ENTRYPOINT ["/bench"]

@@ -1,0 +1,73 @@
+@startuml d4_rollup_trigger
+!include _style.puml
+title D4 — rollup-trigger  (answers consolidated upward at write time)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name : TEXT
+  * country : TEXT
+  * founded_on : DATE
+  --
+  <back:#D8F0DE>* donation_count : BIGINT</back>
+  <back:#D8F0DE>* total_donated_cents : BIGINT</back>
+  <back:#D8F0DE>last_donation_id : BIGINT</back>
+  <back:#D8F0DE>last_donation_at : TIMESTAMPTZ</back>
+  <back:#D8F0DE>last_donor_person_id : BIGINT</back>
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id : BIGINT <<FK>>
+  * full_name : TEXT
+  * email : TEXT
+  * joined_at : TIMESTAMPTZ
+  --
+  <back:#D8F0DE>* donation_count : BIGINT</back>
+  <back:#D8F0DE>* total_donated_cents : BIGINT</back>
+  <back:#D8F0DE>first_donation_at : TIMESTAMPTZ</back>
+  <back:#D8F0DE>last_donation_at : TIMESTAMPTZ</back>
+  <back:#D8F0DE>last_donation_id : BIGINT</back>
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id : BIGINT <<FK>>
+  <back:#FFF3CD>* charity_id : BIGINT <<FK>></back>
+  * amount_cents : BIGINT
+  * currency : CHAR(3)
+  * donated_at : TIMESTAMPTZ
+  note : TEXT
+}
+c ||--o{ p
+p ||--o{ d
+c ||..o{ d
+
+d -[#B03A2E,thickness=2]-> p : "AFTER INSERT/UPDATE/DELETE\ntrigger updates 1 person row"
+d -[#B03A2E,thickness=2]-> c : "...and 1 charity row"
+
+note bottom of c
+  <back:#FFCCCC> **The hot row.** </back> Ten charities, every
+  donation in the system. Every concurrent
+  write to the same charity serialises on
+  this one row. That contention is not a
+  flaw in the design — it IS the design's
+  price, and experiment C measures it.
+end note
+
+note bottom of d
+  **all D3 indexes, minus the covering index, plus**
+  **+ person_top_donor_idx** (charity_id, total_donated_cents DESC)
+  **+ person_last_donation_idx** (charity_id, last_donation_at DESC)
+
+  Seven of twelve queries stop touching this table
+  entirely and become single-row primary-key reads
+  whose cost does not depend on how many donations
+  exist.
+
+  The asymmetry to watch: INSERT is cheap (increment
+  a counter, compare a timestamp). DELETE is not — a
+  MAX cannot be decremented, so the extreme has to be
+  recomputed from the surviving children.
+end note
+@enduml

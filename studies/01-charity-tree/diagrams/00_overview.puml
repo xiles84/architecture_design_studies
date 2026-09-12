@@ -1,0 +1,60 @@
+@startuml 00_overview
+!include _style.puml
+title Study 01 — the tree under test, and the seven designs derived from it
+
+package "The domain (logical, design-independent)" {
+  entity "charity" as c0 {
+    charity_id : BIGINT <<PK>>
+  }
+  entity "person" as p0 {
+    person_id : BIGINT <<PK>>
+    charity_id : BIGINT <<FK>>
+  }
+  entity "donation" as d0 {
+    donation_id : BIGINT <<PK>>
+    person_id : BIGINT <<FK>>
+    amount_cents : BIGINT
+    donated_at : TIMESTAMPTZ
+  }
+  c0 ||--o{ p0 : "has donors"
+  p0 ||--o{ d0 : "makes"
+}
+
+note right of d0
+  Three levels, strictly hierarchical.
+  Every question in the catalogue is
+  really one of two shapes:
+
+  **navigate down**  (a person's donations)
+  **aggregate up**   (totals, extremes,
+                      leaderboards)
+
+  Aggregating up is where the cost is,
+  because the answer lives at the leaves
+  and the question is asked at the root.
+end note
+
+legend bottom
+  |= design |= what changes relative to the plain tree |
+  | **D1** normalized-minimal | nothing. PKs and FKs only, no secondary indexes. |
+  | **D2** normalized-indexed | same tables, secondary indexes added. Identical SQL to D1. |
+  | **D3** flattened-fk | <back:#FFF3CD> donation carries charity_id </back> — the grandparent key is copied down one level. |
+  | **D4** rollup-trigger | <back:#D8F0DE> person and charity carry aggregates </back>, maintained by a trigger. |
+  | **D5** rollup-app | same aggregates, maintained by the application instead. |
+  | **D6** embedded-jsonb | <back:#E7DDF5> the donation table disappears </back> into a JSONB array on person. |
+  | **D7** yb-child-colocated | same columns as D3; the donation PRIMARY KEY is rebuilt for data placement. |
+  | **D8** flattened-nofk | D3 with <back:#F5D0D0> the FOREIGN KEY constraints removed </back> — everything else identical. |
+endlegend
+
+note as N2
+  **Controlled pairs.** Most of the value is in the pairs that
+  differ by exactly one thing, so a measured difference has
+  exactly one explanation:
+
+  **D1 vs D2** — indexes only (identical SQL)
+  **D2 vs D3** — denormalising the grandparent key
+  **D3 vs D8** — enforcing referential integrity
+  **D4 vs D5** — trigger-maintained vs application-maintained
+  **D3 vs D7** — physical data placement only (YugabyteDB)
+end note
+@enduml
