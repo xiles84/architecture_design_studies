@@ -126,8 +126,9 @@ but D3's spread was **49.3%** over three-second windows. The larger footprint is
 the write-cost percentage needs longer trials before it is used for capacity planning.
 
 The separate blended condition used four fixed readers and eight scheduled-insert
-workers at **500 offered inserts/s for 15 seconds**, with eight shared database
-connections. D2/D3 median read rates were **2,320.47/3,916.20 per second**, a 1.69×
+workers at **500 offered inserts/s for 15 seconds**. The connection pool limit was
+20 (readers + writers + loader allowance + four), permitting all twelve workload
+workers to hold connections. D2/D3 median read rates were **2,320.47/3,916.20 per second**, a 1.69×
 ratio. Both completed approximately 500 inserts/s with no rejection or operation
 error, and database counts reconciled all acknowledged inserts including warmup.
 Successful scheduled-response p99 ranged **53.95–57.90 ms** for D2 and **52.43–55.26 ms**
