@@ -148,3 +148,39 @@ shape most application code reaches for first — has no such protection.
 ---
 
 Raw results: `20260912T180830Z-concurrency/`.
+
+## Conclusions and analysis provenance
+
+This file is **generated from the measurements** and contains no interpretation.
+Conclusions live in separate signed analyses, so that several analysts — including
+different AI models — can read the same numbers and each record what they make of
+them. Where two analyses disagree, that disagreement is itself a finding and is
+left visible rather than resolved by editing one of them.
+
+| | |
+|---|---|
+| Run id | `20260912T180830Z-concurrency` |
+| Result files | 31 |
+| **Inputs digest** | `19d071c77bc94f20` |
+
+The digest is a content hash of every result file in the run. **Quote it in any
+analysis.** A run id alone is not enough to identify what was analysed — a run can
+be extended with extra cells afterwards — so the digest is what tells a later
+analyst whether they are looking at the same data someone else already wrote about.
+
+### Analyses of this run
+
+| Analyst | Kind | Date | Digest analysed | Status | Headline |
+|---|---|---|---|---|---|
+| [claude-opus-5](analyses/20260912-study01--claude-opus-5--2026-09-12.md) | ai | 2026-09-12 | `19d071c77bc94f20` ✅ | current | Store totals on the parent only for aggregate questions and only when writes spread across many parents; use indexes for everything else; embedding donations in the donor row never came out ahead on reads. |
+| [gpt-6](analyses/20260912-study01--gpt-6--2026-09-12.md) | ai | 2026-09-12 | `19d071c77bc94f20` ✅ | current | Use ordinary indexes for donor reads, copy the charity key when it enables selective charity indexes, and store totals only when their read benefit justifies contention and maintenance. |
+
+### Adding an analysis
+
+Copy `reports/analyses/TEMPLATE.md`, fill in the frontmatter, and write what you
+conclude. Then regenerate this report so the table above picks it up.
+
+Before writing one, check the table: if an analysis already exists for digest
+`19d071c77bc94f20`, read it first. Add a new analysis to **disagree, extend, or bring a
+different perspective** — not to restate what is already there. Never edit another
+analyst's file; write your own and reference theirs.

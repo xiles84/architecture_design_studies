@@ -381,7 +381,8 @@ analyst whether they are looking at the same data someone else already wrote abo
 
 | Analyst | Kind | Date | Digest analysed | Status | Headline |
 |---|---|---|---|---|---|
-| [claude-opus-5](analyses/20260912-study01--claude-opus-5--2026-09-12.md) | ai | 2026-09-12 | `bbfb475a6d879410` ✅ | current | Rollups win aggregate questions by 60-130x but cost 2.4x on inserts and collapse under many writers unless parents are many and small; plain indexes answer everything else; embedding never wins outright on PostgreSQL and a naive cache trigger silently corrupts data. |
+| [claude-opus-5](analyses/20260912-study01--claude-opus-5--2026-09-12.md) | ai | 2026-09-12 | `bbfb475a6d879410` ✅ | current | Store totals on the parent only for aggregate questions and only when writes spread across many parents; use indexes for everything else; embedding donations in the donor row never came out ahead on reads. |
+| [gpt-6](analyses/20260912-study01--gpt-6--2026-09-12.md) | ai | 2026-09-12 | `bbfb475a6d879410` ✅ | current | Use ordinary indexes for donor reads, copy the charity key when it enables selective charity indexes, and store totals only when their read benefit justifies contention and maintenance. |
 
 ### Adding an analysis
 

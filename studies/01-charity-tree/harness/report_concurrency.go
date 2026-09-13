@@ -269,6 +269,7 @@ func writeConcurrencyReport(dir, outPath string) error {
 	}
 
 	fmt.Fprintf(&b, "\n---\n\nRaw results: `%s/`.\n", filepath.Base(dir))
+	writeProvenance(&b, dir, filepath.Join(filepath.Dir(outPath), "analyses"), ref.RunID)
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return err
 	}
