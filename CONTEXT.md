@@ -123,6 +123,11 @@ creates a run tag, pins the image ID, takes the shared benchmark lock and keeps 
 fresh-load trial. Containerized catalogue/control, scheduler overload and grouping tests
 pass; live engine verification is next. Owner merges this branch after review.
 
+**Running — do not start databases:** `20260913T124917Z-v3`, 14 verification cells
+(seven new variants on PostgreSQL and YugabyteDB single-node), run tag
+`run/01-charity-tree/20260913T124917Z-v3`, harness `41a1490`, milestone
+`study-01/v3-harness`. This worktree holds the machine-wide `ads-run-lock`.
+
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
