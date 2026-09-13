@@ -17,6 +17,11 @@ REPO_ROOT="$(cd "$INFRA_DIR/.." && pwd)"
 # shellcheck source=./versions.env
 source "$INFRA_DIR/versions.env"
 
+# Explicit alternative resource conditions. Defaults preserve the published
+# per-node experiment; each alternative is inspected and named in its results.
+DB_CPUS="${ADS_DB_CPUS:-$DB_CPUS}"
+DB_MEMORY="${ADS_DB_MEMORY:-$DB_MEMORY}"
+
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m warn\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31mfatal\033[0m %s\n' "$*" >&2; exit 1; }

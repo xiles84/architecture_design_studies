@@ -22,8 +22,8 @@ USER=yugabyte
 # memory_limit_hard_bytes is also pinned: YugabyteDB sizes its block cache from
 # the machine's memory, and inside a memory-limited container that leads it to
 # plan for far more RAM than the cgroup will actually hand out.
-TSERVER_FLAGS="memory_limit_hard_bytes=1610612736,ysql_num_shards_per_tserver=2,yb_num_shards_per_tserver=2"
-MASTER_FLAGS="memory_limit_hard_bytes=536870912"
+TSERVER_FLAGS="memory_limit_hard_bytes=${ADS_YB_TSERVER_MEMORY:-1610612736},ysql_num_shards_per_tserver=2,yb_num_shards_per_tserver=2"
+MASTER_FLAGS="memory_limit_hard_bytes=${ADS_YB_MASTER_MEMORY:-536870912}"
 
 # A study may need extra tserver flags; the default (unset) leaves the node
 # exactly as study 01 measured it. Study 02 sets

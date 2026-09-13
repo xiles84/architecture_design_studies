@@ -16,10 +16,10 @@ PASS=bench
 # These values are the conventional starting points for a 3 GiB node; they are
 # deliberately ordinary, not tuned per design.
 pg_settings=(
-  -c shared_buffers=768MB
-  -c effective_cache_size=2GB
-  -c work_mem=32MB
-  -c maintenance_work_mem=256MB
+  -c shared_buffers="${ADS_PG_SHARED_BUFFERS:-768MB}"
+  -c effective_cache_size="${ADS_PG_EFFECTIVE_CACHE:-2GB}"
+  -c work_mem="${ADS_PG_WORK_MEM:-32MB}"
+  -c maintenance_work_mem="${ADS_PG_MAINTENANCE_MEM:-256MB}"
   -c max_connections=200
   -c random_page_cost=1.1          # NVMe, not a spinning disk
   -c effective_io_concurrency=200
