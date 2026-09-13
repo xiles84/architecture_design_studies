@@ -1,0 +1,361 @@
+# Query plans — study 02-ticket-booking
+
+run_id:      20260913T021206Z
+repo:        study-02/v1-harness-1-g7570648 (dirty=false)
+environment: host-zenbook-ux5406sa
+engine:      postgres (pg-single)
+version:     PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+design:      r2_inventory_buckets (inventory-buckets)
+captured:    EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS ON)
+keys:        the largest partially sold catalogue event, its busiest customer and one of its sold
+             tickets. Write statements run inside transactions that are rolled back.
+
+==============================================================================
+## q01_event_availability
+==============================================================================
+
+
+SELECT COALESCE(SUM(remaining), 0)::BIGINT AS seats_left
+  FROM event_inventory_bucket
+ WHERE event_id = $1
+
+Aggregate  (cost=6.01..6.02 rows=1 width=8) (actual time=0.008..0.009 rows=1 loops=1)
+  Output: COALESCE(sum(remaining), '0'::bigint)
+  Buffers: shared hit=3
+  ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket  (cost=0.28..5.99 rows=8 width=4) (actual time=0.005..0.006 rows=8 loops=1)
+        Output: event_id, bucket_no, bucket_capacity, remaining
+        Index Cond: (event_inventory_bucket.event_id = '500'::bigint)
+        Buffers: shared hit=3
+Planning Time: 0.041 ms
+Execution Time: 0.016 ms
+
+==============================================================================
+## q02_band_events
+==============================================================================
+
+
+SELECT e.event_id,
+       e.capacity,
+       (SELECT COALESCE(SUM(b.remaining), 0) FROM event_inventory_bucket b
+         WHERE b.event_id = e.event_id)::BIGINT AS seats_left
+  FROM event e
+ WHERE e.band_id = $1
+ ORDER BY e.starts_at, e.event_id
+
+Incremental Sort  (cost=6.83..184.88 rows=28 width=28) (actual time=0.081..0.083 rows=28 loops=1)
+  Output: e.event_id, e.capacity, ((SubPlan 1)), e.starts_at
+  Sort Key: e.starts_at, e.event_id
+  Presorted Key: e.starts_at
+  Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
+  Buffers: shared hit=113
+  ->  Index Scan using event_band_idx on public.event e  (cost=0.28..183.62 rows=28 width=28) (actual time=0.011..0.077 rows=28 loops=1)
+        Output: e.event_id, e.capacity, (SubPlan 1), e.starts_at
+        Index Cond: (e.band_id = '7'::bigint)
+        Buffers: shared hit=113
+        SubPlan 1
+          ->  Aggregate  (cost=6.01..6.02 rows=1 width=8) (actual time=0.002..0.002 rows=1 loops=28)
+                Output: COALESCE(sum(b.remaining), '0'::bigint)
+                Buffers: shared hit=84
+                ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket b  (cost=0.28..5.99 rows=8 width=4) (actual time=0.001..0.002 rows=8 loops=28)
+                      Output: b.event_id, b.bucket_no, b.bucket_capacity, b.remaining
+                      Index Cond: (b.event_id = e.event_id)
+                      Buffers: shared hit=84
+Planning Time: 0.042 ms
+Execution Time: 0.095 ms
+
+==============================================================================
+## q03_customer_tickets
+==============================================================================
+
+
+SELECT ticket_id, event_id, seat_no
+  FROM ticket
+ WHERE customer_id = $1
+ ORDER BY ticket_id
+
+Sort  (cost=807.68..813.34 rows=2265 width=20) (actual time=0.655..0.716 rows=2298 loops=1)
+  Output: ticket_id, event_id, seat_no
+  Sort Key: ticket.ticket_id
+  Sort Method: quicksort  Memory: 186kB
+  Buffers: shared hit=597
+  ->  Bitmap Heap Scan on public.ticket  (cost=21.14..681.46 rows=2265 width=20) (actual time=0.109..0.469 rows=2298 loops=1)
+        Output: ticket_id, event_id, seat_no
+        Recheck Cond: (ticket.customer_id = '1'::bigint)
+        Heap Blocks: exact=594
+        Buffers: shared hit=597
+        ->  Bitmap Index Scan on ticket_customer_idx  (cost=0.00..20.58 rows=2265 width=0) (actual time=0.057..0.057 rows=2298 loops=1)
+              Index Cond: (ticket.customer_id = '1'::bigint)
+              Buffers: shared hit=3
+Planning Time: 0.040 ms
+Execution Time: 0.778 ms
+
+==============================================================================
+## q04_ticket_by_id
+==============================================================================
+
+
+SELECT ticket_id, event_id, seat_no, customer_id
+  FROM ticket
+ WHERE ticket_id = $1
+
+Index Scan using ticket_pkey on public.ticket  (cost=0.29..2.51 rows=1 width=28) (actual time=0.003..0.003 rows=1 loops=1)
+  Output: ticket_id, event_id, seat_no, customer_id
+  Index Cond: (ticket.ticket_id = '58001'::bigint)
+  Buffers: shared hit=3
+Planning Time: 0.013 ms
+Execution Time: 0.006 ms
+
+==============================================================================
+## q05_band_tickets_sold
+==============================================================================
+
+
+SELECT COALESCE(SUM(b.bucket_capacity - b.remaining), 0)::BIGINT AS sold
+  FROM event e
+  JOIN event_inventory_bucket b ON b.event_id = e.event_id
+ WHERE e.band_id = $1
+
+Aggregate  (cost=90.11..90.12 rows=1 width=8) (actual time=0.140..0.140 rows=1 loops=1)
+  Output: COALESCE(sum((b.bucket_capacity - b.remaining)), '0'::bigint)
+  Buffers: shared hit=97
+  ->  Nested Loop  (cost=1.87..88.99 rows=224 width=8) (actual time=0.009..0.130 rows=224 loops=1)
+        Output: b.bucket_capacity, b.remaining
+        Buffers: shared hit=97
+        ->  Bitmap Heap Scan on public.event e  (cost=1.59..13.94 rows=28 width=8) (actual time=0.006..0.012 rows=28 loops=1)
+              Output: e.event_id, e.band_id, e.name, e.venue, e.starts_at, e.capacity, e.price_cents, e.description
+              Recheck Cond: (e.band_id = '7'::bigint)
+              Heap Blocks: exact=11
+              Buffers: shared hit=13
+              ->  Bitmap Index Scan on event_band_idx  (cost=0.00..1.58 rows=28 width=0) (actual time=0.003..0.003 rows=28 loops=1)
+                    Index Cond: (e.band_id = '7'::bigint)
+                    Buffers: shared hit=2
+        ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket b  (cost=0.28..2.60 rows=8 width=16) (actual time=0.001..0.004 rows=8 loops=28)
+              Output: b.event_id, b.bucket_no, b.bucket_capacity, b.remaining
+              Index Cond: (b.event_id = e.event_id)
+              Buffers: shared hit=84
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.101 ms
+Execution Time: 0.151 ms
+
+==============================================================================
+## w_pick_bucket
+==============================================================================
+
+# random() over at most 8 rows: spreads buyers across buckets instead of
+# sending them all to bucket 1.
+
+SELECT bucket_no
+  FROM event_inventory_bucket
+ WHERE event_id = $1
+   AND remaining > 0
+ ORDER BY random()
+ LIMIT 1
+   FOR UPDATE SKIP LOCKED
+
+Limit  (cost=6.06..6.08 rows=1 width=18) (actual time=0.015..0.015 rows=1 loops=1)
+  Output: bucket_no, (random()), ctid
+  Buffers: shared hit=4
+  ->  LockRows  (cost=6.06..6.15 rows=7 width=18) (actual time=0.015..0.015 rows=1 loops=1)
+        Output: bucket_no, (random()), ctid
+        Buffers: shared hit=4
+        ->  Sort  (cost=6.06..6.08 rows=7 width=18) (actual time=0.011..0.011 rows=1 loops=1)
+              Output: bucket_no, (random()), ctid
+              Sort Key: (random())
+              Sort Method: quicksort  Memory: 25kB
+              Buffers: shared hit=3
+              ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket  (cost=0.28..6.03 rows=7 width=18) (actual time=0.007..0.008 rows=5 loops=1)
+                    Output: bucket_no, random(), ctid
+                    Index Cond: (event_inventory_bucket.event_id = '500'::bigint)
+                    Filter: (event_inventory_bucket.remaining > 0)
+                    Rows Removed by Filter: 3
+                    Buffers: shared hit=3
+Planning Time: 0.035 ms
+Execution Time: 0.023 ms
+
+==============================================================================
+## w_any_remaining
+==============================================================================
+
+
+SELECT EXISTS (SELECT 1 FROM event_inventory_bucket WHERE event_id = $1 AND remaining > 0)
+
+Result  (cost=1.10..1.11 rows=1 width=1) (actual time=0.006..0.006 rows=1 loops=1)
+  Output: (InitPlan 1).col1
+  Buffers: shared hit=3
+  InitPlan 1
+    ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket  (cost=0.28..6.01 rows=7 width=0) (actual time=0.005..0.005 rows=1 loops=1)
+          Index Cond: (event_inventory_bucket.event_id = '500'::bigint)
+          Filter: (event_inventory_bucket.remaining > 0)
+          Rows Removed by Filter: 3
+          Buffers: shared hit=3
+Planning Time: 0.028 ms
+Execution Time: 0.023 ms
+
+==============================================================================
+## w_take_from_bucket
+==============================================================================
+
+
+UPDATE event_inventory_bucket
+   SET remaining = remaining - 1
+ WHERE event_id = $1
+   AND bucket_no = $2
+   AND remaining > 0
+
+Update on public.event_inventory_bucket  (cost=0.28..2.51 rows=0 width=0) (actual time=0.005..0.006 rows=0 loops=1)
+  Buffers: shared hit=3
+  ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket  (cost=0.28..2.51 rows=1 width=10) (actual time=0.005..0.005 rows=0 loops=1)
+        Output: (remaining - 1), ctid
+        Index Cond: ((event_inventory_bucket.event_id = '500'::bigint) AND (event_inventory_bucket.bucket_no = 1))
+        Filter: (event_inventory_bucket.remaining > 0)
+        Rows Removed by Filter: 1
+        Buffers: shared hit=3
+Planning Time: 0.026 ms
+Execution Time: 0.013 ms
+
+==============================================================================
+## w_insert_ticket
+==============================================================================
+
+
+INSERT INTO ticket (ticket_id, event_id, seat_no, customer_id, sold_at, price_cents)
+VALUES ($1, $2, $3, $4, now(), $5)
+
+Insert on public.ticket  (cost=0.00..0.01 rows=0 width=0) (actual time=0.056..0.056 rows=0 loops=1)
+  Buffers: shared hit=8
+  ->  Result  (cost=0.00..0.01 rows=1 width=44) (actual time=0.002..0.003 rows=1 loops=1)
+        Output: '1020289501'::bigint, '500'::bigint, 41074, '1'::bigint, now(), '8000'::bigint
+Planning Time: 0.029 ms
+Trigger RI_ConstraintTrigger_c_18272 for constraint ticket_event_id_fkey: time=0.097 calls=1
+Execution Time: 0.172 ms
+
+==============================================================================
+## w_cancel_ticket
+==============================================================================
+
+
+DELETE FROM ticket WHERE ticket_id = $1
+RETURNING event_id, seat_no
+
+Delete on public.ticket  (cost=0.29..2.51 rows=1 width=6) (actual time=0.012..0.013 rows=1 loops=1)
+  Output: event_id, seat_no
+  Buffers: shared hit=5
+  ->  Index Scan using ticket_pkey on public.ticket  (cost=0.29..2.51 rows=1 width=6) (actual time=0.008..0.008 rows=1 loops=1)
+        Output: ctid
+        Index Cond: (ticket.ticket_id = '58001'::bigint)
+        Buffers: shared hit=3
+Planning Time: 0.020 ms
+Execution Time: 0.020 ms
+
+==============================================================================
+## w_pick_refill_bucket
+==============================================================================
+
+
+SELECT bucket_no
+  FROM event_inventory_bucket
+ WHERE event_id = $1
+   AND remaining < bucket_capacity
+ ORDER BY random()
+ LIMIT 1
+   FOR UPDATE SKIP LOCKED
+
+Limit  (cost=6.03..6.05 rows=1 width=18) (actual time=0.021..0.021 rows=1 loops=1)
+  Output: bucket_no, (random()), ctid
+  Buffers: shared hit=4
+  ->  LockRows  (cost=6.03..6.07 rows=3 width=18) (actual time=0.021..0.021 rows=1 loops=1)
+        Output: bucket_no, (random()), ctid
+        Buffers: shared hit=4
+        ->  Sort  (cost=6.03..6.04 rows=3 width=18) (actual time=0.010..0.011 rows=1 loops=1)
+              Output: bucket_no, (random()), ctid
+              Sort Key: (random())
+              Sort Method: quicksort  Memory: 25kB
+              Buffers: shared hit=3
+              ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket  (cost=0.28..6.02 rows=3 width=18) (actual time=0.006..0.008 rows=4 loops=1)
+                    Output: bucket_no, random(), ctid
+                    Index Cond: (event_inventory_bucket.event_id = '500'::bigint)
+                    Filter: (event_inventory_bucket.remaining < event_inventory_bucket.bucket_capacity)
+                    Rows Removed by Filter: 4
+                    Buffers: shared hit=3
+Planning Time: 0.034 ms
+Execution Time: 0.030 ms
+
+==============================================================================
+## w_return_to_bucket
+==============================================================================
+
+
+UPDATE event_inventory_bucket
+   SET remaining = remaining + 1
+ WHERE event_id = $1
+   AND bucket_no = $2
+   AND remaining < bucket_capacity
+
+Update on public.event_inventory_bucket  (cost=0.28..2.51 rows=0 width=0) (actual time=0.026..0.027 rows=0 loops=1)
+  Buffers: shared hit=13
+  ->  Index Scan using event_inventory_bucket_pkey on public.event_inventory_bucket  (cost=0.28..2.51 rows=1 width=10) (actual time=0.008..0.009 rows=1 loops=1)
+        Output: (remaining + 1), ctid
+        Index Cond: ((event_inventory_bucket.event_id = '500'::bigint) AND (event_inventory_bucket.bucket_no = 1))
+        Filter: (event_inventory_bucket.remaining < event_inventory_bucket.bucket_capacity)
+        Buffers: shared hit=5
+Planning Time: 0.036 ms
+Execution Time: 0.034 ms
+
+==============================================================================
+## w_edit_event
+==============================================================================
+
+
+UPDATE event SET description = $1 WHERE event_id = $2
+
+Update on public.event  (cost=0.28..2.49 rows=0 width=0) (actual time=0.052..0.052 rows=0 loops=1)
+  Buffers: shared hit=15
+  ->  Index Scan using event_pkey on public.event  (cost=0.28..2.49 rows=1 width=38) (actual time=0.017..0.018 rows=1 loops=1)
+        Output: 'Explained.'::text, ctid
+        Index Cond: (event.event_id = '500'::bigint)
+        Buffers: shared hit=5
+Planning Time: 0.054 ms
+Execution Time: 0.067 ms
+
+==============================================================================
+## w_publish_event
+==============================================================================
+
+
+INSERT INTO event (event_id, band_id, name, venue, starts_at, capacity, price_cents, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+
+Insert on public.event  (cost=0.00..0.01 rows=0 width=0) (actual time=0.070..0.070 rows=0 loops=1)
+  Buffers: shared hit=9 dirtied=1
+  ->  Result  (cost=0.00..0.01 rows=1 width=132) (actual time=0.001..0.001 rows=1 loops=1)
+        Output: '1000690'::bigint, '7'::bigint, 'explain show'::text, 'stadium'::text, '2026-10-01 20:00:00+00'::timestamp with time zone, 100000, '8000'::bigint, 'Explained.'::text
+Planning Time: 0.008 ms
+Trigger RI_ConstraintTrigger_c_18251 for constraint event_band_id_fkey: time=0.091 calls=1
+Execution Time: 0.170 ms
+
+==============================================================================
+## w_publish_buckets
+==============================================================================
+
+# min(8, capacity) buckets; the remainder of capacity / buckets goes to the
+# first buckets, one seat each, so bucket sizes differ by at most one.
+
+INSERT INTO event_inventory_bucket (event_id, bucket_no, bucket_capacity, remaining)
+SELECT $1::BIGINT, b,
+       ($2::INT / k) + CASE WHEN b <= $2::INT % k THEN 1 ELSE 0 END,
+       ($2::INT / k) + CASE WHEN b <= $2::INT % k THEN 1 ELSE 0 END
+  FROM (SELECT LEAST(8, $2::INT) AS k) s,
+       generate_series(1, s.k) AS b
+
+Insert on public.event_inventory_bucket  (cost=0.00..0.16 rows=0 width=0) (actual time=0.044..0.044 rows=0 loops=1)
+  Buffers: shared hit=27
+  ->  Function Scan on pg_catalog.generate_series b  (cost=0.00..0.16 rows=8 width=20) (actual time=0.004..0.005 rows=8 loops=1)
+        Output: '1000690'::bigint, b.b, (12500 + CASE WHEN (b.b <= 0) THEN 1 ELSE 0 END), (12500 + CASE WHEN (b.b <= 0) THEN 1 ELSE 0 END)
+        Function Call: generate_series(1, 8)
+Planning:
+  Buffers: shared hit=3
+Planning Time: 0.047 ms
+Trigger RI_ConstraintTrigger_c_18262 for constraint event_inventory_bucket_event_id_fkey: time=0.117 calls=8
+Execution Time: 0.170 ms
+

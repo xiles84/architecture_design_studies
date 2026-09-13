@@ -1,0 +1,54 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  dataset: 40 bands, 690 events, 289500 seats, 65388 sold at load
+  loading h0_hold_naive_confirm ...
+  loaded in 12.9s (copy 0.9s, index 8.5s)
+  verifying answers against ground truth ...
+    40/40 checks passed; audit on load: consistent (690 events, 65388 seats sold)
+  capturing plans ...
+  read benchmark:
+    q01_event_availability@10              4026.4 ops/s  p50=  0.927ms p99=  51.805ms  errors=0
+    q01_event_availability@100             3986.7 ops/s  p50=  0.909ms p99=  52.648ms  errors=0
+    q01_event_availability@1000            4156.6 ops/s  p50=  0.894ms p99=  52.084ms  errors=0
+    q01_event_availability@10000           4155.9 ops/s  p50=  0.899ms p99=  52.268ms  errors=0
+    q01_event_availability@100000          4153.7 ops/s  p50=  0.896ms p99=  52.259ms  errors=0
+    q02_band_events                        2220.2 ops/s  p50=  1.768ms p99=  52.016ms  errors=0
+    q03_customer_tickets                   2403.9 ops/s  p50=  1.330ms p99=  60.690ms  errors=0
+    q04_ticket_by_id                       4570.2 ops/s  p50=  0.577ms p99=  65.055ms  errors=0
+    q05_band_tickets_sold                   716.9 ops/s  p50=  2.983ms p99=  96.786ms  errors=0
+  write benchmark (fresh load per op):
+    book                                     69.5 ops/s  p50= 72.976ms p99= 600.866ms  rejected=0 retries=0 errors=0
+      audit after book: consistent (690 events, 65860 seats sold)
+    cancel                                  102.8 ops/s  p50= 35.255ms p99= 403.497ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (690 events, 64654 seats sold)
+    publish@10                              331.2 ops/s  p50=  7.801ms p99=  51.015ms  rejected=0 retries=0 errors=0
+    publish@100                             333.9 ops/s  p50=  7.965ms p99=  44.606ms  rejected=0 retries=0 errors=0
+    publish@1000                            264.9 ops/s  p50=  7.467ms p99=  41.715ms  rejected=0 retries=0 errors=0
+    publish@10000                           359.5 ops/s  p50=  5.172ms p99=   5.172ms  rejected=0 retries=0 errors=0
+    publish@100000                          333.7 ops/s  p50=  4.428ms p99=   4.428ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2919 events, 65388 seats sold)
+  race trial 1/1 (32 buyers per event, fresh load):
+    race       10 seats x100       17.6 sold/s  p50=266.196ms p99= 714.071ms  attempts/sale=1.00 errors=0  editor p99=476.38ms  ok
+      audit: consistent (690 events, 66388 seats sold)
+    race      100 seats x20        18.8 sold/s  p50=1367.606ms p99=2853.829ms  attempts/sale=1.00 errors=0  editor p99=900.53ms  ok
+      audit: consistent (690 events, 68388 seats sold)
+    race     1000 seats x4         18.5 sold/s  p50=2078.652ms p99=2927.363ms  attempts/sale=1.00 errors=0  editor p99=1104.73ms  ok
+      audit: consistent (690 events, 72388 seats sold)
+    race    10000 seats x2         18.7 sold/s  p50=2077.434ms p99=2927.882ms  attempts/sale=1.00 errors=0  editor p99=994.43ms  ok, 2 timed out (11% sold)
+      audit: consistent (690 events, 74684 seats sold)
+    race   100000 seats x1         18.7 sold/s  p50=2054.262ms p99=2854.841ms  attempts/sale=1.00 errors=0  editor p99=941.80ms  ok, 1 timed out (1% sold)
+      audit: consistent (690 events, 75838 seats sold)
+  churn trial 1/1 (32 buyers per event, fresh load):
+    churn      10 seats x50        17.6 sold/s  p50=242.337ms p99= 734.748ms  attempts/sale=1.00 errors=0  editor p99=496.34ms  ok
+      audit: consistent (690 events, 65888 seats sold)
+    churn     100 seats x10        17.1 sold/s  p50=1511.116ms p99=2909.196ms  attempts/sale=1.00 errors=0  editor p99=996.71ms  ok
+      audit: consistent (690 events, 66888 seats sold)
+    churn    1000 seats x2         16.9 sold/s  p50=2062.511ms p99=2986.156ms  attempts/sale=1.00 errors=0  editor p99=1002.53ms  ok, 2 timed out (94% sold)
+      audit: consistent (690 events, 68764 seats sold)
+  holds (32 buyers per event, TTL 2.5s, fresh load):
+    holds      10 seats x4        1.3 confirmed/s  holds=57 abandoned=16 late-rejected=0 swept=17 errors=0  ok
+      audit: consistent (690 events, 65428 seats sold)
+    holds     100 seats x4        9.8 confirmed/s  holds=560 abandoned=143 late-rejected=0 swept=174 errors=2  OVERBOOKED 4 events (+11 seats)
+      audit: VIOLATIONS — 4 overbooked events (+11 seats), 0 duplicate seats, 4 derived-state drifts, 0 ledger mismatches
+      first error: sweeper: ERROR: deadlock detected (query layer retry isn't possible, READ COMMITTED transaction was aborted to break a deadlock cycle and some data was already sent to the user) (SQLSTATE 40P01)
+  wrote /results/h0_hold_naive_confirm.json

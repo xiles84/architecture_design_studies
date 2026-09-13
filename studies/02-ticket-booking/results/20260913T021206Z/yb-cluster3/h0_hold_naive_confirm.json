@@ -1,0 +1,1582 @@
+{
+  "study": "02-ticket-booking",
+  "run_id": "20260913T021206Z",
+  "repo": {
+    "commit": "7570648c522036728b6b0315c88a465a500f47d3",
+    "describe": "study-02/v1-harness-1-g7570648",
+    "dirty": false,
+    "tag": "run/02-ticket-booking/20260913T021206Z"
+  },
+  "started_at": "2026-09-13T08:20:48.611201231Z",
+  "finished_at": "2026-09-13T08:39:41.964658051Z",
+  "environment": "host-zenbook-ux5406sa",
+  "engine": "yugabyte",
+  "topology": "yb-cluster3",
+  "engine_info": {
+    "version": "PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit",
+    "default_isolation": "read committed",
+    "effective_isolation": "read committed"
+  },
+  "design_id": "h0_hold_naive_confirm",
+  "design_title": "hold-naive-confirm",
+  "design_family": "reservation with expiry",
+  "design_summary": "Hold with expiry then confirm; confirmation trusts the pre-payment check. Negative control for late payments.",
+  "isolation": "rc",
+  "negative_control": "confirms a hold that expired during payment, after the seat may have been resold",
+  "scale": "small",
+  "dataset": {
+    "bands": 40,
+    "customers": 20000,
+    "events": 690,
+    "events_by_kind": {
+      "catalogue": 500,
+      "churn": 62,
+      "race": 128
+    },
+    "events_by_kind_tier": {
+      "catalogue_10": 400,
+      "catalogue_100": 80,
+      "catalogue_1000": 16,
+      "catalogue_10000": 3,
+      "catalogue_100000": 1,
+      "churn_10": 50,
+      "churn_100": 10,
+      "churn_1000": 2,
+      "race_10": 100,
+      "race_100": 20,
+      "race_1000": 5,
+      "race_10000": 2,
+      "race_100000": 1
+    },
+    "scale": "small",
+    "seats_by_kind": {
+      "catalogue": 158000,
+      "churn": 3500,
+      "race": 128000
+    },
+    "seats_total": 289500,
+    "seed": 42,
+    "tickets_sold_at_load": 65388
+  },
+  "options": {
+    "churn_pct": 10,
+    "conns": 8,
+    "duration": "5s",
+    "editor_interval": "20ms",
+    "hold_abandon_pct": 25,
+    "hold_buyers": 32,
+    "hold_events_per_tier": 4,
+    "hold_pay": "200ms-1s",
+    "hold_sweep_every": "500ms",
+    "hold_think_max": "2s",
+    "hold_tiers": "10,100",
+    "hold_time_scale": 10,
+    "hold_ttl": "2.5s",
+    "load_conns": 4,
+    "phases": "verify,explain,read,write,race,churn,holds",
+    "race_buyers": 32,
+    "race_tier_budget": "3m0s",
+    "race_timeout": "1m0s",
+    "race_trials": 1,
+    "seed": 42,
+    "statement_timeout_ms": 300000,
+    "tiers": "",
+    "trials": 1,
+    "warmup": "2s",
+    "write_ops": "book,cancel,publish"
+  },
+  "load": {
+    "drop_ms": 1251.318,
+    "schema_ms": 1829.751,
+    "copy_ms": 928.355,
+    "index_ms": 8537.154,
+    "analyze_ms": 353.953,
+    "total_ms": 12900.535,
+    "rows_loaded": {
+      "band": 40,
+      "event": 690,
+      "reservation": 0,
+      "ticket": 65388
+    }
+  },
+  "verify": {
+    "passed": 40,
+    "failed": 0,
+    "checks": [
+      {
+        "query": "q01_event_availability",
+        "key": "event 3 (catalogue, 10 seats)",
+        "ok": true,
+        "expect": "5",
+        "got": "5"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 501 (race, 10 seats)",
+        "ok": true,
+        "expect": "10",
+        "got": "10"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 405 (catalogue, 100 seats)",
+        "ok": true,
+        "expect": "44",
+        "got": "44"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 601 (race, 100 seats)",
+        "ok": true,
+        "expect": "100",
+        "got": "100"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 482 (catalogue, 1000 seats)",
+        "ok": true,
+        "expect": "417",
+        "got": "417"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 621 (race, 1000 seats)",
+        "ok": true,
+        "expect": "1000",
+        "got": "1000"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 497 (catalogue, 10000 seats)",
+        "ok": true,
+        "expect": "4368",
+        "got": "4368"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 626 (race, 10000 seats)",
+        "ok": true,
+        "expect": "10000",
+        "got": "10000"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 500 (catalogue, 100000 seats)",
+        "ok": true,
+        "expect": "58927",
+        "got": "58927"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 628 (race, 100000 seats)",
+        "ok": true,
+        "expect": "100000",
+        "got": "100000"
+      },
+      {
+        "query": "q02_band_events",
+        "key": "band 1 (145 events)",
+        "ok": true,
+        "expect": "464:100:69,661:10:10,517:10:10,64:10:7,572:10:10,35:10:8,122:10:5,303:10:7,537:10:10,567:10:10,540:10:10,182:10:7,383:10:8,518:10:10,44:10:8,93:10:8,145:10:5... (145 rows)",
+        "got": "464:100:69,661:10:10,517:10:10,64:10:7,572:10:10,35:10:8,122:10:5,303:10:7,537:10:10,567:10:10,540:10:10,182:10:7,383:10:8,518:10:10,44:10:8,93:10:8,145:10:5... (145 rows)"
+      },
+      {
+        "query": "q05_band_tickets_sold",
+        "key": "band 1",
+        "ok": true,
+        "expect": "11450",
+        "got": "11450"
+      },
+      {
+        "query": "q02_band_events",
+        "key": "band 21 (8 events)",
+        "ok": true,
+        "expect": "628:100000:100000,663:10:10,363:10:8,612:100:100,186:10:6,71:10:7,670:10:10,570:10:10",
+        "got": "628:100000:100000,663:10:10,363:10:8,612:100:100,186:10:6,71:10:7,670:10:10,570:10:10"
+      },
+      {
+        "query": "q05_band_tickets_sold",
+        "key": "band 21",
+        "ok": true,
+        "expect": "9",
+        "got": "9"
+      },
+      {
+        "query": "q03_customer_tickets",
+        "key": "customer 1 (2298 tickets)",
+        "ok": true,
+        "expect": "43:5:3,121:13:1,162:17:2,235:24:5,402:41:2,442:45:2,443:45:3,572:58:2,621:63:1,653:66:3,703:71:3,783:79:3,851:86:1,875:88:5,882:89:2,1063:107:3,1072:108:2,12... (2298 rows)",
+        "got": "43:5:3,121:13:1,162:17:2,235:24:5,402:41:2,442:45:2,443:45:3,572:58:2,621:63:1,653:66:3,703:71:3,783:79:3,851:86:1,875:88:5,882:89:2,1063:107:3,1072:108:2,12... (2298 rows)"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 79169",
+        "ok": true,
+        "expect": "79169:500:21169:286",
+        "got": "79169:500:21169:286"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 60038",
+        "ok": true,
+        "expect": "60038:500:2038:4478",
+        "got": "60038:500:2038:4478"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 50799",
+        "ok": true,
+        "expect": "50799:499:2799:5123",
+        "got": "50799:499:2799:5123"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 97090",
+        "ok": true,
+        "expect": "97090:500:39090:8",
+        "got": "97090:500:39090:8"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 25118",
+        "ok": true,
+        "expect": "25118:494:118:44",
+        "got": "25118:494:118:44"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 92163",
+        "ok": true,
+        "expect": "92163:500:34163:14443",
+        "got": "92163:500:34163:14443"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 82764",
+        "ok": true,
+        "expect": "82764:500:24764:401",
+        "got": "82764:500:24764:401"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 49915",
+        "ok": true,
+        "expect": "49915:499:1915:1",
+        "got": "49915:499:1915:1"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 86614",
+        "ok": true,
+        "expect": "86614:500:28614:191",
+        "got": "86614:500:28614:191"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 97213",
+        "ok": true,
+        "expect": "97213:500:39213:1203",
+        "got": "97213:500:39213:1203"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 98291",
+        "ok": true,
+        "expect": "98291:500:40291:487",
+        "got": "98291:500:40291:487"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 88094",
+        "ok": true,
+        "expect": "88094:500:30094:3249",
+        "got": "88094:500:30094:3249"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 94742",
+        "ok": true,
+        "expect": "94742:500:36742:13",
+        "got": "94742:500:36742:13"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 9641",
+        "ok": true,
+        "expect": "9641:457:41:7",
+        "got": "9641:457:41:7"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 75291",
+        "ok": true,
+        "expect": "75291:500:17291:2148",
+        "got": "75291:500:17291:2148"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 30910",
+        "ok": true,
+        "expect": "30910:497:2910:21",
+        "got": "30910:497:2910:21"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 67350",
+        "ok": true,
+        "expect": "67350:500:9350:2",
+        "got": "67350:500:9350:2"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 70259",
+        "ok": true,
+        "expect": "70259:500:12259:16740",
+        "got": "70259:500:12259:16740"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 93875",
+        "ok": true,
+        "expect": "93875:500:35875:21",
+        "got": "93875:500:35875:21"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 69166",
+        "ok": true,
+        "expect": "69166:500:11166:8",
+        "got": "69166:500:11166:8"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 39471",
+        "ok": true,
+        "expect": "39471:498:1471:46",
+        "got": "39471:498:1471:46"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 77310",
+        "ok": true,
+        "expect": "77310:500:19310:1",
+        "got": "77310:500:19310:1"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 65425",
+        "ok": true,
+        "expect": "65425:500:7425:620",
+        "got": "65425:500:7425:620"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 96089",
+        "ok": true,
+        "expect": "96089:500:38089:205",
+        "got": "96089:500:38089:205"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 72246",
+        "ok": true,
+        "expect": "72246:500:14246:565",
+        "got": "72246:500:14246:565"
+      }
+    ]
+  },
+  "load_audit": {
+    "phase": "load",
+    "events_checked": 690,
+    "seats_sold": 65388,
+    "overbooked_events": 0,
+    "overbooked_seats": 0,
+    "duplicate_seats": 0,
+    "derived_drift_events": 0,
+    "ledger_mismatch_events": 0
+  },
+  "stats": {
+    "total_bytes": 0,
+    "note": "size functions are not meaningful on YugabyteDB (storage lives in DocDB, not PostgreSQL heap files)"
+  },
+  "reads": [
+    {
+      "name": "q01_event_availability@10",
+      "ops": 20137,
+      "errors": 0,
+      "duration_s": 5.001285371,
+      "ops_per_sec": 4026.36492545788,
+      "latency": {
+        "count": 20137,
+        "min_ms": 0.302584,
+        "mean_ms": 1.9858136048070716,
+        "p50_ms": 0.926565,
+        "p90_ms": 1.47794,
+        "p95_ms": 1.810957,
+        "p99_ms": 51.80458,
+        "p999_ms": 55.255071,
+        "max_ms": 57.432313
+      },
+      "trials_ops_per_sec": [
+        4026.36492545788
+      ],
+      "query": "q01_event_availability",
+      "tier": 10
+    },
+    {
+      "name": "q01_event_availability@100",
+      "ops": 19936,
+      "errors": 0,
+      "duration_s": 5.000606023,
+      "ops_per_sec": 3986.7167915859627,
+      "latency": {
+        "count": 19936,
+        "min_ms": 0.340691,
+        "mean_ms": 2.005788075491573,
+        "p50_ms": 0.909111,
+        "p90_ms": 1.403381,
+        "p95_ms": 1.6741,
+        "p99_ms": 52.647921,
+        "p999_ms": 57.993477,
+        "max_ms": 60.658558
+      },
+      "trials_ops_per_sec": [
+        3986.7167915859627
+      ],
+      "query": "q01_event_availability",
+      "tier": 100
+    },
+    {
+      "name": "q01_event_availability@1000",
+      "ops": 20788,
+      "errors": 0,
+      "duration_s": 5.001227311,
+      "ops_per_sec": 4156.579716798239,
+      "latency": {
+        "count": 20788,
+        "min_ms": 0.288469,
+        "mean_ms": 1.9236889405426207,
+        "p50_ms": 0.894058,
+        "p90_ms": 1.352659,
+        "p95_ms": 1.592314,
+        "p99_ms": 52.084286,
+        "p999_ms": 56.279229,
+        "max_ms": 59.068771
+      },
+      "trials_ops_per_sec": [
+        4156.579716798239
+      ],
+      "query": "q01_event_availability",
+      "tier": 1000
+    },
+    {
+      "name": "q01_event_availability@10000",
+      "ops": 20784,
+      "errors": 0,
+      "duration_s": 5.001118165,
+      "ops_per_sec": 4155.8706101878315,
+      "latency": {
+        "count": 20784,
+        "min_ms": 0.317069,
+        "mean_ms": 1.9240265423402618,
+        "p50_ms": 0.898903,
+        "p90_ms": 1.36821,
+        "p95_ms": 1.611975,
+        "p99_ms": 52.268434,
+        "p999_ms": 55.025892,
+        "max_ms": 58.212188
+      },
+      "trials_ops_per_sec": [
+        4155.8706101878315
+      ],
+      "query": "q01_event_availability",
+      "tier": 10000
+    },
+    {
+      "name": "q01_event_availability@100000",
+      "ops": 20771,
+      "errors": 0,
+      "duration_s": 5.000610361,
+      "ops_per_sec": 4153.692949563522,
+      "latency": {
+        "count": 20771,
+        "min_ms": 0.298293,
+        "mean_ms": 1.9251454190939292,
+        "p50_ms": 0.895557,
+        "p90_ms": 1.356579,
+        "p95_ms": 1.586896,
+        "p99_ms": 52.259336,
+        "p999_ms": 54.446349,
+        "max_ms": 55.417819
+      },
+      "trials_ops_per_sec": [
+        4153.692949563522
+      ],
+      "query": "q01_event_availability",
+      "tier": 100000
+    },
+    {
+      "name": "q02_band_events",
+      "ops": 11213,
+      "errors": 0,
+      "duration_s": 5.050499438,
+      "ops_per_sec": 2220.1764672288236,
+      "latency": {
+        "count": 11213,
+        "min_ms": 0.780505,
+        "mean_ms": 3.5926542137697317,
+        "p50_ms": 1.768439,
+        "p90_ms": 2.516741,
+        "p95_ms": 3.086945,
+        "p99_ms": 52.015644,
+        "p999_ms": 55.505236,
+        "max_ms": 56.88164
+      },
+      "trials_ops_per_sec": [
+        2220.1764672288236
+      ],
+      "query": "q02_band_events"
+    },
+    {
+      "name": "q03_customer_tickets",
+      "ops": 12022,
+      "errors": 0,
+      "duration_s": 5.00111007,
+      "ops_per_sec": 2403.86630802549,
+      "latency": {
+        "count": 12022,
+        "min_ms": 0.488077,
+        "mean_ms": 3.3267844134087508,
+        "p50_ms": 1.329759,
+        "p90_ms": 1.991022,
+        "p95_ms": 2.479203,
+        "p99_ms": 60.690019,
+        "p999_ms": 62.252456,
+        "max_ms": 64.140745
+      },
+      "trials_ops_per_sec": [
+        2403.86630802549
+      ],
+      "query": "q03_customer_tickets"
+    },
+    {
+      "name": "q04_ticket_by_id",
+      "ops": 22854,
+      "errors": 0,
+      "duration_s": 5.000641132,
+      "ops_per_sec": 4570.213977914383,
+      "latency": {
+        "count": 22854,
+        "min_ms": 0.186875,
+        "mean_ms": 1.7497480521571716,
+        "p50_ms": 0.576827,
+        "p90_ms": 0.979197,
+        "p95_ms": 1.177225,
+        "p99_ms": 65.054576,
+        "p999_ms": 67.164609,
+        "max_ms": 69.831837
+      },
+      "trials_ops_per_sec": [
+        4570.213977914383
+      ],
+      "query": "q04_ticket_by_id"
+    },
+    {
+      "name": "q05_band_tickets_sold",
+      "ops": 3588,
+      "errors": 0,
+      "duration_s": 5.004932422,
+      "ops_per_sec": 716.8927964398397,
+      "latency": {
+        "count": 3588,
+        "min_ms": 1.188706,
+        "mean_ms": 11.15259973606466,
+        "p50_ms": 2.983318,
+        "p90_ms": 65.315864,
+        "p95_ms": 69.218548,
+        "p99_ms": 96.786062,
+        "max_ms": 168.686295
+      },
+      "trials_ops_per_sec": [
+        716.8927964398397
+      ],
+      "query": "q05_band_tickets_sold"
+    }
+  ],
+  "writes": [
+    {
+      "name": "book",
+      "ops": 355,
+      "errors": 0,
+      "duration_s": 5.106467259,
+      "ops_per_sec": 69.5196859187382,
+      "latency": {
+        "count": 355,
+        "min_ms": 12.591262,
+        "mean_ms": 113.8469150169014,
+        "p50_ms": 72.976273,
+        "p90_ms": 269.089038,
+        "p95_ms": 386.066927,
+        "p99_ms": 600.865909,
+        "max_ms": 741.728825
+      },
+      "trials_ops_per_sec": [
+        69.5196859187382
+      ],
+      "op_budget": 23153,
+      "op": "book",
+      "audit": {
+        "phase": "write:book",
+        "events_checked": 690,
+        "seats_sold": 65860,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      },
+      "attempts_per_success": 1
+    },
+    {
+      "name": "cancel",
+      "ops": 526,
+      "errors": 0,
+      "duration_s": 5.118822496,
+      "ops_per_sec": 102.7580074149928,
+      "latency": {
+        "count": 526,
+        "min_ms": 5.035391,
+        "mean_ms": 77.5110919296578,
+        "p50_ms": 35.255198,
+        "p90_ms": 200.482044,
+        "p95_ms": 293.654789,
+        "p99_ms": 403.497392,
+        "max_ms": 606.061839
+      },
+      "trials_ops_per_sec": [
+        102.7580074149928
+      ],
+      "op_budget": 16347,
+      "op": "cancel",
+      "audit": {
+        "phase": "write:cancel",
+        "events_checked": 690,
+        "seats_sold": 64654,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      },
+      "attempts_per_success": 1
+    },
+    {
+      "name": "publish@10",
+      "ops": 2000,
+      "errors": 0,
+      "duration_s": 6.038698902,
+      "ops_per_sec": 331.197172181843,
+      "latency": {
+        "count": 2000,
+        "min_ms": 3.740606,
+        "mean_ms": 12.0722181305,
+        "p50_ms": 7.800524,
+        "p90_ms": 38.854393,
+        "p95_ms": 43.840039,
+        "p99_ms": 51.015213,
+        "max_ms": 61.773694
+      },
+      "trials_ops_per_sec": [
+        331.197172181843
+      ],
+      "op_budget": 2000,
+      "op": "publish",
+      "tier": 10,
+      "audit": {
+        "phase": "write:publish",
+        "events_checked": 2919,
+        "seats_sold": 65388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      },
+      "attempts_per_success": 1
+    },
+    {
+      "name": "publish@100",
+      "ops": 200,
+      "errors": 0,
+      "duration_s": 0.598950669,
+      "ops_per_sec": 333.917316319084,
+      "latency": {
+        "count": 200,
+        "min_ms": 5.166741,
+        "mean_ms": 11.918016090000002,
+        "p50_ms": 7.964588,
+        "p90_ms": 40.009822,
+        "p95_ms": 41.727373,
+        "p99_ms": 44.605992,
+        "max_ms": 46.782966
+      },
+      "trials_ops_per_sec": [
+        333.917316319084
+      ],
+      "op_budget": 200,
+      "op": "publish",
+      "tier": 100,
+      "audit": {
+        "phase": "write:publish",
+        "events_checked": 2919,
+        "seats_sold": 65388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      },
+      "attempts_per_success": 1
+    },
+    {
+      "name": "publish@1000",
+      "ops": 20,
+      "errors": 0,
+      "duration_s": 0.075512805,
+      "ops_per_sec": 264.85574201620506,
+      "latency": {
+        "count": 20,
+        "min_ms": 5.263084,
+        "mean_ms": 14.35348325,
+        "p50_ms": 7.467127,
+        "p90_ms": 40.659076,
+        "p95_ms": 41.715111,
+        "p99_ms": 41.715111,
+        "max_ms": 45.043381
+      },
+      "trials_ops_per_sec": [
+        264.85574201620506
+      ],
+      "op_budget": 20,
+      "op": "publish",
+      "tier": 1000,
+      "audit": {
+        "phase": "write:publish",
+        "events_checked": 2919,
+        "seats_sold": 65388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      },
+      "attempts_per_success": 1
+    },
+    {
+      "name": "publish@10000",
+      "ops": 2,
+      "errors": 0,
+      "duration_s": 0.005563802,
+      "ops_per_sec": 359.4664224212149,
+      "latency": {
+        "count": 2,
+        "min_ms": 5.172075,
+        "mean_ms": 5.3471345,
+        "p50_ms": 5.172075,
+        "p90_ms": 5.172075,
+        "p95_ms": 5.172075,
+        "p99_ms": 5.172075,
+        "max_ms": 5.522194
+      },
+      "trials_ops_per_sec": [
+        359.4664224212149
+      ],
+      "op_budget": 2,
+      "op": "publish",
+      "tier": 10000,
+      "audit": {
+        "phase": "write:publish",
+        "events_checked": 2919,
+        "seats_sold": 65388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      },
+      "attempts_per_success": 1
+    },
+    {
+      "name": "publish@100000",
+      "ops": 2,
+      "errors": 0,
+      "duration_s": 0.005994204,
+      "ops_per_sec": 333.65564468610006,
+      "latency": {
+        "count": 2,
+        "min_ms": 4.427976,
+        "mean_ms": 5.1954145,
+        "p50_ms": 4.427976,
+        "p90_ms": 4.427976,
+        "p95_ms": 4.427976,
+        "p99_ms": 4.427976,
+        "max_ms": 5.962853
+      },
+      "trials_ops_per_sec": [
+        333.65564468610006
+      ],
+      "op_budget": 2,
+      "op": "publish",
+      "tier": 100000,
+      "audit": {
+        "phase": "write:publish",
+        "events_checked": 2919,
+        "seats_sold": 65388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      },
+      "attempts_per_success": 1
+    }
+  ],
+  "races": [
+    {
+      "mode": "race",
+      "trial": 1,
+      "tier": 10,
+      "events": 100,
+      "events_planned": 100,
+      "buyers": 32,
+      "seats": 1000,
+      "sold": 1000,
+      "successes": 1000,
+      "rejections": 3200,
+      "retries": 0,
+      "errors": 0,
+      "sell_out_s": 56.801040336,
+      "wall_s": 61.006072296,
+      "sold_per_sec": 17.605311347901647,
+      "attempts_per_success": 1,
+      "latency": {
+        "count": 1000,
+        "min_ms": 22.258869,
+        "mean_ms": 284.408548659,
+        "p50_ms": 266.196256,
+        "p90_ms": 530.306534,
+        "p95_ms": 590.587101,
+        "p99_ms": 714.071012,
+        "max_ms": 1544.352997
+      },
+      "reject_latency": {
+        "count": 3200,
+        "min_ms": 1.283352,
+        "mean_ms": 483.5968006490625,
+        "p50_ms": 507.469996,
+        "p90_ms": 666.492958,
+        "p95_ms": 718.111365,
+        "p99_ms": 1002.073462,
+        "max_ms": 1550.884241
+      },
+      "editor_latency": {
+        "count": 596,
+        "min_ms": 2.830273,
+        "mean_ms": 99.93125767114094,
+        "p50_ms": 35.668403,
+        "p90_ms": 290.317101,
+        "p95_ms": 365.684937,
+        "p99_ms": 476.378833,
+        "max_ms": 585.178137
+      },
+      "timed_out_events": 0,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "race@10",
+        "events_checked": 690,
+        "seats_sold": 66388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "mode": "race",
+      "trial": 1,
+      "tier": 100,
+      "events": 20,
+      "events_planned": 20,
+      "buyers": 32,
+      "seats": 2000,
+      "sold": 2000,
+      "successes": 2000,
+      "rejections": 640,
+      "retries": 5,
+      "errors": 0,
+      "sell_out_s": 106.457431208,
+      "wall_s": 107.551146933,
+      "sold_per_sec": 18.78685195862311,
+      "attempts_per_success": 1.0025,
+      "latency": {
+        "count": 2000,
+        "min_ms": 21.200204,
+        "mean_ms": 1361.692783642,
+        "p50_ms": 1367.605639,
+        "p90_ms": 2552.176233,
+        "p95_ms": 2695.293837,
+        "p99_ms": 2853.828973,
+        "max_ms": 5571.824226
+      },
+      "reject_latency": {
+        "count": 640,
+        "min_ms": 1.550698,
+        "mean_ms": 1073.2428349453126,
+        "p50_ms": 998.607127,
+        "p90_ms": 2093.372023,
+        "p95_ms": 2300.75307,
+        "p99_ms": 2617.497383,
+        "max_ms": 5652.545754
+      },
+      "editor_latency": {
+        "count": 448,
+        "min_ms": 2.649078,
+        "mean_ms": 239.13262626785715,
+        "p50_ms": 199.776533,
+        "p90_ms": 528.475179,
+        "p95_ms": 685.791575,
+        "p99_ms": 900.528384,
+        "max_ms": 1171.970805
+      },
+      "timed_out_events": 0,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "race@100",
+        "events_checked": 690,
+        "seats_sold": 68388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "mode": "race",
+      "trial": 1,
+      "tier": 1000,
+      "events": 4,
+      "events_planned": 5,
+      "buyers": 32,
+      "seats": 4000,
+      "sold": 4000,
+      "successes": 4000,
+      "rejections": 128,
+      "retries": 1,
+      "errors": 0,
+      "sell_out_s": 216.481779434,
+      "wall_s": 216.689686345,
+      "sold_per_sec": 18.477305621092707,
+      "attempts_per_success": 1.00025,
+      "latency": {
+        "count": 4000,
+        "min_ms": 24.124273,
+        "mean_ms": 1699.79480063175,
+        "p50_ms": 2078.652475,
+        "p90_ms": 2634.988341,
+        "p95_ms": 2759.138374,
+        "p99_ms": 2927.363122,
+        "max_ms": 5481.420817
+      },
+      "reject_latency": {
+        "count": 128,
+        "min_ms": 3.214007,
+        "mean_ms": 1015.2696355390625,
+        "p50_ms": 941.982825,
+        "p90_ms": 1943.228746,
+        "p95_ms": 2070.28697,
+        "p99_ms": 2212.893346,
+        "max_ms": 2390.227462
+      },
+      "editor_latency": {
+        "count": 767,
+        "min_ms": 3.495388,
+        "mean_ms": 282.29140531551496,
+        "p50_ms": 206.840938,
+        "p90_ms": 605.162977,
+        "p95_ms": 734.060096,
+        "p99_ms": 1104.728906,
+        "max_ms": 1408.599975
+      },
+      "timed_out_events": 0,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "race@1000",
+        "events_checked": 690,
+        "seats_sold": 72388,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "mode": "race",
+      "trial": 1,
+      "tier": 10000,
+      "events": 2,
+      "events_planned": 2,
+      "buyers": 32,
+      "seats": 20000,
+      "sold": 2296,
+      "successes": 2296,
+      "rejections": 0,
+      "retries": 5,
+      "errors": 0,
+      "sell_out_s": 122.731184609,
+      "wall_s": 122.731196303,
+      "sold_per_sec": 18.7075518525683,
+      "attempts_per_success": 1.002177700348432,
+      "latency": {
+        "count": 2296,
+        "min_ms": 22.55027,
+        "mean_ms": 1694.818390168554,
+        "p50_ms": 2077.433736,
+        "p90_ms": 2611.493987,
+        "p95_ms": 2724.013998,
+        "p99_ms": 2927.882484,
+        "max_ms": 5329.277604
+      },
+      "reject_latency": {
+        "count": 0,
+        "min_ms": 0,
+        "mean_ms": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "editor_latency": {
+        "count": 417,
+        "min_ms": 3.994577,
+        "mean_ms": 293.9556885323741,
+        "p50_ms": 214.758167,
+        "p90_ms": 640.244857,
+        "p95_ms": 804.081349,
+        "p99_ms": 994.431407,
+        "max_ms": 1425.00452
+      },
+      "timed_out_events": 2,
+      "timed_out_sold_pct": 11.48,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "race@10000",
+        "events_checked": 690,
+        "seats_sold": 74684,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "mode": "race",
+      "trial": 1,
+      "tier": 100000,
+      "events": 1,
+      "events_planned": 1,
+      "buyers": 32,
+      "seats": 100000,
+      "sold": 1154,
+      "successes": 1154,
+      "rejections": 0,
+      "retries": 1,
+      "errors": 0,
+      "sell_out_s": 61.598613458,
+      "wall_s": 61.598618883,
+      "sold_per_sec": 18.73418791783091,
+      "attempts_per_success": 1.0008665511265165,
+      "latency": {
+        "count": 1154,
+        "min_ms": 27.97711,
+        "mean_ms": 1687.8705678145582,
+        "p50_ms": 2054.26187,
+        "p90_ms": 2527.557619,
+        "p95_ms": 2630.391734,
+        "p99_ms": 2854.840825,
+        "max_ms": 5122.447677
+      },
+      "reject_latency": {
+        "count": 0,
+        "min_ms": 0,
+        "mean_ms": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "editor_latency": {
+        "count": 220,
+        "min_ms": 3.47783,
+        "mean_ms": 279.59793402727274,
+        "p50_ms": 205.904101,
+        "p90_ms": 601.920314,
+        "p95_ms": 797.837315,
+        "p99_ms": 941.797403,
+        "max_ms": 1187.181686
+      },
+      "timed_out_events": 1,
+      "timed_out_sold_pct": 1.154,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "race@100000",
+        "events_checked": 690,
+        "seats_sold": 75838,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "mode": "churn",
+      "trial": 1,
+      "tier": 10,
+      "events": 50,
+      "events_planned": 50,
+      "buyers": 32,
+      "seats": 500,
+      "sold": 500,
+      "successes": 549,
+      "rejections": 1600,
+      "cancels": 49,
+      "retries": 0,
+      "errors": 0,
+      "sell_out_s": 31.19494199,
+      "wall_s": 32.322547039,
+      "sold_per_sec": 17.599006921570492,
+      "attempts_per_success": 1,
+      "latency": {
+        "count": 549,
+        "min_ms": 12.860933,
+        "mean_ms": 273.42656360291437,
+        "p50_ms": 242.336936,
+        "p90_ms": 544.165289,
+        "p95_ms": 605.803191,
+        "p99_ms": 734.74794,
+        "max_ms": 892.204586
+      },
+      "reject_latency": {
+        "count": 1600,
+        "min_ms": 1.177561,
+        "mean_ms": 475.34436394125,
+        "p50_ms": 531.322553,
+        "p90_ms": 664.659025,
+        "p95_ms": 711.817424,
+        "p99_ms": 872.962248,
+        "max_ms": 931.891078
+      },
+      "editor_latency": {
+        "count": 356,
+        "min_ms": 3.01608,
+        "mean_ms": 87.71548126685393,
+        "p50_ms": 25.655957,
+        "p90_ms": 273.767853,
+        "p95_ms": 341.521799,
+        "p99_ms": 496.337729,
+        "max_ms": 599.526482
+      },
+      "timed_out_events": 0,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "churn@10",
+        "events_checked": 690,
+        "seats_sold": 65888,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "mode": "churn",
+      "trial": 1,
+      "tier": 100,
+      "events": 10,
+      "events_planned": 10,
+      "buyers": 32,
+      "seats": 1000,
+      "sold": 1000,
+      "successes": 1107,
+      "rejections": 320,
+      "cancels": 107,
+      "retries": 1,
+      "errors": 0,
+      "sell_out_s": 64.924616907,
+      "wall_s": 65.061101224,
+      "sold_per_sec": 17.05054342616608,
+      "attempts_per_success": 1.000903342366757,
+      "latency": {
+        "count": 1107,
+        "min_ms": 12.821563,
+        "mean_ms": 1439.7860208220416,
+        "p50_ms": 1511.116483,
+        "p90_ms": 2615.783497,
+        "p95_ms": 2722.027398,
+        "p99_ms": 2909.196309,
+        "max_ms": 5331.203152
+      },
+      "reject_latency": {
+        "count": 320,
+        "min_ms": 1.425123,
+        "mean_ms": 957.6046677375,
+        "p50_ms": 882.003234,
+        "p90_ms": 2010.396548,
+        "p95_ms": 2219.469122,
+        "p99_ms": 2521.305353,
+        "max_ms": 2660.058293
+      },
+      "editor_latency": {
+        "count": 275,
+        "min_ms": 3.074872,
+        "mean_ms": 235.55154600727275,
+        "p50_ms": 182.01032,
+        "p90_ms": 595.415967,
+        "p95_ms": 779.28636,
+        "p99_ms": 996.708204,
+        "max_ms": 1221.788863
+      },
+      "timed_out_events": 0,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "churn@100",
+        "events_checked": 690,
+        "seats_sold": 66888,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "mode": "churn",
+      "trial": 1,
+      "tier": 1000,
+      "events": 2,
+      "events_planned": 2,
+      "buyers": 32,
+      "seats": 2000,
+      "sold": 1876,
+      "successes": 2082,
+      "rejections": 0,
+      "cancels": 206,
+      "retries": 1,
+      "errors": 0,
+      "sell_out_s": 123.180087013,
+      "wall_s": 123.180174316,
+      "sold_per_sec": 16.90208255641411,
+      "attempts_per_success": 1.0004803073967339,
+      "latency": {
+        "count": 2082,
+        "min_ms": 20.401951,
+        "mean_ms": 1706.909924011047,
+        "p50_ms": 2062.511259,
+        "p90_ms": 2615.087435,
+        "p95_ms": 2735.561984,
+        "p99_ms": 2986.156103,
+        "max_ms": 5139.054747
+      },
+      "reject_latency": {
+        "count": 0,
+        "min_ms": 0,
+        "mean_ms": 0,
+        "p50_ms": 0,
+        "p90_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "max_ms": 0
+      },
+      "editor_latency": {
+        "count": 429,
+        "min_ms": 2.795369,
+        "mean_ms": 286.77929145221447,
+        "p50_ms": 209.1369,
+        "p90_ms": 623.157932,
+        "p95_ms": 792.143788,
+        "p99_ms": 1002.530923,
+        "max_ms": 1566.472118
+      },
+      "timed_out_events": 2,
+      "timed_out_sold_pct": 93.8,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "underbooked_events": 0,
+      "underbooked_seats": 0,
+      "audit": {
+        "phase": "churn@1000",
+        "events_checked": 690,
+        "seats_sold": 68764,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    }
+  ],
+  "holds": [
+    {
+      "tier": 10,
+      "events": 4,
+      "buyers": 32,
+      "seats": 40,
+      "sold": 40,
+      "holds": 57,
+      "holds_rejected": 64099,
+      "abandoned": 16,
+      "expired_at_precheck": 1,
+      "confirmed": 40,
+      "late_confirms_rejected": 0,
+      "swept_released": 17,
+      "retries": 0,
+      "errors": 0,
+      "wall_s": 29.961643846,
+      "confirmed_per_sec": 1.3350402336265725,
+      "hold_latency": {
+        "count": 57,
+        "min_ms": 9.358855,
+        "mean_ms": 157.89035919298246,
+        "p50_ms": 102.755565,
+        "p90_ms": 371.860969,
+        "p95_ms": 543.39368,
+        "p99_ms": 636.376298,
+        "max_ms": 658.381373
+      },
+      "confirm_latency": {
+        "count": 40,
+        "min_ms": 7.65629,
+        "mean_ms": 24.11782475,
+        "p50_ms": 21.042765,
+        "p90_ms": 46.054941,
+        "p95_ms": 49.052662,
+        "p99_ms": 54.391981,
+        "max_ms": 69.794025
+      },
+      "timed_out_events": 0,
+      "overbooked_events": 0,
+      "overbooked_seats": 0,
+      "audit": {
+        "phase": "holds@10",
+        "events_checked": 690,
+        "seats_sold": 65428,
+        "overbooked_events": 0,
+        "overbooked_seats": 0,
+        "duplicate_seats": 0,
+        "derived_drift_events": 0,
+        "ledger_mismatch_events": 0
+      }
+    },
+    {
+      "tier": 100,
+      "events": 4,
+      "buyers": 32,
+      "seats": 400,
+      "sold": 411,
+      "holds": 560,
+      "holds_rejected": 24750,
+      "abandoned": 143,
+      "expired_at_precheck": 6,
+      "confirmed": 411,
+      "late_confirms_rejected": 0,
+      "swept_released": 174,
+      "retries": 0,
+      "errors": 2,
+      "first_error": "sweeper: ERROR: deadlock detected (query layer retry isn't possible, READ COMMITTED transaction was aborted to break a deadlock cycle and some data was already sent to the user) (SQLSTATE 40P01)",
+      "wall_s": 41.732901818,
+      "confirmed_per_sec": 9.848344641654652,
+      "hold_latency": {
+        "count": 560,
+        "min_ms": 4.473413,
+        "mean_ms": 104.51620453035714,
+        "p50_ms": 8.331481,
+        "p90_ms": 451.609986,
+        "p95_ms": 604.704727,
+        "p99_ms": 724.096459,
+        "max_ms": 828.265635
+      },
+      "confirm_latency": {
+        "count": 411,
+        "min_ms": 4.974568,
+        "mean_ms": 10.838741858880779,
+        "p50_ms": 7.512228,
+        "p90_ms": 20.479812,
+        "p95_ms": 28.573641,
+        "p99_ms": 51.394502,
+        "max_ms": 78.730547
+      },
+      "timed_out_events": 0,
+      "overbooked_events": 4,
+      "overbooked_seats": 11,
+      "examples": [
+        {
+          "event_id": 601,
+          "capacity": 100,
+          "actual": 101,
+          "note": "overbooked"
+        },
+        {
+          "event_id": 602,
+          "capacity": 100,
+          "actual": 102,
+          "note": "overbooked"
+        },
+        {
+          "event_id": 603,
+          "capacity": 100,
+          "actual": 101,
+          "note": "overbooked"
+        },
+        {
+          "event_id": 604,
+          "capacity": 100,
+          "actual": 107,
+          "note": "overbooked"
+        }
+      ],
+      "audit": {
+        "phase": "holds@100",
+        "events_checked": 690,
+        "seats_sold": 65839,
+        "overbooked_events": 4,
+        "overbooked_seats": 11,
+        "overbooked_examples": [
+          {
+            "event_id": 601,
+            "capacity": 100,
+            "actual": 101
+          },
+          {
+            "event_id": 602,
+            "capacity": 100,
+            "actual": 102
+          },
+          {
+            "event_id": 603,
+            "capacity": 100,
+            "actual": 101
+          },
+          {
+            "event_id": 604,
+            "capacity": 100,
+            "actual": 107
+          }
+        ],
+        "duplicate_seats": 0,
+        "derived_drift_events": 4,
+        "derived_drift_examples": [
+          {
+            "event_id": 602,
+            "stored": 97,
+            "actual": 102
+          },
+          {
+            "event_id": 601,
+            "stored": 97,
+            "actual": 101
+          },
+          {
+            "event_id": 603,
+            "stored": 95,
+            "actual": 101
+          },
+          {
+            "event_id": 604,
+            "stored": 97,
+            "actual": 107
+          }
+        ],
+        "ledger_mismatch_events": 0
+      }
+    }
+  ],
+  "reload_ms": {
+    "cancel": 12343.552,
+    "churn#1": 15242.335,
+    "holds": 14723.822,
+    "publish": 11475.041,
+    "race#1": 11893.911
+  },
+  "client_cpu": {
+    "churn#1": {
+      "usage_usec": 7166290,
+      "nr_periods": 2213,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    },
+    "holds": {
+      "usage_usec": 23507621,
+      "nr_periods": 718,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    },
+    "race#1": {
+      "usage_usec": 18352269,
+      "nr_periods": 5708,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    },
+    "read": {
+      "usage_usec": 22422731,
+      "nr_periods": 630,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    },
+    "write:book": {
+      "usage_usec": 658168,
+      "nr_periods": 73,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    },
+    "write:cancel": {
+      "usage_usec": 526780,
+      "nr_periods": 73,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    },
+    "write:publish": {
+      "usage_usec": 1096455,
+      "nr_periods": 68,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    }
+  }
+}
