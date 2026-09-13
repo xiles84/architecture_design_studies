@@ -128,6 +128,13 @@ pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 ch
 `run/01-charity-tree/20260913T124917Z-v3`, harness `41a1490`, milestone
 `study-01/v3-harness`. All 196 checks passed; both topologies were removed and the lock released.
 
+**Completed:** `20260913T125342Z-v3`, 100 cells covering five independent trials
+of D2/D3 and the mechanism variants, including inserts and a D2/D3 blended workload.
+Run tag: `run/01-charity-tree/20260913T125342Z-v3`; digest `0bc5900a6d7a5d3a`.
+All cells passed their correctness gates and reported no operation errors. D2/D3 median
+12-query scores were 5,071.75 / 8,897.79, with 15.2% / 9.1% spread. Detailed interpretation
+will accompany the remaining experiments. The preceding gate is tagged `study-01/v3-verified`.
+
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
