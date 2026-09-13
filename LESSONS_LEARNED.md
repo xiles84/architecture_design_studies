@@ -10,6 +10,15 @@ experiments**.
 
 ## Measurement
 
+### Result hashes need an explicit checkout byte policy
+
+This Windows repository has `core.autocrlf=true`. New container-written JSON had LF
+both in the working tree and index, but no attribute protecting it against conversion
+on a later checkout. Study 01 now pins v3 result JSON to `text eol=lf`; otherwise an
+unchanged Git revision can produce a different raw-byte input digest on another
+checkout. The attribute is scoped to new v3 runs so historical bytes are not silently
+rewritten. Verify `git ls-files --eol` and `git check-attr` when adding new run formats.
+
 ### Database preparation can change during a short read experiment
 
 The v3 ANALYZE-only diagnostic started a D15 sum plan with 31,293 heap fetches and
