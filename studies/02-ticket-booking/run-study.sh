@@ -80,25 +80,30 @@ ALL_DESIGNS="p1_precreated_lock_first p2_precreated_skip_locked p3_precreated_ca
 # produces -- and so are other studies and the docs, which several analysts may
 # be editing at the same time without affecting a single number here.
 # ---------------------------------------------------------------------------
-REPO_COMMIT="$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)"
+# git is given the host-style path, like podman. lib.sh disables Git Bash's path
+# conversion, and git.exe then cannot resolve /c/extra/...: the first tagged
+# matrix silently recorded commit "unknown", dirty=false, and created no tag.
+GIT=(git -C "$(hostpath "$REPO")")
+REPO_COMMIT="$("${GIT[@]}" rev-parse HEAD 2>/dev/null)" \
+  || die "cannot read the repository commit -- refusing to produce results that cannot be traced to code"
 CODE_PATHS=(platform infra "studies/$STUDY_ID" .containerignore ':!studies/*/results' ':!studies/*/reports')
+STATUS="$("${GIT[@]}" status --porcelain -- "${CODE_PATHS[@]}")" \
+  || die "git status failed -- cannot tell whether the study code is committed"
 REPO_DIRTY="false"
-if [[ -n "$(git -C "$REPO" status --porcelain -- "${CODE_PATHS[@]}" 2>/dev/null)" ]]; then
-  REPO_DIRTY="true"
-fi
-REPO_DESCRIBE="$(git -C "$REPO" describe --tags --always 2>/dev/null || echo "$REPO_COMMIT")"
+[[ -n "$STATUS" ]] && REPO_DIRTY="true"
+REPO_DESCRIBE="$("${GIT[@]}" describe --tags --always 2>/dev/null || echo "$REPO_COMMIT")"
 [[ "$REPO_DIRTY" == "true" ]] && REPO_DESCRIBE="${REPO_DESCRIBE}-dirty"
 RUN_TAG=""
 if [[ "$TAG" == "yes" ]]; then
   if [[ "$REPO_DIRTY" == "true" ]]; then
     warn "study code has uncommitted changes; NOT tagging (commit first)"
-    git -C "$REPO" status --porcelain -- "${CODE_PATHS[@]}" | head -20 >&2
+    "${GIT[@]}" status --porcelain -- "${CODE_PATHS[@]}" | head -20 >&2
   else
     RUN_TAG="run/${STUDY_ID}/${RUN_ID}"
-    if git -C "$REPO" rev-parse -q --verify "refs/tags/$RUN_TAG" >/dev/null; then
+    if "${GIT[@]}" rev-parse -q --verify "refs/tags/$RUN_TAG" >/dev/null; then
       log "tag $RUN_TAG already exists (extending a run); leaving it in place"
     else
-      git -C "$REPO" tag -a "$RUN_TAG" -m "Study ${STUDY_ID}: code that produced run ${RUN_ID}" \
+      "${GIT[@]}" tag -a "$RUN_TAG" -m "Study ${STUDY_ID}: code that produced run ${RUN_ID}" \
         && log "tagged $REPO_COMMIT as $RUN_TAG"
     fi
   fi
