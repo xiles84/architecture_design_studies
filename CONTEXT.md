@@ -135,6 +135,13 @@ All cells passed their correctness gates and reported no operation errors. D2/D3
 12-query scores were 5,071.75 / 8,897.79, with 15.2% / 9.1% spread. Detailed interpretation
 will accompany the remaining experiments. The preceding gate is tagged `study-01/v3-verified`.
 
+**Running — do not start databases:** `20260913T172624Z-v3`, three independent trials
+for growth/history/memory, fixed-reader contention, YB FK/cache exceptions, equal-total
+budgets and local node-stop recovery. Run tag `run/01-charity-tree/20260913T172624Z-v3`.
+Podman was restarted after the interactive pause; live VM resources were rechecked:
+8 CPUs, 16,496,418,816 bytes and the same kernel. The preceding 100-cell run is tagged
+`study-01/v3-mechanisms`. The current runner holds `ads-run-lock`.
+
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
