@@ -44,6 +44,29 @@ results are only comparable to each other when the environment id matches.
 
 ## Known measurement hazards on this environment
 
+### Study 01 v3 resource conditions
+
+These are separately named experimental conditions on this same hardware. They must not
+be pooled as though the database configuration were identical.
+
+| Condition | Database budget | Additional configuration |
+|---|---|---|
+| standard | 2 CPU / 3 GiB per node | Original settings |
+| constrained (PostgreSQL growth) | 2 CPU / 256 MiB | shared_buffers 64 MiB, effective_cache_size 192 MiB, work_mem 4 MiB, maintenance_work_mem 32 MiB |
+| large (YB equal-total single node) | 6 CPU / 9 GiB | tserver hard limit 4.5 GiB, master hard limit 1.5 GiB |
+| equal-total YB cluster | 3 × standard nodes = 6 CPU / 9 GiB total | tserver limits sum to 4.5 GiB, master limits sum to 1.5 GiB |
+
+Client budget stays 2 CPU / 2 GiB. Each cell captures live container limits and cgroup
+CPU/memory/I/O statistics before and after it; the result records the database memory
+limit, preparation and engine's effective isolation. Relation bytes exceeding a memory
+limit demonstrate the stored footprint exceeds that limit; neither that fact nor a
+`pg_stat_database.blks_read` count alone proves every read reached the physical SSD.
+The cgroup `io.stat` and actual plans supply additional evidence about storage work.
+
+The node-stop diagnostic stops `yb-n3` while the client continues through `yb-n1`, then
+restarts it and records the recovered donation count. It is a local non-query-node
+availability test, not a network partition, loss of the query endpoint, or host failure.
+
 These are **not** incidental caveats — they bound what the numbers in this repo mean.
 
 1. **Heterogeneous cores.** Lunar Lake mixes 4 performance cores with 4 low-power
