@@ -42,6 +42,17 @@ Rules:
 - **Name where you think the measurement is weak.** An analysis with no stated doubts has
   not been done carefully.
 
+## Discussions — `discussions/<topic>--<analyst>--<date>.md`
+
+Signed companions to an analysis (methodology 11b): mechanism walkthroughs, answers to
+questions about a conclusion, and exchanges between analysts. Each links back to the final
+analysis it supports and carries the same provenance (run, digest, commit). Template:
+[`docs/templates/DISCUSSION.md`](../../../docs/templates/DISCUSSION.md).
+
+| Discussion | Answers |
+|---|---|
+| [counter cost vs index cost](discussions/counter-cost-vs-index-cost--claude-opus-5--2026-09-13.md) | Why P3 (compare-and-set) outsold the counter designs when it also pays index maintenance on every sale |
+
 ## `outdated/`
 
 When a study is re-run and the conclusions change, the superseded report and its analyses

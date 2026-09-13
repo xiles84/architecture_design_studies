@@ -50,6 +50,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/02-ticket-booking/20260913T021206Z` | commit that produced study 02's `small` matrix (`7570648`) |
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
 | `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
+| `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
