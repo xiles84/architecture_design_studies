@@ -66,6 +66,28 @@ Ties are handled explicitly. With a million timestamps truncated to the millisec
 rows can share a maximum, and SQL is free to return either; identity checks accept any
 member of the tied set rather than demanding one particular row.
 
+## 5a. A correctness check is proven by a design that fails it
+
+An audit that has never caught anything has not been shown to work — it may be checking
+the wrong thing, at the wrong moment, under too little contention. Study 01's gate proved
+itself by accident, catching harness bugs. From study 02 on, it is proven on purpose.
+
+When a study's question is an invariant (no overbooking, no lost increment, no stale
+cache), it includes at least one **negative control**: a deliberately wrong design that is
+expected to violate the invariant under the study's workload. The generated report states
+for every topology whether each control fired. If a control did not fire, the absence of
+violations in the other designs of that experiment is reported as **not evidence** of
+their correctness, only of insufficient contention — and the workload is made harsher,
+not the conclusion softer.
+
+Negative controls are measured like every other design, and their speed is never shown
+as a plain number: a design that breaks the invariant quickly has not been fast.
+
+Invariants have two sides. "Never oversell" is easy to satisfy by never selling; a check
+for **over**-booking is paired with one for **under**-booking (the design said "sold out"
+while it had seats), and with a reconciliation of what the client was told against what
+the database holds.
+
 ## 6. The dataset is deterministic and shared
 
 Every design and every engine in a run loads the *same logical dataset*, generated from a
@@ -123,6 +145,14 @@ Generated data must be shaped like the real thing in the ways that matter:
 - **Each write operation gets a freshly loaded database.** Running insert, update and
   delete in sequence lets later phases inherit earlier phases' bloat — by a different
   amount per design. Measured here as a 30x distortion of one design's delete throughput.
+- **A timeout bounds retries, not just new work.** An operation that retries internally
+  (lost races, serialization failures) must stop retrying at the deadline too, or one
+  pathological transaction keeps a "timed-out" measurement running indefinitely. Work
+  already in flight is allowed to finish, so a deadline never manufactures a commit of
+  unknown outcome.
+- **Quota throttling is recorded, not assumed.** Containers run under CFS quotas, and a
+  throttled client puts tens of milliseconds into tails that belong to no design. The
+  client's `cpu.stat` is captured per phase and the databases' per cell.
 
 ## 8. A single trial is not a measurement
 
@@ -239,6 +269,37 @@ A report describes one run of one code state on one machine. When a study is re-
 the conclusions change, the superseded report moves to `reports/outdated/` — it is never
 deleted and never silently edited. A conclusion must always be traceable to the run that
 produced it.
+
+## 11a. Every final report opens with a TL;DR
+
+Reports are long, and the reader who most needs the conclusion is the one least likely to
+read to the end. Both kinds of report therefore start with a TL;DR:
+
+- A **generated report's** TL;DR lists **measured facts selected by fixed rules** — which
+  cells failed, whether negative controls fired, which designs broke an invariant, the
+  highest and lowest valid result per condition. It ranks by the number only and says
+  nothing about which design is better, so the no-interpretation rule still holds.
+- A **signed analysis's** TL;DR is the interpretation: a handful of bullets a reader can act
+  on — the recommendation, when it changes, and the biggest doubt — each backed by a
+  measurement cited in the body.
+
+## 12a. Every result names the code that produced it
+
+Studies get revisited — a new design, a new question, a new analyst — sometimes long after
+the run. A number is only reproducible from the exact harness and SQL that produced it, so
+from study 02 on:
+
+- Every result file, manifest and generated report records the **repository commit**,
+  `git describe`, and whether the study's code (`platform/`, `infra/`, the study directory,
+  excluding results and reports) had **uncommitted changes**. A dirty run is flagged as not
+  reproducible from its commit alone.
+- A run that will be analysed is started from a clean tree with `--tag`, which creates
+  `run/<study>/<run-id>` on that commit. `git checkout` the tag reproduces the run;
+  `git diff <tag>` shows what has changed in the study since.
+- Milestones of a study are tagged `study-NN/<label>`. Study 01's published results predate
+  this rule and are marked by `study-01/v1`.
+- Signed analyses record `repo_commit` beside `inputs_digest`: the digest identifies the
+  data, the commit identifies the code.
 
 ## 13. Failures are reported
 

@@ -1,0 +1,57 @@
+@startuml 00_overview
+!include _style.puml
+title Study 02 — band → event → ticket, and fourteen ways to never sell a seat twice
+
+package "The domain (logical, design-independent)" {
+  entity "band" as b0 {
+    band_id : BIGINT <<PK>>
+  }
+  entity "event" as e0 {
+    event_id : BIGINT <<PK>>
+    band_id : BIGINT <<FK>>
+    capacity : INT   (10 … 100 000)
+  }
+  entity "ticket" as t0 {
+    ticket_id : BIGINT <<PK>>
+    event_id : BIGINT <<FK>>
+    seat_no : INT
+    customer_id : BIGINT
+  }
+  b0 ||--o{ e0 : "plays"
+  e0 ||--o{ t0 : "sells at most\ncapacity"
+}
+
+note right of t0
+  **The invariant:** for every event,
+  sold tickets ≤ capacity.
+
+  It spans rows. No single-row constraint on
+  ticket can express it, so every design must
+  decide WHERE the capacity check lives and
+  WHAT serialises two buyers reaching for the
+  last seat:
+
+  a locked seat row · a locked parent row ·
+  a counter row · a unique index · the
+  isolation level · a pool of seat tokens ·
+  a hold with an expiry
+end note
+
+legend bottom
+  |= family |= design |= what arbitrates the last seat |
+  | pre-created tickets | **P1** lock-first | <back:#FFF3CD> FOR UPDATE on the lowest free seat row </back> (convoy) |
+  | | **P2** skip-locked | FOR UPDATE SKIP LOCKED + exact sold-out fallback |
+  | | **P3** CAS | no lock; compare-and-set UPDATE, random start seat, retry |
+  | | **P4** skip+counter | P2 + <back:#D8F0DE> seats_sold counter on event </back> in the same transaction |
+  | created on booking | **C1** count (RC) ✗ | nothing — <back:#F5D0D0> NEGATIVE CONTROL, expected to overbook </back> |
+  | | **C2** count (SER) | C1's identical SQL at SERIALIZABLE |
+  | | **C3** count+lock | FOR UPDATE on the event row, then count |
+  | | **C4** counter | guarded UPDATE seats_sold < capacity |
+  | | **C5** seat-unique | UNIQUE(event, seat) + CHECK(seat ≤ capacity) |
+  | extra table | **R1** inventory | C4's counter in <back:#E7DDF5> a separate event_inventory row </back> |
+  | | **R2** buckets | up to 8 counter rows per event, SKIP LOCKED |
+  | | **R3** seat-pool | pre-created narrow slot rows; delete one, insert the ticket |
+  | reservation | **H0** hold/naive ✗ | hold + expiry; confirm trusts an earlier check — <back:#F5D0D0> NEGATIVE CONTROL </back> |
+  | | **H1** hold/checked | confirm only if still held and unexpired, in the same statement |
+endlegend
+@enduml

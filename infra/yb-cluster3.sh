@@ -15,6 +15,9 @@ USER=yugabyte
 TSERVER_FLAGS="memory_limit_hard_bytes=1610612736,ysql_num_shards_per_tserver=2,yb_num_shards_per_tserver=2"
 MASTER_FLAGS="memory_limit_hard_bytes=536870912"
 
+# Optional per-study tserver flags; see yb-single.sh. Unset = study 01's nodes.
+TSERVER_FLAGS="${TSERVER_FLAGS}${YB_EXTRA_TSERVER_FLAGS:+,$YB_EXTRA_TSERVER_FLAGS}"
+
 start_node() {
   local name="$1" join="$2"
   local extra=()

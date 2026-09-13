@@ -1,0 +1,30 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  dataset: 10 bands, 90 events, 26100 seats, 6880 sold at load
+  loading c5_seat_unique ...
+  loaded in 23.9s (copy 0.2s, index 22.5s)
+  verifying answers against ground truth ...
+    38/38 checks passed; audit on load: consistent (90 events, 6880 seats sold)
+  capturing plans ...
+  write benchmark (fresh load per op):
+    book                                    103.9 ops/s  p50= 20.421ms p99= 393.023ms  rejected=0 retries=334 errors=0
+      audit after book: consistent (90 events, 7038 seats sold)
+    cancel                                  590.2 ops/s  p50=  3.636ms p99=  80.355ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (90 events, 6088 seats sold)
+    publish@10                              565.8 ops/s  p50=  2.465ms p99=  68.191ms  rejected=0 retries=0 errors=0
+    publish@100                             486.8 ops/s  p50=  3.051ms p99=  67.536ms  rejected=0 retries=0 errors=0
+    publish@1000                            259.4 ops/s  p50=  2.514ms p99=  65.567ms  rejected=0 retries=0 errors=0
+    publish@10000                           896.0 ops/s  p50=  2.155ms p99=   2.155ms  rejected=0 retries=0 errors=0
+    publish@100000                          901.8 ops/s  p50=  1.973ms p99=   1.973ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2319 events, 6880 seats sold)
+  race trial 1/1 (32 buyers per event, fresh load):
+    race       10 seats x20        24.3 sold/s  p50=156.929ms p99= 549.568ms  attempts/sale=20.82 errors=0  editor p99=175.31ms  ok
+      audit: consistent (90 events, 7080 seats sold)
+    race      100 seats x4         24.2 sold/s  p50=668.355ms p99=3884.612ms  attempts/sale=20.18 errors=0  editor p99=101.68ms  ok
+      audit: consistent (90 events, 7480 seats sold)
+  churn trial 1/1 (32 buyers per event, fresh load):
+    churn      10 seats x10        24.2 sold/s  p50=167.881ms p99= 712.582ms  attempts/sale=21.30 errors=0  editor p99=104.37ms  UNDERBOOKED 3 events (3 seats)
+      audit: VIOLATIONS — 0 overbooked events (+0 seats), 0 duplicate seats, 3 derived-state drifts, 0 ledger mismatches
+    churn     100 seats x2         23.0 sold/s  p50=640.356ms p99=3219.929ms  attempts/sale=19.26 errors=0  editor p99=93.90ms  UNDERBOOKED 2 events (10 seats)
+      audit: VIOLATIONS — 0 overbooked events (+0 seats), 0 duplicate seats, 5 derived-state drifts, 0 ledger mismatches
+  wrote /results/c5_seat_unique.json

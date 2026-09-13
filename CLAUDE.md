@@ -66,6 +66,9 @@ data. So, before writing an analysis:
    which version, on what date, looking at what.
 5. Every analysis must include a section naming **where the measurement is weak**. An
    analysis with no stated doubts has not been done carefully.
+6. **Every final report opens with a TL;DR** (methodology 11a). In a generated report it is
+   measured facts selected by fixed rules; in a signed analysis it is the actionable
+   conclusion, backed by measurements cited in the body.
 
 Regenerate the report after adding an analysis so the index picks it up.
 
@@ -74,15 +77,30 @@ Regenerate the report after adding an analysis so the index picks it up.
 ```
 docs/            methodology, replication, environments/
 infra/           versions.env + one script per topology
-studies/NN-name/
+platform/        shared Go module `adsplatform` — hexagonal (see platform/README.md)
+  core/          measure, catalog, provenance, inspect — pure, driver-free
+  ports/         DB / Tx / Row / ErrorClass interfaces
+  adapters/      pgxdb (the only driver import), filestore, markdown, cgroup
+studies/NN-name/ everything belonging to ONE study, nothing shared
   README.md      the question, the designs, how to run it
-  sql/<design>/  schema.sql indexes.sql queries.sql writes.sql [triggers.sql]
+  study.env      the study's image name and engine flags
+  sql/<design>/  schema.sql indexes.sql queries.sql writes.sql [audit.sql] [triggers.sql]
   diagrams/      PlantUML sources + rendered/*.svg
-  harness/       Go benchmark client
+  harness/       Go benchmark client (main.go is the entry adapter)
   run-study.sh   the matrix runner
-  results/<run-id>/
-  reports/ + reports/outdated/
+  results/<run-id>/   JSON, plans/, logs/, manifest.yaml
+  reports/ + reports/analyses/ + reports/outdated/
 ```
+
+**Shared code goes in `platform/`, study code stays in its study.** Core logic depends only
+on `ports/`; only a study's `main.go` imports adapters. Study 01 predates the platform and
+keeps its own harness (tag `study-01/v1`); do not migrate it without a re-run that shows
+identical numbers.
+
+**Provenance.** Start any run that will be analysed from a committed tree with
+`run-study.sh --tag` (tag `run/<study>/<run-id>`). Results record commit, describe and
+dirty flag; analyses record `repo_commit`. Several sessions and analysts may be editing the
+repo at once: commit only the paths you changed, and never commit someone else's edits.
 
 ## The SQL catalogue format
 
@@ -113,6 +131,12 @@ whose signatures differ between designs. Adding a design means adding a director
    pair in `pairs` if it isolates one decision against an existing design.
 6. Verify on both engines before running a matrix.
 
+*Study 02 differs:* designs carry `audit.sql` and are registered in `designs` (with a
+`Strategy`, `Isolation` and loader flags) in `harness/designs.go`; `designShort` and the
+report's order come from that slice, so steps 3 and 5 reduce to `ALL_DESIGNS` in
+`run-study.sh` and `pairs` in `harness/report.go`. If the study's question is an invariant,
+keep at least one **negative control** that must be seen to violate it (methodology 5a).
+
 **Prefer designs that differ from an existing one by exactly one decision.** A design
 that changes three things at once produces a number nobody can attribute.
 
@@ -127,6 +151,16 @@ that changes three things at once produces a number nobody can attribute.
   a different binary than earlier ones.
 - Writing Go/SQL through shell heredocs has repeatedly failed on quoting. Write those
   files directly.
+
+- **Check YugabyteDB's effective isolation, don't recall it.** Older releases ran READ
+  COMMITTED as Snapshot Isolation unless `yb_enable_read_committed_isolation=true` was set;
+  on the pinned 2025.2.6 image RC is effective by default (verified 2026-09-12). Study 02
+  sets the flag anyway to pin the behaviour, and every result records
+  `engine_info.effective_isolation`.
+- **Infra container names are shared by every study** (`pg-single`, `yb-n1`…). Study 02's
+  runner refuses to start if they already exist; check `podman ps` before any run.
+- Study 02's runner re-executes from a temp copy of itself, so it is safe to edit mid-run.
+  Study 01's runners are not.
 
 ## Style
 

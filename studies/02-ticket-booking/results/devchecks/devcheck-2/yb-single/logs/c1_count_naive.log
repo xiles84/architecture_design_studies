@@ -1,0 +1,45 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  dataset: 10 bands, 90 events, 26100 seats, 6880 sold at load
+  loading c1_count_naive ...
+  loaded in 4.0s (copy 0.2s, index 2.0s)
+  verifying answers against ground truth ...
+    38/38 checks passed; audit on load: consistent (90 events, 6880 seats sold)
+  capturing plans ...
+  read benchmark:
+    q01_event_availability@10              2665.4 ops/s  p50=  0.939ms p99=  68.799ms  errors=0
+    q01_event_availability@100             2240.7 ops/s  p50=  1.088ms p99=  69.871ms  errors=0
+    q01_event_availability@1000            2127.7 ops/s  p50=  1.079ms p99=  72.190ms  errors=0
+    q01_event_availability@10000            967.9 ops/s  p50=  2.306ms p99=  74.930ms  errors=0
+    q02_band_events                         542.5 ops/s  p50=  3.865ms p99=  87.111ms  errors=0
+    q03_customer_tickets                   2849.1 ops/s  p50=  0.883ms p99=  68.576ms  errors=0
+    q04_ticket_by_id                       5035.3 ops/s  p50=  0.509ms p99=  65.627ms  errors=0
+    q05_band_tickets_sold                  1275.7 ops/s  p50=  1.444ms p99=  74.905ms  errors=0
+  write benchmark (fresh load per op):
+    book                                    255.6 ops/s  p50=  9.417ms p99=  99.996ms  rejected=0 retries=0 errors=0
+      audit after book: consistent (90 events, 7222 seats sold)
+    cancel                                  494.9 ops/s  p50=  4.287ms p99=  89.438ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (90 events, 6213 seats sold)
+    publish@10                              581.9 ops/s  p50=  2.379ms p99=  68.667ms  rejected=0 retries=0 errors=0
+    publish@100                             653.2 ops/s  p50=  2.252ms p99=  65.159ms  rejected=0 retries=0 errors=0
+    publish@1000                            270.4 ops/s  p50=  2.111ms p99=  64.415ms  rejected=0 retries=0 errors=0
+    publish@10000                          1106.7 ops/s  p50=  1.565ms p99=   1.565ms  rejected=0 retries=0 errors=0
+    publish@100000                          858.2 ops/s  p50=  2.059ms p99=   2.059ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2319 events, 6880 seats sold)
+  race (32 buyers per event, fresh load):
+    race       10 seats x20       279.9 sold/s  p50= 15.284ms p99= 254.247ms  attempts/sale=1.00 errors=0  editor p99=137.86ms  OVERBOOKED 20 events (+338 seats)
+      audit: VIOLATIONS — 20 overbooked events (+338 seats), 0 duplicate seats, 0 derived-state drifts, 0 ledger mismatches
+    race      100 seats x4        336.1 sold/s  p50= 93.958ms p99= 205.062ms  attempts/sale=1.00 errors=0  editor p99=180.27ms  OVERBOOKED 4 events (+72 seats)
+      audit: VIOLATIONS — 24 overbooked events (+410 seats), 0 duplicate seats, 0 derived-state drifts, 0 ledger mismatches
+    race     1000 seats x1        258.3 sold/s  p50=107.479ms p99= 207.614ms  attempts/sale=1.00 errors=0  editor p99=113.37ms  OVERBOOKED 1 events (+13 seats)
+      audit: VIOLATIONS — 25 overbooked events (+423 seats), 0 duplicate seats, 0 derived-state drifts, 0 ledger mismatches
+    race    10000 seats x1        157.4 sold/s  p50=198.564ms p99= 406.097ms  attempts/sale=1.00 errors=0  editor p99=180.95ms  ok, 1 timed out (95% sold)
+      audit: VIOLATIONS — 25 overbooked events (+423 seats), 0 duplicate seats, 0 derived-state drifts, 0 ledger mismatches
+  churn (32 buyers per event, fresh load):
+    churn      10 seats x10       210.9 sold/s  p50= 63.049ms p99= 603.957ms  attempts/sale=1.00 errors=0  editor p99=185.15ms  OVERBOOKED 10 events (+151 seats)
+      audit: VIOLATIONS — 10 overbooked events (+151 seats), 0 duplicate seats, 0 derived-state drifts, 0 ledger mismatches
+    churn     100 seats x2        287.1 sold/s  p50= 98.316ms p99= 193.651ms  attempts/sale=1.00 errors=0  editor p99=91.61ms  OVERBOOKED 2 events (+27 seats)
+      audit: VIOLATIONS — 12 overbooked events (+178 seats), 0 duplicate seats, 0 derived-state drifts, 0 ledger mismatches
+    churn    1000 seats x1        218.5 sold/s  p50=112.475ms p99= 287.780ms  attempts/sale=1.00 errors=0  editor p99=97.19ms  OVERBOOKED 1 events (+12 seats)
+      audit: VIOLATIONS — 13 overbooked events (+190 seats), 0 duplicate seats, 0 derived-state drifts, 0 ledger mismatches
+  wrote /results/c1_count_naive.json

@@ -1,0 +1,61 @@
+@startuml r_extra_tables
+!include _style.puml
+title R1–R3 — an extra table takes the contention off the event and ticket rows
+
+entity "event" as e {
+  * event_id : BIGINT <<PK>>
+  --
+  * capacity : INT
+  * description : TEXT
+}
+entity "event_inventory  (R1)" as i {
+  * event_id : BIGINT <<PK, FK>>
+  --
+  <back:#E7DDF5>* remaining : INT  CHECK >= 0</back>
+}
+entity "event_inventory_bucket  (R2)" as bk {
+  * event_id : BIGINT <<PK, FK>>
+  * bucket_no : INT <<PK>>
+  --
+  * bucket_capacity : INT
+  <back:#E7DDF5>* remaining : INT  CHECK 0..bucket_capacity</back>
+}
+entity "seat_slot  (R3: unsold seats only)" as s {
+  * event_id : BIGINT <<PK, FK>>
+  * seat_no : INT <<PK>>
+}
+entity "ticket  (sold seats only)" as t {
+  * ticket_id : BIGINT <<PK>>
+  --
+  * event_id : BIGINT <<FK>>
+  seat_no : INT  (NOT NULL in R3)
+  * customer_id : BIGINT
+}
+e ||--|| i
+e ||--|{ bk : "min(8, capacity)"
+e ||--o{ s
+e ||--o{ t
+
+note bottom of i
+  **R1** — C4's guarded counter, moved:
+  UPDATE event_inventory SET remaining − 1
+   WHERE event_id=$ AND remaining > 0
+  The organiser's edits to event no longer
+  share a row with every sale.
+end note
+
+note bottom of bk
+  **R2** — the counter, sharded:
+  pick a random bucket with seats
+  FOR UPDATE SKIP LOCKED, decrement it.
+  Up to 8 buyers of one event at once.
+  none unlocked → EXISTS(remaining)? retry : sold out
+end note
+
+note bottom of s
+  **R3** — seats pre-created as tokens:
+  pick lowest slot FOR UPDATE SKIP LOCKED,
+  DELETE it, INSERT the ticket with that seat.
+  The pool shrinks as the event sells.
+end note
+@enduml

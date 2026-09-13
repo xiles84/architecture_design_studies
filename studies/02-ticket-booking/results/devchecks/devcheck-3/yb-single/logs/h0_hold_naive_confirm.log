@@ -1,0 +1,35 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  dataset: 10 bands, 90 events, 26100 seats, 6880 sold at load
+  loading h0_hold_naive_confirm ...
+  loaded in 4.8s (copy 0.2s, index 2.5s)
+  verifying answers against ground truth ...
+    38/38 checks passed; audit on load: consistent (90 events, 6880 seats sold)
+  capturing plans ...
+  write benchmark (fresh load per op):
+    book                                     96.7 ops/s  p50= 65.966ms p99= 352.548ms  rejected=0 retries=0 errors=0
+      audit after book: consistent (90 events, 7002 seats sold)
+    cancel                                   48.3 ops/s  p50=100.362ms p99= 493.497ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (90 events, 6809 seats sold)
+    publish@10                              590.3 ops/s  p50=  2.294ms p99=  69.451ms  rejected=0 retries=0 errors=0
+    publish@100                             522.7 ops/s  p50=  2.452ms p99=  68.242ms  rejected=0 retries=0 errors=0
+    publish@1000                           1636.1 ops/s  p50=  2.128ms p99=   3.360ms  rejected=0 retries=0 errors=0
+    publish@10000                          1007.5 ops/s  p50=  1.844ms p99=   1.844ms  rejected=0 retries=0 errors=0
+    publish@100000                          961.1 ops/s  p50=  1.735ms p99=   1.735ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2319 events, 6880 seats sold)
+  race trial 1/1 (32 buyers per event, fresh load):
+    race       10 seats x20        16.7 sold/s  p50=260.390ms p99=1285.979ms  attempts/sale=1.00 errors=0  editor p99=633.21ms  ok
+      audit: consistent (90 events, 7080 seats sold)
+    race      100 seats x4         15.7 sold/s  p50=1940.712ms p99=2827.909ms  attempts/sale=1.00 errors=0  editor p99=1614.69ms  ok
+      audit: consistent (90 events, 7480 seats sold)
+  churn trial 1/1 (32 buyers per event, fresh load):
+    churn      10 seats x10        20.6 sold/s  p50=270.636ms p99= 586.855ms  attempts/sale=1.00 errors=0  editor p99=477.98ms  ok
+      audit: consistent (90 events, 6980 seats sold)
+    churn     100 seats x2         14.9 sold/s  p50=2115.027ms p99=2823.760ms  attempts/sale=1.00 errors=0  editor p99=1003.02ms  ok
+      audit: consistent (90 events, 7180 seats sold)
+  holds (32 buyers per event, TTL 250ms, fresh load):
+    holds      10 seats x4        6.8 confirmed/s  holds=84 abandoned=19 late-rejected=0 swept=44 errors=0  OVERBOOKED 2 events (+2 seats)
+      audit: VIOLATIONS — 2 overbooked events (+2 seats), 0 duplicate seats, 2 derived-state drifts, 0 ledger mismatches
+    holds     100 seats x4        0.7 confirmed/s  holds=2478 abandoned=600 late-rejected=0 swept=2388 errors=0  ok
+      audit: VIOLATIONS — 2 overbooked events (+2 seats), 0 duplicate seats, 3 derived-state drifts, 0 ledger mismatches
+  wrote /results/h0_hold_naive_confirm.json

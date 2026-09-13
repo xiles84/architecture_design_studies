@@ -26,6 +26,8 @@ writes, storage, load time, and the query plans underneath.
 | | |
 |---|---|
 | [`studies/01-charity-tree/`](studies/01-charity-tree/) | **Tree structures.** A `charity → person → donation` hierarchy across 8 schema designs and 3 database topologies. |
+| [`studies/02-ticket-booking/`](studies/02-ticket-booking/) | **Avoiding overbooking.** `band → event → ticket` with events of 10 to 100 000 seats: 14 strategies (pre-created vs created tickets, locks, counters, constraints, extra inventory and reservation tables, two deliberately wrong controls) under sell-out races. |
+| [`platform/`](platform/) | The shared Go benchmark core — measurement, SQL catalogue, provenance — laid out as ports and adapters. |
 | [`docs/methodology.md`](docs/methodology.md) | The rules every study follows, and why. |
 | [`docs/replication.md`](docs/replication.md) | How to reproduce any run. |
 | [`docs/environments/`](docs/environments/) | One page per machine results were produced on, including how that machine can mislead a benchmark. |
@@ -63,6 +65,25 @@ difference has exactly one explanation:
 | 1 node → 3 nodes | adding two more machines |
 
 → [Full study](studies/01-charity-tree/)
+
+## Study 02 at a glance
+
+A show company must never sell more tickets than an event has seats:
+
+```
+band ──< event (10 … 100 000 seats) ──< ticket
+```
+
+The invariant spans rows, so each design has to decide where the capacity check lives and
+what serialises two buyers reaching for the last seat — a locked seat, a locked parent, a
+counter, a unique index, the isolation level, a pool of seat tokens, or a hold with an
+expiry. The headline experiment is a **sell-out race**: a crowd of buyers arrives at an
+unsold event at once. Every phase is audited for overbooking **and** under-booking, and two
+deliberately wrong designs must be seen to fail, proving the audit works.
+
+![designs](studies/02-ticket-booking/diagrams/rendered/00_overview.svg)
+
+→ [Full study](studies/02-ticket-booking/)
 
 ## Running it yourself
 

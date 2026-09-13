@@ -1,0 +1,49 @@
+@startuml c_created
+!include _style.puml
+title C1–C5 — tickets created on booking: a row exists only once sold
+
+entity "event" as e {
+  * event_id : BIGINT <<PK>>
+  --
+  * band_id : BIGINT <<FK>>
+  * capacity : INT
+  * description : TEXT
+  <back:#D8F0DE>* seats_sold : INT  (C4 only, CHECK 0..capacity)</back>
+}
+entity "ticket  (sold seats only)" as t {
+  * ticket_id : BIGINT <<PK>>
+  --
+  * event_id : BIGINT <<FK>>
+  seat_no : INT  (NOT NULL in C5)
+  * customer_id : BIGINT
+  <back:#FFF3CD>event_capacity : INT  (C5 only)</back>
+  --
+  C5: UNIQUE (event_id, seat_no)
+  C5: CHECK (seat_no BETWEEN 1 AND event_capacity)
+}
+e ||--o{ t
+
+note right of t
+  **C1 count (RC)** <back:#F5D0D0> NEGATIVE CONTROL </back>
+  seats_left = capacity − COUNT(tickets)
+  if > 0: INSERT ticket
+  Two buyers both see the last seat free.
+
+  **C2 count (SER)** — identical SQL, SERIALIZABLE;
+  the engine aborts one of the two (40001), retry
+
+  **C3 count+lock**
+  SELECT … FROM event **FOR UPDATE**, then C1's count
+  — a per-event critical section around an O(sold) count
+
+  **C4 counter**
+  UPDATE event SET seats_sold = seats_sold + 1
+   WHERE event_id=$ **AND seats_sold < capacity**
+  no row → sold out; else INSERT ticket
+
+  **C5 seat-unique** (autocommit, no lock)
+  n = MAX(seat_no); INSERT seat n+1 **ON CONFLICT DO NOTHING**
+  0 rows → another buyer took n+1, retry
+  Refunds leave holes that n+1 never refills.
+end note
+@enduml

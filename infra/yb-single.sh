@@ -25,6 +25,14 @@ USER=yugabyte
 TSERVER_FLAGS="memory_limit_hard_bytes=1610612736,ysql_num_shards_per_tserver=2,yb_num_shards_per_tserver=2"
 MASTER_FLAGS="memory_limit_hard_bytes=536870912"
 
+# A study may need extra tserver flags; the default (unset) leaves the node
+# exactly as study 01 measured it. Study 02 sets
+# yb_enable_read_committed_isolation=true. On this image READ COMMITTED is
+# already effective without it (checked: yb_effective_transaction_isolation_level
+# reports "read committed"), but older releases silently ran RC as Snapshot
+# Isolation, so a study whose designs depend on RC semantics pins it explicitly.
+TSERVER_FLAGS="${TSERVER_FLAGS}${YB_EXTRA_TSERVER_FLAGS:+,$YB_EXTRA_TSERVER_FLAGS}"
+
 cmd_up() {
   need_podman
   net_ensure

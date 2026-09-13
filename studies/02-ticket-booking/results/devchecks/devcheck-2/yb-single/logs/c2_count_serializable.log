@@ -1,0 +1,32 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  dataset: 10 bands, 90 events, 26100 seats, 6880 sold at load
+  loading c2_count_serializable ...
+  loaded in 8.3s (copy 0.2s, index 3.8s)
+  verifying answers against ground truth ...
+    38/38 checks passed; audit on load: consistent (90 events, 6880 seats sold)
+  capturing plans ...
+  read benchmark:
+    q01_event_availability@10              2768.6 ops/s  p50=  0.939ms p99=  67.737ms  errors=0
+    q01_event_availability@100             2244.5 ops/s  p50=  1.055ms p99=  69.373ms  errors=0
+    q01_event_availability@1000            2029.0 ops/s  p50=  1.085ms p99=  71.853ms  errors=0
+    q01_event_availability@10000            841.7 ops/s  p50=  2.205ms p99=  77.757ms  errors=0
+    q02_band_events                         547.4 ops/s  p50=  3.833ms p99=  85.604ms  errors=0
+    q03_customer_tickets                   2648.2 ops/s  p50=  0.887ms p99=  67.850ms  errors=0
+    q04_ticket_by_id                       4833.8 ops/s  p50=  0.551ms p99=  64.702ms  errors=0
+    q05_band_tickets_sold                  1158.5 ops/s  p50=  1.515ms p99=  77.006ms  errors=0
+  write benchmark (fresh load per op):
+    book                                      3.3 ops/s  p50=1903.751ms p99=3031.277ms  rejected=0 retries=103 errors=0
+      audit after book: consistent (90 events, 6899 seats sold)
+    cancel                                  540.1 ops/s  p50=  4.079ms p99=  82.921ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (90 events, 6181 seats sold)
+    publish@10                              489.6 ops/s  p50=  2.624ms p99=  71.216ms  rejected=0 retries=0 errors=0
+    publish@100                             492.3 ops/s  p50=  2.653ms p99=  71.147ms  rejected=0 retries=0 errors=0
+    publish@1000                            252.5 ops/s  p50=  2.705ms p99=  68.516ms  rejected=0 retries=0 errors=0
+    publish@10000                           793.5 ops/s  p50=  2.284ms p99=   2.284ms  rejected=0 retries=0 errors=0
+    publish@100000                          802.8 ops/s  p50=  2.212ms p99=   2.212ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2319 events, 6880 seats sold)
+  race (32 buyers per event, fresh load):
+    race       10 seats x20         0.1 sold/s  p50=80083.785ms p99=367474.999ms  attempts/sale=274.95 errors=14597  editor p99=166330.87ms  ok, 14 timed out (100% sold)
+      audit: consistent (90 events, 7080 seats sold)
+      first error: ERROR: Timed out waiting kResponseSent, state: kProcessingRequest (SQLSTATE XX000)

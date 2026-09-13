@@ -1,0 +1,29 @@
+# Benchmark client for study 02.
+#
+# Build context is the REPOSITORY ROOT, not this directory, because the harness
+# depends on the shared platform module (platform/) through a replace directive.
+# run-study.sh passes the right context; .containerignore at the root keeps
+# results and git history out of it.
+#
+# The SQL catalogue is compiled into the binary via go:embed, so a result can
+# never be produced by a binary running SQL that differs from the SQL beside it.
+
+FROM docker.io/library/golang:1.26-bookworm AS build
+WORKDIR /src
+
+COPY platform/go.mod platform/go.sum ./platform/
+COPY studies/02-ticket-booking/go.mod studies/02-ticket-booking/go.sum ./studies/02-ticket-booking/
+RUN cd studies/02-ticket-booking && go mod download
+
+COPY platform/ ./platform/
+COPY studies/02-ticket-booking/sqlfs.go ./studies/02-ticket-booking/
+COPY studies/02-ticket-booking/sql/ ./studies/02-ticket-booking/sql/
+COPY studies/02-ticket-booking/harness/ ./studies/02-ticket-booking/harness/
+
+RUN cd studies/02-ticket-booking && go vet ./... && \
+    CGO_ENABLED=0 GOFLAGS=-trimpath go build -ldflags="-s -w" -o /out/bench ./harness
+
+FROM scratch
+COPY --from=build /out/bench /bench
+WORKDIR /results
+ENTRYPOINT ["/bench"]

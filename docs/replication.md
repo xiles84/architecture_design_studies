@@ -76,6 +76,30 @@ writes results to `results/<run-id>/`. Expect roughly:
 ./run-study.sh --topologies pg-single --designs d4_rollup_trigger --keep-up
 ```
 
+### Study 02
+
+```bash
+cd studies/02-ticket-booking
+```
+
+```bash
+./run-study.sh --scale small --tag
+```
+
+The study 02 image is built from the **repository root** (it includes the shared `platform/`
+module) and is named `localhost/ticketbench:1`, so it never replaces another study's client.
+YugabyteDB nodes are started with `yb_enable_read_committed_isolation=true` (from
+`study.env`). The runner generates `reports/<run-id>.md` at the end of the matrix.
+
+To reproduce a tagged run exactly:
+
+```bash
+git checkout run/02-ticket-booking/<run-id>
+```
+
+Expect the `small` matrix to take several hours: YugabyteDB sells far fewer seats per second
+than PostgreSQL on this hardware, so its large-event races run to their timeout.
+
 ## Poke at a database by hand
 
 ```bash

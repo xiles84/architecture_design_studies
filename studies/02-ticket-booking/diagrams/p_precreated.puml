@@ -1,0 +1,54 @@
+@startuml p_precreated
+!include _style.puml
+title P1–P4 — pre-created tickets: one row per seat, selling is an UPDATE
+
+entity "event" as e {
+  * event_id : BIGINT <<PK>>
+  --
+  * band_id : BIGINT <<FK>>
+  * capacity : INT
+  * description : TEXT
+  <back:#D8F0DE>* seats_sold : INT  (P4 only, CHECK 0..capacity)</back>
+}
+entity "ticket  (capacity rows per event)" as t {
+  * ticket_id : BIGINT <<PK>>
+  --
+  * event_id : BIGINT <<FK>>
+  * seat_no : INT
+  <back:#FFF3CD>* status : 'available' | 'sold'</back>
+  customer_id : BIGINT
+  sold_at : TIMESTAMPTZ
+  --
+  UNIQUE (event_id, seat_no)
+  INDEX (event_id, seat_no) WHERE status = 'available'
+}
+e ||--|{ t
+
+note right of t
+  **P1 lock-first** (READ COMMITTED)
+  SELECT … ORDER BY seat_no LIMIT 1 **FOR UPDATE**
+  UPDATE … SET status='sold'
+  Every buyer waits on the same lowest seat.
+
+  **P2 skip-locked**
+  SELECT … LIMIT 1 **FOR UPDATE SKIP LOCKED**
+  UPDATE … SET status='sold'
+  no row → EXISTS(available)? retry : sold out
+
+  **P3 CAS** (autocommit, no lock)
+  SELECT first available seat ≥ random start
+  UPDATE … WHERE ticket_id=$ **AND status='available'**
+  0 rows → lost the race, retry
+
+  **P4 skip+counter**
+  P2, then UPDATE event SET seats_sold+1
+  — every buyer queues on the event row again
+end note
+
+note bottom of t
+  <back:#FFCCCC> **The price of pre-creation** </back>: publishing a
+  100 000-seat event inserts 100 000 rows before a
+  single sale, and each sale leaves a dead entry in
+  the partial index until vacuum removes it.
+end note
+@enduml

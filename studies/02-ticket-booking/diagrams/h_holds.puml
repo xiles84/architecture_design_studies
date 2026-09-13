@@ -1,0 +1,32 @@
+@startuml h_holds
+!include _style.puml
+title H0 / H1 — holds with expiry, and the late payment
+
+participant "Buyer A" as A
+participant "Database" as DB
+participant "Sweeper" as S
+participant "Buyer B" as B
+
+A -> DB : hold: UPDATE event SET seats_taken+1 WHERE seats_taken < capacity\nINSERT reservation (held, expires in 250 ms)
+A -> DB : pre-payment check: held AND not expired?  → true
+activate A
+note over A : paying… (card authorisation takes longer than the hold has left)
+S -> DB : expired holds FOR UPDATE SKIP LOCKED\nUPDATE reservation SET released WHERE status='held'\nUPDATE event SET seats_taken−1
+B -> DB : hold: the released seat → granted
+B -> DB : confirm → ticket issued
+deactivate A
+
+alt H0 — naive confirm (NEGATIVE CONTROL)
+  A -> DB : UPDATE reservation SET status='confirmed' WHERE reservation_id=$\nINSERT ticket
+  DB --> A : 1 row — **the same seat is now sold twice**
+else H1 — checked confirm
+  A -> DB : UPDATE reservation SET status='confirmed'\n WHERE reservation_id=$ AND status='held' AND expires_at > now()
+  DB --> A : 0 rows — refund, no ticket
+end
+
+note over DB
+  The pre-payment check is identical in H0 and H1 and was TRUE when it ran.
+  The only difference between the designs is the WHERE clause of the confirmation,
+  evaluated by the database clock in the same statement that confirms.
+end note
+@enduml
