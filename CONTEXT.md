@@ -22,17 +22,37 @@ Untagged work means an unexplained change in conclusions.
   and after the enhancement, so `git diff <before> <after>` explains a change in conclusions.
 - Annotated tags only; never move, delete or reuse a tag; never rewrite history; never push.
 
-Full rule: [CLAUDE.md → "Hard rule: commit and tag, never push"](CLAUDE.md).
+Full rule: [AGENTS.md → "Hard rule: commit and tag, never push"](AGENTS.md).
+
+## Rule for every AI session: agents from any vendor, working in parallel
+
+**From 2026-09-13, by the owner's instruction:** agents from different vendors (Claude,
+OpenAI and others) work in this repository, sometimes at the same time.
+
+- **Instructions live in [`AGENTS.md`](AGENTS.md)**, the tool-neutral file. `CLAUDE.md` only
+  imports it. Never write a rule only in `CLAUDE.md`.
+- **One folder per agent:** use `git worktree add ../ads-<study>-<topic> -b <study>/<topic>`,
+  never two agents in the same working folder. The owner (or an agent asked to) merges.
+- **One measurement at a time on this machine.** Code and analyses in parallel; dev checks
+  and matrices never. Runners take the **benchmark lock** (`run_lock_acquire` in
+  `infra/lib.sh`, a podman volume named `ads-run-lock`); a second runner from any worktree
+  or tool refuses to start and names the holder. If the lock is held, wait.
+- **Before a long run, add it to the runs table below as "running".**
 
 ### Tags so far
 
 | Tag | Marks |
 |---|---|
 | `study-01/v1` | study 01 code and reports behind its first analysis (`795420b`) |
-| `study-01/v2-second-analysis` | study 01 with the independent GPT-6 analysis and regenerated reports |
+| `study-01/v2-second-analysis` | study 01 with the independent GPT-6 analysis and regenerated reports (`918a90f`) |
+| `study-01/v2-before-enhancements` | study 01 before the v3 follow-ups (GPT-6 session) |
 | `study-02/v1-harness` | study 02 designs, harness and shared platform as first run (`774d258`) |
 | `run/02-ticket-booking/20260913T021206Z` | commit that produced study 02's `small` matrix (`7570648`) |
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
+| `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
+
+Check `git tag -n1` for the authoritative list; this table can lag behind a session that
+has not updated it yet.
 
 ---
 

@@ -110,7 +110,11 @@ if [[ "$TAG" == "yes" ]]; then
 fi
 [[ "$REPO_DIRTY" == "true" ]] && warn "running from a dirty tree: results will say so"
 
-# Refuse to trample another run: the infra scripts reuse container names.
+# One measurement on this machine at a time, across every worktree and session
+# (infra/lib.sh). Taken before tagging-dependent work starts building images.
+run_lock_acquire "study ${STUDY_ID} run-study.sh run ${RUN_ID}"
+
+# Belt and braces: containers left behind by a crashed run hold no lock.
 BUSY="$(podman ps --format '{{.Names}}' | grep -E '^(pg-single|yb-single|yb-n[123])$' || true)"
 [[ -n "$BUSY" ]] && die "database containers already running ($BUSY) -- another run may be in progress"
 

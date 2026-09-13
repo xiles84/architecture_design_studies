@@ -84,6 +84,85 @@ wait_sql() {
   done
 }
 
+# ---------------------------------------------------------------------------
+# Benchmark lock: one measurement on this machine at a time.
+#
+# Several AI sessions may work at once, in separate git worktrees. Code and
+# analyses can be written in parallel; measurements cannot. The infra scripts
+# reuse container names in every study and worktree (a second `up` destroys the
+# first session's database), and even with unique names two matrices would
+# share the same eight cores and silently change each other's numbers.
+#
+# The lock is a podman named volume. `podman volume create` fails atomically when
+# the volume exists, and the podman machine is shared by every worktree and every
+# shell (Git Bash, PowerShell, WSL, any vendor's agent) -- the lock lives exactly
+# where the contended resource lives. Labels record who holds it.
+#
+# A holder killed with SIGKILL leaves a stale lock. Remove it by hand only after
+# `podman ps` shows no benchmark or database container:  podman volume rm ads-run-lock
+# ---------------------------------------------------------------------------
+RUN_LOCK_VOLUME="ads-run-lock"
+
+# run_lock_acquire <description>
+# Takes the lock for the rest of this script, or dies naming the holder. Nested
+# calls (a runner that calls another runner) inherit the parent's lock.
+run_lock_acquire() {
+  local desc="$1"
+  if [[ -n "${ADS_RUN_LOCK_HELD:-}" ]]; then
+    return 0
+  fi
+  if podman volume create \
+      --label "ads.holder=${desc}" \
+      --label "ads.started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      --label "ads.worktree=$(hostpath "$REPO_ROOT")" \
+      --label "ads.branch=$(git -C "$(hostpath "$REPO_ROOT")" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)" \
+      "$RUN_LOCK_VOLUME" >/dev/null 2>&1; then
+    export ADS_RUN_LOCK_HELD="$desc"
+    ADS_RUN_LOCK_OWNER_PID="$$"
+    # EXIT traps do not run on an untrapped signal; turning signals into exits
+    # makes Ctrl+C and `kill` release the lock too. Bash runs a trap only after
+    # the current foreground command returns: Ctrl+C reaches the whole process
+    # group and releases at once; `kill <runner-pid>` releases when the running
+    # cell's podman command ends. (Tested 2026-09-13.)
+    trap 'run_lock_release' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    log "benchmark lock acquired: ${desc}"
+    return 0
+  fi
+  warn "another benchmark holds this machine's lock:"
+  run_lock_describe >&2
+  die "refusing to run concurrently: measurements on a shared machine would corrupt each other (see infra/lib.sh)"
+}
+
+run_lock_release() {
+  if [[ "${ADS_RUN_LOCK_OWNER_PID:-}" == "$$" ]]; then
+    podman volume rm -f "$RUN_LOCK_VOLUME" >/dev/null 2>&1 || true
+    unset ADS_RUN_LOCK_OWNER_PID ADS_RUN_LOCK_HELD
+  fi
+}
+
+run_lock_describe() {
+  podman volume inspect "$RUN_LOCK_VOLUME" \
+    --format '  holder:   {{index .Labels "ads.holder"}}
+  started:  {{index .Labels "ads.started"}}
+  worktree: {{index .Labels "ads.worktree"}}
+  branch:   {{index .Labels "ads.branch"}}' 2>/dev/null || echo "  (lock volume vanished)"
+}
+
+# run_lock_guard: for the infra topology scripts. Starting or stopping a database
+# while someone else's benchmark holds the lock would destroy their run. Scripts
+# invoked by a lock holder pass through; a person poking at a database by hand
+# while nothing is measured passes through; ADS_IGNORE_RUN_LOCK=1 overrides.
+run_lock_guard() {
+  [[ -n "${ADS_RUN_LOCK_HELD:-}" || "${ADS_IGNORE_RUN_LOCK:-}" == "1" ]] && return 0
+  if podman volume exists "$RUN_LOCK_VOLUME" 2>/dev/null; then
+    warn "a benchmark is running on this machine:"
+    run_lock_describe >&2
+    die "not touching database containers while it runs (set ADS_IGNORE_RUN_LOCK=1 only if you are certain it is stale)"
+  fi
+}
+
 # Records what was actually running, so a result can be tied to a topology
 # after the fact rather than trusted from a script argument.
 record_topology() {

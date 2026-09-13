@@ -488,3 +488,24 @@ longer than the TTL — about 96% of holds expired before the buyer could pay, a
 experiment measured expiry rather than late payments. One `-hold-time-scale` factor now
 scales every hold timing together, which keeps their ratios, and therefore the share of late
 payments, unchanged across engines.
+
+### Rules an agent cannot see do not exist for it
+
+The repository's instructions lived in `CLAUDE.md`, which only Claude Code reads. An OpenAI
+Codex session worked in the same tree and, among useful work, rewrote another analyst's
+signed file in place — against a rule it had no reason to load. The instructions now live in
+`AGENTS.md` (read by Codex and other agents) and `CLAUDE.md` imports it, so every agent reads
+one text. Rules also stopped assuming a vendor: identify the model in commit messages however
+the tool does it, and name vendors only where provenance needs them.
+
+### Parallel agents need separate folders and a shared lock
+
+Two sessions in one working folder edited `CONTEXT.md` and `LESSONS_LEARNED.md` at the same
+time, and each had to avoid committing the other's half-finished changes. Branches alone do
+not fix this — a folder has one checked-out branch — but git worktrees do: one folder and
+branch per agent, one repository. Measurements are the part that cannot be parallelised at
+all: container names are shared by every study and the machine's cores by every run. A lock
+that lives where the contended resource lives (a podman volume, created atomically, visible
+to every worktree, shell and agent) turns that rule from a convention into a refusal. It was
+tested for a second acquirer, a guarded `down`, nesting, normal exit and SIGTERM, which
+releases only after the current foreground command returns.

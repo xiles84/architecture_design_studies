@@ -34,6 +34,7 @@ MASTER_FLAGS="memory_limit_hard_bytes=536870912"
 TSERVER_FLAGS="${TSERVER_FLAGS}${YB_EXTRA_TSERVER_FLAGS:+,$YB_EXTRA_TSERVER_FLAGS}"
 
 cmd_up() {
+  run_lock_guard
   need_podman
   net_ensure
   rm_container "$NAME"
@@ -60,6 +61,7 @@ cmd_up() {
 }
 
 cmd_down() {
+  run_lock_guard
   rm_container "$NAME"
   podman volume rm -f "$VOLUME" >/dev/null 2>&1 || true
   log "$NAME removed (including its data volume)"

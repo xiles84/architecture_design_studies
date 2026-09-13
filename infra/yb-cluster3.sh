@@ -38,6 +38,7 @@ start_node() {
 }
 
 cmd_up() {
+  run_lock_guard
   need_podman
   net_ensure
   for n in "${NODES[@]}"; do rm_container "$n"; podman volume rm -f "ads-${n}-data" >/dev/null 2>&1 || true; done
@@ -91,6 +92,7 @@ cmd_status() {
 }
 
 cmd_down() {
+  run_lock_guard
   for n in "${NODES[@]}"; do
     rm_container "$n"
     podman volume rm -f "ads-${n}-data" >/dev/null 2>&1 || true

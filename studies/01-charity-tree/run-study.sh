@@ -18,6 +18,7 @@ source "$REPO/infra/lib.sh"
 # With -e active, the first non-zero podman exit would kill the whole run
 # before the failure-handling code below ever executed.
 set +e
+run_lock_acquire "study 01 run-study.sh $*"
 
 SCALE="medium"
 DURATION="10s"

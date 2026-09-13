@@ -100,6 +100,16 @@ git checkout run/02-ticket-booking/<run-id>
 Expect the `small` matrix to take several hours: YugabyteDB sells far fewer seats per second
 than PostgreSQL on this hardware, so its large-event races run to their timeout.
 
+### Only one run at a time
+
+Every runner takes a machine-wide **benchmark lock** (a podman volume named `ads-run-lock`)
+before it starts any database. A second run — from another terminal, another git worktree
+or another AI agent — refuses to start and prints who holds the lock, and the topology
+scripts below refuse to start or stop databases while it is held. Two runs on one machine
+would share its cores and change each other's numbers. If a run was killed with `kill -9`
+and `podman ps` shows nothing running, remove a stale lock with
+`podman volume rm ads-run-lock`.
+
 ## Poke at a database by hand
 
 ```bash

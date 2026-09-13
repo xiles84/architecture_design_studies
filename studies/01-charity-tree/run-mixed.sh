@@ -31,6 +31,7 @@ source "$REPO/infra/lib.sh"
 # lib.sh turns on `set -e`. Turn it back off: a failed cell must be recorded and
 # the run must continue.
 set +e
+run_lock_acquire "study 01 run-mixed.sh $*"
 
 TOPOLOGY="pg-single"
 SCALE="small"

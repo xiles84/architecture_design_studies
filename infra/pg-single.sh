@@ -31,6 +31,7 @@ pg_settings=(
 )
 
 cmd_up() {
+  run_lock_guard
   need_podman
   net_ensure
   rm_container "$NAME"
@@ -48,6 +49,7 @@ cmd_up() {
 }
 
 cmd_down() {
+  run_lock_guard
   rm_container "$NAME"
   # The volume is removed too: a benchmark must never start from a previous
   # run's pages, statistics or bloat.

@@ -48,6 +48,7 @@ STUDY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$STUDY_DIR/../.." && pwd)"
 source "$REPO/infra/lib.sh"
 set +e
+run_lock_acquire "study 01 run-regimes.sh $*"
 
 DATE="${REGIME_DATE:-$(date -u +%Y%m%d)}"
 ALL_WRITES="insert,update,delete,update_person,delete_person"
