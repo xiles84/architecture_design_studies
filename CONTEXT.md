@@ -51,6 +51,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
 | `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
+| `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -92,6 +93,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
+  03-reserved-seating/    study 03 (see below) — planned: Execution Handoff only
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -350,6 +352,48 @@ after every writing phase.
 sweep (4–128); a single-statement SKIP LOCKED variant to separate round trips from locking in
 P3's lead; YugabyteDB with connections spread over all nodes; a larger per-node CPU budget; an
 asynchronous allocator (virtual waiting room); a second analysis by a different model.
+
+**Terminology review (planned, 2026-09-13):** study 02 is **general admission** — `seat_no` is
+an admission number, and H0/H1 hold a unit of capacity, not a place. The review found no
+test that is wrong under that reading. Its README gets a terminology section (no SQL,
+harness, report or analysis change, no re-run), tag `study-02/v1.2-terminology`: step 2 of
+study 03's handoff.
+
+### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
+
+**Status (2026-09-13):** planned; nothing built or run. The specification is the
+[Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`).
+Unmapped decisions go to [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
+
+**The owner's workflow for this study:** plan, escalations and final analysis in Claude
+Opus 5 with the `ultracode` setting ("ultra"). Execution in Claude Opus 5 with the `high`
+setting ("high"). An executor that meets a decision the handoff does not map records
+"Escalation Required" (`ER-NN`) and continues with unblocked work; the ultra session
+decides and, if needed, appends an amendment to the handoff.
+
+**The question:** buyers choose specific seats and keep them for 40 minutes while they pay,
+and must never find a held seat gone. With marked seats, a unique key already prevents a
+seat being sold twice. The hard parts become:
+
+- a hold that excludes everyone else until it expires, and then frees the seat;
+- conflicts over the *same* seat (SKIP LOCKED does not apply);
+- all-or-nothing multi-seat blocks;
+- the seat map as the hot read;
+- expiry racing payment;
+- whose clock decides.
+
+**Plan in brief:**
+
+- **13 designs:**
+  - S0–S4, arbitration: conditional update, lock, NOWAIT, SERIALIZABLE; S0 is a check-then-act control;
+  - E0–E2, expiry: lazy, sweeper, cart; E0 is an application-clock control;
+  - K0–K1, checkout: K0 is a naive-confirmation control, K1 a payment window;
+  - L1–L3, layout: claim rows with a unique arbiter, section document, section-sharded (L3 on YugabyteDB only).
+- **Invariants INV-1..INV-8:** no double sale, no theft, honored hold, no leaked seats,
+  all-or-nothing, no late sale, ledger reconciliation, no under-selling.
+- **Experiments:** a hot-drop race with seat choice and deferred confirmers on real
+  40-minute holds, and a compressed-time lifecycle with a sweeper outage.
+- **Connections** are spread over all three YugabyteDB nodes.
 
 ## Decisions taken, and why
 
