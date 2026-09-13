@@ -121,12 +121,12 @@ Implementation is isolated in `.worktrees/study01-v3`, branch
 `-cmd experiment` / `-cmd report-enhancements` path are implemented. The v3 runner
 creates a run tag, pins the image ID, takes the shared benchmark lock and keeps every
 fresh-load trial. Containerized catalogue/control, scheduler overload and grouping tests
-pass; live engine verification is next. Owner merges this branch after review.
+pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 checks per cell). Owner merges this branch after review.
 
-**Running — do not start databases:** `20260913T124917Z-v3`, 14 verification cells
+**Completed:** `20260913T124917Z-v3`, 14 successful verification cells
 (seven new variants on PostgreSQL and YugabyteDB single-node), run tag
 `run/01-charity-tree/20260913T124917Z-v3`, harness `41a1490`, milestone
-`study-01/v3-harness`. This worktree holds the machine-wide `ads-run-lock`.
+`study-01/v3-harness`. All 196 checks passed; both topologies were removed and the lock released.
 
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
