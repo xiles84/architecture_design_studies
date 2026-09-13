@@ -19,6 +19,11 @@ migrate the legacy study to `platform/`. New command paths preserve legacy resul
 The experiment report groups all repeated cells without overwriting by design/topology.
 Each run pins the benchmark image ID, commits, resource condition, preparation and order.
 
+The constrained growth condition uses medium/history-multiplier=2. A matched standard
+3 GiB run with that same dataset and mutation sequence is required to attribute a
+change to the memory configuration: the ordinary medium/multiplier=1 condition alone
+changes both the dataset and the budget. This control follows the main matrix.
+
 Generated reports contain measurements only. New final analyses are concise and link
 to signed `reports/discussions/` documents for design mechanisms and analyst exchanges.
 The previous analyses remain intact, attributable to the inputs they actually reviewed.

@@ -144,6 +144,14 @@ Podman was restarted after the interactive pause; live VM resources were recheck
 8 CPUs, 16,496,418,816 bytes and the same kernel. The preceding 100-cell run is tagged
 `study-01/v3-mechanisms`. The current runner holds `ads-run-lock`.
 
+All six constrained-memory cells completed their nine growth phases with no gate
+failures. A follow-up control is needed before interpreting the D6/D3 donor-read
+difference as a memory effect: repeat medium/history-multiplier=2 at the standard
+3 GiB budget (the current standard medium condition uses multiplier=1). Queue this
+after the active matrix, never concurrently. A reporting-only edit to expose growth
+read rates, arrival retries/counts and audits is pending container validation; the
+active run continues on its original pinned image.
+
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
