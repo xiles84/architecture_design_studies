@@ -149,6 +149,13 @@ working tree is never tagged, and every result records whether the tree was dirt
 
 ## Results and conclusions
 
+**Start here:** [the signed analysis](reports/analyses/20260913T021206Z--claude-opus-5--2026-09-13.md)
+— its TL;DR answers the owner's questions, and a section names where the measurement is weak.
+
+| Report | What it measures | Code |
+|---|---|---|
+| [20260913T021206Z](reports/20260913T021206Z.md) | `small` matrix: 14 designs × PostgreSQL 1-node, YugabyteDB 1-node, YugabyteDB 3-node; single trial; C2 failed on both YugabyteDB topologies (diagnosed) | tag `run/02-ticket-booking/20260913T021206Z` |
+
 Generated reports (numbers only) are in [`reports/`](reports/); signed analyses (what the
 numbers mean, by whom, looking at which data digest) in [`reports/analyses/`](reports/analyses/).
 Raw JSON, readable plans for every read **and write** statement, per-cell console logs and
