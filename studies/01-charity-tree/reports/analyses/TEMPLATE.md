@@ -7,6 +7,7 @@ analyst_kind: <ai | human>
 analyst_version: <full identification, e.g. "Claude Opus 5 (claude-opus-5) via Claude Code">
 analyzed_at: <YYYY-MM-DD>
 inputs_digest: <paste the digest from the generated report — this is what identifies the data>
+repo_commit: <commit that produced the measurements>
 supersedes: <analysis_id you are replacing, or leave blank>
 status: <current | superseded>
 headline: <one sentence, shown in the report's index table>
@@ -21,6 +22,10 @@ headline: <one sentence, shown in the report's index table>
 > to **disagree, extend, or bring a different perspective** — not to restate. Never edit
 > someone else's analysis; write your own and reference theirs by `analysis_id`.
 
+## TL;DR
+
+Three to five actionable bullets: recommendation, exceptions and biggest doubt.
+
 ## What I was looking at
 
 State the run, the scale, the topologies, and anything you deliberately ignored. If cells
@@ -31,11 +36,10 @@ failed or are missing, say so here rather than quietly working around them.
 The interpretation. Lead with what a reader should *do differently*, not with what the
 numbers were — the numbers are already in the generated report and do not need repeating.
 
-Cite specific measurements when you make a claim, so a later analyst can check you:
-
-> D2 → D3 removed a join from six queries but moved `q08` from 432 to 7 200 ops/s only
-> because the covering index turned it into an index-only scan — see the plan in
-> `plans/d3_flattened_fk.txt`, which shows no heap fetches.
+Cite exact measurements and plans. Aim for about 1,000 words in this final analysis.
+Put SQL walkthroughs, detailed design comparisons and exchanges between analysts in a
+signed companion under reports/discussions/, using docs/templates/DISCUSSION.md.
+Link the companion beside the conclusion it supports; include its provenance and backlink.
 
 ## Where I think the measurement is weak
 

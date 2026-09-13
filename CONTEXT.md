@@ -89,6 +89,17 @@ directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/`
 
 ### Study 01 — tree structures (charity → person → donation)
 
+**v3 enhancement in progress (2026-09-13):** the owner approved all six follow-ups in
+GPT-6's "What I would measure next". The protocol is in
+[`ENHANCEMENTS.md`](studies/01-charity-tree/ENHANCEMENTS.md); the before-state is tagged
+`study-01/v2-before-enhancements`. Independently loaded trials, mechanism variants,
+growth/churn, fixed-reader contention, YB exceptions and deployment controls are being
+added without migrating the original harness. Real network separation needs other hosts.
+
+**Reporting change:** methodology 11b keeps the final signed analysis concise and moves
+detailed design comparisons and analyst exchanges to signed `reports/discussions/`
+companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
+
 **Status:** all experiments (survey, C, D, E) complete; D9 cache bug found, diagnosed and fixed as D10; two signed analyses written, including an independent GPT-6 review of the available evidence.
 
 Eight designs, each a single deliberate change from its neighbour:

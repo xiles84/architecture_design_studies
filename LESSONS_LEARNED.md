@@ -10,6 +10,21 @@ experiments**.
 
 ## Measurement
 
+### Repeating a timing window is not repeating database preparation
+
+Study 01's original `-trials` repeats phases on one load. It cannot supply independent
+loads or alternate design order, and its report loader keys by topology/design, so simply
+adding trial files would silently retain only one. The v3 follow-up uses one result per
+freshly loaded trial and a separate grouping reporter. Preparation, order and exact
+charity keys travel with every result; largest/smallest plans bracket the timed reads.
+
+### Detailed explanations need a home outside the final decision document
+
+The owner valued the D2/D3 mechanism analysis but found the final document too long.
+Methodology 11b preserves that depth in signed discussion companions, including exchanges
+between analysts, while the final analysis links to them. Do not solve length by deleting
+evidence, rewriting another analyst, or removing disagreements.
+
 ### A correctness gate catches harness bugs, not just design bugs
 
 The verification pass was added to catch designs that drift out of sync. The first thing

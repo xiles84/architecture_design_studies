@@ -1,6 +1,6 @@
 # Reports
 
-Two kinds of file live here, and the split is deliberate.
+Measurements, concise final analyses, and detailed discussion companions live here.
 
 ## Generated reports — `<run-id>.md`
 
@@ -35,6 +35,13 @@ Rules:
 - **Never edit another analyst's file.** Write your own and cite theirs by `analysis_id`.
 - **Name where you think the measurement is weak.** An analysis with no stated doubts has
   not been done carefully.
+
+## Discussions — `discussions/<topic>--<analyst>--<date>.md`
+
+Detailed SQL and plan explanations, design comparisons, and exchanges between models or
+human analysts belong here. Use [the discussion template](../../../docs/templates/DISCUSSION.md).
+Keep final analyses around 1,000 words and link companions beside the relevant conclusions.
+Both documents carry author, run, digest and commit provenance and link to one another.
 
 ## `outdated/`
 

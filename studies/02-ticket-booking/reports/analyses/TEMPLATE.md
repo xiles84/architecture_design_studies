@@ -39,11 +39,10 @@ failed or are missing, say so here rather than quietly working around them.
 The interpretation. Lead with what a reader should *do differently*, not with what the
 numbers were — the numbers are already in the generated report and do not need repeating.
 
-Cite specific measurements when you make a claim, so a later analyst can check you:
-
-> D2 → D3 removed a join from six queries but moved `q08` from 432 to 7 200 ops/s only
-> because the covering index turned it into an index-only scan — see the plan in
-> `plans/d3_flattened_fk.txt`, which shows no heap fetches.
+Cite exact measurements and plans. Aim for about 1,000 words in this final analysis.
+Put SQL walkthroughs, detailed design comparisons and exchanges between analysts in a
+signed companion under reports/discussions/, using docs/templates/DISCUSSION.md.
+Link the companion beside the conclusion it supports; include its provenance and backlink.
 
 ## Where I think the measurement is weak
 

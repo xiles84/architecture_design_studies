@@ -263,6 +263,26 @@ Rules for analysts:
   report marks that analysis stale. Its conclusions may still hold, but they were not
   drawn from what is there now.
 
+## 11b. Keep the final analysis short; publish the reasoning beside it
+
+The final signed analysis is the decision document: TL;DR, scope, recommendations,
+the measurements needed to support them, weaknesses, and the next experiments. Aim for
+roughly 1,000 words; link to detail instead of expanding every mechanism in place.
+
+Detailed design comparisons, SQL/plan walkthroughs, and exchanges between AI models or
+human analysts belong in **signed companion documents under `reports/discussions/`**.
+Use `docs/templates/DISCUSSION.md`. The final analysis links to its companions near each
+affected conclusion; each companion links back and records the same run/digest/commit
+provenance. Additional runs must be listed explicitly. Companions may be as detailed as
+the evidence requires. This split encourages explanation and disagreement, not less of it.
+
+A discussion distinguishes observations, possible mechanisms, alternative explanations,
+and the experiment that could settle a disagreement. Cite other analysts by `analysis_id`;
+do not imply they participated in a new exchange. Each author writes a separate signed
+document. Never rewrite another author's analysis, or silently shorten a published one.
+Old analyses remain evidence for their original inputs; an explicitly superseded edition
+is preserved under `outdated/` with its former location documented.
+
 ## 12. Reports expire
 
 A report describes one run of one code state on one machine. When a study is re-run and
