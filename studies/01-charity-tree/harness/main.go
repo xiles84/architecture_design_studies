@@ -41,9 +41,12 @@ type Run struct {
 	Mixed       []*MixedResult    `json:"mixed,omitempty"`
 	Explain     map[string]string `json:"explain,omitempty"`
 	Error       string            `json:"error,omitempty"`
+	Provenance  map[string]string `json:"provenance,omitempty"`
+	Experiment  *ExperimentResult `json:"experiment,omitempty"`
 }
 
 func main() {
+	eopts := experimentFlags()
 	var (
 		dsn          = flag.String("dsn", envOr("BENCH_DSN", ""), "PostgreSQL-protocol connection string")
 		engine       = flag.String("engine", envOr("BENCH_ENGINE", "postgres"), "postgres | yugabyte")
@@ -78,6 +81,12 @@ func main() {
 		stmtTimeout  = flag.Int("stmt-timeout-ms", 120000, "server-side statement_timeout")
 	)
 	flag.Parse()
+	if *cmd == "report-enhancements" {
+		if err := writeEnhancementReport(*resultsDir, *reportOut); err != nil {
+			fatal(err)
+		}
+		return
+	}
 
 	switch *cmd {
 	case "digest":
@@ -141,6 +150,7 @@ func main() {
 		DesignTitle: d.Title,
 		DesignNote:  d.Summary,
 		Scale:       *scale,
+		Provenance:  map[string]string{"repo_commit": os.Getenv("BENCH_REPO_COMMIT"), "repo_describe": os.Getenv("BENCH_REPO_DESCRIBE"), "repo_dirty": os.Getenv("BENCH_REPO_DIRTY"), "run_tag": os.Getenv("BENCH_RUN_TAG"), "image_id": os.Getenv("BENCH_IMAGE_ID")},
 		Options: map[string]any{
 			"conns": *conns, "load_conns": *loadConns,
 			"duration": duration.String(), "warmup": warmup.String(),
@@ -155,6 +165,7 @@ func main() {
 		Strategy: *strategy, Isolation: *isolation,
 		StmtTimeoutMS: *stmtTimeout, Trials: *trials,
 		MaxPerPerson: *maxPerPerson, ReadMix: *readMixName, Charities: *charities,
+		HistoryMultiplier: eopts.HistoryMultiplier, Experiment: *eopts,
 	}
 	run.Options["trials"] = *trials
 
@@ -188,6 +199,9 @@ func execute(ctx context.Context, run *Run, d Design, dsn, cmd, scale string,
 	// Leave headroom over the worker count: the pool must never be the bottleneck
 	// we accidentally measure.
 	cfg.MaxConns = int32(opts.Conns + loadConns + 4)
+	if cmd == "experiment" && opts.Experiment.Mode == "arrival" {
+		cfg.MaxConns = int32(opts.Experiment.ReadWorkers + opts.Experiment.WriteWorkers + loadConns + 4)
+	}
 	cfg.MinConns = 1
 	cfg.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(opts.StmtTimeoutMS)
 	cfg.ConnConfig.RuntimeParams["application_name"] = "charitytree-bench"
@@ -205,7 +219,7 @@ func execute(ctx context.Context, run *Run, d Design, dsn, cmd, scale string,
 	fmt.Printf("  engine: %s\n", firstLine(run.EngineVer))
 
 	fmt.Printf("  generating dataset scale=%s seed=%d ...\n", scale, seed)
-	ds, err := GenerateProfile(scale, seed, Profile{MaxPerPerson: opts.MaxPerPerson, Charities: opts.Charities})
+	ds, err := GenerateProfile(scale, seed, Profile{MaxPerPerson: opts.MaxPerPerson, Charities: opts.Charities, HistoryMultiplier: opts.HistoryMultiplier})
 	if err != nil {
 		return err
 	}
@@ -214,6 +228,9 @@ func execute(ctx context.Context, run *Run, d Design, dsn, cmd, scale string,
 		len(ds.Charities), len(ds.People), len(ds.Donations))
 
 	binder := NewBinder(ds)
+	if cmd == "experiment" {
+		return executeExperiment(ctx, pool, run, d, ds, opts, writeOps, queries, explainTo, loadConns)
+	}
 
 	// verify must load its own data: it compares against the pristine generated
 	// dataset, and any previous run's write benchmark will have mutated whatever
@@ -310,7 +327,7 @@ func execute(ctx context.Context, run *Run, d Design, dsn, cmd, scale string,
 			if err != nil {
 				return err
 			}
-			if ww > 0 && (d.Rollups || d.RecentCache) {
+			if ww > 0 && (d.Rollups || d.SumOnly || d.RecentCache) {
 				au, err := AuditRollups(ctx, pool, d)
 				if err != nil {
 					return err
@@ -356,7 +373,7 @@ func execute(ctx context.Context, run *Run, d Design, dsn, cmd, scale string,
 			// op is audited on the state IT produced. Auditing only at the end
 			// would check nothing but the last op, now that ops no longer share
 			// a table.
-			if (d.Rollups || d.RecentCache) && len(ws) > 0 && ws[0].Skipped == "" {
+			if (d.Rollups || d.SumOnly || d.RecentCache) && len(ws) > 0 && ws[0].Skipped == "" {
 				au, err := AuditRollups(ctx, pool, d)
 				if err != nil {
 					return err

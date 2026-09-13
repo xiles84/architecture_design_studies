@@ -18,6 +18,16 @@ adding trial files would silently retain only one. The v3 follow-up uses one res
 freshly loaded trial and a separate grouping reporter. Preparation, order and exact
 charity keys travel with every result; largest/smallest plans bracket the timed reads.
 
+The new catalogue-control test immediately caught a source-generation error: an
+unanchored match took the documentation's example `-- name:` for the first statement.
+Start catalogues at a line-anchored real query declaration, and test the exact unchanged
+SQL between controlled variants before starting databases.
+
+An arrival generator must conserve demand: offered = accepted + rejected, and accepted =
+completed + failed after drain. Its overload test uses a service slower than the offered
+rate and requires visible rejections and queue delay. Successful-request percentiles
+must be shown alongside failure/rejection counts, not reported as all-request latency.
+
 ### Detailed explanations need a home outside the final decision document
 
 The owner valued the D2/D3 mechanism analysis but found the final document too long.

@@ -121,6 +121,16 @@ func SetupAndLoad(ctx context.Context, pool *pgxpool.Pool, d Design, ds *Dataset
 		}
 		ph.RollupMS = msSince(t)
 	}
+	if d.SumOnly {
+		t = time.Now()
+		for _, table := range []string{"person", "charity"} {
+			key := table + "_id"
+			if _, err := pool.Exec(ctx, "UPDATE "+table+" p SET total_donated_cents = a.total FROM (SELECT "+key+", SUM(amount_cents) AS total FROM donation GROUP BY "+key+") a WHERE p."+key+" = a."+key); err != nil {
+				return nil, fmt.Errorf("sum rollup: %w", err)
+			}
+		}
+		ph.RollupMS = msSince(t)
+	}
 
 	t = time.Now()
 	if idx := readSQLOptional(d.ID, "indexes.sql"); strings.TrimSpace(idx) != "" {

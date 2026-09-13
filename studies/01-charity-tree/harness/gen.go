@@ -44,10 +44,11 @@ type Dataset struct {
 	Scale string
 	Seed  int64
 	// MaxPerPerson is the history cap (0 = uncapped). See GenerateProfile.
-	MaxPerPerson int
-	Charities    []Charity
-	People       []Person
-	Donations    []Donation
+	MaxPerPerson      int
+	HistoryMultiplier int
+	Charities         []Charity
+	People            []Person
+	Donations         []Donation
 	// DonationsByPerson[i] holds indexes into Donations for People[i]. Built for
 	// the embedded design's loader, which needs one array per person.
 	DonationsByPerson [][]int32
@@ -193,7 +194,11 @@ func GenerateProfile(scaleName string, seed int64, prof Profile) (*Dataset, erro
 		targetDonations = len(base.Donations)
 	}
 	r := rand.New(rand.NewSource(seed))
-	ds := &Dataset{Scale: scaleName, Seed: seed, MaxPerPerson: maxPerPerson}
+	multiplier := prof.HistoryMultiplier
+	if multiplier < 1 {
+		multiplier = 1
+	}
+	ds := &Dataset{Scale: scaleName, Seed: seed, MaxPerPerson: maxPerPerson, HistoryMultiplier: multiplier}
 
 	for i := 0; i < sc.Charities; i++ {
 		ds.Charities = append(ds.Charities, Charity{
@@ -249,7 +254,7 @@ func GenerateProfile(scaleName string, seed int64, prof Profile) (*Dataset, erro
 			Email:     fmt.Sprintf("donor%d@example.org", pid),
 			JoinedAt:  joined,
 		})
-		n := donationCountFor(r)
+		n := donationCountFor(r) * multiplier
 		// Clamping (rather than redrawing) keeps the same long-tailed draw and
 		// simply truncates the tail at the cap -- heavy donors become donors at
 		// the limit, which is what a bounded domain looks like in practice.
@@ -313,6 +318,7 @@ func (ds *Dataset) Summary() map[string]any {
 	}
 	return map[string]any{
 		"scale":                   ds.Scale,
+		"history_multiplier":      ds.HistoryMultiplier,
 		"max_per_person_cap":      ds.MaxPerPerson,
 		"profile":                 profileName(ds.MaxPerPerson, len(ds.Charities)),
 		"seed":                    ds.Seed,
@@ -357,6 +363,7 @@ func profileName(maxPerPerson, charities int) string {
 // Either way the number of donations is held constant, so a faster result means
 // the shape helped -- not that the table got smaller.
 type Profile struct {
-	MaxPerPerson int
-	Charities    int
+	MaxPerPerson      int
+	Charities         int
+	HistoryMultiplier int
 }

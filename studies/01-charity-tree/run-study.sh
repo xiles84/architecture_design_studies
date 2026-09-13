@@ -9,6 +9,12 @@
 # behind, not an empty directory. Failures are recorded and the matrix continues.
 set -uo pipefail
 
+# v3 follow-ups have independent-load trials and their own grouping reporter.
+if [[ "${1:-}" == "--suite" ]]; then
+  shift
+  exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/run-enhancements.sh" "$@"
+fi
+
 STUDY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$STUDY_DIR/../.." && pwd)"
 source "$REPO/infra/lib.sh"
@@ -62,7 +68,7 @@ ENVIRONMENT="${BENCH_ENVIRONMENT:-host-zenbook-ux5406sa}"
 OUT="$STUDY_DIR/results/$RUN_ID"
 mkdir -p "$OUT"
 
-ALL_PG_DESIGNS="d1_normalized_minimal d2_normalized_indexed d3_flattened_fk d8_flattened_nofk d4_rollup_trigger d5_rollup_app d6_embedded_jsonb d9_embedded_hybrid"
+ALL_PG_DESIGNS="d1_normalized_minimal d2_normalized_indexed d3_flattened_fk d8_flattened_nofk d4_rollup_trigger d5_rollup_app d6_embedded_jsonb d9_embedded_hybrid d10_embedded_hybrid_locked d11_copied_key d12_recency_index d13_recency_sql d17_sum_sql d14_sum_plain d15_sum_covering d16_sum_rollup"
 ALL_YB_DESIGNS="$ALL_PG_DESIGNS d7_yb_child_colocated"
 
 need_podman

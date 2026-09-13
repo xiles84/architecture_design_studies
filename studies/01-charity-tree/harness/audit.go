@@ -158,6 +158,23 @@ func sameSet(a, b []int64) bool {
 // parent rows that disagree.
 func AuditRollups(ctx context.Context, pool *pgxpool.Pool, d Design) (*RollupAudit, error) {
 	a := &RollupAudit{}
+	if d.SumOnly {
+		a.Ran = true
+		for _, table := range []string{"person", "charity"} {
+			key := table + "_id"
+			q := "SELECT COUNT(*), COUNT(*) FILTER (WHERE p.total_donated_cents IS DISTINCT FROM COALESCE(a.total,0)) FROM " + table + " p LEFT JOIN (SELECT " + key + ", SUM(amount_cents) total FROM donation GROUP BY " + key + ") a ON p." + key + "=a." + key
+			var checked, bad int64
+			if err := pool.QueryRow(ctx, q).Scan(&checked, &bad); err != nil {
+				return nil, err
+			}
+			if table == "person" {
+				a.PersonRows, a.PersonMismatches = checked, bad
+			} else {
+				a.CharityRows, a.CharityMismatches = checked, bad
+			}
+		}
+		return a, nil
+	}
 
 	if d.RecentCache {
 		checked, bad, err := AuditRecentCache(ctx, pool, d)

@@ -22,6 +22,7 @@ import (
 // out as a progression (plain tree -> indexed -> denormalised -> rolled up ->
 // embedded), so reading a row left to right follows the argument.
 var designOrder = []string{
+	"d11_copied_key", "d12_recency_index", "d13_recency_sql", "d17_sum_sql", "d14_sum_plain", "d15_sum_covering", "d16_sum_rollup",
 	"d1_normalized_minimal",
 	"d2_normalized_indexed",
 	"d3_flattened_fk",
@@ -35,6 +36,7 @@ var designOrder = []string{
 }
 
 var designShort = map[string]string{
+	"d11_copied_key": "D11 copied key", "d12_recency_index": "D12 date index", "d13_recency_sql": "D13 recency SQL", "d17_sum_sql": "D17 sum SQL", "d14_sum_plain": "D14 plain sum index", "d15_sum_covering": "D15 covering sum index", "d16_sum_rollup": "D16 sum rollup",
 	"d1_normalized_minimal":      "D1 minimal",
 	"d2_normalized_indexed":      "D2 indexed",
 	"d3_flattened_fk":            "D3 flat+FK",
@@ -568,6 +570,15 @@ func writeTradeoff(b *strings.Builder, rs *resultSet) {
 type pair struct{ a, bb, question string }
 
 var pairs = []pair{
+	{"d2_normalized_indexed", "d11_copied_key", "Copied key and its foreign key, before charity access paths"},
+	{"d11_copied_key", "d12_recency_index", "Charity/date index with identical read SQL"},
+	{"d12_recency_index", "d13_recency_sql", "Recency SQL rewrites with identical indexes"},
+	{"d13_recency_sql", "d17_sum_sql", "Sum SQL rewrite with identical indexes"},
+	{"d17_sum_sql", "d14_sum_plain", "Plain charity index with identical SQL"},
+	{"d14_sum_plain", "d15_sum_covering", "INCLUDE amount payload with identical SQL"},
+	{"d15_sum_covering", "d3_flattened_fk", "Ranking SQL rewrites with identical indexes"},
+	{"d3_flattened_fk", "d16_sum_rollup", "Synchronous sum maintenance on both parents"},
+	{"d16_sum_rollup", "d4_rollup_trigger", "Full rollup package versus sums only"},
 	{"d1_normalized_minimal", "d2_normalized_indexed", "What do secondary indexes alone buy? (identical SQL)"},
 	{"d2_normalized_indexed", "d3_flattened_fk", "What does denormalising the grandparent key buy?"},
 	{"d3_flattened_fk", "d8_flattened_nofk", "What does enforcing foreign keys cost?"},

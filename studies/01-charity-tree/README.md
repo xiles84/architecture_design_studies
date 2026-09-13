@@ -4,6 +4,37 @@
 **Environment:** [`host-zenbook-ux5406sa`](../../docs/environments/host-zenbook-ux5406sa.md)
 **Engines:** PostgreSQL 17.11 · YugabyteDB 2025.2.6.0 (1 node and 3 nodes, RF=3)
 
+## v3 follow-ups
+
+The [enhancement protocol](ENHANCEMENTS.md) adds independently loaded trials, controlled
+D11–D17 variants, growth cycles, fixed-reader scheduled writes, YugabyteDB correctness
+and FK follow-ups, and an equal-total-resource comparison. Use Git Bash on Windows:
+
+```bash
+./run-study.sh --suite enhancements --experiments verify --trials 1 --tag
+./run-study.sh --suite enhancements --experiments reads,mechanisms --trials 5 --tag
+./run-study.sh --suite enhancements --experiments growth,contention,exceptions,deployment --trials 3 --tag
+```
+
+Each command uses the machine-wide benchmark lock, pins an immutable image ID, records
+the committed source and creates a run tag. Database containers must not already exist.
+The default full suite is long; each group can run separately. Read trials use 8 workers,
+3 s per query after 1 s discarded warmup; longer write and arrival windows are explicit
+in `results/<run>/ordered-cells.tsv`. Every reported trial reloads from the same seed.
+
+The generated `reports/<run>.md` keeps all trials. Signed final analyses remain concise;
+SQL/plan explanations and exchanges between analysts go in `reports/discussions/`.
+
+| Variant | Controlled change |
+|---|---|
+| D11 copied key | D2 queries/indexes with D3 row shape and its additional charity FK |
+| D12 recency index | D11 plus `(charity_id, donated_at DESC)` |
+| D13 recency SQL | D12 plus q02/q05/q12 rewrites |
+| D17 sum SQL | D13 plus q08 rewrite, same indexes |
+| D14 plain sum index | D17 plus plain `(charity_id)` index |
+| D15 covering sum index | D14 with `INCLUDE (amount_cents)`; D3 adds only ranking rewrites |
+| D16 sum rollup | D3 plus sums on both parents; all other queries still derive their answers |
+
 ---
 
 ## The question

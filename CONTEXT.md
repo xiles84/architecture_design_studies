@@ -116,6 +116,13 @@ GPT-6's "What I would measure next". The protocol is in
 growth/churn, fixed-reader contention, YB exceptions and deployment controls are being
 added without migrating the original harness. Real network separation needs other hosts.
 
+Implementation is isolated in `.worktrees/study01-v3`, branch
+`study-01/measurement-enhancements` (GPT-6 through Codex). D11–D17 and the separate
+`-cmd experiment` / `-cmd report-enhancements` path are implemented. The v3 runner
+creates a run tag, pins the image ID, takes the shared benchmark lock and keeps every
+fresh-load trial. Containerized catalogue/control, scheduler overload and grouping tests
+pass; live engine verification is next. Owner merges this branch after review.
+
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.

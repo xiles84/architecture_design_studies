@@ -100,8 +100,11 @@ type Binder struct {
 	Donations int64
 	// personCharity[i] is the charity of person id i+1, needed to write the
 	// denormalised key in D3/D4/D5/D7.
-	personCharity []int64
-	nextDonation  atomic.Int64
+	personCharity  []int64
+	nextDonation   atomic.Int64
+	FixedCharity   int64
+	HotPeople      []int64
+	HotProbability float64
 }
 
 func NewBinder(ds *Dataset) *Binder {
@@ -134,8 +137,12 @@ func bind(params []string, vals map[string]any) ([]any, error) {
 // execution are essential: repeating one key would measure the buffer cache, not
 // the access path.
 func (b *Binder) readVals(r *rand.Rand) map[string]any {
+	charity := r.Int63n(b.Charities) + 1
+	if b.FixedCharity > 0 {
+		charity = b.FixedCharity
+	}
 	return map[string]any{
-		"charity_id":  r.Int63n(b.Charities) + 1,
+		"charity_id":  charity,
 		"person_id":   r.Int63n(b.People) + 1,
 		"donation_id": r.Int63n(b.Donations) + 1,
 	}
@@ -224,7 +231,9 @@ type BenchOpts struct {
 	// ReadMix selects the mixed-workload query weights: dashboard or portal.
 	ReadMix string
 	// Charities overrides the number of charities (0 = scale default).
-	Charities int
+	Charities         int
+	HistoryMultiplier int
+	Experiment        ExperimentOptions
 }
 
 // spreadNote flags a cell whose own trials disagree with each other by more than
@@ -738,6 +747,9 @@ func (b *Binder) insertFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o Ben
 
 	newDonation := func(r *rand.Rand) map[string]any {
 		pid := r.Int63n(b.People) + 1
+		if len(b.HotPeople) > 0 && r.Float64() < b.HotProbability {
+			pid = b.HotPeople[r.Intn(len(b.HotPeople))]
+		}
 		note := noteTemplates[r.Intn(len(noteTemplates))]
 		return map[string]any{
 			"donation_id":  b.nextDonation.Add(1),
@@ -772,6 +784,7 @@ func (b *Binder) insertFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o Ben
 
 	return func(ctx context.Context, r *rand.Rand) error {
 		const maxAttempts = 50
+		retryDeadline := time.Now().Add(o.Duration)
 		for attempt := 0; attempt < maxAttempts; attempt++ {
 			vals := newDonation(r)
 			err := func() error {
@@ -856,7 +869,7 @@ func (b *Binder) insertFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o Ben
 			if err == nil {
 				return nil
 			}
-			if isRetryable(err) && attempt < maxAttempts-1 {
+			if isRetryable(err) && attempt < maxAttempts-1 && time.Now().Before(retryDeadline) && ctx.Err() == nil {
 				retries.Add(1)
 				continue
 			}

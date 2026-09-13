@@ -17,6 +17,7 @@ type Design struct {
 	Embedded          bool // donations live inside the person row as JSONB
 	AppRollup         bool // the harness, not a trigger, maintains the aggregates
 	RecentCache       bool // person carries a bounded newest-first cache of children
+	SumOnly           bool // only total_donated_cents is materialised; other reads use D3 SQL
 }
 
 // recentCacheSize is the bound on D9's embedded slice. It is a design constant,
@@ -25,6 +26,13 @@ type Design struct {
 const recentCacheSize = 20
 
 var designs = []Design{
+	{ID: "d11_copied_key", Title: "copied-key-only", Summary: "D2 reads/indexes with D3's copied key and its FK; no charity access path yet.", Engines: []string{"postgres", "yugabyte"}, CharityOnDonation: true},
+	{ID: "d12_recency_index", Title: "recency-index-only", Summary: "D11 plus charity/date index, with D2 SQL unchanged.", Engines: []string{"postgres", "yugabyte"}, CharityOnDonation: true},
+	{ID: "d13_recency_sql", Title: "recency-rewritten", Summary: "D12 with only q02/q05/q12 recency reads rewritten to use the copied key.", Engines: []string{"postgres", "yugabyte"}, CharityOnDonation: true},
+	{ID: "d17_sum_sql", Title: "sum-rewritten", Summary: "D13 with only q08 rewritten; no additional sum index.", Engines: []string{"postgres", "yugabyte"}, CharityOnDonation: true},
+	{ID: "d14_sum_plain", Title: "sum-plain-index", Summary: "D17 plus a plain charity index; separates index width from covering payload.", Engines: []string{"postgres", "yugabyte"}, CharityOnDonation: true},
+	{ID: "d15_sum_covering", Title: "sum-covering-index", Summary: "D14 index includes amount_cents; D3 differs only in q03/q04 ranking rewrites.", Engines: []string{"postgres", "yugabyte"}, CharityOnDonation: true},
+	{ID: "d16_sum_rollup", Title: "sum-only-trigger", Summary: "D3 plus sums on both parents; keeps parent locks but omits count/extrema maintenance.", Engines: []string{"postgres", "yugabyte"}, CharityOnDonation: true, Triggers: true, SumOnly: true},
 	{
 		ID: "d1_normalized_minimal", Title: "normalized-minimal",
 		Summary: "Textbook 3NF. Primary and foreign keys only, no secondary indexes.",
