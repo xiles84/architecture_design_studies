@@ -31,6 +31,34 @@ These come from the project owner and override convenience:
    tables, embedding children into parents, index choices, ACID/isolation levels,
    optimistic vs pessimistic concurrency — these are expected to be generated and
    compared, not asked about.
+8. **AI sessions commit and tag their own work, and never push.** The owner pushes and
+   pulls. See the hard rule below.
+
+## Hard rule: commit and tag, never push
+
+Studies are revisited: new designs, new questions, new analysts. Two reports of the same
+study can reach different conclusions, and the **only** way to know why is to know which
+code, SQL and data produced each. Without tags, that history is lost. So every AI session:
+
+1. **Commits at every meaningful step** — a design added, a harness change, a run's
+   results, a report, an analysis, updates to CONTEXT.md / LESSONS_LEARNED.md. Never leave
+   finished work uncommitted at the end of a session.
+2. **Tags, with annotated tags (`git tag -a`):**
+   - `run/<study>/<run-id>` — the commit that produced a run. Start every run that will be
+     reported from a committed tree with `run-study.sh --tag`; a dirty tree is not tagged.
+   - `study-NN/vX-<label>` — a milestone of a study: designs or harness as first run
+     (`v1-harness`), a report plus analysis set (`v1-analysis`), a new analyst's analysis, and
+     — **when enhancing a study** — the state *before* the change (if not already tagged) and
+     the state *after* it (`v2-<what changed>`). A later reader diffs the two tags to see
+     exactly what changed between conclusions.
+3. **Never moves, deletes or reuses a tag, and never rewrites history** (no amend of pushed
+   work, no rebase, no force). A corrected state gets a new tag.
+4. **Never pushes, never pulls, never changes remotes.** Those are the owner's.
+5. **Records the tag** in what it produces: results and reports carry the run tag
+   automatically; analyses carry `repo_commit`; CONTEXT.md lists runs with their tags.
+6. **Commits only what it can account for.** If several sessions share the working tree,
+   commit your own paths separately from theirs, and say in the commit message whose work
+   a commit contains when it is not yours.
 
 ## Hard rule: correctness gates timing
 

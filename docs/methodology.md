@@ -300,6 +300,10 @@ from study 02 on:
   this rule and are marked by `study-01/v1`.
 - Signed analyses record `repo_commit` beside `inputs_digest`: the digest identifies the
   data, the commit identifies the code.
+- **Enhancing a study is bracketed by tags**: the state before the enhancement and the state
+  after it are both tagged, so a change in conclusions between two reports is explained by
+  `git diff` rather than by memory. Tags are annotated and never moved or deleted.
+- AI sessions commit and tag their work as they go and **never push**; pushing is the owner's.
 
 ## 13. Failures are reported
 

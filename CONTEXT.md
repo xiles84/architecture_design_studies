@@ -4,7 +4,35 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-12
+**Last updated:** 2026-09-13
+
+---
+
+## Rule for every AI session: commit and tag, never push
+
+**From 2026-09-13, by the owner's instruction:** AI sessions working in this repository
+**commit and tag their own work, and never push** (the owner pushes and pulls). Reports of
+the same study will reach different conclusions as studies are enhanced with new designs and
+questions; tags are how a reader finds out which code, SQL and data produced each conclusion.
+Untagged work means an unexplained change in conclusions.
+
+- Commit at every meaningful step; never end a session with finished work uncommitted.
+- `run/<study>/<run-id>` tags the commit behind each run (`run-study.sh --tag`).
+- `study-NN/vX-<label>` tags study milestones — and, when enhancing a study, the state before
+  and after the enhancement, so `git diff <before> <after>` explains a change in conclusions.
+- Annotated tags only; never move, delete or reuse a tag; never rewrite history; never push.
+
+Full rule: [CLAUDE.md → "Hard rule: commit and tag, never push"](CLAUDE.md).
+
+### Tags so far
+
+| Tag | Marks |
+|---|---|
+| `study-01/v1` | study 01 code and reports behind its first analysis (`795420b`) |
+| `study-01/v2-second-analysis` | study 01 with the independent GPT-6 analysis and regenerated reports |
+| `study-02/v1-harness` | study 02 designs, harness and shared platform as first run (`774d258`) |
+| `run/02-ticket-booking/20260913T021206Z` | commit that produced study 02's `small` matrix (`7570648`) |
+| `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
 
 ---
 
@@ -39,9 +67,19 @@ infra/
   pg-single.sh            PostgreSQL, 1 node
   yb-single.sh            YugabyteDB, 1 node (RF=1)
   yb-cluster3.sh          YugabyteDB, 3 nodes (RF=3)
+platform/                 shared Go module (adsplatform): core / ports / adapters
 studies/
-  01-charity-tree/        study 01 (see below)
+  01-charity-tree/        study 01 (see below) — own harness, predates platform/
+  02-ticket-booking/      study 02 (see below) — built on platform/
 ```
+
+Everything belonging to one study (SQL, harness, runner, image name, results, reports,
+analyses) lives in that study's directory; only study-independent code is shared, in
+`platform/`, laid out as ports and adapters (`platform/README.md`).
+
+**Versioning.** Tags: `study-01/v1` marks the code behind study 01's published results;
+`run/<study>/<run-id>` marks the commit a run was produced from (`run-study.sh --tag`, study
+02 onwards). Results, manifests and reports record commit, `git describe` and a dirty flag.
 
 Each study directory holds: `README.md` (the question and the designs), `sql/` (one
 directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/` (Go),
@@ -51,7 +89,7 @@ directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/`
 
 ### Study 01 — tree structures (charity → person → donation)
 
-**Status:** all experiments (survey, C, D, E) complete; D9 cache bug found, diagnosed and fixed as D10; first signed analysis written.
+**Status:** all experiments (survey, C, D, E) complete; D9 cache bug found, diagnosed and fixed as D10; two signed analyses written, including an independent GPT-6 review of the available evidence.
 
 Eight designs, each a single deliberate change from its neighbour:
 
@@ -125,11 +163,12 @@ the number of indexes maintained on every `donation` insert, and storage. In the
 controlled-pair tables, read differences below the error bar are suppressed but **write
 rows are always shown** — a hidden price tag reads as no price at all.
 
-**The report calibrates its own error bar.** D4 and D5 read identically by construction,
-so every read difference between them is measurement noise. The report derives its
-significance threshold from that control rather than using a round number, and warns when
-the threshold is too wide to support fine-grained claims. On the first survey run it came
-out at 1.56x worst case (1.04x median).
+**The report checks variation using D4/D5 reads.** These designs have identical read SQL
+and serve as a control for cell-to-cell variation. Regenerating the survey from digest
+`558e89403fd016cc` gives 1.69x maximum disagreement across 36 comparisons (1.04x median),
+correcting the earlier 1.56x note. The report uses the maximum to suppress small pairwise
+claims. This is a descriptive check, not a confidence interval or a universal significance
+threshold; important comparisons still need repeated trials.
 
 **Analysis provenance.** Generated reports carry an **inputs digest** — a content hash
 over every result file — and index the signed analyses written about it. Several
@@ -154,9 +193,27 @@ hand-set by mistake (LESSONS_LEARNED → "Never hand-set a date"). Manifests hol
 | `20260913-d9-cache-race` | Reproduction of D9 cache corruption, with diagnosed examples | ✅ 3–5 wrong caches per 30 s window |
 | `20260913-cache-fix`, `-cache-fix-writes` | D9 vs D10 (fixed trigger): correctness and cost | ✅ D10 always consistent, 0.96–0.98x D9 writes |
 
-**Analysis:** `studies/01-charity-tree/reports/analyses/20260912-study01--claude-opus-5--2026-09-12.md`
-— first signed analysis, indexed by all 16 valid runs via their digests. It carries the
-conclusion and the regime notes (when a design that loses in general is the right one).
+**Analyses:** both remain current and are indexed by the 16 input runs via their digests.
+
+- [Claude Opus 5 — first analysis](studies/01-charity-tree/reports/analyses/20260912-study01--claude-opus-5--2026-09-12.md): overall conclusions and the regimes where a usually slower design becomes useful.
+- [GPT-6 — independent final analysis](studies/01-charity-tree/reports/analyses/20260912-study01--gpt-6--2026-09-12.md): reviewed the existing results without running new benchmarks; explains D2/D3 through indexes, SQL and actual plan work, and records narrower disagreements about embedding, foreign keys and application rollups.
+
+**D2/D3 interpretation:** the 1.548x survey ratio is a geometric-mean score, not measured
+mixed-workload throughput. D3 copies `charity_id`, adds two charity indexes and rewrites
+the charity queries. Those six queries score 2.71x higher together; the six with unchanged
+SQL score 0.884x. The saved charity-feed plans show fewer examined donations and donor
+lookups. The sum plan still has 31,293 heap fetches despite its `Index Only Scan` label.
+The mechanism is selective access and changed query work; the exact overall gain needs
+repeated trials. Do not describe it as a universal benefit from a copied column.
+
+**Writing a final analysis:** follow [methodology rule 11](docs/methodology.md) and the
+[analysis template](studies/01-charity-tree/reports/analyses/TEMPLATE.md). Regenerate the
+input reports, record every run and digest, read existing analyses, and write a separate
+signed file with recommendations, linked measurements, mechanisms, limitations, proposed
+follow-ups and explicit disagreements. Define aggregate scores, distinguish observations
+from explanations, and identify untested behavior. Never edit another analyst's file.
+Regenerate the reports after adding the analysis so their indexes include it, and update
+this context and the process lessons. Study 01's final analysis does not cover Study 02.
 
 ### Experiment E — limitation regimes
 
@@ -187,12 +244,80 @@ Harness support: `-max-per-person`, `-charities`, `-read-mix portal`, `-cmd repo
 
 ### Not yet done (from the analysis's "what I would measure next")
 
-- **A second analysis by a different model.** The only analysis so far was written by the model that built the study — the conflict of interest is stated in it.
+- Repeated, alternating D2/D3 trials and variants that separate the copied key, new indexes and SQL rewrites; capture representative plans during equivalent database preparation.
 - A `medium` (1 M donations) run: every result so far fits in memory.
 - YugabyteDB 1-node FK re-measurement with trials (one unreplicated 1.8x figure).
+- Longer repeated YugabyteDB 3-node donor-erasure measurements with/without FKs, and D10 cache correctness/cost on YugabyteDB.
 - Asynchronous rollups (queue / logical decoding) — the design Note R1 points at but nobody built.
 - Total-budget sharding framing (1 node x 6 CPU vs 3 nodes x 2 CPU).
 - An open-loop load generator before any tail figure is treated as an SLO.
+
+### Study 02 — avoiding overbooking (band → event → ticket)
+
+**Status:** designs, harness, runner, diagrams and README done (commit `774d258`, tag
+`study-02/v1-harness`; runner fix `7570648`). Dev checks on `tiny` in `results/devchecks/`.
+
+| Run id | What | State |
+|---|---|---|
+| `20260913T021010Z` | first `small` matrix launch | ❌ **INVALID** — aborted at the first cell; provenance not captured (see its INVALID.md) |
+| `20260913T021206Z` | `small` matrix: 14 designs × PG 1-node, YB 1-node, YB 3-node; tag `run/02-ticket-booking/20260913T021206Z`; digest `71bcee71d725d43d` | ✅ 40 of 42 cells; C2 failed on both YB topologies (YSQL lease expiry, diagnosed) |
+
+**Analysis:** `studies/02-ticket-booking/reports/analyses/20260913T021206Z--claude-opus-5--2026-09-13.md`
+— first signed analysis (by the model that built the study; conflict of interest stated).
+Headline: no correct design oversold and both controls did on every engine; for a hot drop,
+pre-created rows taken by CAS or SKIP LOCKED sell 4–8x faster than any single counter row; a
+counter on the event row also blocks unrelated edits; C5 under-sells after refunds; C2 is
+unusable for a hot drop. Main doubts: DB CPU quota throttling everywhere, no retry backoff
+(likely understates R2), one trial, 60 s timeouts truncate the 100k tier, single YB query node.
+
+The owner's question: events of 10 / 100 / 1 000 / 10 000 / 100 000 seats, no overbooking;
+compare pre-created tickets against tickets created on booking, other strategies, and extra
+tables such as reservations. Fourteen designs in four families:
+
+| Family | Designs |
+|---|---|
+| pre-created tickets | P1 lock-first (FOR UPDATE) · P2 skip-locked · P3 CAS · P4 skip-locked + counter |
+| created on booking | **C1 count at RC — negative control** · C2 same SQL at SERIALIZABLE · C3 lock event + count · C4 guarded counter · C5 unique seat + CHECK |
+| extra table | R1 inventory row · R2 inventory buckets (sharded counter) · R3 pre-created seat-slot pool |
+| reservation | **H0 hold, naive confirm — negative control** · H1 hold, confirm checked by DB clock |
+
+Experiments per cell: correctness gate (5 reads + audit on load) → plans for reads **and**
+writes → reads (availability per size tier) → isolated writes on fresh loads (spread
+booking, cancel, publish per tier) → **sell-out race** (32 buyers per unsold event, per tier,
+organiser editing the event) → **churn race** (10% cancel; measures under-booking) →
+**holds** (H only: basket, abandonment, expiry, sweeper, late payments). An overbooking
+audit (over capacity, duplicate seats, derived-state drift, ledger reconciliation) runs
+after every writing phase.
+
+**Dev-check observations (tiny, not results, not for conclusions):**
+
+- The negative control C1 overbooked every race event on PostgreSQL; the audit caught all.
+- C5 under-booked in the churn race on every tier, as its design predicts (max+1 never refills refund holes).
+- C2 on the 10 000-seat event: 15 attempts per sale on PostgreSQL; on YugabyteDB the race
+  hung until the deadline was made to bound retries (LESSONS_LEARNED).
+- YugabyteDB 1-node sells one to two orders of magnitude fewer seats/s than PostgreSQL on this
+  laptop; hot-row designs (C4, P4, R1, H) around 15–20/s, R2 buckets ~87/s. Reads show a shared
+  ~65 ms p99. **Measured:** the client is never CPU-throttled; the YugabyteDB container is
+  throttled in 40–65% of CFS periods in every cell (up to 720 s per cell). YugabyteDB numbers
+  here are quota-bound — this also applies to study 01's YugabyteDB cells.
+- C2 on YugabyteDB 1-node fails reproducibly (dev check and `small` matrix) with "the database
+  system is shutting down". **Cause established:** SERIALIZABLE lock storm on a CPU-throttled
+  node → tserver RPCs to master stall ~29 s → YSQL lease expires → tserver kills all SQL
+  sessions. See `results/20260913T021206Z/yb-single/logs/c2_count_serializable.DIAGNOSIS.md`.
+- H0's control fired on YugabyteDB too. Holds at a 250 ms TTL were degenerate there (96% of
+  holds expired before payment); YugabyteDB topologies now run holds at `-hold-time-scale 10`.
+- YugabyteDB 2025.2.6 runs READ COMMITTED as real RC even without
+  `yb_enable_read_committed_isolation` (checked); the flag is set to pin it.
+
+**Harness:** `studies/02-ticket-booking/harness/` on `platform/`. Flags worth knowing:
+`-phases`, `-race-trials N` (fresh load per trial; report shows median and spread),
+`-race-tier-budget`, `-race-timeout`, `-hold-*`, `-tiers`.
+
+**Open for study 02** (from the analysis's "what I would measure next"): retry-backoff variants
+(expect R2 to overtake R1); repeated race trials on PostgreSQL and YugabyteDB 3-node; a buyers
+sweep (4–128); a single-statement SKIP LOCKED variant to separate round trips from locking in
+P3's lead; YugabyteDB with connections spread over all nodes; a larger per-node CPU budget; an
+asynchronous allocator (virtual waiting room); a second analysis by a different model.
 
 ## Decisions taken, and why
 

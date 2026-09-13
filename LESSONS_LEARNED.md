@@ -334,3 +334,142 @@ recorded in the manifest and the matrix continues.
 
 `record_topology` inspects the live containers for image, CPU and memory limits after
 startup. A script argument says what was *asked for*; only inspection says what *ran*.
+
+### Explain a design change through the work it actually changes
+
+The D2/D3 review exposed a reporting gap: "charity copied down" named a logical schema
+decision but omitted the two new indexes and query rewrites that made it useful. A reader
+could reasonably mistake the 1.55x overall score for a general benefit of storing another
+column. Describe the schema, index and SQL changes together, then show which queries
+changed and which did not. Distinguish a geometric-mean score over isolated queries from
+throughput measured under an actual workload mix.
+
+### Read execution counters before repeating the intended explanation
+
+An `Index Only Scan` node is not evidence of zero heap access: Study 01's saved D3 sum
+plan reports 31,293 heap fetches. SQL comments and even an analysis template described the
+intended zero-fetch path; those are hypotheses until the execution counters confirm them.
+Record the sampled key and when the plan was captured. A plan for the largest charity
+does not establish the exact speedup of a benchmark that samples all charities.
+
+### Check what a reported baseline and error bar actually mean
+
+The regenerated survey's maximum D4/D5 disagreement is 1.69x, correcting an earlier 1.56x
+context note. Such a maximum is a descriptive control, not a statistical confidence
+interval. The cache-fix mixed run also starts at 4:4 readers:writers, so its displayed
+100% baseline is not an all-reader baseline. A mixed run that reduces reader count as it
+adds writers cannot isolate write interference from its retained-throughput percentage.
+Independent analyses should inspect these definitions before carrying headlines forward.
+
+Evidence and database-specific implications are in the
+[GPT-6 Study 01 analysis](studies/01-charity-tree/reports/analyses/20260912-study01--gpt-6--2026-09-12.md).
+
+---
+
+## Building study 02 (overbooking)
+
+### Ask the engine what it is doing; do not recall it
+
+While writing study 02's YugabyteDB setup, the note "READ COMMITTED silently runs as
+Snapshot Isolation unless `yb_enable_read_committed_isolation` is set" went into four files,
+from memory of older releases. A two-minute check on the pinned image —
+`SHOW yb_effective_transaction_isolation_level` inside an RC transaction, on a node started
+without the flag — said `read committed`. The claim was false for the version under test,
+and it would also have cast doubt on study 01's YugabyteDB concurrency cells, which in fact
+ran real RC. The harness now records the effective isolation in every result, and the flag
+is kept only to pin the behaviour. Engine semantics that a design depends on are read from
+the engine at run time, never written down from recollection.
+
+### A timeout that stops new work but not retries in progress is not a timeout
+
+The race gave each event 60 s: after that, no buyer starts a new booking. On YugabyteDB at
+SERIALIZABLE, buyers already *inside* a booking kept retrying serialization failures — up
+to 1 000 attempts each, some statements taking tens of seconds (`Timed out waiting
+kResponseSent`) — and a 10-seat race ran for many minutes, with 14 597 errors and an
+organiser edit p99 of 166 s. The deadline now also stops a booking from starting another
+attempt (work already in flight finishes, so no commit of unknown outcome is created), and
+each size tier has a time budget after which remaining events are reported as not raced.
+
+### The same rule broken twice means the rule needs a mechanism
+
+"Never edit a bash script that is currently running" was already written down. Study 02's
+runner was edited mid-run anyway, by a tool that rewrites files in place. Only a dev check
+was at risk, but a written rule that failed once will fail again. Study 02's runner now
+re-executes itself from a temporary copy at start-up, which makes the original safe to edit
+at any time.
+
+### A race's throughput needs the right clock
+
+The first race reported sales divided by the whole race's wall time. For a 10-seat event
+with 32 buyers, most of that time is spent telling the other 22 buyers "sold out", so the
+number measured the rejection path, not selling. Sales are now divided by the time to the
+last sale, and the rejection latency is reported on its own.
+
+### A negative control is the audit's proof
+
+C1 (count, then insert, at READ COMMITTED) was added knowing it is wrong. On its first
+PostgreSQL dev run it overbooked every race event on every tier — 39 events, 866 extra
+seats — and the audit caught all of them while the correct designs came back clean. Without
+that control a clean audit could have meant "correct" or "not enough contention". The report
+now states per topology whether each control fired.
+
+### Several sessions can share one repository and one container runtime
+
+While study 02 was built, another session was writing a second analysis of study 01 and
+regenerating its reports in the same working tree. Two consequences. First, the infra
+scripts reuse container names (`pg-single`, `yb-n1`…), so one session's `up` silently
+destroys another's database mid-run; study 02's runner refuses to start if they exist.
+Second, a repository-wide "dirty tree" check would mark every run dirty because of someone
+else's documentation edits; the check is scoped to the code that can change this study's
+numbers, and commits include only the paths the committing session changed.
+
+### A shared tail figure across unrelated queries is a hazard signal
+
+On the dev runs, reads that share nothing — a primary-key lookup, a band aggregate, an
+availability count — all showed p99 near 65 ms, on both engines. Unrelated operations
+converging on one tail value point to the environment, not the designs: here, most likely
+CFS quota throttling of 2-CPU containers. The client now records its `cpu.stat` per phase and
+the runner captures the database containers' before and after each cell, so the report can
+show the throttling instead of asking a reader to trust the suspicion.
+
+The first measurement settled it, and not the way the suspicion was framed: the **client was
+never throttled** (0 periods in every phase), while the **YugabyteDB container was throttled
+in 40–65% of its CFS periods in every cell** — up to 720 s of throttled time in one cell. On
+this laptop, YugabyteDB's throughput and tails are bounded by its 2-CPU quota. That applies to
+study 01's YugabyteDB cells too, which ran under the same budget without this measurement.
+
+### A server-side failure needs the server's logs, captured before teardown
+
+A YugabyteDB cell failed with "the database system is shutting down" from the YSQL layer. The
+runner had captured `podman logs`, which for `yugabyted` holds only start-up chatter — the
+PostgreSQL-layer and tserver logs live under the data directory — and then removed the
+container. The cause could not be established. The runner now copies those log tails out of
+the container on failure, before teardown.
+
+It reproduced in the `small` matrix, and the captured tail still was not enough: the last 400
+lines of the tserver log were all deadlock-detector timeouts (78 438 of them). The cause was
+found by grepping the full logs inside the container while it was still up: under C2's
+SERIALIZABLE lock storm on a CPU-throttled node, the tserver's RPCs to its master stalled for
+~29 s, the **YSQL lease expired**, and the tserver killed every SQL session. A fixed-size log
+tail is a guess at where the cause is; when a flood precedes the failure, it guesses wrong.
+Search the full log for the moment of failure, not the end of the file.
+
+### Provenance that can fail silently will fail silently
+
+The runner captured the repository version with `git -C "$REPO" … 2>/dev/null || echo unknown`.
+Under Git Bash with path conversion disabled (lib.sh does this so podman works), git.exe could
+not resolve `/c/extra/...`. The first tagged matrix therefore recorded `repo_commit: unknown`,
+`repo_dirty: false` and a `run_tag` that was never created — a run that looked traceable and
+was not. It was caught by reading the console within minutes, and the run is kept with an
+`INVALID.md`. Two fixes: git gets a host-style path through `hostpath()`, exactly like
+podman; and the runner now **refuses to start** when it cannot read the commit or the working
+tree status, because a fallback value in a provenance field is a fabricated fact.
+
+### Compressed timings must be calibrated per engine
+
+The holds experiment compresses a real checkout (minutes) into milliseconds: a 250 ms TTL.
+Calibrated on PostgreSQL, it was degenerate on YugabyteDB, where taking a hold itself took
+longer than the TTL — about 96% of holds expired before the buyer could pay, and the
+experiment measured expiry rather than late payments. One `-hold-time-scale` factor now
+scales every hold timing together, which keeps their ratios, and therefore the share of late
+payments, unchanged across engines.
