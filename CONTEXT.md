@@ -132,8 +132,10 @@ pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 ch
 of D2/D3 and the mechanism variants, including inserts and a D2/D3 blended workload.
 Run tag: `run/01-charity-tree/20260913T125342Z-v3`; digest `0bc5900a6d7a5d3a`.
 All cells passed their correctness gates and reported no operation errors. D2/D3 median
-12-query scores were 5,071.75 / 8,897.79, with 15.2% / 9.1% spread. Detailed interpretation
-will accompany the remaining experiments. The preceding gate is tagged `study-01/v3-verified`.
+12-query scores were 5,071.75 / 8,897.79, with 15.2% / 9.1% spread. The
+[concise analysis](studies/01-charity-tree/reports/analyses/20260913T125342Z-v3--gpt-6--2026-09-13.md)
+links a separate [mechanism discussion](studies/01-charity-tree/reports/discussions/d2-d3-mechanisms--gpt-6--2026-09-13.md).
+The preceding gate is tagged `study-01/v3-verified`.
 
 **Running — do not start databases:** `20260913T172624Z-v3`, three independent trials
 for growth/history/memory, fixed-reader contention, YB FK/cache exceptions, equal-total

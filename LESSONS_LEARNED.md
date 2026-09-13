@@ -10,6 +10,16 @@ experiments**.
 
 ## Measurement
 
+### Database preparation can change during a short read experiment
+
+The v3 ANALYZE-only diagnostic started a D15 sum plan with 31,293 heap fetches and
+ended with 218. Background maintenance was allowed to run; an initial plan does not
+describe every timed execution. Explicit vacuum preparation produced zero heap fetches
+in both bracketing plans for all five D15 trials and both targeted charity sizes.
+Record preparation and before/after execution counters, and describe an evolving
+ANALYZE-only state as a diagnostic rather than a fixed dirty-page control. See run
+`20260913T125342Z-v3` and its signed mechanism discussion.
+
 ### Repeating a timing window is not repeating database preparation
 
 Study 01's original `-trials` repeats phases on one load. It cannot supply independent
