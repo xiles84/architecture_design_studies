@@ -1,0 +1,29 @@
+@startuml k_checkout
+!include _style.puml
+title K — the owner's scenario: choose seats, keep them 40 minutes, pay
+
+participant "Buyer A" as A
+participant "Database" as DB
+participant "Buyer B" as B
+
+A -> DB : hold seats 3,4 — expires in 40 minutes
+... A browses, compares, comes back at minute 39 ...
+A -> DB : pre-payment check: still held? → true (identical in every design)
+activate A
+note over A : paying… the card takes 2 minutes
+
+alt K1 — payment window
+  A -> DB : minute 39: begin checkout → expires_at := max(expires_at, now + 10 min), once
+  B -> DB : minute 40.5: tries seats 3,4 → still held
+  A -> DB : minute 41: confirm → **sold**
+else S1 — checked confirmation
+  B -> DB : minute 40.5: takes seats 3,4 (A's hold has expired)
+  A -> DB : minute 41: UPDATE … WHERE hold = A AND held AND expires_at > now() → 0 rows
+  DB --> A : **refused after paying**: refund. No double sale — but the promise was broken at its edge.
+else K0 — naive confirmation (NEGATIVE CONTROL)
+  B -> DB : minute 40.5: takes seats 3,4
+  A -> DB : minute 41: UPDATE … SET sold to A WHERE seat IN (3,4)
+  DB --> A : 2 rows — **a sale after expiry, over B's hold**
+end
+deactivate A
+@enduml

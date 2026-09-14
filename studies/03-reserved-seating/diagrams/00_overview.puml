@@ -1,0 +1,50 @@
+@startuml 00_overview
+!include _style.puml
+title Study 03 — reserved seating: venue → event → seat, and the four families of designs
+
+class venue {
+  venue_id
+  capacity
+}
+class venue_section {
+  venue_id, section_no
+  capacity
+}
+class venue_seat {
+  venue_id, seat_id
+  section_no, row_no, seat_no
+  quality_rank
+}
+class event {
+  event_id
+  venue_id, band_id
+}
+class "inventory\n(differs per design)" as inv {
+  which seat is held, by whom, until when
+  which seat is sold
+}
+class ticket {
+  ticket_id
+  event_id, seat_id, customer_id, hold_id
+}
+
+venue "1" -- "*" venue_section
+venue_section "1" -- "*" venue_seat
+venue "1" -- "*" event
+event "1" -- "*" inv
+event "1" -- "*" ticket
+
+legend right
+  **S — arbitration** (seat rows, lazy expiry, checked confirmation)
+    S0 ✗ check-then-hold at RC · S1 conditional update (reference)
+    S2 lock then update · S3 NOWAIT · S4 check-then-hold at SERIALIZABLE
+  **E — expiry**
+    E0 ✗ application clock · E1 sweeper makes expiry take effect · E2 expiry on a cart row
+  **K — checkout**
+    K0 ✗ naive confirmation · K1 payment window
+  **L — layout**
+    L1 claim rows created on hold · L2 JSONB document per section
+    L3 seat rows hash-sharded by (event, section) — YugabyteDB only
+  ✗ = negative control, expected to break an invariant
+endlegend
+@enduml

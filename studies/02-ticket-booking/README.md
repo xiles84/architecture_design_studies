@@ -9,8 +9,9 @@
 
 ## The question
 
-A show company sells tickets for events of very different sizes and **must never sell more
-tickets than an event has seats**:
+A show company sells **general-admission** tickets — no buyer chooses a place; see
+[Terminology](#terminology-general-admission) — for events of very different sizes and
+**must never sell more tickets than an event has seats**:
 
 ```
 band ──< event (capacity 10 … 100 000) ──< ticket
@@ -43,6 +44,25 @@ events over capacity, seats sold twice, derived state (counters, buckets, seat p
 frontiers) that disagrees with the tickets, and a **reconciliation** of the tickets that
 exist against the sales the harness saw commit — which catches a sale a buyer was told about
 that never persisted.
+
+### Terminology: general admission
+
+This study models **general admission**: a ticket admits one person to an event, and the
+only limit is the event's capacity. No design lets a buyer choose a place.
+
+| Term in this study | Means |
+|---|---|
+| seat | one unit of an event's capacity; any two seats of an event are interchangeable |
+| `seat_no` | an **admission number** from 1 to capacity, assigned by the system in the designs that need one (P1–P4, C5, R3); not a physical place. C1–C4, R1 and R2 issue tickets without one |
+| overbooking | more tickets than capacity — a limit across many rows, which is why each design has to decide where the check lives |
+| hold (`reservation` table, H0/H1) | a claim on one **unit of capacity** for a limited time, not on a particular seat. Its TTL is compressed (250 ms on PostgreSQL, 2.5 s on YugabyteDB) and stands for a checkout of minutes |
+| duplicate seat (audit) | an admission number issued twice |
+
+**Reserved seating** — buyers choose specific seats and keep them for a fixed time, such as
+40 minutes, while they pay — changes both the invariant and the hard part of the problem. It
+is [study 03](../03-reserved-seating/README.md). This note was added after run
+`20260913T021206Z` and changes no SQL, harness code, generated report or analysis (tag
+`study-02/v1.2-terminology`).
 
 ---
 

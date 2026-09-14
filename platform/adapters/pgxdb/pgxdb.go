@@ -108,6 +108,9 @@ func Classify(err error) ports.ErrorClass {
 			return ports.ErrCheckViolation
 		case "57P01", "57P02", "57P03", "08006", "08003":
 			return ports.ErrServerTerminated
+		case "55P03":
+			// lock_not_available: FOR UPDATE NOWAIT met a locked row.
+			return ports.ErrLockNotAvailable
 		}
 		// YugabyteDB reports some transaction conflicts with a generic code and
 		// a descriptive message. They are contention, not failure.

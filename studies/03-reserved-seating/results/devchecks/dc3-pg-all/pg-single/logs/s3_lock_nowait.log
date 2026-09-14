@@ -1,0 +1,54 @@
+  engine: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+  database clock minus client clock: 0.006 ms
+  dataset: 5 venues, 84 events, 5741 tickets and 165 holds at load
+  loading s3_lock_nowait ...
+  loaded in 0.5s (copy 0.4s, index 0.0s)
+  verifying answers against ground truth ...
+    51/51 checks passed (margin 603s); audit on load: consistent (84 events, 5741 tickets; rejections late=0 boundary=0)
+  capturing plans ...
+  read benchmark:
+    q01_section_map@10                    19033.5 ops/s  p50=  0.167ms p99=   1.157ms  errors=0
+    q02_event_sections@10                 20620.9 ops/s  p50=  0.161ms p99=   0.913ms  errors=0
+    q03_event_available@10                21070.9 ops/s  p50=  0.162ms p99=   0.770ms  errors=0
+    q01_section_map@100                   14255.0 ops/s  p50=  0.211ms p99=   1.894ms  errors=0
+    q02_event_sections@100                17136.1 ops/s  p50=  0.190ms p99=   0.965ms  errors=0
+    q03_event_available@100               18787.4 ops/s  p50=  0.172ms p99=   0.778ms  errors=0
+    q01_section_map@1000                  21731.2 ops/s  p50=  0.161ms p99=   0.665ms  errors=0
+    q02_event_sections@1000                8780.8 ops/s  p50=  0.287ms p99=   1.685ms  errors=0
+    q03_event_available@1000               9172.0 ops/s  p50=  0.277ms p99=   1.654ms  errors=0
+    q01_section_map@10000                 14730.7 ops/s  p50=  0.208ms p99=   0.935ms  errors=0
+    q02_event_sections@10000               1392.6 ops/s  p50=  1.317ms p99=  78.075ms  errors=0
+    q03_event_available@10000              1346.7 ops/s  p50=  1.227ms p99=  79.335ms  errors=0
+    q04_hold_seats                        26246.5 ops/s  p50=  0.139ms p99=   0.623ms  errors=0
+    q05_customer_tickets                  33758.7 ops/s  p50=  0.130ms p99=   0.593ms  errors=0
+    q06_ticket_by_id                      37495.1 ops/s  p50=  0.127ms p99=   0.595ms  errors=0
+  write benchmark (fresh load per op):
+    hold                                    558.7 ops/s  p50=  7.314ms p99=  58.643ms  rejected=7 retries=38 errors=0
+      audit after hold: consistent (84 events, 9288 tickets; rejections late=0 boundary=0)
+    release                                4400.9 ops/s  p50=  1.580ms p99=   2.219ms  rejected=0 retries=0 errors=0
+      audit after release: consistent (84 events, 5741 tickets; rejections late=0 boundary=0)
+    cancel                                 4217.9 ops/s  p50=  1.753ms p99=   6.778ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (84 events, 2871 tickets; rejections late=0 boundary=0)
+    publish@10                             2264.7 ops/s  p50=  1.735ms p99=   2.720ms  rejected=0 retries=0 errors=0
+    publish@100                            1480.7 ops/s  p50=  2.381ms p99=  13.329ms  rejected=0 retries=0 errors=0
+    publish@1000                            267.9 ops/s  p50= 10.794ms p99=  28.253ms  rejected=0 retries=0 errors=0
+    publish@10000                            34.5 ops/s  p50= 57.443ms p99=  57.443ms  rejected=0 retries=0 errors=0
+    publish@100000                            3.4 ops/s  p50=582.850ms p99= 582.850ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2313 events, 5741 tickets; rejections late=0 boundary=0)
+  race trial 1/1 (32 buyers per event, fresh load):
+    race     10 seats x20       217.3 seats/s  conflicts/hold=26.00 reads/hold=34.91  hold p50=6.95ms p99=65.45ms  deferred 13/13 ok  errors=0  ok
+      audit: consistent (20 events, 200 tickets; rejections late=0 boundary=0)
+    race    100 seats x4        602.9 seats/s  conflicts/hold=7.98 reads/hold=10.29  hold p50=6.54ms p99=97.12ms  deferred 17/17 ok  errors=0  ok
+      audit: consistent (4 events, 400 tickets; rejections late=0 boundary=0)
+    race   1000 seats x1       1137.1 seats/s  conflicts/hold=2.75 reads/hold=4.54  hold p50=5.73ms p99=75.68ms  deferred 39/39 ok  errors=0  ok
+      audit: consistent (1 events, 1000 tickets; rejections late=0 boundary=0)
+    race  10000 seats x1        695.5 seats/s  conflicts/hold=0.61 reads/hold=3.59  hold p50=7.32ms p99=93.14ms  deferred 387/387 ok  errors=0  ok
+      audit: consistent (1 events, 10000 tickets; rejections late=0 boundary=0)
+  lifecycle trial 1/1 (32 buyers per event, one human minute = 50ms, fresh load):
+    lifecycle    10 seats x2       2.9 confirmed seats/s  holds=16 abandoned=2+0 expired@check=1 rejected late/boundary/early=0/0/0  outage unavailable=0/0  leaked=0 errors=0  ok
+      audit: consistent (2 events, 20 tickets; rejections late=0 boundary=0)
+    lifecycle   100 seats x2      14.3 confirmed seats/s  holds=137 abandoned=17+10 expired@check=2 rejected late/boundary/early=1/0/0  outage unavailable=0/0  leaked=0 errors=0  ok
+      audit: consistent (2 events, 200 tickets; rejections late=1 boundary=0)
+    lifecycle  1000 seats x1      71.8 confirmed seats/s  holds=587 abandoned=96+48 expired@check=8 rejected late/boundary/early=13/0/0  outage unavailable=0/0  leaked=0 errors=0  ok
+      audit: consistent (1 events, 973 tickets; rejections late=13 boundary=0)
+  wrote /results/s3_lock_nowait.json

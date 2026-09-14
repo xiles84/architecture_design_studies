@@ -1,0 +1,57 @@
+@startuml l_layout
+!include _style.puml
+title L — where the state of a seat lives
+
+package "S1 — a row per seat per event (pre-created at publishing)" {
+  class "event_seat" as s1 {
+    PK (event_id, seat_id)
+    section_no
+    status: available | held | sold
+    hold_id, customer_id
+    hold_expires_at
+  }
+}
+
+package "L1 — a claim row created on hold" {
+  class "seat_claim" as l1 $C_DENORM {
+    PK (event_id, seat_id) — the arbiter
+    section_no, hold_id, customer_id
+    expires_at ('infinity' = sold)
+  }
+  class "ticket" as l1t {
+    UNIQUE (event_id, seat_id)
+  }
+}
+
+package "L2 — one document per section" {
+  class "event_section" as l2 $C_EMBED {
+    PK (event_id, section_no)
+    version (compare-and-set)
+    claims JSONB {seat: [state, hold, customer, expires_ms]}
+    next_expiry
+  }
+}
+
+package "L3 — S1, hash-sharded by section (YugabyteDB)" {
+  class "event_seat " as l3 {
+    PK ((event_id, section_no) HASH, seat_id ASC)
+    … S1's columns
+  }
+}
+
+note bottom of s1
+  publish 100 000 seats = 100 000 rows
+  seats left = count over the event's rows
+end note
+note bottom of l1
+  publish = 1 row; a free seat has no row
+  seats left = capacity − valid claims
+end note
+note bottom of l2
+  seat map = 1 row; every hold rewrites
+  the section's document
+end note
+note bottom of l3
+  one event's sections spread over tablets
+end note
+@enduml

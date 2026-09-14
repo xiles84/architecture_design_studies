@@ -1,0 +1,36 @@
+@startuml s_arbitration
+!include _style.puml
+title S — two buyers choose the same seats at the same moment
+
+participant "Buyer A" as A
+participant "Database" as DB
+participant "Buyer B" as B
+
+== S0 (READ COMMITTED) and S4 (SERIALIZABLE): identical SQL ==
+A -> DB : SELECT seats 3,4 — free?  → yes
+B -> DB : SELECT seats 3,4 — free?  → yes
+A -> DB : UPDATE seats 3,4 SET held by A  (no condition)
+B -> DB : UPDATE seats 3,4 SET held by B  … waits for A's row locks
+A -> DB : COMMIT
+alt S0 — READ COMMITTED (NEGATIVE CONTROL)
+  DB --> B : 2 rows — **A's hold silently overwritten**; both were told "yours for 40 minutes"
+else S4 — SERIALIZABLE
+  DB --> B : SQLSTATE 40001 → retry → seats now held → choose again
+end
+
+== S1: one conditional UPDATE ==
+A -> DB : UPDATE … WHERE seat IN (3,4) AND (available OR hold expired) → 2 rows, COMMIT
+B -> DB : same statement → waits, re-checks the new rows → 0 rows → ROLLBACK, choose again
+
+== S2: lock first ==
+A -> DB : SELECT … ORDER BY seat_id FOR UPDATE → free → UPDATE → COMMIT
+B -> DB : SELECT … FOR UPDATE → **waits** for A, then sees them held → choose again
+
+== S3: lock first, NOWAIT ==
+B -> DB : SELECT … FOR UPDATE NOWAIT → 55P03 at once → choose again
+
+note over DB
+  With marked seats nobody may skip the seat they chose:
+  study 02's SKIP LOCKED does not apply.
+end note
+@enduml

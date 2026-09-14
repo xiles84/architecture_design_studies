@@ -1,0 +1,59 @@
+  engine: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+  database clock minus client clock: 0.000 ms
+  dataset: 5 venues, 84 events, 5741 tickets and 165 holds at load
+  loading s0_check_then_hold_rc ...
+  loaded in 0.4s (copy 0.3s, index 0.0s)
+  verifying answers against ground truth ...
+    51/51 checks passed (margin 603s); audit on load: consistent (84 events, 5741 tickets; rejections late=0 boundary=0)
+  capturing plans ...
+  read benchmark:
+    q01_section_map@10                    19086.1 ops/s  p50=  0.173ms p99=   0.773ms  errors=0
+    q02_event_sections@10                 19727.9 ops/s  p50=  0.175ms p99=   1.001ms  errors=0
+    q03_event_available@10                19630.3 ops/s  p50=  0.168ms p99=   1.064ms  errors=0
+    q01_section_map@100                   16228.7 ops/s  p50=  0.191ms p99=   0.904ms  errors=0
+    q02_event_sections@100                17068.3 ops/s  p50=  0.183ms p99=   0.660ms  errors=0
+    q03_event_available@100               19507.5 ops/s  p50=  0.166ms p99=   0.582ms  errors=0
+    q01_section_map@1000                  21152.7 ops/s  p50=  0.160ms p99=   0.536ms  errors=0
+    q02_event_sections@1000                7969.6 ops/s  p50=  0.303ms p99=   3.098ms  errors=0
+    q03_event_available@1000              10077.9 ops/s  p50=  0.258ms p99=   1.273ms  errors=0
+    q01_section_map@10000                 14030.0 ops/s  p50=  0.214ms p99=   0.764ms  errors=0
+    q02_event_sections@10000                941.3 ops/s  p50=  1.562ms p99=  81.258ms  errors=0
+    q03_event_available@10000              1045.4 ops/s  p50=  1.380ms p99=  80.794ms  errors=0
+    q04_hold_seats                        26404.8 ops/s  p50=  0.143ms p99=   0.507ms  errors=0
+    q05_customer_tickets                  38665.6 ops/s  p50=  0.115ms p99=   0.377ms  errors=0
+    q06_ticket_by_id                      47676.7 ops/s  p50=  0.104ms p99=   0.314ms  errors=0
+  write benchmark (fresh load per op):
+    hold                                    649.9 ops/s  p50=  6.058ms p99=  57.193ms  rejected=9 retries=6 errors=17
+      first error: a 40m0s hold was refused at its immediate confirmation (early)
+      audit after hold: VIOLATIONS — thefts 71, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 39, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+    release                                5338.8 ops/s  p50=  1.294ms p99=   1.773ms  rejected=0 retries=0 errors=0
+      audit after release: consistent (84 events, 5741 tickets; rejections late=0 boundary=0)
+    cancel                                 4806.5 ops/s  p50=  1.540ms p99=   4.929ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (84 events, 2871 tickets; rejections late=0 boundary=0)
+    publish@10                             2798.0 ops/s  p50=  1.439ms p99=   2.173ms  rejected=0 retries=0 errors=0
+    publish@100                            2039.2 ops/s  p50=  1.856ms p99=   3.684ms  rejected=0 retries=0 errors=0
+    publish@1000                            536.4 ops/s  p50=  7.401ms p99=   8.082ms  rejected=0 retries=0 errors=0
+    publish@10000                            46.4 ops/s  p50= 42.460ms p99=  42.460ms  rejected=0 retries=0 errors=0
+    publish@100000                            4.0 ops/s  p50=490.903ms p99= 490.903ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2313 events, 5741 tickets; rejections late=0 boundary=0)
+  race trial 1/1 (32 buyers per event, fresh load):
+    race     10 seats x20        21.3 seats/s  conflicts/hold=0.17 reads/hold=1.57  hold p50=17.48ms p99=12063.34ms  deferred 1/71 ok  errors=183  VIOLATIONS
+      audit: VIOLATIONS — thefts 1212, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 706, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+      first error: ERROR: new row for relation "event_seat" violates check constraint "event_seat_held_has_holder" (SQLSTATE 23514)
+    race    100 seats x4        107.9 seats/s  conflicts/hold=0.14 reads/hold=1.47  hold p50=3.94ms p99=4047.98ms  deferred 16/45 ok  errors=40  VIOLATIONS
+      audit: VIOLATIONS — thefts 491, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 232, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+      first error: ERROR: new row for relation "event_seat" violates check constraint "event_seat_held_has_holder" (SQLSTATE 23514)
+    race   1000 seats x1       2377.9 seats/s  conflicts/hold=0.11 reads/hold=1.21  hold p50=5.35ms p99=80.80ms  deferred 44/81 ok  errors=17  VIOLATIONS
+      audit: VIOLATIONS — thefts 548, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 275, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+      first error: ERROR: new row for relation "event_seat" violates check constraint "event_seat_held_has_holder" (SQLSTATE 23514)
+    race  10000 seats x1        768.5 seats/s  conflicts/hold=0.05 reads/hold=1.86  hold p50=7.50ms p99=102.88ms  deferred 409/498 ok  errors=172  VIOLATIONS
+      audit: VIOLATIONS — thefts 1606, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 796, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+      first error: ERROR: new row for relation "event_seat" violates check constraint "event_seat_held_has_holder" (SQLSTATE 23514)
+  lifecycle trial 1/1 (32 buyers per event, one human minute = 50ms, fresh load):
+    lifecycle    10 seats x2       2.0 confirmed seats/s  holds=80 abandoned=18+4 expired@check=46 rejected late/boundary/early=0/0/0  outage unavailable=0/0  leaked=0 errors=0  VIOLATIONS
+      audit: VIOLATIONS — thefts 125, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 0, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+    lifecycle   100 seats x2      11.9 confirmed seats/s  holds=293 abandoned=54+29 expired@check=94 rejected late/boundary/early=5/0/0  outage unavailable=0/0  leaked=0 errors=0  VIOLATIONS
+      audit: VIOLATIONS — thefts 222, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 0, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+    lifecycle  1000 seats x1      68.0 confirmed seats/s  holds=624 abandoned=108+60 expired@check=38 rejected late/boundary/early=5/0/0  outage unavailable=0/0  leaked=0 errors=0  VIOLATIONS
+      audit: VIOLATIONS — thefts 71, grants on sold seats 0, double sales 0, sales without the hold 0, late sales 0, early rejections 0, duplicate seats 0, inventory drift 0, invalid seats 0, partial holds 0, ticket mismatches 0
+  wrote /results/s0_check_then_hold_rc.json

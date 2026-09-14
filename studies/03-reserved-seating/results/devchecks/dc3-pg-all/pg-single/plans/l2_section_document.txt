@@ -1,0 +1,346 @@
+# Query plans — study 03-reserved-seating
+
+run_id:      devchecks/dc3-pg-all
+repo:        repo/platform-lock-not-available-3-g1b2801d-dirty (dirty=true)
+environment: host-zenbook-ux5406sa
+engine:      postgres (pg-single)
+version:     PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+design:      l2_section_document (section-document)
+captured:    EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS ON)
+keys:        the largest catalogue event, one of its live holds (or its section with the most
+             sold seats), a sold ticket. Write statements run inside transactions that are rolled back.
+
+==============================================================================
+## q01_section_map
+==============================================================================
+
+# The dynamic half of a seat map, from ONE row: non-available seats.
+
+SELECT (c.key)::INT AS seat_id,
+       ((c.value->>0)::INT)::SMALLINT AS state
+  FROM event_section s
+ CROSS JOIN LATERAL jsonb_each(s.claims) AS c
+ WHERE s.event_id = $1
+   AND s.section_no = $2
+   AND ((c.value->>0)::INT = 2
+        OR (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT)
+ ORDER BY 1
+
+Sort  (cost=8.08..8.17 rows=34 width=6) (actual time=0.035..0.036 rows=28 loops=1)
+  Output: ((c.key)::integer), ((((c.value ->> 0))::integer)::smallint)
+  Sort Key: ((c.key)::integer)
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=2
+  ->  Nested Loop  (cost=0.15..7.22 rows=34 width=6) (actual time=0.017..0.032 rows=28 loops=1)
+        Output: (c.key)::integer, (((c.value ->> 0))::integer)::smallint
+        Buffers: shared hit=2
+        ->  Index Scan using event_section_pkey on public.event_section s  (cost=0.14..2.36 rows=1 width=268) (actual time=0.005..0.006 rows=1 loops=1)
+              Output: s.event_id, s.section_no, s.capacity, s.version, s.claims, s.next_expiry
+              Index Cond: ((s.event_id = '51'::bigint) AND (s.section_no = 19))
+              Buffers: shared hit=2
+        ->  Function Scan on pg_catalog.jsonb_each c  (cost=0.00..4.00 rows=34 width=64) (actual time=0.010..0.020 rows=28 loops=1)
+              Output: c.key, c.value
+              Function Call: jsonb_each(s.claims)
+              Filter: ((((c.value ->> 0))::integer = 2) OR (((c.value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+              Rows Removed by Filter: 8
+Planning Time: 0.086 ms
+Execution Time: 0.066 ms
+
+==============================================================================
+## q02_event_sections
+==============================================================================
+
+# Seats available per section: capacity minus valid claims, one document each.
+
+SELECT s.section_no,
+       (s.capacity - (SELECT COUNT(*)
+                        FROM jsonb_each(s.claims) AS c
+                       WHERE (c.value->>0)::INT = 2
+                          OR (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT))::BIGINT AS available
+  FROM event_section s
+ WHERE s.event_id = $1
+ ORDER BY s.section_no
+
+Index Scan using event_section_pkey on public.event_section s  (cost=0.14..89.93 rows=20 width=12) (actual time=0.113..1.080 rows=20 loops=1)
+  Output: s.section_no, (s.capacity - (SubPlan 1))
+  Index Cond: (s.event_id = '51'::bigint)
+  Buffers: shared hit=27
+  SubPlan 1
+    ->  Aggregate  (cost=4.09..4.10 rows=1 width=8) (actual time=0.053..0.053 rows=1 loops=20)
+          Output: count(*)
+          Buffers: shared hit=23
+          ->  Function Scan on pg_catalog.jsonb_each c  (cost=0.00..4.00 rows=34 width=0) (actual time=0.018..0.046 rows=242 loops=20)
+                Output: c.key, c.value
+                Function Call: jsonb_each(s.claims)
+                Filter: ((((c.value ->> 0))::integer = 2) OR (((c.value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+                Rows Removed by Filter: 3
+                Buffers: shared hit=23
+Planning Time: 0.072 ms
+Execution Time: 1.094 ms
+
+==============================================================================
+## q03_event_available
+==============================================================================
+
+# Seats available for the whole event: every section document of the event.
+
+SELECT COALESCE(SUM(s.capacity - (SELECT COUNT(*)
+                                    FROM jsonb_each(s.claims) AS c
+                                   WHERE (c.value->>0)::INT = 2
+                                      OR (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT)), 0)::BIGINT AS available
+  FROM event_section s
+ WHERE s.event_id = $1
+
+Aggregate  (cost=89.73..89.74 rows=1 width=8) (actual time=1.224..1.224 rows=1 loops=1)
+  Output: (COALESCE(sum((s.capacity - (SubPlan 1))), '0'::numeric))::bigint
+  Buffers: shared hit=29
+  ->  Seq Scan on public.event_section s  (cost=0.00..7.67 rows=20 width=272) (actual time=0.006..0.011 rows=20 loops=1)
+        Output: s.event_id, s.section_no, s.capacity, s.version, s.claims, s.next_expiry
+        Filter: (s.event_id = '51'::bigint)
+        Rows Removed by Filter: 114
+        Buffers: shared hit=6
+  SubPlan 1
+    ->  Aggregate  (cost=4.09..4.10 rows=1 width=8) (actual time=0.060..0.060 rows=1 loops=20)
+          Output: count(*)
+          Buffers: shared hit=23
+          ->  Function Scan on pg_catalog.jsonb_each c  (cost=0.00..4.00 rows=34 width=0) (actual time=0.020..0.052 rows=242 loops=20)
+                Output: c.key, c.value
+                Function Call: jsonb_each(s.claims)
+                Filter: ((((c.value ->> 0))::integer = 2) OR (((c.value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+                Rows Removed by Filter: 3
+                Buffers: shared hit=23
+Planning Time: 0.053 ms
+Execution Time: 1.237 ms
+
+==============================================================================
+## q04_hold_seats
+==============================================================================
+
+# The basket page: the seats of a hold that is still valid, and when it ends.
+
+SELECT (c.key)::INT AS seat_id,
+       to_timestamp((c.value->>3)::BIGINT / 1000.0) AS expires_at
+  FROM event_section s
+ CROSS JOIN LATERAL jsonb_each(s.claims) AS c
+ WHERE s.event_id = $1
+   AND s.section_no = $2
+   AND (c.value->>0)::INT = 1
+   AND (c.value->>1)::BIGINT = $3
+   AND (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT
+ ORDER BY 1
+
+Sort  (cost=7.41..7.41 rows=1 width=12) (actual time=0.030..0.030 rows=2 loops=1)
+  Output: ((c.key)::integer), (to_timestamp((((((c.value ->> 3))::bigint)::numeric / 1000.0))::double precision))
+  Sort Key: ((c.key)::integer)
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=2
+  ->  Nested Loop  (cost=0.15..7.40 rows=1 width=12) (actual time=0.024..0.028 rows=2 loops=1)
+        Output: (c.key)::integer, to_timestamp((((((c.value ->> 3))::bigint)::numeric / 1000.0))::double precision)
+        Buffers: shared hit=2
+        ->  Index Scan using event_section_pkey on public.event_section s  (cost=0.14..2.36 rows=1 width=268) (actual time=0.005..0.006 rows=1 loops=1)
+              Output: s.event_id, s.section_no, s.capacity, s.version, s.claims, s.next_expiry
+              Index Cond: ((s.event_id = '51'::bigint) AND (s.section_no = 19))
+              Buffers: shared hit=2
+        ->  Function Scan on pg_catalog.jsonb_each c  (cost=0.00..5.00 rows=1 width=64) (actual time=0.015..0.016 rows=2 loops=1)
+              Output: c.key, c.value
+              Function Call: jsonb_each(s.claims)
+              Filter: ((((c.value ->> 1))::bigint = '51'::bigint) AND (((c.value ->> 0))::integer = 1) AND (((c.value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+              Rows Removed by Filter: 34
+Planning Time: 0.069 ms
+Execution Time: 0.042 ms
+
+==============================================================================
+## q05_customer_tickets
+==============================================================================
+
+# "My tickets". Byte-identical in every design with the same ticket table: the
+# noise calibration set.
+
+SELECT ticket_id, event_id, seat_id
+  FROM ticket
+ WHERE customer_id = $1
+ ORDER BY ticket_id
+
+Sort  (cost=77.09..77.78 rows=275 width=20) (actual time=0.082..0.089 rows=275 loops=1)
+  Output: ticket_id, event_id, seat_id
+  Sort Key: ticket.ticket_id
+  Sort Method: quicksort  Memory: 35kB
+  Buffers: shared hit=56
+  ->  Bitmap Heap Scan on public.ticket  (cost=3.51..65.95 rows=275 width=20) (actual time=0.015..0.060 rows=275 loops=1)
+        Output: ticket_id, event_id, seat_id
+        Recheck Cond: (ticket.customer_id = '1'::bigint)
+        Heap Blocks: exact=54
+        Buffers: shared hit=56
+        ->  Bitmap Index Scan on ticket_customer_idx  (cost=0.00..3.45 rows=275 width=0) (actual time=0.008..0.008 rows=275 loops=1)
+              Index Cond: (ticket.customer_id = '1'::bigint)
+              Buffers: shared hit=2
+Planning Time: 0.037 ms
+Execution Time: 0.103 ms
+
+==============================================================================
+## q06_ticket_by_id
+==============================================================================
+
+# Point lookup: the control.
+
+SELECT ticket_id, event_id, seat_id, customer_id
+  FROM ticket
+ WHERE ticket_id = $1
+
+Index Scan using ticket_pkey on public.ticket  (cost=0.28..2.50 rows=1 width=28) (actual time=0.006..0.007 rows=1 loops=1)
+  Output: ticket_id, event_id, seat_id, customer_id
+  Index Cond: (ticket.ticket_id = '1124'::bigint)
+  Buffers: shared hit=3
+Planning Time: 0.035 ms
+Execution Time: 0.013 ms
+
+==============================================================================
+## w_read_section
+==============================================================================
+
+# The document as text, parsed in Go, with the version to write against and the
+# database clock every expiry decision is made with.
+
+SELECT version, claims::TEXT AS claims, now() AS db_now, clock_timestamp() AS db_clock
+  FROM event_section
+ WHERE event_id = $1
+   AND section_no = $2
+
+Index Scan using event_section_pkey on public.event_section  (cost=0.14..2.37 rows=1 width=56) (actual time=0.015..0.016 rows=1 loops=1)
+  Output: version, (claims)::text, now(), clock_timestamp()
+  Index Cond: ((event_section.event_id = '51'::bigint) AND (event_section.section_no = 19))
+  Buffers: shared hit=2
+Planning Time: 0.036 ms
+Execution Time: 0.021 ms
+
+==============================================================================
+## w_write_section
+==============================================================================
+
+# Compare-and-set on the whole document.
+
+UPDATE event_section
+   SET claims = $1::JSONB,
+       next_expiry = $2::TIMESTAMPTZ,
+       version = version + 1
+ WHERE event_id = $3
+   AND section_no = $4
+   AND version = $5
+RETURNING now() AS db_now, clock_timestamp() AS db_clock
+
+Update on public.event_section  (cost=0.14..2.37 rows=1 width=54) (actual time=0.020..0.021 rows=1 loops=1)
+  Output: now(), clock_timestamp()
+  Buffers: shared hit=10
+  ->  Index Scan using event_section_pkey on public.event_section  (cost=0.14..2.37 rows=1 width=54) (actual time=0.005..0.006 rows=1 loops=1)
+        Output: (version + 1), '{}'::jsonb, NULL::timestamp with time zone, ctid
+        Index Cond: ((event_section.event_id = '51'::bigint) AND (event_section.section_no = 19))
+        Filter: (event_section.version = '0'::bigint)
+        Buffers: shared hit=3
+Planning Time: 0.026 ms
+Execution Time: 0.029 ms
+
+==============================================================================
+## w_insert_tickets
+==============================================================================
+
+# One ticket per seat; ticket_ids and seat_ids are parallel arrays.
+
+INSERT INTO ticket (ticket_id, event_id, section_no, seat_id, customer_id, hold_id, sold_at, price_cents)
+SELECT t.ticket_id, $2::BIGINT, $3::INT, t.seat_id, $5::BIGINT, $6::BIGINT, now(), $7::BIGINT
+  FROM unnest($1::BIGINT[], $4::INT[]) AS t (ticket_id, seat_id)
+
+Insert on public.ticket  (cost=0.01..0.03 rows=0 width=0) (actual time=0.024..0.024 rows=0 loops=1)
+  Buffers: shared hit=16
+  ->  Function Scan on t  (cost=0.01..0.03 rows=2 width=56) (actual time=0.004..0.004 rows=2 loops=1)
+        Output: t.ticket_id, '51'::bigint, 19, t.seat_id, '1'::bigint, '51'::bigint, now(), '13500'::bigint
+        Function Call: unnest('{1020000000,1020000001}'::bigint[]), unnest('{9399,9400}'::integer[])
+Planning Time: 0.017 ms
+Trigger RI_ConstraintTrigger_c_18451 for constraint ticket_event_id_fkey: time=0.040 calls=2
+Execution Time: 0.073 ms
+
+==============================================================================
+## w_expired_sections
+==============================================================================
+
+# Sections holding at least one expired claim, locked for the sweeper and skipped
+# if a buyer is writing them.
+
+SELECT event_id, section_no
+  FROM event_section
+ WHERE next_expiry <= now()
+ ORDER BY next_expiry
+ LIMIT $1
+   FOR UPDATE SKIP LOCKED
+
+Limit  (cost=0.15..7.86 rows=14 width=26) (actual time=0.008..0.017 rows=14 loops=1)
+  Output: event_id, section_no, next_expiry, ctid
+  Buffers: shared hit=27
+  ->  LockRows  (cost=0.15..7.86 rows=14 width=26) (actual time=0.008..0.016 rows=14 loops=1)
+        Output: event_id, section_no, next_expiry, ctid
+        Buffers: shared hit=27
+        ->  Index Scan using event_section_next_expiry_idx on public.event_section  (cost=0.15..7.72 rows=14 width=26) (actual time=0.005..0.009 rows=14 loops=1)
+              Output: event_id, section_no, next_expiry, ctid
+              Index Cond: (event_section.next_expiry <= now())
+              Buffers: shared hit=13
+Planning Time: 0.029 ms
+Execution Time: 0.024 ms
+
+==============================================================================
+## w_cancel_ticket
+==============================================================================
+
+# A refund. No row means the ticket was already refunded.
+
+DELETE FROM ticket
+ WHERE ticket_id = $1
+RETURNING event_id, section_no, seat_id, now() AS db_now, clock_timestamp() AS db_clock
+
+Delete on public.ticket  (cost=0.28..2.50 rows=1 width=6) (actual time=0.013..0.014 rows=1 loops=1)
+  Output: event_id, section_no, seat_id, now(), clock_timestamp()
+  Buffers: shared hit=5
+  ->  Index Scan using ticket_pkey on public.ticket  (cost=0.28..2.50 rows=1 width=6) (actual time=0.008..0.008 rows=1 loops=1)
+        Output: ctid
+        Index Cond: (ticket.ticket_id = '1124'::bigint)
+        Buffers: shared hit=3
+Planning Time: 0.024 ms
+Execution Time: 0.033 ms
+
+==============================================================================
+## w_publish_event
+==============================================================================
+
+
+INSERT INTO event (event_id, band_id, venue_id, name, starts_at, price_cents, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+
+Insert on public.event  (cost=0.00..0.01 rows=0 width=0) (actual time=0.041..0.041 rows=0 loops=1)
+  Buffers: shared hit=5
+  ->  Result  (cost=0.00..0.01 rows=1 width=104) (actual time=0.002..0.002 rows=1 loops=1)
+        Output: '6000084'::bigint, '4'::bigint, '4'::bigint, 'explain show'::text, '2026-10-01 20:00:00+00'::timestamp with time zone, '13500'::bigint, 'Explained.'::text
+Planning Time: 0.011 ms
+Trigger RI_ConstraintTrigger_c_18436 for constraint event_band_id_fkey: time=0.101 calls=1
+Trigger RI_ConstraintTrigger_c_18441 for constraint event_venue_id_fkey: time=0.042 calls=1
+Execution Time: 0.192 ms
+
+==============================================================================
+## w_publish_sections
+==============================================================================
+
+# One empty document per section of the venue.
+
+INSERT INTO event_section (event_id, section_no, capacity, version, claims, next_expiry)
+SELECT $1::BIGINT, section_no, capacity, 0, '{}'::JSONB, NULL
+  FROM venue_section
+ WHERE venue_id = $2::BIGINT
+
+Insert on public.event_section  (cost=0.14..3.99 rows=0 width=0) (actual time=0.073..0.073 rows=0 loops=1)
+  Buffers: shared hit=62 read=1 dirtied=1
+  I/O Timings: shared read=0.012
+  ->  Index Scan using venue_section_pkey on public.venue_section  (cost=0.14..3.99 rows=20 width=64) (actual time=0.006..0.009 rows=20 loops=1)
+        Output: '6000084'::bigint, venue_section.section_no, venue_section.capacity, '0'::bigint, '{}'::jsonb, NULL::timestamp with time zone
+        Index Cond: (venue_section.venue_id = '4'::bigint)
+        Buffers: shared hit=2
+Planning Time: 0.044 ms
+Trigger RI_ConstraintTrigger_c_18464 for constraint event_section_event_id_fkey: time=0.124 calls=20
+Execution Time: 0.206 ms
+

@@ -1,0 +1,53 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  database clock minus client clock: 0.003 ms
+  dataset: 5 venues, 84 events, 5741 tickets and 165 holds at load
+  loading e1_sweeper_expiry ...
+  loaded in 9.1s (copy 2.1s, index 3.4s)
+  verifying answers against ground truth ...
+    51/51 checks passed (margin 598s); audit on load: consistent (84 events, 5741 tickets; rejections late=0 boundary=0)
+  capturing plans ...
+  read benchmark:
+    q01_section_map@10                     3936.5 ops/s  p50=  0.654ms p99=  66.034ms  errors=0
+    q02_event_sections@10                  2774.3 ops/s  p50=  0.790ms p99=  70.629ms  errors=0
+    q03_event_available@10                 3961.0 ops/s  p50=  0.616ms p99=  67.780ms  errors=0
+    q01_section_map@100                    3686.2 ops/s  p50=  0.675ms p99=  67.288ms  errors=0
+    q02_event_sections@100                 2700.9 ops/s  p50=  0.793ms p99=  69.500ms  errors=0
+    q03_event_available@100                3913.8 ops/s  p50=  0.641ms p99=  67.026ms  errors=0
+    q01_section_map@1000                   1768.7 ops/s  p50=  1.118ms p99=  74.310ms  errors=0
+    q02_event_sections@1000                1974.3 ops/s  p50=  1.167ms p99=  71.495ms  errors=0
+    q03_event_available@1000               2286.5 ops/s  p50=  0.946ms p99=  71.045ms  errors=0
+    q01_section_map@10000                   344.4 ops/s  p50=  5.403ms p99=  88.767ms  errors=0
+    q02_event_sections@10000                195.5 ops/s  p50= 11.107ms p99=  95.234ms  errors=0
+    q03_event_available@10000               441.1 ops/s  p50=  4.213ms p99=  85.101ms  errors=0
+    q04_hold_seats                          557.7 ops/s  p50=  3.361ms p99=  85.380ms  errors=0
+    q05_customer_tickets                   2746.6 ops/s  p50=  0.881ms p99=  69.077ms  errors=0
+    q06_ticket_by_id                       4853.9 ops/s  p50=  0.540ms p99=  64.890ms  errors=0
+  write benchmark (fresh load per op):
+    hold                                     48.2 ops/s  p50=179.057ms p99= 398.716ms  rejected=0 retries=5 errors=0
+      audit after hold: consistent (84 events, 7818 tickets; rejections late=0 boundary=0)
+    release                                2158.6 ops/s  p50=  3.511ms p99=   4.664ms  rejected=0 retries=0 errors=0
+      audit after release: consistent (84 events, 5741 tickets; rejections late=0 boundary=0)
+    cancel                                  280.3 ops/s  p50=  7.745ms p99=  88.186ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (84 events, 3723 tickets; rejections late=0 boundary=0)
+    publish@10                              290.6 ops/s  p50=  4.522ms p99=  74.963ms  rejected=0 retries=0 errors=0
+    publish@100                             154.7 ops/s  p50=  7.926ms p99=  85.009ms  rejected=0 retries=0 errors=0
+    publish@1000                             34.5 ops/s  p50=102.043ms p99= 114.697ms  rejected=0 retries=0 errors=0
+    publish@10000                             6.6 ops/s  p50=296.107ms p99= 296.107ms  rejected=0 retries=0 errors=0
+    publish@100000                            0.7 ops/s  p50=2837.390ms p99=2837.390ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2313 events, 5741 tickets; rejections late=0 boundary=0)
+  race trial 1/1 (32 buyers per event, fresh load):
+    race     10 seats x20        45.2 seats/s  conflicts/hold=6.31 reads/hold=13.52  hold p50=10.11ms p99=210.02ms  deferred 15/15 ok  errors=0  ok
+      audit: consistent (20 events, 200 tickets; rejections late=0 boundary=0)
+    race    100 seats x4        117.0 seats/s  conflicts/hold=2.54 reads/hold=4.75  hold p50=16.39ms p99=204.57ms  deferred 23/23 ok  errors=0  ok
+      audit: consistent (4 events, 400 tickets; rejections late=0 boundary=0)
+    race   1000 seats x1        118.1 seats/s  conflicts/hold=0.96 reads/hold=2.50  hold p50=85.77ms p99=197.39ms  deferred 41/41 ok  errors=0  ok
+      audit: consistent (1 events, 1000 tickets; rejections late=0 boundary=0)
+    race  10000 seats x1         77.0 seats/s  conflicts/hold=0.31 reads/hold=1.32  hold p50=99.21ms p99=206.09ms  deferred 54/54 ok  errors=0  ok, 1 timed out (16% sold)
+      audit: consistent (1 events, 1563 tickets; rejections late=0 boundary=0)
+  lifecycle trial 1/1 (32 buyers per event, one human minute = 500ms, fresh load):
+    lifecycle    10 seats x2       0.3 confirmed seats/s  holds=20 abandoned=2+2 expired@check=0 rejected late/boundary/early=0/0/0  outage unavailable=0/0  leaked=0 errors=0  ok
+      audit: consistent (2 events, 20 tickets; rejections late=0 boundary=0)
+    lifecycle   100 seats x2       1.6 confirmed seats/s  holds=134 abandoned=17+11 expired@check=1 rejected late/boundary/early=3/0/0  outage unavailable=10/10  leaked=0 errors=0  ok
+      audit: consistent (2 events, 200 tickets; rejections late=3 boundary=0)
+  wrote /results/e1_sweeper_expiry.json

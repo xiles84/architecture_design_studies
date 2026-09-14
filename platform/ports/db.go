@@ -89,6 +89,11 @@ const (
 	// ErrAmbiguousCommit means the connection failed during COMMIT, so the
 	// transaction may or may not have committed. An audit must allow for it.
 	ErrAmbiguousCommit
+	// ErrLockNotAvailable means a NOWAIT lock request found the row already
+	// locked. For a buyer choosing specific seats (study 03) it means "being
+	// taken right now -- choose again", not a failure. Appended last so that no
+	// existing class changes value.
+	ErrLockNotAvailable
 )
 
 // ErrNoRows is returned by Row.Scan when the query matched nothing.

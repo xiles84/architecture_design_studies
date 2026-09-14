@@ -594,3 +594,46 @@ that lives where the contended resource lives (a podman volume, created atomical
 to every worktree, shell and agent) turns that rule from a convention into a refusal. It was
 tested for a second acquirer, a guarded `down`, nesting, normal exit and SIGTERM, which
 releases only after the current foreground command returns.
+
+---
+
+## Building study 03 (reserved seating)
+
+### Name the domain regime in the question
+
+Study 02 used "seat" for a unit of capacity: `seat_no` was an admission number assigned by
+the system, and its holds claimed capacity, not a place. The owner read it as a study of
+physical seats and asked for "the same study, with marked seats". The difference is not
+cosmetic: with marked seats the invariant becomes a single-row fact and the hard problems
+move to holds, expiry and conflicts over one chosen seat. State the regime (general admission
+or reserved seating) in the first sentence of a study, and define the domain words before the
+designs use them.
+
+### Timestamps compared by a gate need one precision
+
+The first PostgreSQL gate failed S1 by 1 ms on the loaded holds' expiry. The load clock came
+from `SELECT now()` (microseconds) and the offsets added to it were milliseconds, so the
+database and the Go truth disagreed below the millisecond. The load clock is now truncated to
+milliseconds before anything is derived from it. The gate caught it; a timing run would
+not have.
+
+### A warmup on a finite pool can consume the measurement
+
+Isolated hold, release and cancel benchmarks draw from a fixed pool of seats, holds and
+tickets. A warmup by duration drained the `tiny` release pool on PostgreSQL before the first
+trial, which then measured 0 releases without an error. Warmup on a finite pool is now one
+trial's worth of operations, so warmup and trials stay inside the pool.
+
+### A probe for an outage must run inside the outage
+
+The first E1 sweeper-outage probe found 0 of 0 unavailable seats: the sweeper resumed on its
+timer before the probe had read, so the negative condition could not show. The outage now
+ends only after the probe has run (4 of 4 and 9 of 9 on the next check). A detector that
+cannot fire is not evidence of a correct design.
+
+### A compare-and-set loop without backoff measures its own spinning
+
+L2 (a section document written with a version compare-and-set) retried a lost CAS
+immediately. On 10-seat races the buyers spun against each other: 21 seats/s. With the same
+jittered backoff used for retryable errors, 206 seats/s. A lost CAS is a retry like any
+other, and a design's number without backoff describes the harness.
