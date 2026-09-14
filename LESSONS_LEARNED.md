@@ -552,3 +552,23 @@ L2 (a section document written with a version compare-and-set) retried a lost CA
 immediately. On 10-seat races the buyers spun against each other: 21 seats/s. With the same
 jittered backoff used for retryable errors, 206 seats/s. A lost CAS is a retry like any
 other, and a design's number without backoff describes the harness.
+
+### A guarded statement that matches nothing cannot conflict
+
+On YugabyteDB, under the race's load, a confirmation `UPDATE ... WHERE hold_id = $h AND status =
+'held' AND hold_expires_at > now()` matched 0 of a valid hold's seats: 8 times in 40
+10 000-seat races of one diagnosis, more often on three nodes. A `SELECT` in the same
+transaction showed the hold valid, and the identical `UPDATE` re-issued in that transaction
+matched every seat. The server logged nothing for that backend. Turning off expression
+pushdown, wait queues or query-layer retries did not remove it (ER-01,
+`results/devchecks/er01-*`). A statement that writes nothing gives the engine no write
+conflict to detect: if its read is stale, the refusal is silent rather than a retryable error.
+Two things made it findable: the ledger classifying every refusal by its margin, and a
+diagnostic that repeats the refused statement before rolling back. A standalone probe of the
+same statements never reproduced it; only the full workload did.
+
+### `podman machine ssh` from Git Bash can leave a file named `NUL`
+
+On Windows, `podman machine ssh` wrote the VM's host key to a file called `NUL` in the working
+directory, a reserved name that breaks `git add`. Delete it after use (`rm ./NUL` in Git Bash), or
+read the VM's state through `podman` commands instead.

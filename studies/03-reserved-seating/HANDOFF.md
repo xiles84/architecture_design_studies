@@ -1278,6 +1278,155 @@ Starting prompt for the next session:
 
 ## 16. Amendments
 
-None. Amendments are appended here by the ultra session, as `AM-NN — <title>` with date,
+Amendments are appended here by the ultra session, as `AM-NN — <title>` with date,
 reason, the escalation that caused them, and the sections they change. Each one is tagged
 `study-03/v0.N-handoff-amendment-NN`.
+
+### AM-01 — Transient refusals on YugabyteDB, design S1r, dev-check criteria
+
+- date: 2026-09-14
+- by: claude-opus-5, setting `ultracode`, Claude Code desktop (planning session)
+- escalation: ER-01 (decision and evidence in `ESCALATIONS.md`)
+- changes: §3.4, §3.6, §3.7, §3.11, §5.3, §5.4, §6, §7, §8, §9 step 8, §10.3, §10.4.
+  Everything this amendment does not name is unchanged and still **Decided**.
+- tag: `study-03/v0.1-handoff-amendment-01`
+
+**Reason.** On YugabyteDB, under the race's load, a guarded confirmation sometimes matches
+none of a valid hold's seats. The identical statement, issued again in the same transaction,
+matches all of them. This is a measured engine behaviour, not a harness bug, and it is exactly
+the failure the owner asked about. The study measures it, keeps it apart from design failures,
+and measures the smallest defence.
+
+#### AM-01.1 Transient refusal (§3.4, §5.4)
+
+- **Definition.** An early rejection (margin `m >= G`, §3.4) is **transient** when the
+  identical refusing statement, issued again inside the refusing transaction before its
+  rollback (AM-01.2), matches every seat the first execution did not. Every other early
+  rejection is **persistent**.
+- Both remain **INV-3 violations**. The buyer was refused, so the cells keep their ❌.
+- Ledger: `Violations` gains `RejectedEarlyTransient` (JSON `rejected_early_transient`), a
+  subset of `RejectedEarly`, summed by `Add`, **not** added again in `Violations()`. The
+  `Reject` call takes the transient flag; the flag is ignored for late and boundary
+  rejections.
+- `ledger_test.go` adds:
+  - 10: a transient early rejection counts in both totals;
+  - 11: a transient flag on a late or boundary rejection changes nothing.
+
+#### AM-01.2 Refusal diagnostics (§5.3)
+
+Harness instrumentation, the same for every design it applies to. It replaces the
+unconditional in-transaction re-read and re-issue added for the investigation (commit
+`87fa9fa`).
+
+- **Statements:** `w_confirm_seats` (S0–S4, E0, E1, K1, L1, L3), `w_confirm_cart` and
+  `w_confirm_seats` (E2), `w_begin_checkout` (K1).
+  - K0 has no guard: not applicable.
+  - L2 checks in the application and writes by compare-and-set, and a lost write is retried
+    (M9): not applicable, reported as "n/a".
+- **When:** only if the ledger's margin for that hold at the transaction's `now()` is ≥ G.
+  Check this before running anything, so late and boundary refusals take exactly the design's
+  path.
+- **What**, inside the refusing transaction, in this order:
+  1. Re-read the hold's rows, with `pg_backend_pid()`.
+     - Seat rows: the existing `seatStates`.
+     - L1: `seat_id, hold_id, expires_at > now(), expires_at = 'infinity'` from `seat_claim`.
+     - E2: the seat rows, plus the cart's `expires_at > now()`.
+  2. The **identical statement with identical bindings**. If it matched `k` seats first and
+     `k2` now, the refusal is transient when `k + k2 = N`. The guards exclude rows the first
+     execution already changed (`status = 'held'`, `expires_at <> 'infinity'`,
+     `checkout_started_at IS NULL`). For `w_confirm_cart`, it is transient when the re-issue
+     returns its row.
+  3. Roll back, as today. **The refusal stands whatever the re-issue matched.**
+- The example detail keeps: first match, re-read, re-issue match, backend pid, grant and
+  confirm `now()`, client time.
+
+#### AM-01.3 New design S1r (§3.6, §3.7, §6, §7, §8)
+
+The study now has 14 designs, 3 of them controls.
+
+| Id | Directory | Family | What it decides | Reference |
+|---|---|---|---|---|
+| S1r | `s1r_confirm_retry` | checkout | S1, plus: a confirmation that matches fewer seats than the hold is rolled back and run once more, immediately, in a new transaction | S1 |
+
+- **SQL:** a copy of `s1_conditional_update`; only header comments differ, so `diff -r`
+  shows comment lines only. Add that line to `sql/README.md`. The headers state the one
+  decision, and why the retry is safe: the retried statement is still guarded, so it can
+  never sell an expired, released or stolen hold.
+- **Harness:** a `Design` flag `RetryShortConfirm`. In `Confirm`:
+  1. If the first attempt is short, roll it back. Run no diagnostics on it, and increment
+     `confirm_retries`.
+  2. Run the second attempt exactly as S1, with AM-01.2 if it is short and the margin is ≥ G.
+     If it sells, increment `confirm_retry_successes`.
+  3. The ledger sees only the final outcome, timed by the second transaction's `now()`.
+  4. Holds are unchanged, and the retry is not counted in `engine_retries`.
+- **Result fields:** `confirm_retries` and `confirm_retry_successes` in the race and
+  lifecycle results of every design (0 where not S1r).
+- **Pair (§3.7):** `S1 → S1r` — *does retrying a short confirmation once remove transient
+  refusals, and what does it cost?*
+- **Noise set (§3.7):** add S1r to the designs whose `q05`/`q06` SQL is byte-identical.
+- **Runner and diagrams:** add it to `ALL_DESIGNS` and `designs.go`, add S1r to
+  `diagrams/k_checkout.puml`, and re-render.
+- S1r is a correct design, not a control.
+
+#### AM-01.4 Report (§3.11), numbers only
+
+- **TL;DR:** per topology, early rejections in correct designs as `total (transient)` by
+  design and phase; S1r's confirmation retries and retry successes.
+- **Hold guarantee and race tables:** the early column reads `total (transient)`, e.g.
+  `3 (3)`; K0 and L2 read `n/a` for the transient part.
+- The lead text of those sections defines the class in one sentence, without interpretation.
+- The controls table is unchanged: S0 and E0 early rejections count in the total.
+
+#### AM-01.5 Dev-check pass criteria (§10.3): replaces the third and fifth bullets
+
+- Correct designs (S1r included): zero INV-1, INV-2 and INV-4..INV-7 violations in every
+  phase; INV-8 zero in events that did not time out; lazy designs have outage probe = 0.
+- **INV-3:** zero *persistent* early rejections.
+  - *Transient* early rejections are allowed on YugabyteDB topologies. Record them in
+    `PROGRESS.md` (count per design, phase and topology).
+  - Any transient refusal on PostgreSQL is an **Escalation Required**, as is any persistent
+    early rejection in a correct design once harness bugs are ruled out (§12 item 2).
+- **Deferred confirmers:** 100% success in every correct design, except transient refusals
+  on YugabyteDB.
+- **S1r:** if its second attempt is also short on YugabyteDB, that is a transient refusal:
+  record it as a finding, not a failure.
+
+#### AM-01.6 Dev checks before tagging `study-03/v1-harness` (§9 step 8)
+
+Keep dc1–dc11. Add these, in order, as `results/devchecks/dc12-…` onwards:
+
+1. `pg-single`, `tiny`, all phases: S1, S1r, K1, L1, E2. The diagnostics must leave
+   PostgreSQL clean, and S1r must be correct.
+2. `yb-single`, `tiny`:
+   - all phases: S1r;
+   - `--phases verify,race --extra "-race-trials 4"`: S1, S1r, K1, L1, E1.
+3. `yb-cluster3`, `tiny`:
+   - all phases: S1r;
+   - `--phases verify,race --extra "-race-trials 2"`: S0, S1, S1r, E0, E1, K1, L1, L3. The
+     controls must still fire.
+
+Expected: on YugabyteDB every early rejection in a correct design is transient, and
+PostgreSQL shows none. Record the counts, and the AM-01 commits, in `PROGRESS.md` as step 8a.
+
+#### AM-01.7 Duration (§10.4)
+
+Recompute the projections for 14 designs. The thresholds are unchanged.
+
+#### AM-01.8 Documents
+
+- **README:** designs table, pairs, and the terminology entry *transient refusal*.
+- `CONTEXT.md` and `PROGRESS.md`. `LESSONS_LEARNED.md` already has the ER-01 lesson from the
+  planning session; add only what the implementation itself costs.
+
+#### AM-01.9 Not allowed
+
+- The diagnosis's engine settings (`yb_enable_expression_pushdown`, `enable_wait_queues`,
+  `yb_debug_log_internal_restarts`, `yb_max_query_layer_retries`) in any study cell.
+- Running `diagnose-er01.sh` again, unless a later decision asks for it.
+- Any change to S1, K1, L1, E1, L3 or E2 SQL. The transient refusals they show are measured,
+  not fixed.
+
+**Next session:** Claude Opus 5, setting `high`. Starting prompt:
+
+> Apply AM-01 in `studies/03-reserved-seating/HANDOFF.md` §16, then resume from step 8,
+> following the handoff's rules.
