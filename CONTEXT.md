@@ -4,7 +4,7 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-13
+**Last updated:** 2026-09-14
 
 ---
 
@@ -137,20 +137,24 @@ All cells passed their correctness gates and reported no operation errors. D2/D3
 links a separate [mechanism discussion](studies/01-charity-tree/reports/discussions/d2-d3-mechanisms--gpt-6--2026-09-13.md).
 The preceding gate is tagged `study-01/v3-verified`.
 
-**Running — do not start databases:** `20260913T172624Z-v3`, three independent trials
+**Completed:** `20260913T172624Z-v3`, three independent trials
 for growth/history/memory, fixed-reader contention, YB FK/cache exceptions, equal-total
 budgets and local node-stop recovery. Run tag `run/01-charity-tree/20260913T172624Z-v3`.
 Podman was restarted after the interactive pause; live VM resources were rechecked:
 8 CPUs, 16,496,418,816 bytes and the same kernel. The preceding 100-cell run is tagged
-`study-01/v3-mechanisms`. The current runner holds `ads-run-lock`.
+`study-01/v3-mechanisms`. All 135 processes completed at 2026-09-13 19:55:53 UTC;
+digest `bd95d304cb39e2de`. Six D9 negative-control cells failed their cache audits
+(three trials on each YB topology); the other 129 cells reported no operation or
+invariant errors. On resuming 2026-09-14, no database containers or benchmark lock
+remained. The result set is tagged `study-01/v3-followup-results`.
 
 All six constrained-memory cells completed their nine growth phases with no gate
 failures. A follow-up control is needed before interpreting the D6/D3 donor-read
 difference as a memory effect: repeat medium/history-multiplier=2 at the standard
 3 GiB budget (the current standard medium condition uses multiplier=1). Queue this
-after the active matrix, never concurrently. A reporting-only edit to expose growth
-read rates, arrival retries/counts and audits is pending container validation; the
-active run continues on its original pinned image.
+after this completed matrix. A reporting-only edit to expose growth read rates,
+arrival retries/counts and audits is pending container validation. The completed
+matrix used its original pinned image throughout.
 
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`

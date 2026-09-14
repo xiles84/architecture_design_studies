@@ -1,0 +1,527 @@
+# Query plans
+
+run_id:      20260913T172624Z-v3
+environment: host-zenbook-ux5406sa
+engine:      postgres (pg-single)
+version:     PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+design:      d6_embedded_jsonb (embedded-jsonb)
+scale:       medium -- 45000 people, 2009226 donations
+captured:    EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS ON)
+keys used:   charity_id=1 (the largest charity, 30% of donors); person_id and
+             donation_id belong to that charity's busiest donor, so these plans
+             show real work rather than a donor who happens to have three rows
+
+==============================================================================
+## q01_last_donation_global
+==============================================================================
+
+# One element inspected per person, but every person row must still be read.
+
+SELECT (e ->> 'i')::BIGINT        AS donation_id,
+       p.person_id,
+       (e ->> 'a')::BIGINT        AS amount_cents,
+       e ->> 'c'                  AS currency,
+       (e ->> 't')::TIMESTAMPTZ   AS donated_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT p.donations -> -1 AS e) x
+ WHERE jsonb_array_length(p.donations) > 0
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 1
+
+Limit  (cost=6486.00..6486.00 rows=1 width=64) (actual time=809.223..809.224 rows=1 loops=1)
+  Output: ((((p.donations -> '-1'::integer) ->> 'i'::text))::bigint), p.person_id, ((((p.donations -> '-1'::integer) ->> 'a'::text))::bigint), (((p.donations -> '-1'::integer) ->> 'c'::text)), ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone)
+  Buffers: shared hit=118317 read=3284
+  I/O Timings: shared read=7.227
+  ->  Sort  (cost=6486.00..6523.50 rows=15000 width=64) (actual time=809.221..809.222 rows=1 loops=1)
+        Output: ((((p.donations -> '-1'::integer) ->> 'i'::text))::bigint), p.person_id, ((((p.donations -> '-1'::integer) ->> 'a'::text))::bigint), (((p.donations -> '-1'::integer) ->> 'c'::text)), ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone)
+        Sort Key: ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        Buffers: shared hit=118317 read=3284
+        I/O Timings: shared read=7.227
+        ->  Seq Scan on public.person p  (cost=0.00..6411.00 rows=15000 width=64) (actual time=0.027..803.967 rows=45000 loops=1)
+              Output: (((p.donations -> '-1'::integer) ->> 'i'::text))::bigint, p.person_id, (((p.donations -> '-1'::integer) ->> 'a'::text))::bigint, ((p.donations -> '-1'::integer) ->> 'c'::text), (((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone
+              Filter: (jsonb_array_length(p.donations) > 0)
+              Buffers: shared hit=118317 read=3284
+              I/O Timings: shared read=7.227
+Planning Time: 0.073 ms
+Execution Time: 809.239 ms
+
+==============================================================================
+## q02_last_donation_charity
+==============================================================================
+
+SELECT (e ->> 'i')::BIGINT        AS donation_id,
+       p.person_id,
+       (e ->> 'a')::BIGINT        AS amount_cents,
+       e ->> 'c'                  AS currency,
+       (e ->> 't')::TIMESTAMPTZ   AS donated_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT p.donations -> -1 AS e) x
+ WHERE p.charity_id = $1
+   AND jsonb_array_length(p.donations) > 0
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 1
+
+Limit  (cost=5745.37..5745.37 rows=1 width=64) (actual time=249.295..249.297 rows=1 loops=1)
+  Output: ((((p.donations -> '-1'::integer) ->> 'i'::text))::bigint), p.person_id, ((((p.donations -> '-1'::integer) ->> 'a'::text))::bigint), (((p.donations -> '-1'::integer) ->> 'c'::text)), ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone)
+  Buffers: shared hit=34453 read=4076
+  I/O Timings: shared read=7.824
+  ->  Sort  (cost=5745.37..5756.64 rows=4510 width=64) (actual time=249.293..249.294 rows=1 loops=1)
+        Output: ((((p.donations -> '-1'::integer) ->> 'i'::text))::bigint), p.person_id, ((((p.donations -> '-1'::integer) ->> 'a'::text))::bigint), (((p.donations -> '-1'::integer) ->> 'c'::text)), ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone)
+        Sort Key: ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        Buffers: shared hit=34453 read=4076
+        I/O Timings: shared read=7.824
+        ->  Bitmap Heap Scan on public.person p  (cost=117.19..5722.82 rows=4510 width=64) (actual time=0.877..247.667 rows=13445 loops=1)
+              Output: (((p.donations -> '-1'::integer) ->> 'i'::text))::bigint, p.person_id, (((p.donations -> '-1'::integer) ->> 'a'::text))::bigint, ((p.donations -> '-1'::integer) ->> 'c'::text), (((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone
+              Recheck Cond: (p.charity_id = '1'::bigint)
+              Filter: (jsonb_array_length(p.donations) > 0)
+              Heap Blocks: exact=4941
+              Buffers: shared hit=34453 read=4076
+              I/O Timings: shared read=7.824
+              ->  Bitmap Index Scan on person_charity_idx  (cost=0.00..116.06 rows=13530 width=0) (actual time=0.430..0.431 rows=13445 loops=1)
+                    Index Cond: (p.charity_id = '1'::bigint)
+                    Buffers: shared read=13
+                    I/O Timings: shared read=0.033
+Planning Time: 0.093 ms
+Execution Time: 249.314 ms
+
+==============================================================================
+## q03_top_donor_charity
+==============================================================================
+
+# Every array in the charity must be fully unnested and summed. This is the
+# shape of query the embedded design is worst at.
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM person p
+ CROSS JOIN LATERAL (
+        SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+          FROM jsonb_array_elements(p.donations) e
+      ) t
+ WHERE p.charity_id = $1
+ ORDER BY t.total_cents DESC
+ LIMIT 1
+
+Limit  (cost=33239.40..33239.40 rows=1 width=53) (actual time=185.412..185.414 rows=1 loops=1)
+  Output: p.person_id, p.full_name, (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric))
+  Buffers: shared hit=11688 read=238
+  I/O Timings: shared read=0.796
+  ->  Sort  (cost=33239.40..33273.22 rows=13530 width=53) (actual time=185.411..185.412 rows=1 loops=1)
+        Output: p.person_id, p.full_name, (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric))
+        Sort Key: (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        Buffers: shared hit=11688 read=238
+        I/O Timings: shared read=0.796
+        ->  Nested Loop  (cost=2.00..33171.75 rows=13530 width=53) (actual time=0.031..183.384 rows=13445 loops=1)
+              Output: p.person_id, p.full_name, (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric))
+              Buffers: shared hit=11688 read=238
+              I/O Timings: shared read=0.796
+              ->  Seq Scan on public.person p  (cost=0.00..5773.50 rows=13530 width=825) (actual time=0.008..6.432 rows=13445 loops=1)
+                    Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donations
+                    Filter: (p.charity_id = '1'::bigint)
+                    Rows Removed by Filter: 31555
+                    Buffers: shared hit=4973 read=238
+                    I/O Timings: shared read=0.796
+              ->  Aggregate  (cost=2.00..2.01 rows=1 width=32) (actual time=0.013..0.013 rows=1 loops=13445)
+                    Output: COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)
+                    Buffers: shared hit=6715
+                    ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..1.00 rows=100 width=32) (actual time=0.006..0.007 rows=44 loops=13445)
+                          Output: e.value
+                          Function Call: jsonb_array_elements(p.donations)
+                          Buffers: shared hit=6715
+Planning Time: 0.127 ms
+Execution Time: 185.434 ms
+
+==============================================================================
+## q04_top_donors_leaderboard
+==============================================================================
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM person p
+ CROSS JOIN LATERAL (
+        SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+          FROM jsonb_array_elements(p.donations) e
+      ) t
+ WHERE p.charity_id = $1
+ ORDER BY t.total_cents DESC
+ LIMIT 10
+
+Limit  (cost=33464.13..33464.15 rows=10 width=53) (actual time=185.988..185.991 rows=10 loops=1)
+  Output: p.person_id, p.full_name, (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric))
+  Buffers: shared hit=11807 read=119 written=4
+  I/O Timings: shared read=0.419 write=0.095
+  ->  Sort  (cost=33464.13..33497.95 rows=13530 width=53) (actual time=185.987..185.988 rows=10 loops=1)
+        Output: p.person_id, p.full_name, (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric))
+        Sort Key: (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)) DESC
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=11807 read=119 written=4
+        I/O Timings: shared read=0.419 write=0.095
+        ->  Nested Loop  (cost=2.00..33171.75 rows=13530 width=53) (actual time=0.022..184.080 rows=13445 loops=1)
+              Output: p.person_id, p.full_name, (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric))
+              Buffers: shared hit=11807 read=119 written=4
+              I/O Timings: shared read=0.419 write=0.095
+              ->  Seq Scan on public.person p  (cost=0.00..5773.50 rows=13530 width=825) (actual time=0.005..6.846 rows=13445 loops=1)
+                    Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donations
+                    Filter: (p.charity_id = '1'::bigint)
+                    Rows Removed by Filter: 31555
+                    Buffers: shared hit=5092 read=119 written=4
+                    I/O Timings: shared read=0.419 write=0.095
+              ->  Aggregate  (cost=2.00..2.01 rows=1 width=32) (actual time=0.013..0.013 rows=1 loops=13445)
+                    Output: COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)
+                    Buffers: shared hit=6715
+                    ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..1.00 rows=100 width=32) (actual time=0.006..0.007 rows=44 loops=13445)
+                          Output: e.value
+                          Function Call: jsonb_array_elements(p.donations)
+                          Buffers: shared hit=6715
+Planning Time: 0.111 ms
+Execution Time: 186.008 ms
+
+==============================================================================
+## q05_last_donor_charity
+==============================================================================
+
+SELECT p.person_id, p.full_name, (e ->> 't')::TIMESTAMPTZ AS donated_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT p.donations -> -1 AS e) x
+ WHERE p.charity_id = $1
+   AND jsonb_array_length(p.donations) > 0
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 1
+
+Limit  (cost=5632.62..5632.62 rows=1 width=29) (actual time=113.569..113.571 rows=1 loops=1)
+  Output: p.person_id, p.full_name, ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone)
+  Buffers: shared hit=18384
+  ->  Sort  (cost=5632.62..5643.89 rows=4510 width=29) (actual time=113.568..113.569 rows=1 loops=1)
+        Output: p.person_id, p.full_name, ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone)
+        Sort Key: ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        Buffers: shared hit=18384
+        ->  Bitmap Heap Scan on public.person p  (cost=117.19..5610.07 rows=4510 width=29) (actual time=0.771..112.147 rows=13445 loops=1)
+              Output: p.person_id, p.full_name, (((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone
+              Recheck Cond: (p.charity_id = '1'::bigint)
+              Filter: (jsonb_array_length(p.donations) > 0)
+              Heap Blocks: exact=4941
+              Buffers: shared hit=18384
+              ->  Bitmap Index Scan on person_charity_idx  (cost=0.00..116.06 rows=13530 width=0) (actual time=0.371..0.371 rows=13445 loops=1)
+                    Index Cond: (p.charity_id = '1'::bigint)
+                    Buffers: shared hit=13
+Planning Time: 0.079 ms
+Execution Time: 113.586 ms
+
+==============================================================================
+## q06_person_first_last
+==============================================================================
+
+# The embedded design's best case: no unnesting, no second table, no index
+# lookup. Read one row, index into both ends of the array.
+
+SELECT (donations -> 0  ->> 't')::TIMESTAMPTZ AS first_at,
+       (donations -> -1 ->> 't')::TIMESTAMPTZ AS last_at
+  FROM person
+ WHERE person_id = $1
+
+Index Scan using person_pkey on public.person  (cost=0.29..2.53 rows=1 width=16) (actual time=0.186..0.187 rows=1 loops=1)
+  Output: (((donations -> 0) ->> 't'::text))::timestamp with time zone, (((donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone
+  Index Cond: (person.person_id = '26773'::bigint)
+  Buffers: shared hit=17
+Planning Time: 0.035 ms
+Execution Time: 0.192 ms
+
+==============================================================================
+## q07_total_donated_global
+==============================================================================
+
+# Full unnest of every donation in the database.
+
+SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+
+Finalize Aggregate  (cost=62648.73..62648.74 rows=1 width=32) (actual time=468.579..471.223 rows=1 loops=1)
+  Output: COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)
+  Buffers: shared hit=24777 read=3792 written=372
+  I/O Timings: shared read=8.832 write=2.324
+  ->  Gather  (cost=62648.51..62648.72 rows=2 width=32) (actual time=468.460..471.215 rows=3 loops=1)
+        Output: (PARTIAL sum(((e.value ->> 'a'::text))::bigint))
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=24777 read=3792 written=372
+        I/O Timings: shared read=8.832 write=2.324
+        ->  Partial Aggregate  (cost=61648.51..61648.52 rows=1 width=32) (actual time=466.077..466.079 rows=1 loops=3)
+              Output: PARTIAL sum(((e.value ->> 'a'::text))::bigint)
+              Buffers: shared hit=24777 read=3792 written=372
+              I/O Timings: shared read=8.832 write=2.324
+              Worker 0:  actual time=464.941..464.942 rows=1 loops=1
+                Buffers: shared hit=8124 read=1223 written=127
+                I/O Timings: shared read=2.768 write=0.916
+              Worker 1:  actual time=464.984..464.985 rows=1 loops=1
+                Buffers: shared hit=8368 read=1309 written=129
+                I/O Timings: shared read=2.656 write=0.695
+              ->  Nested Loop  (cost=0.00..42898.50 rows=1875000 width=32) (actual time=0.036..325.879 rows=669742 loops=3)
+                    Output: e.value
+                    Buffers: shared hit=24777 read=3792 written=372
+                    I/O Timings: shared read=8.832 write=2.324
+                    Worker 0:  actual time=0.046..378.749 rows=660294 loops=1
+                      Buffers: shared hit=8124 read=1223 written=127
+                      I/O Timings: shared read=2.768 write=0.916
+                    Worker 1:  actual time=0.038..338.787 rows=661658 loops=1
+                      Buffers: shared hit=8368 read=1309 written=129
+                      I/O Timings: shared read=2.656 write=0.695
+                    ->  Parallel Seq Scan on public.person p  (cost=0.00..5398.50 rows=18750 width=804) (actual time=0.015..19.175 rows=15000 loops=3)
+                          Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donations
+                          Buffers: shared hit=1737 read=3474 written=64
+                          I/O Timings: shared read=8.102 write=0.298
+                          Worker 0:  actual time=0.016..5.392 rows=14857 loops=1
+                            Buffers: shared hit=593 read=1128 written=32
+                            I/O Timings: shared read=2.530 write=0.103
+                          Worker 1:  actual time=0.012..46.490 rows=15361 loops=1
+                            Buffers: shared hit=569 read=1211 written=31
+                            I/O Timings: shared read=2.406 write=0.191
+                    ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..1.00 rows=100 width=32) (actual time=0.014..0.017 rows=45 loops=45000)
+                          Output: e.value
+                          Function Call: jsonb_array_elements(p.donations)
+                          Buffers: shared hit=23040 read=318 written=308
+                          I/O Timings: shared read=0.730 write=2.026
+                          Worker 0:  actual time=0.018..0.020 rows=44 loops=14857
+                            Buffers: shared hit=7531 read=95 written=95
+                            I/O Timings: shared read=0.238 write=0.812
+                          Worker 1:  actual time=0.013..0.016 rows=43 loops=15361
+                            Buffers: shared hit=7799 read=98 written=98
+                            I/O Timings: shared read=0.250 write=0.504
+Planning Time: 0.079 ms
+Execution Time: 471.251 ms
+
+==============================================================================
+## q08_total_donated_charity
+==============================================================================
+
+SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+
+Finalize Aggregate  (cost=23314.64..23314.65 rows=1 width=32) (actual time=146.856..171.205 rows=1 loops=1)
+  Output: COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)
+  Buffers: shared hit=7928 read=3821
+  I/O Timings: shared read=109.139
+  ->  Gather  (cost=23314.42..23314.63 rows=2 width=32) (actual time=146.814..171.198 rows=3 loops=1)
+        Output: (PARTIAL sum(((e.value ->> 'a'::text))::bigint))
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=7928 read=3821
+        I/O Timings: shared read=109.139
+        ->  Partial Aggregate  (cost=22314.42..22314.43 rows=1 width=32) (actual time=144.584..144.585 rows=1 loops=3)
+              Output: PARTIAL sum(((e.value ->> 'a'::text))::bigint)
+              Buffers: shared hit=7928 read=3821
+              I/O Timings: shared read=109.139
+              Worker 0:  actual time=143.348..143.349 rows=1 loops=1
+                Buffers: shared hit=2450 read=1151
+                I/O Timings: shared read=62.331
+              Worker 1:  actual time=143.785..143.786 rows=1 loops=1
+                Buffers: shared hit=2688 read=1268
+                I/O Timings: shared read=25.363
+              ->  Nested Loop  (cost=119.45..16676.92 rows=563750 width=32) (actual time=0.559..96.046 rows=195772 loops=3)
+                    Output: e.value
+                    Buffers: shared hit=7928 read=3821
+                    I/O Timings: shared read=109.139
+                    Worker 0:  actual time=0.177..118.884 rows=181456 loops=1
+                      Buffers: shared hit=2450 read=1151
+                      I/O Timings: shared read=62.331
+                    Worker 1:  actual time=0.092..84.340 rows=195418 loops=1
+                      Buffers: shared hit=2688 read=1268
+                      I/O Timings: shared read=25.363
+                    ->  Parallel Bitmap Heap Scan on public.person p  (cost=119.45..5400.92 rows=5638 width=804) (actual time=0.496..7.517 rows=4482 loops=3)
+                          Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donations
+                          Recheck Cond: (p.charity_id = '1'::bigint)
+                          Heap Blocks: exact=1791
+                          Buffers: shared hit=1464 read=3490
+                          I/O Timings: shared read=10.637
+                          Worker 0:  actual time=0.031..7.340 rows=3985 loops=1
+                            Buffers: shared hit=405 read=1050
+                            I/O Timings: shared read=3.741
+                          Worker 1:  actual time=0.068..7.700 rows=4624 loops=1
+                            Buffers: shared hit=535 read=1160
+                            I/O Timings: shared read=4.146
+                          ->  Bitmap Index Scan on person_charity_idx  (cost=0.00..116.06 rows=13530 width=0) (actual time=0.926..0.926 rows=13445 loops=1)
+                                Index Cond: (p.charity_id = '1'::bigint)
+                                Buffers: shared read=13
+                                I/O Timings: shared read=0.033
+                    ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..1.00 rows=100 width=32) (actual time=0.015..0.017 rows=44 loops=13445)
+                          Output: e.value
+                          Function Call: jsonb_array_elements(p.donations)
+                          Buffers: shared hit=6464 read=331
+                          I/O Timings: shared read=98.501
+                          Worker 0:  actual time=0.023..0.025 rows=46 loops=3985
+                            Buffers: shared hit=2045 read=101
+                            I/O Timings: shared read=58.590
+                          Worker 1:  actual time=0.012..0.014 rows=42 loops=4624
+                            Buffers: shared hit=2153 read=108
+                            I/O Timings: shared read=21.217
+Planning Time: 0.137 ms
+Execution Time: 171.249 ms
+
+==============================================================================
+## q09_person_recent_donations
+==============================================================================
+
+# Array-position slice: no timestamp parsing, no sort, one row read.
+
+SELECT e.value ->> 'i'                   AS donation_id,
+       (e.value ->> 'a')::BIGINT         AS amount_cents,
+       e.value ->> 'c'                   AS currency,
+       (e.value ->> 't')::TIMESTAMPTZ    AS donated_at,
+       e.value ->> 'n'                   AS note
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) WITH ORDINALITY AS e(value, ord)
+ WHERE p.person_id = $1
+ ORDER BY e.ord DESC
+ LIMIT 20
+
+Limit  (cost=9.42..9.47 rows=20 width=120) (actual time=1.064..1.066 rows=20 loops=1)
+  Output: ((e.value ->> 'i'::text)), (((e.value ->> 'a'::text))::bigint), ((e.value ->> 'c'::text)), (((e.value ->> 't'::text))::timestamp with time zone), ((e.value ->> 'n'::text)), e.ord
+  Buffers: shared hit=10
+  ->  Sort  (cost=9.42..9.67 rows=100 width=120) (actual time=1.063..1.064 rows=20 loops=1)
+        Output: ((e.value ->> 'i'::text)), (((e.value ->> 'a'::text))::bigint), ((e.value ->> 'c'::text)), (((e.value ->> 't'::text))::timestamp with time zone), ((e.value ->> 'n'::text)), e.ord
+        Sort Key: e.ord DESC
+        Sort Method: top-N heapsort  Memory: 28kB
+        Buffers: shared hit=10
+        ->  Nested Loop  (cost=0.29..6.76 rows=100 width=120) (actual time=0.216..0.915 rows=1000 loops=1)
+              Output: (e.value ->> 'i'::text), ((e.value ->> 'a'::text))::bigint, (e.value ->> 'c'::text), ((e.value ->> 't'::text))::timestamp with time zone, (e.value ->> 'n'::text), e.ord
+              Buffers: shared hit=10
+              ->  Index Scan using person_pkey on public.person p  (cost=0.29..2.51 rows=1 width=804) (actual time=0.016..0.017 rows=1 loops=1)
+                    Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donations
+                    Index Cond: (p.person_id = '26773'::bigint)
+                    Buffers: shared hit=3
+              ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..1.00 rows=100 width=40) (actual time=0.184..0.223 rows=1000 loops=1)
+                    Output: e.value, e.ord
+                    Function Call: jsonb_array_elements(p.donations)
+                    Buffers: shared hit=7
+Planning Time: 0.093 ms
+Execution Time: 1.092 ms
+
+==============================================================================
+## q10_donation_by_id
+==============================================================================
+
+# Identity lookup is the embedded design's structural weak point: donation_id
+# is buried inside a document. The GIN index turns this from a sequential scan
+# into a containment probe, but it still requires a recheck and an unnest of
+# the matching person's whole array.
+
+SELECT (e ->> 'i')::BIGINT       AS donation_id,
+       p.person_id,
+       (e ->> 'a')::BIGINT       AS amount_cents,
+       e ->> 'c'                 AS currency,
+       (e ->> 't')::TIMESTAMPTZ  AS donated_at,
+       e ->> 'n'                 AS note
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.donations @> jsonb_build_array(jsonb_build_object('i', $1::BIGINT))
+   AND (e ->> 'i')::BIGINT = $1::BIGINT
+
+Nested Loop  (cost=6.89..19.50 rows=4 width=96) (actual time=0.368..0.426 rows=1 loops=1)
+  Output: ((e.value ->> 'i'::text))::bigint, p.person_id, ((e.value ->> 'a'::text))::bigint, (e.value ->> 'c'::text), ((e.value ->> 't'::text))::timestamp with time zone, (e.value ->> 'n'::text)
+  Buffers: shared hit=19
+  ->  Bitmap Heap Scan on public.person p  (cost=6.89..11.35 rows=4 width=812) (actual time=0.160..0.160 rows=1 loops=1)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donations
+        Recheck Cond: (p.donations @> jsonb_build_array(jsonb_build_object('i', '1298443'::bigint)))
+        Heap Blocks: exact=1
+        Buffers: shared hit=12
+        ->  Bitmap Index Scan on person_donations_gin  (cost=0.00..6.89 rows=4 width=0) (actual time=0.006..0.006 rows=1 loops=1)
+              Index Cond: (p.donations @> jsonb_build_array(jsonb_build_object('i', '1298443'::bigint)))
+              Buffers: shared hit=4
+  ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..2.00 rows=1 width=32) (actual time=0.202..0.259 rows=1 loops=1)
+        Output: e.value
+        Function Call: jsonb_array_elements(p.donations)
+        Filter: (((e.value ->> 'i'::text))::bigint = '1298443'::bigint)
+        Rows Removed by Filter: 999
+        Buffers: shared hit=7
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.162 ms
+Execution Time: 0.438 ms
+
+==============================================================================
+## q11_person_donation_count
+==============================================================================
+
+# Stored in the document header by JSONB itself; no scan at all.
+
+SELECT jsonb_array_length(donations) AS donation_count
+  FROM person
+ WHERE person_id = $1
+
+Index Scan using person_pkey on public.person  (cost=0.29..2.51 rows=1 width=4) (actual time=0.108..0.108 rows=1 loops=1)
+  Output: jsonb_array_length(donations)
+  Index Cond: (person.person_id = '26773'::bigint)
+  Buffers: shared hit=10
+Planning Time: 0.026 ms
+Execution Time: 0.114 ms
+
+==============================================================================
+## q12_charity_recent_feed
+==============================================================================
+
+# A merge of many per-person arrays. There is no index that can order across
+# documents, so this unnests the charity and sorts.
+
+SELECT (e ->> 'i')::BIGINT       AS donation_id,
+       (e ->> 'a')::BIGINT       AS amount_cents,
+       (e ->> 't')::TIMESTAMPTZ  AS donated_at,
+       p.full_name
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 50
+
+Limit  (cost=49088.69..49094.52 rows=50 width=37) (actual time=323.421..326.980 rows=50 loops=1)
+  Output: (((e.value ->> 'i'::text))::bigint), (((e.value ->> 'a'::text))::bigint), (((e.value ->> 't'::text))::timestamp with time zone), p.full_name
+  Buffers: shared hit=11765
+  ->  Gather Merge  (cost=49088.69..180639.54 rows=1127500 width=37) (actual time=323.419..326.975 rows=50 loops=1)
+        Output: (((e.value ->> 'i'::text))::bigint), (((e.value ->> 'a'::text))::bigint), (((e.value ->> 't'::text))::timestamp with time zone), p.full_name
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=11765
+        ->  Sort  (cost=48088.66..49498.04 rows=563750 width=37) (actual time=321.067..321.069 rows=38 loops=3)
+              Output: (((e.value ->> 'i'::text))::bigint), (((e.value ->> 'a'::text))::bigint), (((e.value ->> 't'::text))::timestamp with time zone), p.full_name
+              Sort Key: (((e.value ->> 't'::text))::timestamp with time zone) DESC
+              Sort Method: top-N heapsort  Memory: 29kB
+              Buffers: shared hit=11765
+              Worker 0:  actual time=319.850..319.854 rows=50 loops=1
+                Sort Method: top-N heapsort  Memory: 32kB
+                Buffers: shared hit=3818
+              Worker 1:  actual time=320.096..320.099 rows=50 loops=1
+                Sort Method: top-N heapsort  Memory: 32kB
+                Buffers: shared hit=4148
+              ->  Nested Loop  (cost=119.45..29361.29 rows=563750 width=37) (actual time=0.580..289.980 rows=195772 loops=3)
+                    Output: ((e.value ->> 'i'::text))::bigint, ((e.value ->> 'a'::text))::bigint, ((e.value ->> 't'::text))::timestamp with time zone, p.full_name
+                    Buffers: shared hit=11749
+                    Worker 0:  actual time=0.062..303.313 rows=187716 loops=1
+                      Buffers: shared hit=3810
+                    Worker 1:  actual time=0.085..261.093 rows=204042 loops=1
+                      Buffers: shared hit=4140
+                    ->  Parallel Bitmap Heap Scan on public.person p  (cost=119.45..5400.92 rows=5638 width=817) (actual time=0.545..4.964 rows=4482 loops=3)
+                          Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donations
+                          Recheck Cond: (p.charity_id = '1'::bigint)
+                          Heap Blocks: exact=1564
+                          Buffers: shared hit=4954
+                          Worker 0:  actual time=0.024..4.555 rows=4371 loops=1
+                            Buffers: shared hit=1614
+                          Worker 1:  actual time=0.049..5.226 rows=4759 loops=1
+                            Buffers: shared hit=1763
+                          ->  Bitmap Index Scan on person_charity_idx  (cost=0.00..116.06 rows=13530 width=0) (actual time=0.977..0.977 rows=13445 loops=1)
+                                Index Cond: (p.charity_id = '1'::bigint)
+                                Buffers: shared hit=13
+                    ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..1.00 rows=100 width=32) (actual time=0.009..0.010 rows=44 loops=13445)
+                          Output: e.value
+                          Function Call: jsonb_array_elements(p.donations)
+                          Buffers: shared hit=6795
+                          Worker 0:  actual time=0.009..0.010 rows=43 loops=4371
+                            Buffers: shared hit=2196
+                          Worker 1:  actual time=0.008..0.010 rows=43 loops=4759
+                            Buffers: shared hit=2377
+Planning Time: 0.102 ms
+Execution Time: 327.024 ms
+

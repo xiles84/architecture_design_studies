@@ -1,0 +1,290 @@
+# Query plans
+
+run_id:      20260913T172624Z-v3
+environment: host-zenbook-ux5406sa
+engine:      postgres (pg-single)
+version:     PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+design:      d5_rollup_app (rollup-app)
+scale:       small -- 5000 people, 108081 donations
+captured:    EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS ON)
+keys used:   charity_id=1 (the largest charity, 30% of donors); person_id and
+             donation_id belong to that charity's busiest donor, so these plans
+             show real work rather than a donor who happens to have three rows
+
+==============================================================================
+## q01_last_donation_global
+==============================================================================
+
+# There are only a handful of charities, so the global maximum is a tiny scan
+# over charity followed by one primary-key fetch of the donation itself.
+
+SELECT d.donation_id, d.person_id, d.amount_cents, d.currency, d.donated_at
+  FROM (SELECT last_donation_id
+          FROM charity
+         WHERE last_donation_id IS NOT NULL
+         ORDER BY last_donation_at DESC
+         LIMIT 1) c
+  JOIN donation d ON d.donation_id = c.last_donation_id
+
+Nested Loop  (cost=1.57..3.80 rows=1 width=36) (actual time=0.011..0.011 rows=1 loops=1)
+  Output: d.donation_id, d.person_id, d.amount_cents, d.currency, d.donated_at
+  Inner Unique: true
+  Buffers: shared hit=5
+  ->  Limit  (cost=1.15..1.15 rows=1 width=16) (actual time=0.008..0.008 rows=1 loops=1)
+        Output: charity.last_donation_id, charity.last_donation_at
+        Buffers: shared hit=1
+        ->  Sort  (cost=1.15..1.18 rows=10 width=16) (actual time=0.008..0.008 rows=1 loops=1)
+              Output: charity.last_donation_id, charity.last_donation_at
+              Sort Key: charity.last_donation_at DESC
+              Sort Method: top-N heapsort  Memory: 25kB
+              Buffers: shared hit=1
+              ->  Seq Scan on public.charity  (cost=0.00..1.10 rows=10 width=16) (actual time=0.004..0.005 rows=10 loops=1)
+                    Output: charity.last_donation_id, charity.last_donation_at
+                    Filter: (charity.last_donation_id IS NOT NULL)
+                    Buffers: shared hit=1
+  ->  Index Scan using donation_pkey on public.donation d  (cost=0.42..2.64 rows=1 width=36) (actual time=0.002..0.002 rows=1 loops=1)
+        Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+        Index Cond: (d.donation_id = charity.last_donation_id)
+        Buffers: shared hit=4
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.084 ms
+Execution Time: 0.019 ms
+
+==============================================================================
+## q02_last_donation_charity
+==============================================================================
+
+# One primary-key read of charity, one primary-key read of donation.
+
+SELECT d.donation_id, d.person_id, d.amount_cents, d.currency, d.donated_at
+  FROM charity c
+  JOIN donation d ON d.donation_id = c.last_donation_id
+ WHERE c.charity_id = $1
+
+Nested Loop  (cost=0.42..3.76 rows=1 width=36) (actual time=0.019..0.020 rows=1 loops=1)
+  Output: d.donation_id, d.person_id, d.amount_cents, d.currency, d.donated_at
+  Inner Unique: true
+  Buffers: shared hit=5
+  ->  Seq Scan on public.charity c  (cost=0.00..1.12 rows=1 width=8) (actual time=0.013..0.014 rows=1 loops=1)
+        Output: c.charity_id, c.name, c.country, c.founded_on, c.donation_count, c.total_donated_cents, c.last_donation_id, c.last_donation_at, c.last_donor_person_id, c.version
+        Filter: (c.charity_id = '1'::bigint)
+        Rows Removed by Filter: 9
+        Buffers: shared hit=1
+  ->  Index Scan using donation_pkey on public.donation d  (cost=0.42..2.64 rows=1 width=36) (actual time=0.003..0.003 rows=1 loops=1)
+        Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+        Index Cond: (d.donation_id = c.last_donation_id)
+        Buffers: shared hit=4
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.184 ms
+Execution Time: 0.039 ms
+
+==============================================================================
+## q03_top_donor_charity
+==============================================================================
+
+# The GROUP BY is gone. person_top_donor_idx is ordered by total descending
+# within a charity, so this reads exactly one index entry.
+
+SELECT person_id, full_name, total_donated_cents AS total_cents
+  FROM person
+ WHERE charity_id = $1
+ ORDER BY total_donated_cents DESC
+ LIMIT 1
+
+Limit  (cost=0.28..0.43 rows=1 width=29) (actual time=0.006..0.006 rows=1 loops=1)
+  Output: person_id, full_name, total_donated_cents
+  Buffers: shared hit=3
+  ->  Index Scan using person_top_donor_idx on public.person  (cost=0.28..210.93 rows=1472 width=29) (actual time=0.006..0.006 rows=1 loops=1)
+        Output: person_id, full_name, total_donated_cents
+        Index Cond: (person.charity_id = '1'::bigint)
+        Buffers: shared hit=3
+Planning Time: 0.023 ms
+Execution Time: 0.010 ms
+
+==============================================================================
+## q04_top_donors_leaderboard
+==============================================================================
+
+SELECT person_id, full_name, total_donated_cents AS total_cents
+  FROM person
+ WHERE charity_id = $1
+ ORDER BY total_donated_cents DESC
+ LIMIT 10
+
+Limit  (cost=0.28..1.71 rows=10 width=29) (actual time=0.004..0.007 rows=10 loops=1)
+  Output: person_id, full_name, total_donated_cents
+  Buffers: shared hit=12
+  ->  Index Scan using person_top_donor_idx on public.person  (cost=0.28..210.93 rows=1472 width=29) (actual time=0.004..0.006 rows=10 loops=1)
+        Output: person_id, full_name, total_donated_cents
+        Index Cond: (person.charity_id = '1'::bigint)
+        Buffers: shared hit=12
+Planning Time: 0.017 ms
+Execution Time: 0.010 ms
+
+==============================================================================
+## q05_last_donor_charity
+==============================================================================
+
+SELECT c.last_donor_person_id AS person_id, p.full_name, c.last_donation_at AS donated_at
+  FROM charity c
+  JOIN person p ON p.person_id = c.last_donor_person_id
+ WHERE c.charity_id = $1
+
+Nested Loop  (cost=0.28..3.63 rows=1 width=29) (actual time=0.006..0.007 rows=1 loops=1)
+  Output: c.last_donor_person_id, p.full_name, c.last_donation_at
+  Inner Unique: true
+  Buffers: shared hit=5
+  ->  Seq Scan on public.charity c  (cost=0.00..1.12 rows=1 width=16) (actual time=0.003..0.003 rows=1 loops=1)
+        Output: c.charity_id, c.name, c.country, c.founded_on, c.donation_count, c.total_donated_cents, c.last_donation_id, c.last_donation_at, c.last_donor_person_id, c.version
+        Filter: (c.charity_id = '1'::bigint)
+        Rows Removed by Filter: 9
+        Buffers: shared hit=1
+  ->  Index Scan using person_pkey on public.person p  (cost=0.28..2.50 rows=1 width=21) (actual time=0.003..0.003 rows=1 loops=1)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donation_count, p.total_donated_cents, p.first_donation_at, p.last_donation_at, p.last_donation_id, p.version
+        Index Cond: (p.person_id = c.last_donor_person_id)
+        Buffers: shared hit=4
+Planning Time: 0.047 ms
+Execution Time: 0.014 ms
+
+==============================================================================
+## q06_person_first_last
+==============================================================================
+
+# Single-row primary-key read; the MIN/MAX were computed at write time.
+
+SELECT first_donation_at AS first_at, last_donation_at AS last_at
+  FROM person
+ WHERE person_id = $1
+
+Index Scan using person_pkey on public.person  (cost=0.28..2.50 rows=1 width=16) (actual time=0.005..0.006 rows=1 loops=1)
+  Output: first_donation_at, last_donation_at
+  Index Cond: (person.person_id = '4330'::bigint)
+  Buffers: shared hit=5
+Planning Time: 0.018 ms
+Execution Time: 0.010 ms
+
+==============================================================================
+## q07_total_donated_global
+==============================================================================
+
+# Sums one row per charity instead of one row per donation.
+
+SELECT COALESCE(SUM(total_donated_cents), 0) AS total_cents
+  FROM charity
+
+Aggregate  (cost=1.13..1.14 rows=1 width=32) (actual time=0.006..0.006 rows=1 loops=1)
+  Output: COALESCE(sum(total_donated_cents), '0'::numeric)
+  Buffers: shared hit=1
+  ->  Seq Scan on public.charity  (cost=0.00..1.10 rows=10 width=8) (actual time=0.003..0.003 rows=10 loops=1)
+        Output: charity_id, name, country, founded_on, donation_count, total_donated_cents, last_donation_id, last_donation_at, last_donor_person_id, version
+        Buffers: shared hit=1
+Planning Time: 0.014 ms
+Execution Time: 0.011 ms
+
+==============================================================================
+## q08_total_donated_charity
+==============================================================================
+
+SELECT total_donated_cents AS total_cents
+  FROM charity
+ WHERE charity_id = $1
+
+Seq Scan on public.charity  (cost=0.00..1.12 rows=1 width=8) (actual time=0.004..0.004 rows=1 loops=1)
+  Output: total_donated_cents
+  Filter: (charity.charity_id = '1'::bigint)
+  Rows Removed by Filter: 9
+  Buffers: shared hit=1
+Planning Time: 0.016 ms
+Execution Time: 0.007 ms
+
+==============================================================================
+## q09_person_recent_donations
+==============================================================================
+
+# Unchanged from D3: rollups store answers, not rows.
+
+SELECT donation_id, amount_cents, currency, donated_at, note
+  FROM donation
+ WHERE person_id = $1
+ ORDER BY donated_at DESC
+ LIMIT 20
+
+Limit  (cost=0.42..18.77 rows=20 width=45) (actual time=0.004..0.009 rows=20 loops=1)
+  Output: donation_id, amount_cents, currency, donated_at, note
+  Buffers: shared hit=23
+  ->  Index Scan using donation_person_time_idx on public.donation  (cost=0.42..496.00 rows=540 width=45) (actual time=0.003..0.008 rows=20 loops=1)
+        Output: donation_id, amount_cents, currency, donated_at, note
+        Index Cond: (donation.person_id = '4330'::bigint)
+        Buffers: shared hit=23
+Planning Time: 0.020 ms
+Execution Time: 0.013 ms
+
+==============================================================================
+## q10_donation_by_id
+==============================================================================
+
+SELECT donation_id, person_id, amount_cents, currency, donated_at, note
+  FROM donation
+ WHERE donation_id = $1
+
+Index Scan using donation_pkey on public.donation  (cost=0.42..2.64 rows=1 width=53) (actual time=0.005..0.006 rows=1 loops=1)
+  Output: donation_id, person_id, amount_cents, currency, donated_at, note
+  Index Cond: (donation.donation_id = '33227'::bigint)
+  Buffers: shared hit=4
+Planning Time: 0.020 ms
+Execution Time: 0.010 ms
+
+==============================================================================
+## q11_person_donation_count
+==============================================================================
+
+SELECT donation_count
+  FROM person
+ WHERE person_id = $1
+
+Index Scan using person_pkey on public.person  (cost=0.28..2.50 rows=1 width=8) (actual time=0.002..0.003 rows=1 loops=1)
+  Output: donation_count
+  Index Cond: (person.person_id = '4330'::bigint)
+  Buffers: shared hit=5
+Planning Time: 0.010 ms
+Execution Time: 0.005 ms
+
+==============================================================================
+## q12_charity_recent_feed
+==============================================================================
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50
+
+Limit  (cost=0.71..7.03 rows=50 width=37) (actual time=0.011..0.072 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=191
+  ->  Nested Loop  (cost=0.71..3957.38 rows=31297 width=37) (actual time=0.010..0.069 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=191
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.42..1954.73 rows=31297 width=32) (actual time=0.004..0.008 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+              Index Cond: (d.charity_id = '1'::bigint)
+              Buffers: shared hit=6
+        ->  Memoize  (cost=0.29..0.32 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 6  Misses: 44  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+              Buffers: shared hit=185
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.31 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=44)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=159
+Planning:
+  Buffers: shared hit=15
+Planning Time: 0.077 ms
+Execution Time: 0.080 ms
+
