@@ -364,8 +364,9 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-14):** built and dev-checked; **ER-01 decided (AM-01), waiting for an executor
-session** (Opus 5, `high`) to apply AM-01 and finish step 8. No `small` run has started. The
+**Status (2026-09-14):** ER-01 decided (AM-01); AM-01 implemented (`e10dc6c`), dc12 (PostgreSQL)
+passed. **Running from ~18:45 UTC — do not start databases:** dev checks dc13 (yb-single) then
+dc14 (yb-cluster3), about 3 hours, holding the benchmark lock. No `small` run has started. The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
