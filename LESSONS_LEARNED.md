@@ -509,3 +509,17 @@ that lives where the contended resource lives (a podman volume, created atomical
 to every worktree, shell and agent) turns that rule from a convention into a refusal. It was
 tested for a second acquirer, a guarded `down`, nesting, normal exit and SIGTERM, which
 releases only after the current foreground command returns.
+
+---
+
+## Building study 03 (reserved seating)
+
+### Name the domain regime in the question
+
+Study 02 used "seat" for a unit of capacity: `seat_no` was an admission number assigned by
+the system, and its holds claimed capacity, not a place. The owner read it as a study of
+physical seats and asked for "the same study, with marked seats". The difference is not
+cosmetic: with marked seats the invariant becomes a single-row fact and the hard problems
+move to holds, expiry and conflicts over one chosen seat. State the regime (general admission
+or reserved seating) in the first sentence of a study, and define the domain words before the
+designs use them.
