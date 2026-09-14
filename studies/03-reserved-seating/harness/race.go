@@ -328,6 +328,7 @@ func raceEvent(ctx context.Context, sl *Seller, ev *Event, s Settings) *raceOne 
 	}
 	start = time.Now()
 	deadline = start.Add(s.RaceTimeout)
+	fmt.Printf("      race event %d: gate %s, deadline %s\n", ev.ID, start.UTC().Format(time.RFC3339Nano), deadline.UTC().Format(time.RFC3339Nano))
 	close(gate)
 	wg.Wait()
 	one.allocate = time.Duration(lastHold.Load())

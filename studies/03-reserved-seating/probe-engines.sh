@@ -4,7 +4,8 @@
 # Go container on the benchmark network, and writes one transcript under
 # results/devchecks/.
 #
-#   ./probe-engines.sh
+#   ./probe-engines.sh                          # every quick step, both engines
+#   ./probe-engines.sh -only P13 -p13-duration 3m   # one step; flags pass through to probe/
 #
 # Takes the benchmark lock: it starts databases.
 set -uo pipefail
@@ -18,6 +19,7 @@ set +e
 need_podman
 run_lock_acquire "study ${STUDY_ID} probe-engines.sh"
 
+PROBE_ARGS=("$@")
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="$STUDY_DIR/results/devchecks/engine-probe-${STAMP}.md"
 mkdir -p "$(dirname "$OUT")"
@@ -30,6 +32,7 @@ GIT=(git -C "$(hostpath "$REPO")")
   echo "- images: $PG_IMAGE, $YB_IMAGE"
   echo "- yb_extra_tserver_flags: $YB_EXTRA_TSERVER_FLAGS"
   echo "- budget per db node: cpus=$DB_CPUS memory=$DB_MEMORY"
+  echo "- probe flags: ${PROBE_ARGS[*]:-(none)}"
   echo
 } > "$OUT"
 
@@ -38,12 +41,17 @@ probe() {
   podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEMORY" \
     -v "$(hostpath "$REPO"):/src" -v ads-gomodcache:/go/pkg/mod \
     -w "/src/studies/$STUDY_ID" -e CGO_ENABLED=0 -e GOFLAGS=-buildvcs=false \
-    "$GO_IMAGE" go run ./probe -engine "$engine" -dsn "$dsn" 2>&1 | tee -a "$OUT"
+    "$GO_IMAGE" go run ./probe -engine "$engine" -dsn "$dsn" "${PROBE_ARGS[@]}" 2>&1 | tee -a "$OUT"
 }
 
-bash "$REPO/infra/pg-single.sh" up && probe postgres "postgres://bench:bench@pg-single:5432/bench?sslmode=disable"
+ENGINES="${PROBE_ENGINES:-postgres yugabyte}"
+if [[ " $ENGINES " == *" postgres "* ]]; then
+  bash "$REPO/infra/pg-single.sh" up && probe postgres "postgres://bench:bench@pg-single:5432/bench?sslmode=disable"
 bash "$REPO/infra/pg-single.sh" down
-bash "$REPO/infra/yb-single.sh" up && probe yugabyte "postgres://yugabyte@yb-single:5433/yugabyte?sslmode=disable"
+fi
+if [[ " $ENGINES " == *" yugabyte "* ]]; then
+  bash "$REPO/infra/yb-single.sh" up && probe yugabyte "postgres://yugabyte@yb-single:5433/yugabyte?sslmode=disable"
 bash "$REPO/infra/yb-single.sh" down
+fi
 
 log "transcript: $OUT"

@@ -258,7 +258,9 @@ func (el *EventLedger) Ambiguous() {
 }
 
 // Reject classifies a confirmation (or checkout start) the design refused.
-func (el *EventLedger) Reject(holdID int64, txnNow time.Time) string {
+// detail, when non-empty, is appended to an early rejection's example: what the
+// database showed right after the refusal.
+func (el *EventLedger) Reject(holdID int64, txnNow time.Time, detail string) string {
 	el.mu.Lock()
 	defer el.mu.Unlock()
 	h := el.holds[holdID]
@@ -278,7 +280,7 @@ func (el *EventLedger) Reject(holdID int64, txnNow time.Time) string {
 	default:
 		el.rejEarly++
 		el.example(Example{Kind: "early rejection", EventID: el.ID, HoldID: holdID,
-			Detail: fmt.Sprintf("refused %s before the hold's expiry", m.Round(time.Millisecond))})
+			Detail: fmt.Sprintf("refused %s before the hold's expiry%s", m.Round(time.Millisecond), detail)})
 		return RejEarly
 	}
 }

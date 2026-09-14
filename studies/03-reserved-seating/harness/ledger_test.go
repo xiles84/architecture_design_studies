@@ -151,7 +151,7 @@ func TestRejectionClasses(t *testing.T) {
 		{exp.Add(-2 * time.Minute), RejEarly},
 	}
 	for _, c := range cases {
-		if got := el.Reject(1, c.txn); got != c.want {
+		if got := el.Reject(1, c.txn, ""); got != c.want {
 			t.Errorf("margin %s: class %s, want %s", exp.Sub(c.txn), got, c.want)
 		}
 	}

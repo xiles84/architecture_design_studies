@@ -10,10 +10,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"adsplatform/adapters/pgxdb"
@@ -24,12 +26,17 @@ import (
 var (
 	dsn    = flag.String("dsn", "", "connection string")
 	engine = flag.String("engine", "postgres", "postgres | yugabyte")
+	only   = flag.String("only", "", "run only this step, e.g. P13")
+	p13Dur = flag.Duration("p13-duration", 60*time.Second, "P13: how long to run the hold-then-confirm loop")
+	p13Wk  = flag.Int("p13-workers", 32, "P13: concurrent hold-then-confirm loops")
+	p13Hot = flag.Int("p13-hot-blocks", 0, "P13: choose among only this many blocks (0 = any), so holds collide like buyers wanting the best seats")
+	p13Idx = flag.Bool("p13-study-schema", false, "P13: add S1's partial expiry index and CHECK constraints")
 )
 
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	db, err := pgxdb.Open(ctx, pgxdb.Config{DSN: *dsn, MaxConns: 8, StatementTimeoutMS: 60000, ApplicationName: "seat-probe"})
+	db, err := pgxdb.Open(ctx, pgxdb.Config{DSN: *dsn, MaxConns: 80, StatementTimeoutMS: 60000, ApplicationName: "seat-probe"})
 	if err != nil {
 		fatal(err)
 	}
@@ -68,8 +75,15 @@ func main() {
 		{"P10", "RC conditional UPDATE waiting on a concurrent hold re-checks its WHERE (S1)", p10},
 		{"P11", "RC unconditional UPDATE waiting on a concurrent hold overwrites it (S0)", p11},
 		{"P12", "RC UPDATE with EXISTS on another table, waiting on a concurrent steal (E2)", p12},
+		{"P13", "a hold committed by one transaction is visible to the next transaction's conditional UPDATE, under concurrency", p13},
 	}
 	for _, s := range steps {
+		if *only != "" && s.id != *only {
+			continue
+		}
+		if *only == "" && s.id == "P13" {
+			continue // long-running; run with -only P13
+		}
 		fmt.Printf("## %s — %s\n\n", s.id, s.q)
 		out := func() (res string) {
 			defer func() {
@@ -450,4 +464,149 @@ func p12(ctx context.Context, db ports.DB) string {
 	_ = db.QueryRow(ctx, "SELECT hold_id FROM probe_es WHERE seat_id = 1").Scan(&holder)
 	return fmt.Sprintf("A steals expired seat (cart 20, uncommitted); B tries the same steal (cart 30). A commit: %s. B affected %d rows, error: %s. Final holder %d (expected: B 0 rows or retryable error; holder 20)",
 		code(cerr), nb, code(bErr), holder)
+}
+
+// p13 is a minimal reproduction, outside the harness, of what study 03's dev checks
+// saw on YugabyteDB: a confirmation's conditional UPDATE matching none of the seats
+// of a hold that had committed ~100 ms earlier, while a read right afterwards found
+// the hold intact. Workers hold a random block with a conditional UPDATE, commit,
+// then immediately confirm in a new transaction (SELECT now(); UPDATE ... WHERE
+// hold_id = h AND status = 'held' AND hold_expires_at > now()). Readers scan
+// per-section availability meanwhile, as buyers do. A confirmation matching fewer
+// rows than the hold is re-checked with a plain read and counted as an anomaly
+// when the read still finds the whole hold valid.
+func p13(ctx context.Context, db ports.DB) string {
+	must(ctx, db, "DROP TABLE IF EXISTS probe_p13")
+	must(ctx, db, `CREATE TABLE probe_p13 (event_id BIGINT, seat_id INT, section_no INT, status TEXT NOT NULL,
+		hold_id BIGINT, hold_expires_at TIMESTAMPTZ, PRIMARY KEY (event_id, seat_id))`)
+	defer db.Exec(ctx, "DROP TABLE IF EXISTS probe_p13")
+	must(ctx, db, "INSERT INTO probe_p13 SELECT 1, s, (s - 1) / 500 + 1, 'available', NULL, NULL FROM generate_series(1, 10000) AS s")
+	must(ctx, db, "CREATE INDEX probe_p13_section ON probe_p13 (event_id, section_no, seat_id)")
+	if *p13Idx {
+		must(ctx, db, "CREATE INDEX probe_p13_expiry ON probe_p13 (hold_expires_at ASC) WHERE status = 'held'")
+		must(ctx, db, "ALTER TABLE probe_p13 ADD CONSTRAINT p13_held CHECK (status <> 'held' OR (hold_id IS NOT NULL AND hold_expires_at IS NOT NULL))")
+	}
+
+	const hold = `UPDATE probe_p13 SET status = 'held', hold_id = $1, hold_expires_at = now() + interval '40 minutes'
+		WHERE event_id = 1 AND section_no = $2 AND seat_id = ANY ($3::INT[])
+		  AND (status = 'available' OR (status = 'held' AND hold_expires_at <= now()))
+		RETURNING seat_id`
+	const confirm = `UPDATE probe_p13 SET status = 'sold'
+		WHERE event_id = 1 AND section_no = $1 AND seat_id = ANY ($3::INT[])
+		  AND hold_id = $2 AND status = 'held' AND hold_expires_at > now()
+		RETURNING seat_id`
+	const check = `SELECT COUNT(*) FROM probe_p13 WHERE event_id = 1 AND section_no = $1 AND hold_id = $2
+		AND status = 'held' AND hold_expires_at > now()`
+	const reset = `UPDATE probe_p13 SET status = 'available', hold_id = NULL, hold_expires_at = NULL
+		WHERE event_id = 1 AND section_no = $1 AND seat_id = ANY ($2::INT[])`
+
+	count := func(rows ports.Rows, err error) (int, error) {
+		if err != nil {
+			return 0, err
+		}
+		defer rows.Close()
+		n := 0
+		for rows.Next() {
+			n++
+		}
+		return n, rows.Err()
+	}
+	var (
+		holds, confirms, anomalies, errs atomic.Int64
+		nextHold                         atomic.Int64
+		mu                               sync.Mutex
+		examples                         []string
+		wg                               sync.WaitGroup
+	)
+	nextHold.Store(1)
+	deadline := time.Now().Add(*p13Dur)
+	for w := 0; w < *p13Wk; w++ {
+		wg.Add(1)
+		go func(seed int64) {
+			defer wg.Done()
+			r := rand.New(rand.NewSource(seed))
+			for time.Now().Before(deadline) {
+				section := int32(1 + r.Intn(20))
+				n := 2 + r.Intn(3)
+				rowStart := int32((section-1)*500 + int32(r.Intn(20))*25 + 1)
+				first := rowStart + int32(r.Intn(25-n+1))
+				if *p13Hot > 0 {
+					// The best blocks of section 1, row 1: every worker wants the same few.
+					section, n = 1, 2
+					first = int32(1 + r.Intn(min(*p13Hot, 24)))
+				}
+				seats := make([]int32, n)
+				for i := range seats {
+					seats[i] = first + int32(i)
+				}
+				h := nextHold.Add(1)
+				tx, err := db.Begin(ctx, ports.ReadCommitted)
+				if err != nil {
+					errs.Add(1)
+					continue
+				}
+				got, err := count(tx.Query(ctx, hold, h, section, seats))
+				if err != nil || got != n {
+					tx.Rollback(ctx)
+					if err != nil {
+						errs.Add(1)
+					}
+					continue
+				}
+				if err := tx.Commit(ctx); err != nil {
+					errs.Add(1)
+					continue
+				}
+				holds.Add(1)
+				tx2, err := db.Begin(ctx, ports.ReadCommitted)
+				if err != nil {
+					errs.Add(1)
+					continue
+				}
+				var now time.Time
+				if err := tx2.QueryRow(ctx, "SELECT now()").Scan(&now); err != nil {
+					tx2.Rollback(ctx)
+					errs.Add(1)
+					continue
+				}
+				matched, err := count(tx2.Query(ctx, confirm, section, h, seats))
+				if err != nil {
+					tx2.Rollback(ctx)
+					errs.Add(1)
+					continue
+				}
+				if matched != n {
+					tx2.Rollback(ctx)
+					var still int
+					_ = db.QueryRow(ctx, check, section, h).Scan(&still)
+					if still == n {
+						anomalies.Add(1)
+						mu.Lock()
+						if len(examples) < 5 {
+							examples = append(examples, fmt.Sprintf("hold %d section %d seats %v: confirm matched %d of %d; a read right after found %d valid", h, section, seats, matched, n, still))
+						}
+						mu.Unlock()
+					}
+				} else if err := tx2.Commit(ctx); err != nil {
+					errs.Add(1)
+					continue
+				} else {
+					confirms.Add(1)
+				}
+				_, _ = db.Exec(ctx, reset, section, seats)
+			}
+		}(int64(w) * 7919)
+	}
+	for w := 0; w < 4; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for time.Now().Before(deadline) {
+				_, _ = count(db.Query(ctx, `SELECT section_no, COUNT(*) FILTER (WHERE status = 'available') FROM probe_p13 WHERE event_id = 1 GROUP BY section_no`))
+			}
+		}()
+	}
+	wg.Wait()
+	return fmt.Sprintf("%d workers for %s: %d holds committed, %d confirmed, %d anomalies (confirm matched fewer rows than a hold a read then found intact), %d errors\n%s",
+		*p13Wk, *p13Dur, holds.Load(), confirms.Load(), anomalies.Load(), errs.Load(), strings.Join(examples, "\n"))
 }

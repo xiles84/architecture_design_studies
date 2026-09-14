@@ -524,7 +524,7 @@ func (s *Seller) BeginCheckout(ctx context.Context, node int, b Block, holdID in
 	}
 	el := s.world.ledger.Event(b.Event.ID)
 	if rows == nil {
-		res.Class = el.Reject(holdID, tnow)
+		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, -1, ""))
 		return res, nil
 	}
 	el.Extend(holdID, rows)
@@ -545,6 +545,8 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 	var rows []Row
 	var tnow time.Time
 	rejected := false
+	matched := -1
+	inTx := ""
 	err := s.retry(ctx, &res.Retries, func() (bool, error) {
 		rows, rejected = nil, false
 		vals := s.vals(node, b)
@@ -575,6 +577,10 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 			return false, err
 		}
 		if len(rows) != n {
+			matched = len(rows)
+			if s.d.Layout == SeatRows {
+				inTx = s.seatStates(ctx, tx, b, holdID)
+			}
 			rejected = true
 			return false, nil
 		}
@@ -591,7 +597,7 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 	}
 	el := s.world.ledger.Event(b.Event.ID)
 	if rejected {
-		res.Class = el.Reject(holdID, tnow)
+		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, matched, inTx))
 		return res, nil
 	}
 	el.Sale(holdID, rows, ticketOf)
@@ -1061,4 +1067,66 @@ func (s *Seller) Available(ctx context.Context, node int, ev *Event) (int64, err
 	var n int64
 	err := s.db.QueryRow(ctx, s.st["q03_event_available"].SQL, s.args("q03_event_available", s.vals(node, Block{Event: ev}))...).Scan(&n)
 	return n, err
+}
+
+// diagnoseRefusal is instrumentation for a refusal the ledger will call early (the
+// hold had at least G left): how many rows the refusing statement matched, and how
+// many seats of the hold the database reports as validly held right afterwards. The
+// two together tell an engine that silently matched too few rows from a hold that
+// something the harness did not record had changed. Empty when not early.
+func (s *Seller) diagnoseRefusal(ctx context.Context, node int, b Block, holdID int64, tnow time.Time, matched int, inTx string) string {
+	h, ok := s.world.ledger.Event(b.Event.ID).Hold(holdID)
+	if !ok || h.Expires.Sub(tnow) < s.world.ledger.guard {
+		return ""
+	}
+	var still int
+	vals := s.vals(node, b)
+	vals["hold_id"] = holdID
+	err := s.query(ctx, s.db, "q04_hold_seats", vals, func(rs ports.Rows) error {
+		var seat int32
+		var exp time.Time
+		if err := rs.Scan(&seat, &exp); err != nil {
+			return err
+		}
+		still++
+		return nil
+	})
+	if err != nil {
+		return fmt.Sprintf("; diagnosis failed: %v", err)
+	}
+	after := ""
+	if s.d.Layout == SeatRows {
+		after = s.seatStates(ctx, s.db, b, holdID)
+	}
+	return fmt.Sprintf("; the confirming statement matched %d of %d seats (seat ids %v); right after, the database showed %d of the hold's seats validly held by it; same seats re-read inside the refusing transaction: %s; re-read after: %s; grant now() %s, confirm now() %s, client %s",
+		matched, len(b.Seats), b.Seats, still, inTx, after, h.GrantNow.Format(time.RFC3339Nano), tnow.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
+}
+
+// seatStates is diagnostic SQL for seat-row designs only (harness instrumentation,
+// not design SQL): the exact seats a statement was given, as the database shows
+// them to a new statement on q -- status, hold, and whether that hold is valid now.
+func (s *Seller) seatStates(ctx context.Context, q ports.Queryer, b Block, holdID int64) string {
+	rows, err := q.Query(ctx, `SELECT seat_id, status, COALESCE(hold_id, 0), COALESCE(hold_expires_at > now(), false), now()
+		FROM event_seat WHERE event_id = $1 AND seat_id = ANY ($2::INT[]) ORDER BY seat_id`, b.Event.ID, b.Seats)
+	if err != nil {
+		return "error: " + err.Error()
+	}
+	defer rows.Close()
+	var parts []string
+	var at time.Time
+	for rows.Next() {
+		var seat int32
+		var status string
+		var hold int64
+		var valid bool
+		if err := rows.Scan(&seat, &status, &hold, &valid, &at); err != nil {
+			return "error: " + err.Error()
+		}
+		mine := "other hold"
+		if hold == holdID {
+			mine = "this hold"
+		}
+		parts = append(parts, fmt.Sprintf("%d %s %s valid=%v", seat, status, mine, valid))
+	}
+	return fmt.Sprintf("[%s] at now() %s", strings.Join(parts, "; "), at.Format(time.RFC3339Nano))
 }
