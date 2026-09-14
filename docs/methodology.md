@@ -391,6 +391,20 @@ from study 02 on:
   `git diff` rather than by memory. Tags are annotated and never moved or deleted.
 - AI sessions commit and tag their work as they go and **never push**; pushing is the owner's.
 
+## 12b. Each task starts isolated and finishes integrated
+
+Follow the task lifecycle in
+[AGENTS.md](../AGENTS.md#hard-rule-task-worktrees-and-completion-merges): create or reuse
+an owned task worktree at the start, then merge all completed task changes into local
+`main` at the end. This is standing owner authorization, not a separate approval step.
+Integrate concurrent changes and resolve conflicts in the task worktree before updating
+`main`; preserve other sessions' files and do not change an active run's inputs.
+
+The producing run commit and its tag remain immutable after integration. Tag the
+integrated milestone separately, record the outcome in context, and verify that `main`
+contains the task commit before reporting completion. A blocked integration is reported
+as blocked, not merged. No push, pull or history rewrite is part of this workflow.
+
 ## 13. Failures are reported
 
 If a cell fails, the matrix continues and the failure is recorded in the run manifest. A

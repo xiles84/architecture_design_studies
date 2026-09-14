@@ -8,6 +8,10 @@ Before starting, read [`CONTEXT.md`](CONTEXT.md) for current state (including wo
 sessions have in progress) and [`docs/methodology.md`](docs/methodology.md) for the rules
 that govern every study.
 
+**Every task starts by creating or reusing its own worktree and ends by merging its
+completed changes into local `main`.** This is the owner's standing authorization;
+no separate merge permission is needed. Follow the task lifecycle below.
+
 ## What this project is
 
 An experimental record of how architecture and data-modelling decisions affect
@@ -37,8 +41,8 @@ These come from the project owner and override convenience:
    tables, embedding children into parents, index choices, ACID/isolation levels,
    optimistic vs pessimistic concurrency — these are expected to be generated and
    compared, not asked about.
-8. **AI agents commit and tag their own work, and never push.** The owner pushes and
-   pulls.
+8. **AI agents work in isolated worktrees, commit, merge completed tasks into `main`,
+   and tag their own work. They never push or pull.** Remote synchronization is the owner's.
 9. **One benchmark on the machine at a time.** Agents may write code and analyses in
    parallel; they may not measure in parallel.
 10. **Never edit another analyst's file.** Not to shorten it, restructure it or correct it.
@@ -105,7 +109,13 @@ code, SQL and data produced each. Without tags, that history is lost. So every a
 7. **Commits only what it can account for.** Stage explicit paths, never `git add -A` in a
    shared tree. If a commit must contain another session's work, say whose in the message.
 
-## Hard rule: working in parallel
+## Hard rule: task worktrees and completion merges
+
+**Owner clarification, 2026-09-14:** isolation is required at the beginning of every
+task, including when only one agent is working. Create a worktree and task branch from
+current local `main`, or reuse this task's existing worktree after checking its branch,
+status and ownership. Never reuse another active task's folder or develop directly in
+the checkout of `main`.
 
 Several agents can work at the same time. They **must not share one working folder**: a
 folder has one checked-out branch, and two agents editing the same files — or one
@@ -118,9 +128,22 @@ git worktree add ../ads-<study>-<topic> -b <study>/<topic>
 ```
 
 - **Branch names:** `<study>/<topic>` (e.g. `study-02/retry-backoff`) or `repo/<topic>`.
-- **Merging into `main`** is done by the owner, or by an agent the owner asks to. Expect
-  conflicts in `CONTEXT.md` and `LESSONS_LEARNED.md`; resolve them by keeping every
-  session's entries, never by choosing one side. Tag after the merge if it changes a study.
+- **At task completion, merge all of this task's changes into local `main`.** Commit
+  explicit owned paths, integrate the latest local `main` into the task branch, resolve
+  conflicts in the task worktree, and run checks appropriate to the combined changes.
+  Preserve every session's context/lessons entries and other analysts' files. Then
+  fast-forward `main` to the integrated task branch; if `main` advanced, integrate the
+  new commits and check again. Do not rewrite history or leave a successfully completed
+  task only on its branch. A task-specific user instruction can override this default.
+- **Serialize the final update of `main`.** Check its checkout for another task's
+  edits or active work. Never stash, discard or commit someone else's unfinished files.
+  Do not change files that an active benchmark can still read; wait until it finishes.
+  An actual unresolved conflict or external blocker must be reported explicitly, not
+  described as a completed merge. This is not a request for routine merge approval.
+- **Verify completion and tag it.** Confirm the task commit is reachable from `main`,
+  update context with the merge outcome, and create a new annotated milestone tag on
+  the integrated state. Keep producing-run tags unchanged. The final response names
+  the commit/tag and merge status. Do not delete a worktree containing unfinished work.
 - **Code, SQL, docs and analyses** may be written in parallel.
 - **Measurements may not.** Dev checks, matrices and anything that starts a database run
   one at a time on this machine, for two reasons: the infra scripts reuse container names

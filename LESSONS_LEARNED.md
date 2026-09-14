@@ -10,6 +10,17 @@ experiments**.
 
 ## Measurement
 
+### Isolation needs an explicit integration step
+
+A completed Study 01 branch contained the results and updated rules while `main`
+still exposed the old context. Committing and tagging made the work traceable but
+did not make it the default for the next task. The owner's 2026-09-14 rule now pairs
+an isolated worktree at every task's start with a local merge at completion. Integrate
+current `main` in the task worktree, preserve concurrent contributions when resolving
+conflicts, validate, then update `main` and verify commit reachability. Wait before
+changing shared scripts used by a running benchmark. A tagged branch alone is not a
+completed integration; remote pushes and pulls remain separate owner actions.
+
 ### A study-specific finding is not automatically a future-study requirement
 
 Study 01's v3 context and discussions recorded resource, placement and concurrency

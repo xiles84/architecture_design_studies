@@ -31,8 +31,13 @@ OpenAI and others) work in this repository, sometimes at the same time.
 
 - **Instructions live in [`AGENTS.md`](AGENTS.md)**, the tool-neutral file. `CLAUDE.md` only
   imports it. Never write a rule only in `CLAUDE.md`.
-- **One folder per agent:** use `git worktree add ../ads-<study>-<topic> -b <study>/<topic>`,
-  never two agents in the same working folder. The owner (or an agent asked to) merges.
+- **Every task starts in its own worktree:** create one from local `main` or reuse this
+  task's existing folder/branch after checking ownership and status. Never share a
+  working folder or develop directly on `main`.
+- **Every completed task merges into local `main`:** the owner authorized this as the
+  default on 2026-09-14. Resolve conflicts and validate in the task worktree, preserve
+  all sessions' work, then integrate into `main` and tag the result. No extra routine
+  merge approval is required; pushing and pulling remain the owner's responsibility.
 - **One measurement at a time on this machine.** Code and analyses in parallel; dev checks
   and matrices never. Runners take the **benchmark lock** (`run_lock_acquire` in
   `infra/lib.sh`, a podman volume named `ads-run-lock`); a second runner from any worktree
@@ -56,6 +61,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
 | `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
 | `repo/study-comparison-minimums` | future-study requirements for calculated sizing, information placement, data colocation and concurrency strategies |
+| `repo/worktree-to-main-workflow` | every task creates/reuses an isolated worktree and merges completed changes into local main by default |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -83,10 +89,12 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**Merge state checked 2026-09-14:** Study 01 v3 and this clarification remain on
-`study-01/measurement-enhancements`. They are not merged into `main` (observed at
-`8b6d8f9`, including separate Study 03 work). The owner merges, or explicitly asks an
-agent to merge, under AGENTS.md. No push or pull was performed.
+**Integration in progress, 2026-09-14:** the owner changed the general workflow to
+require a worktree at task start and a merge into local `main` at completion. This
+supersedes the earlier owner-only merge rule. Study 01 v3 and the future-study rules
+are being integrated from `study-01/measurement-enhancements`, preserving the separate
+Study 03 work on `main`. The active Study 03 ER-01 diagnostic must finish before its
+checkout's shared infrastructure is updated. No push or pull is authorized.
 
 ## What this project is
 
@@ -153,7 +161,8 @@ Implementation is isolated in `.worktrees/study01-v3`, branch
 `-cmd experiment` / `-cmd report-enhancements` path are implemented. The v3 runner
 creates a run tag, pins the image ID, takes the shared benchmark lock and keeps every
 fresh-load trial. Containerized catalogue/control, scheduler overload and grouping tests
-pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 checks per cell). Owner merges this branch after review.
+pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 checks per cell).
+The task integrates this branch into local `main` under the standing completion rule.
 
 **Completed:** `20260913T124917Z-v3`, 14 successful verification cells
 (seven new variants on PostgreSQL and YugabyteDB single-node), run tag
@@ -208,8 +217,8 @@ companions, using `docs/templates/DISCUSSION.md`. Original published analyses st
 links four signed [discussion companions](studies/01-charity-tree/reports/discussions/README.md).
 All 261 cells completed across four runs; six expected D9 cache-control failures remain
 invalid for performance conclusions. The final milestone is `study-01/v3-enhancements`;
-source/run tags and digests remain independent of the report/analysis commit. Owner
-merges and pushes branch `study-01/measurement-enhancements` after review.
+source/run tags and digests remain independent of the report/analysis commit. The agent
+merges branch `study-01/measurement-enhancements` locally; the owner controls remote pushes.
 The [final artifact validation](studies/01-charity-tree/reports/20260914-v3-artifact-validation.md)
 records provenance/link checks and the preserved editions from report regeneration.
 
