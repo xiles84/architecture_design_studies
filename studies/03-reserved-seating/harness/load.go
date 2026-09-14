@@ -91,6 +91,9 @@ func load(ctx context.Context, db ports.DB, d Design, ds *Dataset, streams int) 
 	if err := db.QueryRow(ctx, "SELECT now()").Scan(&ph.LoadNow); err != nil {
 		return nil, fmt.Errorf("load now(): %w", err)
 	}
+	// Millisecond precision, so every loaded expiry is exact in every layout (L2 stores
+	// milliseconds) and the gate compares like with like.
+	ph.LoadNow = ph.LoadNow.Truncate(time.Millisecond)
 
 	t = time.Now()
 	if err := copyAll(ctx, db, d, ds, streams, ph.LoadNow, ph.Rows); err != nil {

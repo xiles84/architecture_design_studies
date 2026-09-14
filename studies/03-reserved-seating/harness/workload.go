@@ -166,8 +166,7 @@ func BenchmarkHoldSpread(ctx context.Context, sl *Seller, s Settings) WriteResul
 		evs = append(evs, e)
 		cum = append(cum, total)
 	}
-	b := measure.Budget{Workers: s.Workers, Warmup: s.Warmup, Duration: s.Duration, Trials: s.Trials,
-		OpsPerTrial: measure.FiniteBudget(int64(float64(total)/2.5), s.Trials)}
+	b := finiteBudget(s, int64(float64(total)/2.5))
 	res := measure.Run(ctx, b, "hold", func(ctx context.Context, r *rand.Rand) (measure.Outcome, error) {
 		x := r.Int63n(total)
 		i := sort.Search(len(cum), func(i int) bool { return cum[i] > x })
@@ -200,8 +199,7 @@ func BenchmarkRelease(ctx context.Context, sl *Seller, s Settings) WriteResult {
 	}
 	rand.New(rand.NewSource(ds.Seed+13)).Shuffle(len(pool), func(i, j int) { pool[i], pool[j] = pool[j], pool[i] })
 	var cursor atomicCursor
-	b := measure.Budget{Workers: s.Workers, Warmup: s.Warmup, Duration: s.Duration, Trials: s.Trials,
-		OpsPerTrial: measure.FiniteBudget(int64(len(pool)), s.Trials)}
+	b := finiteBudget(s, int64(len(pool)))
 	res := measure.Run(ctx, b, "release", func(ctx context.Context, r *rand.Rand) (measure.Outcome, error) {
 		i := cursor.next()
 		if i >= int64(len(pool)) {
@@ -226,8 +224,7 @@ func BenchmarkCancel(ctx context.Context, sl *Seller, s Settings) WriteResult {
 	}
 	rand.New(rand.NewSource(ds.Seed+11)).Shuffle(len(pool), func(i, j int) { pool[i], pool[j] = pool[j], pool[i] })
 	var cursor atomicCursor
-	b := measure.Budget{Workers: s.Workers, Warmup: s.Warmup, Duration: s.Duration, Trials: s.Trials,
-		OpsPerTrial: measure.FiniteBudget(int64(len(pool)), s.Trials)}
+	b := finiteBudget(s, int64(len(pool)))
 	res := measure.Run(ctx, b, "cancel", func(ctx context.Context, r *rand.Rand) (measure.Outcome, error) {
 		i := cursor.next()
 		if i >= int64(len(pool)) {
@@ -367,4 +364,14 @@ func ExplainAll(ctx context.Context, db ports.DB, d Design, ds *Dataset, w *Worl
 		out[name] = plan
 	}
 	return out, nil
+}
+
+// finiteBudget sizes an operation that consumes a finite pool (holds seats,
+// releases loaded holds, refunds loaded tickets): warmup is ONE TRIAL'S WORTH OF
+// OPERATIONS, not a duration, so warmup plus every trial fits inside half the pool
+// as measure.FiniteBudget intends. A duration-bounded warmup drained a small pool
+// before the first trial in the first dev check (0 releases measured).
+func finiteBudget(s Settings, pool int64) measure.Budget {
+	per := measure.FiniteBudget(pool, s.Trials)
+	return measure.Budget{Workers: s.Workers, WarmupOps: per, Duration: s.Duration, OpsPerTrial: per, Trials: s.Trials}
 }
