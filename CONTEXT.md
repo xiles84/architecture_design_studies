@@ -149,20 +149,24 @@ invariant errors. On resuming 2026-09-14, no database containers or benchmark lo
 remained. The result set is tagged `study-01/v3-followup-results`.
 
 All six constrained-memory cells completed their nine growth phases with no gate
-failures. A follow-up control is needed before interpreting the D6/D3 donor-read
-difference as a memory effect: repeat medium/history-multiplier=2 at the standard
-3 GiB budget (the current standard medium condition uses multiplier=1). Queue this
-after this completed matrix, repeating both budgets in the same new run. Reporting
-now exposes growth read rates, arrival retries/counts and audits; containerized race
+failures. The matched follow-up below holds the data fixed while repeating both
+memory configurations. Reporting now exposes growth read rates, arrival retries/counts and audits; containerized race
 tests, vet and shell syntax checks passed on 2026-09-14. See the tooling report
 `reports/20260914-v3-report-validation.md`. The completed matrix used its original
 pinned image throughout.
 
-**Running — do not start databases:** matched memory controls
+**Completed:** matched memory controls
 `20260914T104721Z-v3`, run tag `run/01-charity-tree/20260914T104721Z-v3`, source
 `d1b18bf`. Twelve cells: D3/D6 × 256 MiB/3 GiB × three fresh-load trials, with
-identical medium/history-multiplier=2 data and nine mutation phases. The runner
-holds `ads-run-lock`; no further database work may start until it releases the lock.
+identical medium/history-multiplier=2 data and nine mutation phases. All twelve
+initial gates and 108 post-mutation gates passed (1,680 individual checks), with
+no read errors. Finished 2026-09-14 11:18:42 UTC; digest `9ead901cb74c4183`.
+Final-phase donor-read medians at 256 MiB were D3 4,578.18/s and D6 16,034.40/s;
+at 3 GiB they were D3 25,222.57/s and D6 15,415.07/s. The same dataset now
+supports a memory-configuration-dependent reversal; it does not isolate the container
+ceiling from PostgreSQL memory settings. This run removed its database and released
+its lock. On the 2026-09-14 continuation, the machine lock belongs to Study 03
+`devchecks/dc11-yb3-subset` in the owner's main worktree; do not disturb that run.
 
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`

@@ -1,0 +1,461 @@
+# Query plans
+
+run_id:      20260914T104721Z-v3
+environment: host-zenbook-ux5406sa
+engine:      postgres (pg-single)
+version:     PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+design:      d3_flattened_fk (flattened-fk)
+scale:       medium -- 45000 people, 2009226 donations
+captured:    EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS ON)
+keys used:   charity_id=1 (the largest charity, 30% of donors); person_id and
+             donation_id belong to that charity's busiest donor, so these plans
+             show real work rather than a donor who happens to have three rows
+
+==============================================================================
+## q01_last_donation_global
+==============================================================================
+
+SELECT donation_id, person_id, amount_cents, currency, donated_at
+  FROM donation
+ ORDER BY donated_at DESC
+ LIMIT 1
+
+Limit  (cost=0.43..0.51 rows=1 width=36) (actual time=0.006..0.007 rows=1 loops=1)
+  Output: donation_id, person_id, amount_cents, currency, donated_at
+  Buffers: shared hit=4
+  ->  Index Scan using donation_time_idx on public.donation  (cost=0.43..163742.45 rows=2009226 width=36) (actual time=0.006..0.006 rows=1 loops=1)
+        Output: donation_id, person_id, amount_cents, currency, donated_at
+        Buffers: shared hit=4
+Planning Time: 0.031 ms
+Execution Time: 0.011 ms
+
+==============================================================================
+## q02_last_donation_charity
+==============================================================================
+
+# No join: donation_charity_time_idx answers this with a one-row index scan.
+
+SELECT donation_id, person_id, amount_cents, currency, donated_at
+  FROM donation
+ WHERE charity_id = $1
+ ORDER BY donated_at DESC
+ LIMIT 1
+
+Limit  (cost=0.43..0.61 rows=1 width=36) (actual time=0.008..0.008 rows=1 loops=1)
+  Output: donation_id, person_id, amount_cents, currency, donated_at
+  Buffers: shared hit=4
+  ->  Index Scan using donation_charity_time_idx on public.donation  (cost=0.43..106743.02 rows=586560 width=36) (actual time=0.007..0.007 rows=1 loops=1)
+        Output: donation_id, person_id, amount_cents, currency, donated_at
+        Index Cond: (donation.charity_id = '1'::bigint)
+        Buffers: shared hit=4
+Planning Time: 0.034 ms
+Execution Time: 0.013 ms
+
+==============================================================================
+## q03_top_donor_charity
+==============================================================================
+
+# Still a full aggregate over the charity's donations -- denormalising the key
+# removes the join but does NOT remove the GROUP BY. Only a rollup (D4/D5) can.
+# person is joined back for the name, but against a single already-chosen row.
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM (SELECT person_id, SUM(amount_cents) AS total_cents
+          FROM donation
+         WHERE charity_id = $1
+         GROUP BY person_id
+         ORDER BY total_cents DESC
+         LIMIT 1) t
+  JOIN person p ON p.person_id = t.person_id
+
+Nested Loop  (cost=36725.44..36727.67 rows=1 width=53) (actual time=276.488..316.554 rows=1 loops=1)
+  Output: p.person_id, p.full_name, (sum(donation.amount_cents))
+  Inner Unique: true
+  Buffers: shared read=22581 written=2
+  I/O Timings: shared read=119.519 write=0.109
+  ->  Limit  (cost=36725.15..36725.16 rows=1 width=40) (actual time=275.804..315.867 rows=1 loops=1)
+        Output: donation.person_id, (sum(donation.amount_cents))
+        Buffers: shared read=22578 written=2
+        I/O Timings: shared read=119.075 write=0.109
+        ->  Sort  (cost=36725.15..36766.84 rows=16673 width=40) (actual time=275.799..315.862 rows=1 loops=1)
+              Output: donation.person_id, (sum(donation.amount_cents))
+              Sort Key: (sum(donation.amount_cents)) DESC
+              Sort Method: top-N heapsort  Memory: 25kB
+              Buffers: shared read=22578 written=2
+              I/O Timings: shared read=119.075 write=0.109
+              ->  Finalize HashAggregate  (cost=36433.38..36641.79 rows=16673 width=40) (actual time=272.363..314.186 rows=13445 loops=1)
+                    Output: donation.person_id, sum(donation.amount_cents)
+                    Group Key: donation.person_id
+                    Batches: 1  Memory Usage: 2577kB
+                    Buffers: shared read=22578 written=2
+                    I/O Timings: shared read=119.075 write=0.109
+                    ->  Gather  (cost=32640.27..36183.28 rows=33346 width=40) (actual time=260.589..304.442 rows=37164 loops=1)
+                          Output: donation.person_id, (PARTIAL sum(donation.amount_cents))
+                          Workers Planned: 2
+                          Workers Launched: 2
+                          Buffers: shared read=22578 written=2
+                          I/O Timings: shared read=119.075 write=0.109
+                          ->  Partial HashAggregate  (cost=31640.27..31848.68 rows=16673 width=40) (actual time=252.187..253.938 rows=12388 loops=3)
+                                Output: donation.person_id, PARTIAL sum(donation.amount_cents)
+                                Group Key: donation.person_id
+                                Batches: 1  Memory Usage: 2577kB
+                                Buffers: shared read=22578 written=2
+                                I/O Timings: shared read=119.075 write=0.109
+                                Worker 0:  actual time=248.628..250.405 rows=12281 loops=1
+                                  Batches: 1  Memory Usage: 2577kB
+                                  Buffers: shared read=6415 written=1
+                                  I/O Timings: shared read=24.885 write=0.046
+                                Worker 1:  actual time=248.510..250.181 rows=12415 loops=1
+                                  Batches: 1  Memory Usage: 2577kB
+                                  Buffers: shared read=6901
+                                  I/O Timings: shared read=55.312
+                                ->  Parallel Bitmap Heap Scan on public.donation  (cost=7032.27..30418.27 rows=244400 width=16) (actual time=33.852..193.233 rows=195772 loops=3)
+                                      Output: donation.donation_id, donation.person_id, donation.charity_id, donation.amount_cents, donation.currency, donation.donated_at, donation.note
+                                      Recheck Cond: (donation.charity_id = '1'::bigint)
+                                      Heap Blocks: exact=7009
+                                      Buffers: shared read=22578 written=2
+                                      I/O Timings: shared read=119.075 write=0.109
+                                      Worker 0:  actual time=29.590..203.460 rows=185146 loops=1
+                                        Buffers: shared read=6415 written=1
+                                        I/O Timings: shared read=24.885 write=0.046
+                                      Worker 1:  actual time=30.499..202.738 rows=199546 loops=1
+                                        Buffers: shared read=6901
+                                        I/O Timings: shared read=55.312
+                                      ->  Bitmap Index Scan on donation_charity_amount_idx  (cost=0.00..6885.63 rows=586560 width=0) (actual time=37.805..37.805 rows=587316 loops=1)
+                                            Index Cond: (donation.charity_id = '1'::bigint)
+                                            Buffers: shared read=2253
+                                            I/O Timings: shared read=20.252
+  ->  Index Scan using person_pkey on public.person p  (cost=0.29..2.51 rows=1 width=21) (actual time=0.673..0.674 rows=1 loops=1)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at
+        Index Cond: (p.person_id = donation.person_id)
+        Buffers: shared read=3
+        I/O Timings: shared read=0.444
+Planning Time: 1.497 ms
+Execution Time: 316.895 ms
+
+==============================================================================
+## q04_top_donors_leaderboard
+==============================================================================
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM (SELECT person_id, SUM(amount_cents) AS total_cents
+          FROM donation
+         WHERE charity_id = $1
+         GROUP BY person_id
+         ORDER BY total_cents DESC
+         LIMIT 10) t
+  JOIN person p ON p.person_id = t.person_id
+ ORDER BY t.total_cents DESC
+
+Nested Loop  (cost=37002.38..37027.29 rows=10 width=53) (actual time=337.420..376.323 rows=10 loops=1)
+  Output: p.person_id, p.full_name, (sum(donation.amount_cents))
+  Inner Unique: true
+  Buffers: shared hit=11 read=22597
+  I/O Timings: shared read=108.080
+  ->  Limit  (cost=37002.09..37002.11 rows=10 width=40) (actual time=335.473..371.086 rows=10 loops=1)
+        Output: donation.person_id, (sum(donation.amount_cents))
+        Buffers: shared read=22578
+        I/O Timings: shared read=104.325
+        ->  Sort  (cost=37002.09..37043.77 rows=16673 width=40) (actual time=335.466..371.070 rows=10 loops=1)
+              Output: donation.person_id, (sum(donation.amount_cents))
+              Sort Key: (sum(donation.amount_cents)) DESC
+              Sort Method: top-N heapsort  Memory: 25kB
+              Buffers: shared read=22578
+              I/O Timings: shared read=104.325
+              ->  Finalize HashAggregate  (cost=36433.38..36641.79 rows=16673 width=40) (actual time=332.875..369.813 rows=13445 loops=1)
+                    Output: donation.person_id, sum(donation.amount_cents)
+                    Group Key: donation.person_id
+                    Batches: 1  Memory Usage: 2577kB
+                    Buffers: shared read=22578
+                    I/O Timings: shared read=104.325
+                    ->  Gather  (cost=32640.27..36183.28 rows=33346 width=40) (actual time=285.147..355.631 rows=37156 loops=1)
+                          Output: donation.person_id, (PARTIAL sum(donation.amount_cents))
+                          Workers Planned: 2
+                          Workers Launched: 2
+                          Buffers: shared read=22578
+                          I/O Timings: shared read=104.325
+                          ->  Partial HashAggregate  (cost=31640.27..31848.68 rows=16673 width=40) (actual time=275.729..287.796 rows=12385 loops=3)
+                                Output: donation.person_id, PARTIAL sum(donation.amount_cents)
+                                Group Key: donation.person_id
+                                Batches: 1  Memory Usage: 2577kB
+                                Buffers: shared read=22578
+                                I/O Timings: shared read=104.325
+                                Worker 0:  actual time=269.170..271.703 rows=12399 loops=1
+                                  Batches: 1  Memory Usage: 2577kB
+                                  Buffers: shared read=6703
+                                  I/O Timings: shared read=26.519
+                                Worker 1:  actual time=273.073..274.936 rows=12429 loops=1
+                                  Batches: 1  Memory Usage: 2577kB
+                                  Buffers: shared read=6951
+                                  I/O Timings: shared read=28.319
+                                ->  Parallel Bitmap Heap Scan on public.donation  (cost=7032.27..30418.27 rows=244400 width=16) (actual time=38.931..205.064 rows=195772 loops=3)
+                                      Output: donation.donation_id, donation.person_id, donation.charity_id, donation.amount_cents, donation.currency, donation.donated_at, donation.note
+                                      Recheck Cond: (donation.charity_id = '1'::bigint)
+                                      Heap Blocks: exact=6671
+                                      Buffers: shared read=22578
+                                      I/O Timings: shared read=104.325
+                                      Worker 0:  actual time=33.689..185.384 rows=194034 loops=1
+                                        Buffers: shared read=6703
+                                        I/O Timings: shared read=26.519
+                                      Worker 1:  actual time=33.731..195.174 rows=200576 loops=1
+                                        Buffers: shared read=6951
+                                        I/O Timings: shared read=28.319
+                                      ->  Bitmap Index Scan on donation_charity_amount_idx  (cost=0.00..6885.63 rows=586560 width=0) (actual time=46.719..46.719 rows=587316 loops=1)
+                                            Index Cond: (donation.charity_id = '1'::bigint)
+                                            Buffers: shared read=2253
+                                            I/O Timings: shared read=29.512
+  ->  Index Scan using person_pkey on public.person p  (cost=0.29..2.51 rows=1 width=21) (actual time=0.499..0.499 rows=1 loops=10)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at
+        Index Cond: (p.person_id = donation.person_id)
+        Buffers: shared hit=11 read=19
+        I/O Timings: shared read=3.756
+Planning Time: 0.553 ms
+Execution Time: 376.985 ms
+
+==============================================================================
+## q05_last_donor_charity
+==============================================================================
+
+SELECT d.person_id, p.full_name, d.donated_at
+  FROM (SELECT person_id, donated_at
+          FROM donation
+         WHERE charity_id = $1
+         ORDER BY donated_at DESC
+         LIMIT 1) d
+  JOIN person p ON p.person_id = d.person_id
+
+Nested Loop  (cost=0.72..3.12 rows=1 width=29) (actual time=0.011..0.012 rows=1 loops=1)
+  Output: donation.person_id, p.full_name, donation.donated_at
+  Inner Unique: true
+  Buffers: shared hit=7
+  ->  Limit  (cost=0.43..0.61 rows=1 width=16) (actual time=0.008..0.008 rows=1 loops=1)
+        Output: donation.person_id, donation.donated_at
+        Buffers: shared hit=4
+        ->  Index Scan using donation_charity_time_idx on public.donation  (cost=0.43..106743.02 rows=586560 width=16) (actual time=0.007..0.008 rows=1 loops=1)
+              Output: donation.person_id, donation.donated_at
+              Index Cond: (donation.charity_id = '1'::bigint)
+              Buffers: shared hit=4
+  ->  Index Scan using person_pkey on public.person p  (cost=0.29..2.51 rows=1 width=21) (actual time=0.002..0.002 rows=1 loops=1)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at
+        Index Cond: (p.person_id = donation.person_id)
+        Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.126 ms
+Execution Time: 0.021 ms
+
+==============================================================================
+## q06_person_first_last
+==============================================================================
+
+SELECT MIN(donated_at) AS first_at, MAX(donated_at) AS last_at
+  FROM donation
+ WHERE person_id = $1
+
+Result  (cost=3.04..3.05 rows=1 width=16) (actual time=0.013..0.013 rows=1 loops=1)
+  Output: (InitPlan 1).col1, (InitPlan 2).col1
+  Buffers: shared hit=8
+  InitPlan 1
+    ->  Limit  (cost=0.43..1.52 rows=1 width=8) (actual time=0.009..0.009 rows=1 loops=1)
+          Output: donation.donated_at
+          Buffers: shared hit=4
+          ->  Index Only Scan Backward using donation_person_time_idx on public.donation  (cost=0.43..1316.21 rows=1206 width=8) (actual time=0.009..0.009 rows=1 loops=1)
+                Output: donation.donated_at
+                Index Cond: (donation.person_id = '26773'::bigint)
+                Heap Fetches: 1
+                Buffers: shared hit=4
+  InitPlan 2
+    ->  Limit  (cost=0.43..1.52 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=1)
+          Output: donation_1.donated_at
+          Buffers: shared hit=4
+          ->  Index Only Scan using donation_person_time_idx on public.donation donation_1  (cost=0.43..1316.21 rows=1206 width=8) (actual time=0.003..0.003 rows=1 loops=1)
+                Output: donation_1.donated_at
+                Index Cond: (donation_1.person_id = '26773'::bigint)
+                Heap Fetches: 1
+                Buffers: shared hit=4
+Planning Time: 0.084 ms
+Execution Time: 0.023 ms
+
+==============================================================================
+## q07_total_donated_global
+==============================================================================
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+
+Finalize Aggregate  (cost=31795.94..31795.95 rows=1 width=32) (actual time=117.669..120.706 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared hit=7980 read=12351
+  I/O Timings: shared read=79.152
+  ->  Gather  (cost=31795.72..31795.93 rows=2 width=32) (actual time=117.467..120.688 rows=3 loops=1)
+        Output: (PARTIAL sum(amount_cents))
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=7980 read=12351
+        I/O Timings: shared read=79.152
+        ->  Partial Aggregate  (cost=30795.72..30795.73 rows=1 width=32) (actual time=108.685..108.686 rows=1 loops=3)
+              Output: PARTIAL sum(amount_cents)
+              Buffers: shared hit=7980 read=12351
+              I/O Timings: shared read=79.152
+              Worker 0:  actual time=94.249..94.251 rows=1 loops=1
+                Buffers: shared hit=2634 read=2978
+                I/O Timings: shared read=24.505
+              Worker 1:  actual time=114.506..114.507 rows=1 loops=1
+                Buffers: shared hit=2691 read=4578
+                I/O Timings: shared read=26.787
+              ->  Parallel Seq Scan on public.donation  (cost=0.00..28702.78 rows=837178 width=8) (actual time=0.058..70.656 rows=669742 loops=3)
+                    Output: donation_id, person_id, charity_id, amount_cents, currency, donated_at, note
+                    Buffers: shared hit=7980 read=12351
+                    I/O Timings: shared read=79.152
+                    Worker 0:  actual time=0.019..68.223 rows=554612 loops=1
+                      Buffers: shared hit=2634 read=2978
+                      I/O Timings: shared read=24.505
+                    Worker 1:  actual time=0.016..60.385 rows=718310 loops=1
+                      Buffers: shared hit=2691 read=4578
+                      I/O Timings: shared read=26.787
+Planning Time: 0.105 ms
+Execution Time: 120.728 ms
+
+==============================================================================
+## q08_total_donated_charity
+==============================================================================
+
+# donation_charity_amount_idx covers both the predicate and the summed column,
+# so this should be an index-only scan that never touches the heap.
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Finalize Aggregate  (cost=32029.49..32029.50 rows=1 width=32) (actual time=356.930..392.740 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared read=22578
+  I/O Timings: shared read=217.092
+  ->  Gather  (cost=32029.27..32029.48 rows=2 width=32) (actual time=355.931..392.248 rows=3 loops=1)
+        Output: (PARTIAL sum(amount_cents))
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared read=22578
+        I/O Timings: shared read=217.092
+        ->  Partial Aggregate  (cost=31029.27..31029.28 rows=1 width=32) (actual time=348.924..349.221 rows=1 loops=3)
+              Output: PARTIAL sum(amount_cents)
+              Buffers: shared read=22578
+              I/O Timings: shared read=217.092
+              Worker 0:  actual time=349.162..349.569 rows=1 loops=1
+                Buffers: shared read=6879
+                I/O Timings: shared read=77.060
+              Worker 1:  actual time=341.899..342.377 rows=1 loops=1
+                Buffers: shared read=6633
+                I/O Timings: shared read=56.946
+              ->  Parallel Bitmap Heap Scan on public.donation  (cost=7032.27..30418.27 rows=244400 width=8) (actual time=58.739..335.221 rows=195772 loops=3)
+                    Output: donation_id, person_id, charity_id, amount_cents, currency, donated_at, note
+                    Recheck Cond: (donation.charity_id = '1'::bigint)
+                    Heap Blocks: exact=6813
+                    Buffers: shared read=22578
+                    I/O Timings: shared read=217.092
+                    Worker 0:  actual time=59.096..335.064 rows=198790 loops=1
+                      Buffers: shared read=6879
+                      I/O Timings: shared read=77.060
+                    Worker 1:  actual time=51.859..329.045 rows=191625 loops=1
+                      Buffers: shared read=6633
+                      I/O Timings: shared read=56.946
+                    ->  Bitmap Index Scan on donation_charity_amount_idx  (cost=0.00..6885.63 rows=586560 width=0) (actual time=57.907..57.910 rows=587316 loops=1)
+                          Index Cond: (donation.charity_id = '1'::bigint)
+                          Buffers: shared read=2253
+                          I/O Timings: shared read=35.472
+Planning Time: 1.180 ms
+Execution Time: 393.294 ms
+
+==============================================================================
+## q09_person_recent_donations
+==============================================================================
+
+SELECT donation_id, amount_cents, currency, donated_at, note
+  FROM donation
+ WHERE person_id = $1
+ ORDER BY donated_at DESC
+ LIMIT 20
+
+Limit  (cost=0.43..22.25 rows=20 width=45) (actual time=0.016..0.040 rows=20 loops=1)
+  Output: donation_id, amount_cents, currency, donated_at, note
+  Buffers: shared hit=22
+  ->  Index Scan using donation_person_time_idx on public.donation  (cost=0.43..1316.21 rows=1206 width=45) (actual time=0.015..0.038 rows=20 loops=1)
+        Output: donation_id, amount_cents, currency, donated_at, note
+        Index Cond: (donation.person_id = '26773'::bigint)
+        Buffers: shared hit=22
+Planning Time: 0.079 ms
+Execution Time: 0.050 ms
+
+==============================================================================
+## q10_donation_by_id
+==============================================================================
+
+SELECT donation_id, person_id, amount_cents, currency, donated_at, note
+  FROM donation
+ WHERE donation_id = $1
+
+Index Scan using donation_pkey on public.donation  (cost=0.43..2.65 rows=1 width=53) (actual time=0.007..0.008 rows=1 loops=1)
+  Output: donation_id, person_id, amount_cents, currency, donated_at, note
+  Index Cond: (donation.donation_id = '1298443'::bigint)
+  Buffers: shared hit=4
+Planning Time: 0.038 ms
+Execution Time: 0.016 ms
+
+==============================================================================
+## q11_person_donation_count
+==============================================================================
+
+SELECT COUNT(*) AS donation_count
+  FROM donation
+ WHERE person_id = $1
+
+Aggregate  (cost=1294.42..1294.43 rows=1 width=8) (actual time=0.621..0.622 rows=1 loops=1)
+  Output: count(*)
+  Buffers: shared hit=965
+  ->  Bitmap Heap Scan on public.donation  (cost=15.27..1291.41 rows=1206 width=0) (actual time=0.175..0.582 rows=1000 loops=1)
+        Recheck Cond: (donation.person_id = '26773'::bigint)
+        Heap Blocks: exact=958
+        Buffers: shared hit=965
+        ->  Bitmap Index Scan on donation_person_time_idx  (cost=0.00..14.97 rows=1206 width=0) (actual time=0.087..0.087 rows=1000 loops=1)
+              Index Cond: (donation.person_id = '26773'::bigint)
+              Buffers: shared hit=7
+Planning Time: 0.067 ms
+Execution Time: 0.637 ms
+
+==============================================================================
+## q12_charity_recent_feed
+==============================================================================
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50
+
+Limit  (cost=0.73..12.34 rows=50 width=37) (actual time=0.072..0.180 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=150
+  ->  Nested Loop  (cost=0.73..136177.86 rows=586560 width=37) (actual time=0.071..0.176 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=150
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.43..116366.21 rows=586560 width=32) (actual time=0.027..0.032 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+              Index Cond: (d.charity_id = '1'::bigint)
+              Buffers: shared hit=6
+        ->  Memoize  (cost=0.30..0.32 rows=1 width=21) (actual time=0.003..0.003 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 2  Misses: 48  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+              Buffers: shared hit=144
+              ->  Index Scan using person_pkey on public.person p  (cost=0.29..0.31 rows=1 width=21) (actual time=0.002..0.002 rows=1 loops=48)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=144
+Planning:
+  Buffers: shared hit=14
+Planning Time: 0.220 ms
+Execution Time: 0.195 ms
+
