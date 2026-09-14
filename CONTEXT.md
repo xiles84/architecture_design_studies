@@ -4,7 +4,7 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-13
+**Last updated:** 2026-09-14
 
 ---
 
@@ -52,6 +52,8 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
+| `study-02/v1.2-terminology` | study 02 README terminology section (general admission); no SQL, harness, report or analysis change |
+| `repo/platform-lock-not-available` | platform: `ErrLockNotAvailable` (SQLSTATE 55P03) appended for study 03's NOWAIT design |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -93,7 +95,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — planned: Execution Handoff only
+  03-reserved-seating/    study 03 (see below) — built on platform/; dev checks; ER-01 open
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -361,9 +363,22 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-13):** planned; nothing built or run. The specification is the
-[Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`).
-Unmapped decisions go to [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
+**Status (2026-09-14):** built and dev-checked; **blocked on Escalation Required ER-01**, so no
+`small` run has started. The specification is the
+[Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
+state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
+unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
+
+- Done: study 02 terminology (tag `study-02/v1.2-terminology`); engine probe (every assumption
+  held); platform error class for NOWAIT (tag `repo/platform-lock-not-available`); 13-design SQL
+  catalogue; Go harness with 17 unit tests; tiny dev checks on PostgreSQL (all gates pass, no
+  violation in any correct design, all four controls fire after one harness fix) and YugabyteDB
+  1-node (gates pass, controls fire).
+- **ER-01 (open):** on YugabyteDB 1-node, seat-row designs occasionally refuse a confirmation
+  ~100 ms after its hold committed; the UPDATE matches 0 rows while a SELECT of the same seats in
+  the same transaction shows the hold valid. About one per two 10 000-seat races; never on
+  PostgreSQL; not reproduced by a standalone probe. Needs an ultracode decision (options in
+  ESCALATIONS.md) before the matrix.
 
 **The owner's workflow for this study:** plan, escalations and final analysis in Claude
 Opus 5 with the `ultracode` setting ("ultra"). Execution in Claude Opus 5 with the `high`

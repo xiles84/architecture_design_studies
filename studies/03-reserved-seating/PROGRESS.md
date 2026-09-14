@@ -15,9 +15,9 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 4 | Platform: ErrLockNotAvailable | done — study 02 image still builds | `241e06f`, `repo/platform-lock-not-available` |
 | 5 | SQL catalogue, 13 designs | done | `13941ff` |
 | 6 | Harness (17 unit tests pass in the build) | done | `eb7e4ff` |
-| 7 | Diagrams | in progress | |
-| 8 | Dev checks and calibration | in progress | |
-| 9 | Main matrix (`small`) | pending | |
+| 7 | Diagrams | sources written; rendering pending (no CPU-heavy work while measuring) | |
+| 8 | Dev checks and calibration | PostgreSQL passed; YugabyteDB 1-node **blocked by ER-01**; yb-cluster3 subset running | |
+| 9 | Main matrix (`small`) | blocked: ER-01 open | |
 | 10 | Repeated race trials | pending | |
 | 11 | Context, lessons, README; ready for analysis | pending | |
 
@@ -33,11 +33,23 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | M6 | S0 lists both `race` and `lifecycle` as experiments where it is expected to fire. | §3.5 names both; §10.3's pass criterion checks the race. |
 | M7 | The guard margin G is 2 minutes of real time in the race and isolated writes (whose holds last a real 40 minutes) and 2 human minutes in the lifecycle. | §3.4 defines G as 2 human minutes = 5% of the TTL; this keeps it 5% of the TTL on both clocks. |
 | M8 | Buyer seeds are deterministic per (event, buyer), not time-based. | Same random stream in every design, as §3.10 requires. |
+| M9 | A lost compare-and-set (L2) backs off like engine contention (jittered, 2 ms base, 50 ms cap). | §3.10 names engine errors only; a lost write is the same contention to a buyer. Without it L2 spun: 21 seats/s on 10-seat races in dc3, 206 in dc4. |
+| M10 | Finite-pool write ops (hold, release, cancel) warm up for one trial's worth of operations instead of a duration. | A duration warmup drained the tiny release pool before the first trial (dc2: 0 releases). Keeps warmup plus trials inside half the pool, as `FiniteBudget` intends. |
+| M11 | Loaded holds' base clock is the database now() truncated to milliseconds. | The gate failed S1 by 1 ms (dc1): microsecond now() plus millisecond offsets vs millisecond truth. |
+| M12 | The sweeper outage ends when the outage probe has run, not at minute 85 by wall clock. | dc3: the sweeper resumed on its own tick first and released every expired seat, so E1's probe saw nothing (0/0). dc4: E1 4/4 and 9/9 unavailable. |
 
 ## Observations for the analysis phase
 
 Facts recorded during dev checks and runs (handoff §13).
 
+- **Calibration, PostgreSQL (dc3, tiny, S1 lifecycle):** hold p99 4.8–8.5 ms, confirmation p99 5.4–6.3 ms against a 50 ms limit (1 human minute). `-human-minute 50ms` kept.
+- **Calibration, YugabyteDB 1-node (dc7, tiny, S1 lifecycle):** hold p99 76–103 ms, confirmation p99 50–71 ms against a 500 ms limit. `-human-minute 500ms` kept.
+- **dc5 (YugabyteDB 1-node, tiny, 13 designs, commit `1024aa7`):** every gate 51/51. Controls fired: S0 (race, lifecycle), K0 (lifecycle: late sales), E0 (lifecycle: 8 and 48 thefts). **ER-01:** single early rejections in S1, S2, K1 (10 000-seat race) and S3 (1 000-seat race) — confirmation UPDATE matched 0 rows of a hold the same transaction then read as valid; reproduced in dc8–dc10, not in P13 or on PostgreSQL. See ESCALATIONS.md.
+- **S4 (SERIALIZABLE) on YugabyteDB 1-node:** race 0.1 seats/s with hold latency p50 1–38 s and every tier timed out; lifecycle confirmed almost nothing (errors: attempt deadline). No invariant violation. Engine probe P7 showed YugabyteDB aborting serializable conflicts with 40P01.
+- **L2 (section document) on PostgreSQL** in dc3 before M9: 21 seats/s on 10-seat races with p50 hold 58 ms (lost compare-and-set spinning); with backoff (dc4) 206 seats/s.
+- **dc3 (PostgreSQL, tiny, 12 designs, commit `1b2801d`):** every gate 51/51; no violation in any design meant to be correct, in any phase. Controls: S0 fired in the race (3 857 thefts, 2 009 early rejections, 89 deferred confirmations refused) and the lifecycle (418 thefts); E0 fired in the lifecycle (66 thefts, 13 early rejections); K0 fired in the lifecycle (14 late sales, 10 sales without the hold). E1's outage probe did not fire because of a harness race (M12), fixed and confirmed in dc4.
+- **S0's unconditional overwrite of a seat that is already sold is refused by the shared `event_seat` CHECK constraint** (held rows must have `sold_at` NULL): those attempts are errors (183 in the 10-seat race), while overwrites of held seats succeed and show as theft.
+- **K1 refused no confirmation in dc3's lifecycle (0 late), S-designs 1–13 late per tier; no design recorded a boundary rejection at tiny scale on PostgreSQL.**
 - Engine probe `results/devchecks/engine-probe-20260914T112716Z.md`: on YugabyteDB a
   SERIALIZABLE read-then-update conflict aborted one session with 40P01 ("deadlock
   detected ... Consider using READ COMMITTED"), on PostgreSQL with 40001. Both are retried.
