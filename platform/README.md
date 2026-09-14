@@ -53,6 +53,10 @@ Each rule in `core/measure` encodes a lesson that once produced a wrong number â
 measured by count, the median rather than the mean, no p99.9 without 10 000 samples. See
 [`LESSONS_LEARNED.md`](../LESSONS_LEARNED.md).
 
+**Error classes are only ever appended.** `ErrLockNotAvailable` (SQLSTATE 55P03, a
+`FOR UPDATE NOWAIT` that met a locked row) was added for study 03. Studies 01 and 02 never
+issue NOWAIT, so no error they can receive changed class.
+
 ## Study 01
 
 Study 01 predates this module and keeps its own harness. Moving it onto the platform would
