@@ -502,9 +502,9 @@ study 03's handoff.
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
 **Status (2026-09-14, 20:40 UTC):** harness tagged `study-03/v1-harness` (14 designs, AM-01 dev
-checks dc12–dc14 pass). **Blocked on Escalation Required ER-02:** the `small` matrix is projected at
-about 24 h and the repeated race at about 18.5 h, both over §10.4. Needs the higher model/effort.
-Nothing is running and the benchmark lock is free. No `small` run has started. The
+checks dc12–dc14 pass). **ER-02 decided (AM-02, tag `study-03/v0.2-handoff-amendment-02`):**
+calibrate with one `small` S1 cell per topology (dc15), then run the matrix under fixed duration rules
+(hard ceiling 30 h). Next: LOW. Nothing is running and the benchmark lock is free. No `small` run has started. The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
@@ -525,8 +525,12 @@ unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS
   - On YugabyteDB, every early rejection in a correct design was transient: 21 on one node, 137 on
     three.
   - S1r showed none; every one of its 43 retries after a short match sold.
-- **ER-02 (open):** projected duration; options and the per-phase projection are in ESCALATIONS.md
-  and PROGRESS.md.
+- **ER-02 (decided):** the projected duration exceeded §10.4. AM-02 adds a `small` calibration run
+  (dc15) and fixed rules:
+  - a 2-minute YugabyteDB race tier budget if needed;
+  - the YugabyteDB 100 000-seat race tier dropped if it cannot finish;
+  - the repeated race limited to the 1 000- and 10 000-seat tiers;
+  - a new escalation only above 30 h (main) or 12 h (repeated race).
 
 **The owner's workflow** (standard notation from 2026-09-14):
 
