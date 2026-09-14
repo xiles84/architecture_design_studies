@@ -572,3 +572,12 @@ same statements never reproduced it; only the full workload did.
 On Windows, `podman machine ssh` wrote the VM's host key to a file called `NUL` in the working
 directory, a reserved name that breaks `git add`. Delete it after use (`rm ./NUL` in Git Bash), or
 read the VM's state through `podman` commands instead.
+
+### A lag measured against loaded state measures the load
+
+Study 03's lifecycle report showed a release lag of about 45 000 human minutes on the 10-seat
+tier for every design with lazy expiry (dc3, dc12). The first tier's sweeper was the first to
+release the dataset's holds that were loaded already expired, and their "lag" was the age of the
+load. The numbers looked absurd only because the time was compressed; at real speed the same
+bug would have added a plausible few minutes. Lag now counts only holds granted during the
+phase. Any metric measured from a timestamp should say which rows may contribute to it.
