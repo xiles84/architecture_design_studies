@@ -580,6 +580,14 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 			matched = len(rows)
 			if s.d.Layout == SeatRows {
 				inTx = s.seatStates(ctx, tx, b, holdID)
+				// Diagnostic (ER-01): the identical statement, issued again in the same
+				// transaction. The refusal stands and the transaction is rolled back
+				// whatever it matches; it only shows whether the miss was transient.
+				if again, err := s.seatRows(ctx, tx, "w_confirm_seats", vals, false); err != nil {
+					inTx += "; the same statement issued again in this transaction failed: " + err.Error()
+				} else {
+					inTx += fmt.Sprintf("; the same statement issued again in this transaction matched %d of %d", len(again), n)
+				}
 			}
 			rejected = true
 			return false, nil
@@ -1106,7 +1114,7 @@ func (s *Seller) diagnoseRefusal(ctx context.Context, node int, b Block, holdID 
 // not design SQL): the exact seats a statement was given, as the database shows
 // them to a new statement on q -- status, hold, and whether that hold is valid now.
 func (s *Seller) seatStates(ctx context.Context, q ports.Queryer, b Block, holdID int64) string {
-	rows, err := q.Query(ctx, `SELECT seat_id, status, COALESCE(hold_id, 0), COALESCE(hold_expires_at > now(), false), now()
+	rows, err := q.Query(ctx, `SELECT seat_id, status, COALESCE(hold_id, 0), COALESCE(hold_expires_at > now(), false), now(), pg_backend_pid()
 		FROM event_seat WHERE event_id = $1 AND seat_id = ANY ($2::INT[]) ORDER BY seat_id`, b.Event.ID, b.Seats)
 	if err != nil {
 		return "error: " + err.Error()
@@ -1114,12 +1122,13 @@ func (s *Seller) seatStates(ctx context.Context, q ports.Queryer, b Block, holdI
 	defer rows.Close()
 	var parts []string
 	var at time.Time
+	var pid int32
 	for rows.Next() {
 		var seat int32
 		var status string
 		var hold int64
 		var valid bool
-		if err := rows.Scan(&seat, &status, &hold, &valid, &at); err != nil {
+		if err := rows.Scan(&seat, &status, &hold, &valid, &at, &pid); err != nil {
 			return "error: " + err.Error()
 		}
 		mine := "other hold"
@@ -1128,5 +1137,5 @@ func (s *Seller) seatStates(ctx context.Context, q ports.Queryer, b Block, holdI
 		}
 		parts = append(parts, fmt.Sprintf("%d %s %s valid=%v", seat, status, mine, valid))
 	}
-	return fmt.Sprintf("[%s] at now() %s", strings.Join(parts, "; "), at.Format(time.RFC3339Nano))
+	return fmt.Sprintf("[%s] at now() %s, backend pid %d", strings.Join(parts, "; "), at.Format(time.RFC3339Nano), pid)
 }
