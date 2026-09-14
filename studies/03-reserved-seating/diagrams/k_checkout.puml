@@ -26,4 +26,13 @@ else K0 — naive confirmation (NEGATIVE CONTROL)
   DB --> A : 2 rows — **a sale after expiry, over B's hold**
 end
 deactivate A
+
+== S1r — a transient refusal (seen on YugabyteDB under load, ER-01) ==
+A -> DB : a moment after holding: UPDATE … WHERE hold = A AND held AND expires_at > now() → 0 rows
+note right of DB : the hold is valid: the identical statement a moment later matches both seats
+alt S1 — the refusal stands
+  DB --> A : **refused although the hold was valid** (an early rejection, transient)
+else S1r — retry a short confirmation once
+  A -> DB : roll back; run the confirmation again, at once, in a new transaction → **sold**
+end
 @enduml

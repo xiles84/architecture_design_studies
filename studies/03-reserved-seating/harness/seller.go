@@ -492,6 +492,58 @@ type ConfirmResult struct {
 	Sold    bool
 	Class   string // rejection class when not sold
 	Retries int
+	// ShortRetried: S1r ran the confirmation a second time after a short match.
+	// RetrySold: and the second attempt sold.
+	ShortRetried, RetrySold bool
+}
+
+// earlyAt says whether the ledger would call a refusal of the hold at txn now early
+// (at least G before its expiry). Only then does the harness spend statements on
+// diagnostics, so late and boundary refusals take exactly the design's path.
+func (s *Seller) earlyAt(b Block, holdID int64, tnow time.Time) bool {
+	h, ok := s.world.ledger.Event(b.Event.ID).Hold(holdID)
+	return ok && h.Expires.Sub(tnow) >= s.world.ledger.guard
+}
+
+// refusal is what the in-transaction diagnostics of an early refusal found (AM-01.2).
+type refusal struct {
+	ran       bool
+	matched   int    // rows the refusing statement matched; -1: a one-row statement returned none
+	inTx      string // the re-read and the re-issue, inside the refusing transaction
+	transient bool   // the re-issue matched every seat the first execution did not
+}
+
+// diagnoseInTx runs inside the refusing transaction, before its rollback: the hold's
+// rows re-read, then the identical statement with identical bindings. The refusal
+// stands whatever the re-issue matches -- the transaction is rolled back as always --
+// it only tells a transient miss from a persistent one. Harness instrumentation, the
+// same for every design with a guarded statement (ER-01, AM-01.2).
+func (s *Seller) diagnoseInTx(ctx context.Context, tx ports.Tx, b Block, holdID int64, name string, vals map[string]any, matched int, withExpiry bool) refusal {
+	r := refusal{ran: true, matched: matched, inTx: s.seatStates(ctx, tx, b, holdID)}
+	if matched < 0 {
+		var now, clock time.Time
+		err := tx.QueryRow(ctx, s.st[name].SQL, s.args(name, vals)...).Scan(&now, &clock)
+		switch {
+		case err == nil:
+			r.transient = true
+			r.inTx += "; the same statement issued again in this transaction returned its row"
+		case errors.Is(err, ports.ErrNoRows):
+			r.inTx += "; the same statement issued again in this transaction returned no row"
+		default:
+			r.inTx += "; the same statement issued again in this transaction failed: " + err.Error()
+		}
+		return r
+	}
+	again, err := s.seatRows(ctx, tx, name, vals, withExpiry)
+	if err != nil {
+		r.inTx += "; the same statement issued again in this transaction failed: " + err.Error()
+		return r
+	}
+	n := len(b.Seats)
+	r.transient = matched+len(again) == n
+	r.inTx += fmt.Sprintf("; the same statement issued again in this transaction matched %d more (%d of %d in all)",
+		len(again), matched+len(again), n)
+	return r
 }
 
 // BeginCheckout is K1's payment window. Rejected = the hold expired before paying.
@@ -499,7 +551,9 @@ func (s *Seller) BeginCheckout(ctx context.Context, node int, b Block, holdID in
 	var res ConfirmResult
 	var rows []Row
 	var tnow time.Time
+	var ref refusal
 	err := s.retry(ctx, &res.Retries, func() (bool, error) {
+		rows, ref = nil, refusal{}
 		vals := s.vals(node, b)
 		vals["hold_id"], vals["payment_window_ms"] = holdID, float64(window.Microseconds())/1000
 		tx, err := s.db.Begin(ctx, s.d.Isolation)
@@ -514,6 +568,9 @@ func (s *Seller) BeginCheckout(ctx context.Context, node int, b Block, holdID in
 			return false, err
 		}
 		if len(rows) != len(b.Seats) {
+			if s.earlyAt(b, holdID, tnow) {
+				ref = s.diagnoseInTx(ctx, tx, b, holdID, "w_begin_checkout", vals, len(rows), true)
+			}
 			rows = nil
 			return false, nil
 		}
@@ -524,7 +581,7 @@ func (s *Seller) BeginCheckout(ctx context.Context, node int, b Block, holdID in
 	}
 	el := s.world.ledger.Event(b.Event.ID)
 	if rows == nil {
-		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, -1, ""))
+		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, ref), ref.transient)
 		return res, nil
 	}
 	el.Extend(holdID, rows)
@@ -544,72 +601,77 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 	}
 	var rows []Row
 	var tnow time.Time
-	rejected := false
-	matched := -1
-	inTx := ""
-	err := s.retry(ctx, &res.Retries, func() (bool, error) {
-		rows, rejected = nil, false
-		vals := s.vals(node, b)
-		vals["hold_id"], vals["customer_id"], vals["ticket_ids"] = holdID, customer, ticketIDs
-		if s.d.Strategy == Document {
-			return s.confirmDocument(ctx, b, holdID, customer, vals, &rows, &tnow, &rejected)
-		}
-		tx, err := s.db.Begin(ctx, s.d.Isolation)
-		if err != nil {
-			return false, err
-		}
-		defer tx.Rollback(ctx)
-		if tnow, err = txnNow(ctx, tx); err != nil {
-			return false, err
-		}
-		if s.d.Strategy == Cart {
-			var now, clock time.Time
-			err := tx.QueryRow(ctx, s.st["w_confirm_cart"].SQL, s.args("w_confirm_cart", vals)...).Scan(&now, &clock)
-			if errors.Is(err, ports.ErrNoRows) {
-				rejected = true
-				return false, nil
+	var rejected bool
+	var ref refusal
+	for attempt := 1; ; attempt++ {
+		// S1r (AM-01.3): a first confirmation that matches too few seats is rolled
+		// back and run once more, at once, in a new transaction. It runs no
+		// diagnostics; the second attempt is exactly S1's.
+		retryShort := s.d.RetryShortConfirm && attempt == 1
+		err := s.retry(ctx, &res.Retries, func() (bool, error) {
+			rows, rejected, ref = nil, false, refusal{}
+			vals := s.vals(node, b)
+			vals["hold_id"], vals["customer_id"], vals["ticket_ids"] = holdID, customer, ticketIDs
+			if s.d.Strategy == Document {
+				return s.confirmDocument(ctx, b, holdID, customer, vals, &rows, &tnow, &rejected)
 			}
+			tx, err := s.db.Begin(ctx, s.d.Isolation)
 			if err != nil {
 				return false, err
 			}
-		}
-		if rows, err = s.seatRows(ctx, tx, "w_confirm_seats", vals, false); err != nil {
-			return false, err
-		}
-		if len(rows) != n {
-			matched = len(rows)
-			if s.d.Layout == SeatRows {
-				inTx = s.seatStates(ctx, tx, b, holdID)
-				// Diagnostic (ER-01): the identical statement, issued again in the same
-				// transaction. The refusal stands and the transaction is rolled back
-				// whatever it matches; it only shows whether the miss was transient.
-				if again, err := s.seatRows(ctx, tx, "w_confirm_seats", vals, false); err != nil {
-					inTx += "; the same statement issued again in this transaction failed: " + err.Error()
-				} else {
-					inTx += fmt.Sprintf("; the same statement issued again in this transaction matched %d of %d", len(again), n)
+			defer tx.Rollback(ctx)
+			if tnow, err = txnNow(ctx, tx); err != nil {
+				return false, err
+			}
+			if s.d.Strategy == Cart {
+				var now, clock time.Time
+				err := tx.QueryRow(ctx, s.st["w_confirm_cart"].SQL, s.args("w_confirm_cart", vals)...).Scan(&now, &clock)
+				if errors.Is(err, ports.ErrNoRows) {
+					rejected = true
+					if s.earlyAt(b, holdID, tnow) {
+						ref = s.diagnoseInTx(ctx, tx, b, holdID, "w_confirm_cart", vals, -1, false)
+					}
+					return false, nil
+				}
+				if err != nil {
+					return false, err
 				}
 			}
-			rejected = true
-			return false, nil
-		}
-		if _, err := s.exec(ctx, tx, "w_insert_tickets", vals); err != nil {
-			if s.db.Classify(err) == ports.ErrUniqueViolation {
-				return false, fmt.Errorf("%w: a confirmed seat already had a ticket: %v", errInvariant, err)
+			if rows, err = s.seatRows(ctx, tx, "w_confirm_seats", vals, false); err != nil {
+				return false, err
 			}
-			return false, err
+			if len(rows) != n {
+				rejected = true
+				if !retryShort && s.earlyAt(b, holdID, tnow) {
+					ref = s.diagnoseInTx(ctx, tx, b, holdID, "w_confirm_seats", vals, len(rows), false)
+				}
+				return false, nil
+			}
+			if _, err := s.exec(ctx, tx, "w_insert_tickets", vals); err != nil {
+				if s.db.Classify(err) == ports.ErrUniqueViolation {
+					return false, fmt.Errorf("%w: a confirmed seat already had a ticket: %v", errInvariant, err)
+				}
+				return false, err
+			}
+			return false, s.commit(ctx, tx, b.Event)
+		})
+		if err != nil {
+			return res, err
 		}
-		return false, s.commit(ctx, tx, b.Event)
-	})
-	if err != nil {
-		return res, err
+		if rejected && retryShort {
+			res.ShortRetried = true
+			continue
+		}
+		break
 	}
 	el := s.world.ledger.Event(b.Event.ID)
 	if rejected {
-		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, matched, inTx))
+		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, ref), ref.transient)
 		return res, nil
 	}
 	el.Sale(holdID, rows, ticketOf)
 	res.Sold = true
+	res.RetrySold = res.ShortRetried
 	return res, nil
 }
 
@@ -1078,14 +1140,23 @@ func (s *Seller) Available(ctx context.Context, node int, ev *Event) (int64, err
 }
 
 // diagnoseRefusal is instrumentation for a refusal the ledger will call early (the
-// hold had at least G left): how many rows the refusing statement matched, and how
-// many seats of the hold the database reports as validly held right afterwards. The
-// two together tell an engine that silently matched too few rows from a hold that
-// something the harness did not record had changed. Empty when not early.
-func (s *Seller) diagnoseRefusal(ctx context.Context, node int, b Block, holdID int64, tnow time.Time, matched int, inTx string) string {
+// hold had at least G left), run after the rollback: what the refusing transaction
+// found (ref), and how many seats of the hold the database reports as validly held
+// right afterwards. Together they tell an engine that silently matched too few rows
+// from a hold that something the harness did not record had changed. Empty when not
+// early.
+func (s *Seller) diagnoseRefusal(ctx context.Context, node int, b Block, holdID int64, tnow time.Time, ref refusal) string {
 	h, ok := s.world.ledger.Event(b.Event.ID).Hold(holdID)
 	if !ok || h.Expires.Sub(tnow) < s.world.ledger.guard {
 		return ""
+	}
+	first, inTx := "n/a", "no diagnostics (not a guarded statement)"
+	if ref.ran {
+		inTx = ref.inTx
+		first = fmt.Sprintf("%d of %d seats", ref.matched, len(b.Seats))
+		if ref.matched < 0 {
+			first = "no row"
+		}
 	}
 	var still int
 	vals := s.vals(node, b)
@@ -1102,20 +1173,33 @@ func (s *Seller) diagnoseRefusal(ctx context.Context, node int, b Block, holdID 
 	if err != nil {
 		return fmt.Sprintf("; diagnosis failed: %v", err)
 	}
-	after := ""
-	if s.d.Layout == SeatRows {
-		after = s.seatStates(ctx, s.db, b, holdID)
-	}
-	return fmt.Sprintf("; the confirming statement matched %d of %d seats (seat ids %v); right after, the database showed %d of the hold's seats validly held by it; same seats re-read inside the refusing transaction: %s; re-read after: %s; grant now() %s, confirm now() %s, client %s",
-		matched, len(b.Seats), b.Seats, still, inTx, after, h.GrantNow.Format(time.RFC3339Nano), tnow.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
+	after := s.seatStates(ctx, s.db, b, holdID)
+	return fmt.Sprintf("; the refusing statement matched %s (seat ids %v); right after, the database showed %d of the hold's seats validly held by it; inside the refusing transaction: %s; re-read after: %s; grant now() %s, confirm now() %s, client %s",
+		first, b.Seats, still, inTx, after, h.GrantNow.Format(time.RFC3339Nano), tnow.Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
 }
 
-// seatStates is diagnostic SQL for seat-row designs only (harness instrumentation,
-// not design SQL): the exact seats a statement was given, as the database shows
-// them to a new statement on q -- status, hold, and whether that hold is valid now.
+// seatStates is diagnostic SQL (harness instrumentation, not design SQL): the exact
+// seats a statement was given, as the database shows them to a new statement on q --
+// state, hold, whether that hold is valid now -- and the backend that answered.
 func (s *Seller) seatStates(ctx context.Context, q ports.Queryer, b Block, holdID int64) string {
-	rows, err := q.Query(ctx, `SELECT seat_id, status, COALESCE(hold_id, 0), COALESCE(hold_expires_at > now(), false), now(), pg_backend_pid()
-		FROM event_seat WHERE event_id = $1 AND seat_id = ANY ($2::INT[]) ORDER BY seat_id`, b.Event.ID, b.Seats)
+	var sql string
+	switch s.d.Layout {
+	case SeatRows:
+		sql = `SELECT seat_id, status, COALESCE(hold_id, 0), COALESCE(hold_expires_at > now(), false), now(), pg_backend_pid()
+			FROM event_seat WHERE event_id = $1 AND seat_id = ANY ($2::INT[]) ORDER BY seat_id`
+	case CartRows:
+		sql = `SELECT s.seat_id, s.status, COALESCE(s.hold_id, 0),
+			COALESCE((SELECT h.status = 'held' AND h.expires_at > now() FROM hold h WHERE h.hold_id = s.hold_id), false),
+			now(), pg_backend_pid()
+			FROM event_seat s WHERE s.event_id = $1 AND s.seat_id = ANY ($2::INT[]) ORDER BY s.seat_id`
+	case ClaimRows:
+		sql = `SELECT seat_id, CASE WHEN expires_at = 'infinity' THEN 'sold' ELSE 'claimed' END, COALESCE(hold_id, 0),
+			expires_at > now() AND expires_at <> 'infinity', now(), pg_backend_pid()
+			FROM seat_claim WHERE event_id = $1 AND seat_id = ANY ($2::INT[]) ORDER BY seat_id`
+	default:
+		return "n/a (no seat rows)"
+	}
+	rows, err := q.Query(ctx, sql, b.Event.ID, b.Seats)
 	if err != nil {
 		return "error: " + err.Error()
 	}
@@ -1137,5 +1221,5 @@ func (s *Seller) seatStates(ctx context.Context, q ports.Queryer, b Block, holdI
 		}
 		parts = append(parts, fmt.Sprintf("%d %s %s valid=%v", seat, status, mine, valid))
 	}
-	return fmt.Sprintf("[%s] at now() %s, backend pid %d", strings.Join(parts, "; "), at.Format(time.RFC3339Nano), pid)
+	return fmt.Sprintf("[%s] (%d rows for %d seats) at now() %s, backend pid %d", strings.Join(parts, "; "), len(parts), len(b.Seats), at.Format(time.RFC3339Nano), pid)
 }

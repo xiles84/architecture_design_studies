@@ -58,11 +58,12 @@ var pairs = []pair{
 	{"s1_conditional_update", "l1_claim_rows", "Pre-created per-event seat rows, or claims created on hold?"},
 	{"s1_conditional_update", "l2_section_document", "Seat rows, or an embedded section document?"},
 	{"s1_conditional_update", "l3_section_sharded", "(YugabyteDB) all of an event's seats on one tablet, or spread by section?"},
+	{"s1_conditional_update", "s1r_confirm_retry", "Does retrying a short confirmation once remove transient refusals, and what does it cost?"},
 }
 
 // noiseDesigns read q05/q06 through byte-identical SQL over identical tables.
 var noiseDesigns = []string{"s0_check_then_hold_rc", "s1_conditional_update", "s2_lock_then_update", "s3_lock_nowait",
-	"s4_check_then_hold_serializable", "e0_app_clock_expiry", "e1_sweeper_expiry", "k0_naive_confirm", "k1_payment_window", "l2_section_document"}
+	"s4_check_then_hold_serializable", "e0_app_clock_expiry", "e1_sweeper_expiry", "k0_naive_confirm", "k1_payment_window", "l2_section_document", "s1r_confirm_retry"}
 
 type report struct {
 	dir   string
@@ -153,6 +154,7 @@ func raceOf(r *Run, tier int) *RaceResult {
 	agg.Audit = &Audit{}
 	agg.Events, agg.TimedOut, agg.UnderSold, agg.UnderSoldSeats, agg.Leaked = 0, 0, 0, 0, 0
 	agg.DeferredHolds, agg.DeferredConfirmed, agg.DeferredRefused, agg.Errors = 0, 0, 0, 0
+	agg.ConfirmRetries, agg.ConfirmRetrySuccesses = 0, 0
 	var sps []float64
 	for _, t := range trials {
 		agg.Events += t.Events
@@ -163,6 +165,8 @@ func raceOf(r *Run, tier int) *RaceResult {
 		agg.DeferredHolds += t.DeferredHolds
 		agg.DeferredConfirmed += t.DeferredConfirmed
 		agg.DeferredRefused += t.DeferredRefused
+		agg.ConfirmRetries += t.ConfirmRetries
+		agg.ConfirmRetrySuccesses += t.ConfirmRetrySuccesses
 		agg.Errors += t.Errors
 		if t.Audit != nil {
 			mergeAudit(agg.Audit, t.Audit)
@@ -206,12 +210,16 @@ func lifecycleOf(r *Run, tier int) *LifecycleResult {
 	sort.Slice(trials, func(i, j int) bool { return trials[i].ConfirmedSeatsPerSec < trials[j].ConfirmedSeatsPerSec })
 	agg := *trials[len(trials)/2]
 	agg.Audit = &Audit{}
-	agg.RejectedLate, agg.RejectedBoundary, agg.RejectedEarly = 0, 0, 0
+	agg.RejectedLate, agg.RejectedBoundary, agg.RejectedEarly, agg.RejectedEarlyTransient = 0, 0, 0, 0
+	agg.ConfirmRetries, agg.ConfirmRetrySuccesses = 0, 0
 	agg.OutageProbed, agg.OutageUnavailable, agg.Leaked, agg.Errors = 0, 0, 0, 0
 	for _, t := range trials {
 		agg.RejectedLate += t.RejectedLate
 		agg.RejectedBoundary += t.RejectedBoundary
 		agg.RejectedEarly += t.RejectedEarly
+		agg.RejectedEarlyTransient += t.RejectedEarlyTransient
+		agg.ConfirmRetries += t.ConfirmRetries
+		agg.ConfirmRetrySuccesses += t.ConfirmRetrySuccesses
 		agg.OutageProbed += t.OutageProbed
 		agg.OutageUnavailable += t.OutageUnavailable
 		agg.Leaked += t.Leaked
@@ -296,13 +304,32 @@ func violationMarks(a *Audit) []string {
 	add(a.Ledger.DoubleSales, "double sales")
 	add(a.Ledger.SalesWithoutHold, "sales without the hold")
 	add(a.Ledger.LateSales, "late sales")
-	add(a.Ledger.RejectedEarly, "early rejections")
+	if a.Ledger.RejectedEarly > 0 {
+		m = append(m, fmt.Sprintf("%d early rejections (%d transient)", a.Ledger.RejectedEarly, a.Ledger.RejectedEarlyTransient))
+	}
 	add(a.DuplicateSeats, "seats with 2+ tickets")
 	add(a.InventoryDrift, "inventory drift")
 	add(a.InvalidSeats, "invalid seats")
 	add(a.PartialHolds, "partial/unknown holds")
 	add(a.TicketMismatches, "ticket mismatches")
 	return m
+}
+
+// earlyCell is "early (transient)" from an audit, or — without one.
+func earlyCell(id string, a *Audit) string {
+	if a == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%d (%s)", a.Ledger.RejectedEarly, transientCell(id, a.Ledger.RejectedEarlyTransient))
+}
+
+// transientCell is the transient part of early rejections, or n/a for designs whose
+// refusal is not a guarded statement (K0 has no guard; L2 checks in the application).
+func transientCell(id string, n int64) string {
+	if id == "k0_naive_confirm" || id == "l2_section_document" {
+		return "n/a"
+	}
+	return fmt.Sprint(n)
 }
 
 func raceCell(rr *RaceResult) string {
@@ -520,20 +547,53 @@ func (rp *report) writeTLDR(b *strings.Builder) {
 	}
 
 	for _, tp := range rp.topos {
-		for _, id := range []string{"s1_conditional_update", "k1_payment_window"} {
+		for _, id := range []string{"s1_conditional_update", "s1r_confirm_retry", "k1_payment_window"} {
 			r := rp.runs[tp][id]
 			if r == nil || len(r.Lifecycle) == 0 {
 				continue
 			}
-			var late, boundary, early, confirmed int64
+			var late, boundary, early, transient, confirmed, retries, retrySold int64
 			for _, x := range r.Lifecycle {
 				late += x.RejectedLate
 				boundary += x.RejectedBoundary
 				early += x.RejectedEarly
+				transient += x.RejectedEarlyTransient
 				confirmed += x.ConfirmedHolds
+				retries += x.ConfirmRetries
+				retrySold += x.ConfirmRetrySuccesses
 			}
-			fmt.Fprintf(b, "- **Refused confirmations, %s, %s** (lifecycle, all tiers): %d late, %d boundary, %d early; %d confirmed.\n",
-				designShort(id), topologyLabel[tp], late, boundary, early, confirmed)
+			extra := ""
+			if id == "s1r_confirm_retry" {
+				extra = fmt.Sprintf("; confirmations retried %d, of which sold %d", retries, retrySold)
+			}
+			fmt.Fprintf(b, "- **Refused confirmations, %s, %s** (lifecycle, all tiers): %d late, %d boundary, %d early (%d transient); %d confirmed%s.\n",
+				designShort(id), topologyLabel[tp], late, boundary, early, transient, confirmed, extra)
+		}
+		// AM-01: early rejections in the race, correct designs only, split by class.
+		var raceEarly []string
+		for _, id := range rp.designsIn(tp) {
+			if d, err := designByID(id); err != nil || d.NegativeControl != "" {
+				continue
+			}
+			var early, transient, retries, retrySold int64
+			for _, x := range rp.runs[tp][id].Races {
+				if x.Audit != nil {
+					early += x.Audit.Ledger.RejectedEarly
+					transient += x.Audit.Ledger.RejectedEarlyTransient
+				}
+				retries += x.ConfirmRetries
+				retrySold += x.ConfirmRetrySuccesses
+			}
+			if early > 0 {
+				raceEarly = append(raceEarly, fmt.Sprintf("%s %d (%d transient)", designShort(id), early, transient))
+			}
+			if id == "s1r_confirm_retry" && len(rp.runs[tp][id].Races) > 0 {
+				fmt.Fprintf(b, "- **S1r confirmation retries, %s** (race, all tiers and trials): %d retried, %d of them sold.\n",
+					topologyLabel[tp], retries, retrySold)
+			}
+		}
+		if len(raceEarly) > 0 {
+			fmt.Fprintf(b, "- **Early rejections in the race, correct designs, %s:** %s.\n", topologyLabel[tp], strings.Join(raceEarly, ", "))
 		}
 		if f, ok, detail := rp.outageFired(tp); ok {
 			_ = f
@@ -782,7 +842,7 @@ func (rp *report) writeGuarantee(b *strings.Builder) {
 	fmt.Fprintf(b, "**early** (G or more before — a violation). Violations are counted by the ledger and the audit.\n")
 	fmt.Fprintf(b, "Release lag is in human minutes.\n\n")
 	for _, tp := range rp.topos {
-		t := md.NewTable("Design", "Tier", "Confirmed seats/s>", "Holds>", "Abandoned>", "Expired at check>", "Refused late / boundary / early>",
+		t := md.NewTable("Design", "Tier", "Confirmed seats/s>", "Holds>", "Abandoned>", "Expired at check>", "Refused late / boundary / early (transient)>",
 			"Outage: unavailable / probed>", "Leaked>", "Release lag p50/p99 (min)>", "Idle held seat-min>", "Violations")
 		for _, id := range rp.designsIn(tp) {
 			for _, tier := range tiers {
@@ -808,7 +868,7 @@ func (rp *report) writeGuarantee(b *strings.Builder) {
 				}
 				t.Row(designShort(id), tierLabel(tier), rate, fmt.Sprint(x.HoldsGranted),
 					fmt.Sprintf("%d+%d", x.AbandonedSilent, x.AbandonedExplicit), expCheck,
-					fmt.Sprintf("%d / %d / %d", x.RejectedLate, x.RejectedBoundary, x.RejectedEarly), outage,
+					fmt.Sprintf("%d / %d / %d (%s)", x.RejectedLate, x.RejectedBoundary, x.RejectedEarly, transientCell(id, x.RejectedEarlyTransient)), outage,
 					fmt.Sprint(x.Leaked), fmt.Sprintf("%.1f / %.1f", x.ReleaseLagHumanMin.P50MS, x.ReleaseLagHumanMin.P99MS),
 					fmt.Sprintf("%.0f", x.IdleHeldSeatHumanMin), viol)
 			}
@@ -834,7 +894,7 @@ func (rp *report) writeRace(b *strings.Builder) {
 			head = append(head, tierLabel(tier)+">")
 		}
 		t := md.NewTable(head...)
-		d := md.NewTable("Design", "Tier", "Conflicts/hold>", "Map reads/hold>", "Engine retries>", "Gave up>", "Hold p50/p99 ms>", "Confirm p99 ms>", "Deferred ok>", "Final buyer sold>")
+		d := md.NewTable("Design", "Tier", "Conflicts/hold>", "Map reads/hold>", "Engine retries>", "Gave up>", "Hold p50/p99 ms>", "Confirm p99 ms>", "Deferred ok>", "Early rej. (transient)>", "Confirm retries run / sold>", "Final buyer sold>")
 		for _, id := range rp.designsIn(tp) {
 			row := []string{designShort(id)}
 			for _, tier := range tiers {
@@ -843,7 +903,9 @@ func (rp *report) writeRace(b *strings.Builder) {
 				if rr != nil {
 					d.Row(designShort(id), tierLabel(tier), fmt.Sprintf("%.2f", rr.ConflictsPerHold), fmt.Sprintf("%.2f", rr.MapReadsPerHold),
 						fmt.Sprint(rr.EngineRetries), fmt.Sprint(rr.GaveUp), md.MS(rr.HoldLatency.P50MS)+" / "+md.MS(rr.HoldLatency.P99MS),
-						md.MS(rr.ConfirmLatency.P99MS), fmt.Sprintf("%d/%d", rr.DeferredConfirmed, rr.DeferredHolds), fmt.Sprint(rr.SweepSold))
+						md.MS(rr.ConfirmLatency.P99MS), fmt.Sprintf("%d/%d", rr.DeferredConfirmed, rr.DeferredHolds),
+						earlyCell(id, rr.Audit),
+						fmt.Sprintf("%d / %d", rr.ConfirmRetries, rr.ConfirmRetrySuccesses), fmt.Sprint(rr.SweepSold))
 				}
 			}
 			t.Row(row...)
@@ -1019,9 +1081,9 @@ func (rp *report) writePairs(b *strings.Builder) {
 				if xa == nil || xb == nil {
 					continue
 				}
-				t.Row(topologyLabel[tp], "lifecycle, "+tierLabel(tier)+" — refused late/boundary/early; violations",
-					fmt.Sprintf("%d/%d/%d; %d", xa.RejectedLate, xa.RejectedBoundary, xa.RejectedEarly, xa.Audit.Violations()),
-					fmt.Sprintf("%d/%d/%d; %d", xb.RejectedLate, xb.RejectedBoundary, xb.RejectedEarly, xb.Audit.Violations()), "")
+				t.Row(topologyLabel[tp], "lifecycle, "+tierLabel(tier)+" — refused late/boundary/early (transient); violations",
+					fmt.Sprintf("%d/%d/%d (%d); %d", xa.RejectedLate, xa.RejectedBoundary, xa.RejectedEarly, xa.RejectedEarlyTransient, xa.Audit.Violations()),
+					fmt.Sprintf("%d/%d/%d (%d); %d", xb.RejectedLate, xb.RejectedBoundary, xb.RejectedEarly, xb.RejectedEarlyTransient, xb.Audit.Violations()), "")
 			}
 			for _, op := range []string{"hold", "release", "cancel"} {
 				wa, wb := writeOf(ra, op, 0), writeOf(rb, op, 0)

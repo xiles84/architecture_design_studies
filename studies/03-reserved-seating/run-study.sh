@@ -75,7 +75,7 @@ ENVIRONMENT="${BENCH_ENVIRONMENT:-host-zenbook-ux5406sa}"
 OUT="$STUDY_DIR/results/$RUN_ID"
 mkdir -p "$OUT"
 
-ALL_DESIGNS="s0_check_then_hold_rc s1_conditional_update s2_lock_then_update s3_lock_nowait s4_check_then_hold_serializable e0_app_clock_expiry e1_sweeper_expiry e2_cart_expiry k0_naive_confirm k1_payment_window l1_claim_rows l2_section_document l3_section_sharded"
+ALL_DESIGNS="s0_check_then_hold_rc s1_conditional_update s1r_confirm_retry s2_lock_then_update s3_lock_nowait s4_check_then_hold_serializable e0_app_clock_expiry e1_sweeper_expiry e2_cart_expiry k0_naive_confirm k1_payment_window l1_claim_rows l2_section_document l3_section_sharded"
 
 # ---------------------------------------------------------------------------
 # Repository version. "Dirty" means uncommitted changes in the code that can

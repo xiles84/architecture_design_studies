@@ -58,6 +58,12 @@ type LifecycleResult struct {
 	RejectedLate      int64  `json:"rejected_late"`
 	RejectedBoundary  int64  `json:"rejected_boundary"`
 	RejectedEarly     int64  `json:"rejected_early"`
+	// RejectedEarlyTransient: the part of RejectedEarly the ledger classed transient (AM-01.1).
+	RejectedEarlyTransient int64 `json:"rejected_early_transient"`
+	// S1r only (AM-01.3): confirmations run a second time after a short match, and
+	// how many of those sold.
+	ConfirmRetries        int64 `json:"confirm_retries"`
+	ConfirmRetrySuccesses int64 `json:"confirm_retry_successes"`
 	EngineRetries     int64  `json:"engine_retries"`
 	Errors            int64  `json:"errors"`
 	FirstError        string `json:"first_error,omitempty"`
@@ -84,6 +90,7 @@ type lcOne struct {
 	customers, holds, conflicts, noBlock, abSilent, abExplicit atomic.Int64
 	expCheck, expCheckout, payments, confHolds, confSeats      atomic.Int64
 	late, boundary, early, retries, errs, swept                atomic.Int64
+	confRetries, confRetrySold                                 atomic.Int64
 	idleMicroHuman                                             atomic.Int64
 	outageProbed, outageUnavailable, leakProbed, leaked        int64
 	holdL, confL, coL, lagL                                    []time.Duration
@@ -134,6 +141,8 @@ func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Da
 			res.RejectedLate += one.late.Load()
 			res.RejectedBoundary += one.boundary.Load()
 			res.RejectedEarly += one.early.Load()
+			res.ConfirmRetries += one.confRetries.Load()
+			res.ConfirmRetrySuccesses += one.confRetrySold.Load()
 			res.EngineRetries += one.retries.Load()
 			res.Errors += one.errs.Load()
 			res.SweptSeats += one.swept.Load()
@@ -171,6 +180,7 @@ func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Da
 			return nil, err
 		}
 		res.Audit = au
+		res.RejectedEarlyTransient = au.Ledger.RejectedEarlyTransient
 		status := "ok"
 		if au.Violations() > 0 {
 			status = "VIOLATIONS"
@@ -178,9 +188,10 @@ func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Da
 		if res.Leaked > 0 {
 			status += fmt.Sprintf(", LEAKED %d seats", res.Leaked)
 		}
-		fmt.Printf("    lifecycle %5d seats x%-3d %7.1f confirmed seats/s  holds=%d abandoned=%d+%d expired@check=%d rejected late/boundary/early=%d/%d/%d  outage unavailable=%d/%d  leaked=%d errors=%d  %s\n",
+		fmt.Printf("    lifecycle %5d seats x%-3d %7.1f confirmed seats/s  holds=%d abandoned=%d+%d expired@check=%d rejected late/boundary/early(transient)=%d/%d/%d(%d)  confirm retries sold/run=%d/%d  outage unavailable=%d/%d  leaked=%d errors=%d  %s\n",
 			tier, res.Events, res.ConfirmedSeatsPerSec, res.HoldsGranted, res.AbandonedSilent, res.AbandonedExplicit,
-			res.ExpiredAtCheck, res.RejectedLate, res.RejectedBoundary, res.RejectedEarly, res.OutageUnavailable,
+			res.ExpiredAtCheck, res.RejectedLate, res.RejectedBoundary, res.RejectedEarly, res.RejectedEarlyTransient,
+			res.ConfirmRetrySuccesses, res.ConfirmRetries, res.OutageUnavailable,
 			res.OutageProbed, res.Leaked, res.Errors, status)
 		fmt.Printf("      audit: %s\n", au)
 		if res.FirstError != "" {
@@ -329,6 +340,12 @@ func lifecycleEvent(ctx context.Context, sl *Seller, d Design, ev *Event, s Sett
 				var cr ConfirmResult
 				buyer.do(func() { cr, err = sl.Confirm(ctx, buyer.node, blk, hold, cust) })
 				one.retries.Add(int64(cr.Retries))
+				if cr.ShortRetried {
+					one.confRetries.Add(1)
+				}
+				if cr.RetrySold {
+					one.confRetrySold.Add(1)
+				}
 				if err != nil {
 					recordErr(err)
 					continue

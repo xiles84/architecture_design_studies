@@ -65,9 +65,9 @@ func (a *Audit) String() string {
 		return fmt.Sprintf("consistent (%d events, %d tickets; rejections late=%d boundary=%d)",
 			a.Events, a.Tickets, a.Ledger.RejectedLate, a.Ledger.RejectedBoundary)
 	}
-	return fmt.Sprintf("VIOLATIONS — thefts %d, grants on sold seats %d, double sales %d, sales without the hold %d, late sales %d, early rejections %d, duplicate seats %d, inventory drift %d, invalid seats %d, partial holds %d, ticket mismatches %d",
+	return fmt.Sprintf("VIOLATIONS — thefts %d, grants on sold seats %d, double sales %d, sales without the hold %d, late sales %d, early rejections %d (transient %d), duplicate seats %d, inventory drift %d, invalid seats %d, partial holds %d, ticket mismatches %d",
 		a.Ledger.Thefts, a.Ledger.SoldSeatGrants, a.Ledger.DoubleSales, a.Ledger.SalesWithoutHold, a.Ledger.LateSales,
-		a.Ledger.RejectedEarly, a.DuplicateSeats, a.InventoryDrift, a.InvalidSeats, a.PartialHolds, a.TicketMismatches)
+		a.Ledger.RejectedEarly, a.Ledger.RejectedEarlyTransient, a.DuplicateSeats, a.InventoryDrift, a.InvalidSeats, a.PartialHolds, a.TicketMismatches)
 }
 
 func (a *Audit) example(x Example) {
