@@ -28,3 +28,26 @@
 Append observed commands, outcomes, UTC timestamps, actual model/tool and known effort,
 source/candidate revisions, commits and tag targets. Keep planning history above intact.
 Record partial completion and restart points; do not claim an intended merge occurred.
+
+### LOW iteration 1 — 2026-09-14
+
+- Executor: GPT-5 via Codex desktop, user-selected LOW role; exact effort not exposed.
+- Rechecked task branch `study-01/measurement-enhancements` at
+  `32aec5683a13cd0a220eb0a7e78e68d43bd3b983`, reviewed main
+  `025b72f184434a256c106f21bf78edefb5641c2d`, clean worktrees, no containers and no
+  pre-existing benchmark lock. Acquired the mapped short integration lock; its holder
+  and worktree matched EH-01 throughout the first fast-forward.
+- Preservation checks passed: Study 01/infrastructure equal the HIGH-reviewed `0efd760`
+  baseline; incoming Study 02/03/platform equal `025b72f`; policy/infrastructure
+  whitespace check passed; no unresolved conflicts.
+- Verified producing run tags and report inputs-digest/index rows:
+  `20260913T124917Z-v3` → `41a1490` / `d2d1cc8380b381f2`,
+  `20260913T125342Z-v3` → `c084c73` / `0bc5900a6d7a5d3a`,
+  `20260913T172624Z-v3` → `9b7aa48` / `bd95d304cb39e2de`, and
+  `20260914T104721Z-v3` → `d1b18bf` / `9ead901cb74c4183`.
+- Fast-forwarded local `main` to `32aec56`. No main drift, source interaction,
+  failed preservation check, tag conflict or other unmapped decision occurred.
+- The closeout receipt/context commit and integrated tags are the remaining mapped
+  mechanical steps. No database benchmark, image build or report regeneration ran.
+
+**Next: HIGH model / high effort — review the execution evidence after closeout.**

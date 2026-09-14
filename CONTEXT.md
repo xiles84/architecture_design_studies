@@ -61,7 +61,8 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
 | `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
 | `repo/study-comparison-minimums` | future-study requirements for calculated sizing, information placement, data colocation and concurrency strategies |
-| `repo/worktree-to-main-workflow` (planned) | EH-01 assigns creation on the final integrated commit; every task uses an isolated worktree and merges into local main |
+| `repo/worktree-to-main-workflow` | integrated task workflow: every task uses an isolated worktree and merges completed changes into local main |
+| `study-01/v3-integrated` | integrated Study 01 v3 local enhancements, final analysis and discussion companions |
 | `repo/study01-integration-handoff-v1` | HIGH planning checkpoint for the LOW integration steps and subsequent HIGH review |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
@@ -96,15 +97,19 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**Execution Handoff ready, 2026-09-14 — next LOW:** the HIGH planning pass incorporated
-local `main` at `025b72f` into `study-01/measurement-enhancements` (reviewed integration
-`e3e31bc`). Study 03's diagnostic is finished; its separate ER-02 remains open. Live
-checks found both worktrees clean and no benchmark containers/lock, but LOW must recheck.
-The [Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md) maps final
-verification, fast-forward into `main`, context updates and annotated integrated tags.
-Its [progress](docs/handoffs/20260914-study01-integration/PROGRESS.md) and
-[escalations](docs/handoffs/20260914-study01-integration/ESCALATIONS.md) keep the iterations
-traceable. The task is not yet merged; the model switch is a checkpoint, not completion.
+**LOW execution complete, 2026-09-14 — next HIGH:** the HIGH planning pass incorporated
+local `main` at `025b72f` into `study-01/measurement-enhancements` and published EH-01
+at checkpoint `32aec56`. LOW repeated the mapped preflight: both worktrees were clean,
+no benchmark container was running, the task held the short integration lock, all four
+run tags resolved to their producing commits and the generated report digests/indexes
+matched. It fast-forwarded `main` to `32aec56`. The pending closeout commit records the
+final integration receipt; `repo/worktree-to-main-workflow` and `study-01/v3-integrated`
+will tag that verified closeout state after its fast-forward. The
+[Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md),
+[progress](docs/handoffs/20260914-study01-integration/PROGRESS.md),
+[execution receipt](docs/handoffs/20260914-study01-integration/EXECUTION_RESULT.md) and
+[escalation log](docs/handoffs/20260914-study01-integration/ESCALATIONS.md) preserve the
+iteration. Study 03's ER-02 remains an independent open HIGH decision.
 
 ## Model roles for every study
 
@@ -114,9 +119,9 @@ its mapped steps, unmapped decisions become Escalation Required, and HIGH valida
 analyses. Each iteration names the next model level and any agreed effort. Routine
 waiting remains LOW work. No automatic model change is implied.
 
-Current task: HIGH = the user's high-level model/effort (this planning pass is GPT-6
-via Codex; exact selected effort is not exposed); next LOW = the user's lower model
-with low effort, following the linked handoff. Final evidence review returns to HIGH.
+Current task: HIGH = the user's high-level model/effort (the planning pass was GPT-6
+via Codex; exact selected effort was not exposed); LOW = GPT-5 via Codex desktop under
+the user-selected low role (exact effort not exposed). LOW completed EH-01; final evidence
 Study 03's existing model/effort mapping below remains specific to that study.
 
 ## What this project is
