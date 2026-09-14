@@ -154,3 +154,42 @@ follow-up, not a blocker.
 
 **Work continuing meanwhile:** yb-cluster3 dev checks (§10.3 subset), rendering diagrams,
 README and PROGRESS updates. No `small` run is started.
+
+## ER-01 addendum — yb-cluster3 dev check (new evidence, same question)
+
+- raised_by: claude-opus-5, setting `high`, Claude Code desktop (executor session)
+- raised_at: 2026-09-14 16:35 UTC
+- relates_to: ER-01 (this is not a separate decision; it adds evidence for it)
+
+`results/devchecks/dc11-yb3-subset` (tiny, YugabyteDB 3 nodes RF=3, connections spread over all
+three nodes, commit `d7bb6c3`), race phase, refused confirmations of holds with at least G
+left:
+
+| Design | Race early rejections | Note |
+|---|---:|---|
+| S1 conditional-update | 3 | 1 000- and 10 000-seat races |
+| K1 payment-window | 6 | 100-, 1 000- and 10 000-seat races |
+| L3 section-sharded | 7 | 100-, 1 000- and 10 000-seat races |
+| L1 claim-rows | 7 | the upsert layout: `UPDATE seat_claim ... WHERE hold_id AND expires_at > now()` |
+| E1 sweeper-expiry | 12 | 10-, 1 000- and 10 000-seat races |
+| L2 section-document | **0** | its check runs in the application on a read, then a version compare-and-set |
+| K0 naive-confirm (control) | **0** | its confirmation filters on seat ids only, not on hold, status or expiry |
+| E0 (control) | 12 | |
+| S0 (control) | 152 | theft, as designed |
+
+The per-occurrence evidence has the same shape as on one node. For example, S-family: "matched 0 of
+6 seats (seat ids [480 ... 485]) ... re-read inside the refusing transaction: [480 held this
+hold valid=true; ... 485 held this hold valid=true]". The lifecycle of every correct design had
+no early rejection on the cluster.
+
+Two facts that may help the decision:
+
+1. **The class is wider than seat-row designs.** L1's claim table shows it too. The designs
+   whose refusing statement does not filter on the hold's own just-written columns (K0 by seat
+   id only, L2 by application-side check plus version) show none, in 8 races each.
+2. **It is more frequent on three nodes** (every tier from 100 seats) than on one (10 000-seat
+   races, one 1 000-seat case).
+
+Everything else on yb-cluster3 met §10.3: every gate 51/51. The controls fired: S0 in the
+race and the lifecycle, E0 in the lifecycle, K0 in the lifecycle (6 late sales, 5 sales
+without the hold), and the E1 outage probe (3 of 3 unavailable on both tiers).
