@@ -22,7 +22,8 @@ Each run pins the benchmark image ID, commits, resource condition, preparation a
 The constrained growth condition uses medium/history-multiplier=2. A matched standard
 3 GiB run with that same dataset and mutation sequence is required to attribute a
 change to the memory configuration: the ordinary medium/multiplier=1 condition alone
-changes both the dataset and the budget. This control follows the main matrix.
+changes both the dataset and the budget. The `memory-control` group repeats both
+budgets in one run, following the main matrix, to reduce cross-session confounding.
 
 Generated reports contain measurements only. New final analyses are concise and link
 to signed `reports/discussions/` documents for design mechanisms and analyst exchanges.

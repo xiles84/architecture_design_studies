@@ -152,9 +152,11 @@ All six constrained-memory cells completed their nine growth phases with no gate
 failures. A follow-up control is needed before interpreting the D6/D3 donor-read
 difference as a memory effect: repeat medium/history-multiplier=2 at the standard
 3 GiB budget (the current standard medium condition uses multiplier=1). Queue this
-after this completed matrix. A reporting-only edit to expose growth read rates,
-arrival retries/counts and audits is pending container validation. The completed
-matrix used its original pinned image throughout.
+after this completed matrix, repeating both budgets in the same new run. Reporting
+now exposes growth read rates, arrival retries/counts and audits; containerized race
+tests, vet and shell syntax checks passed on 2026-09-14. See the tooling report
+`reports/20260914-v3-report-validation.md`. The completed matrix used its original
+pinned image throughout.
 
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`

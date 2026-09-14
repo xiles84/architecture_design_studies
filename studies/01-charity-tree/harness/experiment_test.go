@@ -111,3 +111,23 @@ func TestLongHistoryGenerationIsDeterministic(t *testing.T) {
 		}
 	}
 }
+
+func TestExperimentReportDoesNotPresentDocDBSizeAsZeroBytes(t *testing.T) {
+	dir := t.TempDir()
+	results := filepath.Join(dir, "results")
+	report := filepath.Join(dir, "reports", "test.md")
+	r := &Run{RunID: "test", Environment: "test-env", Engine: "yugabyte", Topology: "yb-single", DesignID: "d3_flattened_fk", Verify: &VerifyReport{Passed: 14}, Stats: &DBStats{}, Dataset: map[string]any{"people": 5000, "donations": 108081}, Experiment: &ExperimentResult{Settings: ExperimentOptions{Trial: 1, Condition: "same", Mode: "verify"}, Keys: map[string]int64{}}}
+	if err := writeJSON(filepath.Join(results, "trial.json"), r); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeEnhancementReport(results, report); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "DocDB physical storage bytes were not collected") || !strings.Contains(string(b), "| 5000 | 108081 | unavailable |") {
+		t.Fatalf("missing storage became a measured zero: %s", b)
+	}
+}

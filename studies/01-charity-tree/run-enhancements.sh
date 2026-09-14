@@ -6,7 +6,7 @@ STUDY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$STUDY_DIR/../.." && pwd)"
 source "$REPO/infra/lib.sh"
 [[ "${1:-}" == enhancements ]] && shift
-EXPERIMENTS="reads,mechanisms,growth,contention,exceptions,deployment"
+EXPERIMENTS="reads,mechanisms,growth,memory-control,contention,exceptions,deployment"
 TRIALS=5
 DURATION=3s
 WARMUP=1s
@@ -26,10 +26,13 @@ done
 [[ "$RUN_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || die "unsafe run id"
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"
 for suite in ${EXPERIMENTS//,/ }; do
-  case "$suite" in verify|reads|mechanisms|growth|contention|exceptions|deployment) ;; *) die "unknown experiment $suite" ;; esac
+  case "$suite" in verify|reads|mechanisms|growth|memory-control|contention|exceptions|deployment) ;; *) die "unknown experiment $suite" ;; esac
 done
 need_podman
 run_lock_acquire "study-01 v3 $RUN_ID ($EXPERIMENTS)"
+# Preflight/build failures must release our lock before the database cleanup trap
+# is installed below. No database has been started at this point.
+trap run_lock_release EXIT
 for c in pg-single yb-single yb-n1 yb-n2 yb-n3; do
   container_exists "$c" && die "container $c already exists; refusing to alter another run"
 done
@@ -107,6 +110,12 @@ for ((t=1;t<=TRIALS;t++)); do
       cell pg-single standard medium-growth "$d" growth medium "$t" 1 "-cycles 3 -batch 1000 -duration 1s"
       cell pg-single standard long-history "$d" growth small "$t" 1 "-history-multiplier 8 -cycles 3 -batch 1000 -duration 1s"
       cell pg-single constrained memory-growth "$d" growth medium "$t" 1 "-history-multiplier 2 -cycles 3 -batch 1000 -duration 1s"
+    done
+  fi
+  if enabled memory-control; then
+    for d in $(ordered "$t" d3_flattened_fk d6_embedded_jsonb); do
+      cell pg-single constrained memory-pressure-control "$d" growth medium "$t" 1 "-history-multiplier 2 -cycles 3 -batch 1000 -duration 1s"
+      cell pg-single standard memory-control "$d" growth medium "$t" 1 "-history-multiplier 2 -cycles 3 -batch 1000 -duration 1s"
     done
   fi
   if enabled contention; then

@@ -167,6 +167,9 @@ func writeEnhancementReport(dir, outPath string) error {
 		o := r.Experiment.Settings
 		fmt.Fprintf(&b, "\n## %s\n\n", key)
 		fmt.Fprintf(&b, "Preparation `%s`; scale `%s`; history multiplier %d; largest charity %d, smallest %d; database memory limit %d bytes.\n\n", o.Preparation, r.Scale, o.HistoryMultiplier, r.Experiment.Keys["largest"], r.Experiment.Keys["smallest"], o.DBMemoryBytes)
+		if r.Engine == "yugabyte" {
+			b.WriteString("DocDB physical storage bytes were not collected for these experiment cells.\n\n")
+		}
 		fmt.Fprintf(&b, "| Trial | Order | Gate | Donors | Donations | Initial relation bytes | Source |\n|---|---:|---|---:|---:|---:|---|\n")
 		metrics := map[string][]float64{}
 		durations := map[string][]float64{}
@@ -179,11 +182,11 @@ func writeEnhancementReport(dir, outPath string) error {
 				status = "FAILED / diagnostic"
 			}
 			rel, _ := filepath.Rel(filepath.Dir(outPath), f.Path)
-			size := int64(0)
-			if r.Stats != nil {
-				size = r.Stats.TotalBytes
+			size := "unavailable"
+			if r.Stats != nil && r.Engine != "yugabyte" {
+				size = fmt.Sprint(r.Stats.TotalBytes)
 			}
-			fmt.Fprintf(&b, "| %d | %d | %s | %v | %v | %d | [JSON](%s) |\n", r.Experiment.Settings.Trial, r.Experiment.Settings.Order, status, r.Dataset["people"], r.Dataset["donations"], size, filepath.ToSlash(rel))
+			fmt.Fprintf(&b, "| %d | %d | %s | %v | %v | %s | [JSON](%s) |\n", r.Experiment.Settings.Trial, r.Experiment.Settings.Order, status, r.Dataset["people"], r.Dataset["donations"], size, filepath.ToSlash(rel))
 			if !valid {
 				continue
 			}
@@ -220,12 +223,22 @@ func writeEnhancementReport(dir, outPath string) error {
 		for _, f := range fs {
 			r := f.Run
 			if a := r.Experiment.Arrival; a != nil {
-				fmt.Fprintf(&b, "\nTrial %d: offered %d; accepted %d; completed %d; rejected %d; write errors %d; read errors %d; warmup errors %d; reconciled %t.\n", r.Experiment.Settings.Trial, a.Offered, a.Accepted, a.Completed, a.Dropped, a.Errors, a.ReadErrors, a.WarmupErrors, a.Reconciled)
+				fmt.Fprintf(&b, "\nTrial %d: offered %d; accepted %d; completed %d; rejected %d; write errors %d; read errors %d; warmup errors %d; retries %d; reconciled %t.\n", r.Experiment.Settings.Trial, a.Offered, a.Accepted, a.Completed, a.Dropped, a.Errors, a.ReadErrors, a.WarmupErrors, a.Retries, a.Reconciled)
 				fmt.Fprintf(&b, "Offered %.0f/s, %d fixed readers, %d writers, hot probability %.2f, hot donors %d. %.2f completed/s including drain, %.2f reads/s. Window %.2fs, including drain %.2fs.\n", o.ArrivalRate, o.ReadWorkers, o.WriteWorkers, o.HotProbability, o.HotDonors, a.CompletedPerSec, a.ReadsPerSec, a.WindowS, a.ElapsedS)
 				fmt.Fprintf(&b, "Successful-request p99: service %.3fms; scheduled response %.3fms; queue delay %.3fms. Scheduler lag p99 %.3fms; successful samples %d.\n", a.Service.P99MS, a.Response.P99MS, a.QueueDelay.P99MS, a.SchedulerLag.P99MS, a.Service.Count)
+				fmt.Fprintf(&b, "Donation count: initial %d; warmup acknowledged %d; final %d.\n", a.InitialDonations, a.WarmupCompleted, a.FinalDonations)
+				if a.FirstError != "" {
+					fmt.Fprintf(&b, "First write error: %s\n", strings.Join(strings.Fields(a.FirstError), " "))
+				}
+				if a.WarmupAudit != nil {
+					fmt.Fprintf(&b, "Warmup audit: %d mismatches (cache %d).\n", auditBad(a.WarmupAudit), a.WarmupAudit.CacheMismatches)
+				}
+			}
+			if r.Audit != nil && r.Audit.Ran {
+				fmt.Fprintf(&b, "\nTrial %d post-write audit: %d mismatches (person %d, charity %d, cache %d).\n", r.Experiment.Settings.Trial, auditBad(r.Audit), r.Audit.PersonMismatches, r.Audit.CharityMismatches, r.Audit.CacheMismatches)
 			}
 			if len(r.Experiment.Growth) > 0 {
-				fmt.Fprintf(&b, "\nTrial %d growth (sequential mutations, concurrent reads measured after each phase):\n\n| Cycle | Operation | Count | Seconds | Ops/s | Relation bytes | Verification failures |\n|---|---|---:|---:|---:|---:|---:|\n", r.Experiment.Settings.Trial)
+				fmt.Fprintf(&b, "\nTrial %d growth (sequential mutations; q07/q08/q09 reads use concurrent workers after each phase, never overlap mutations):\n\n| Cycle | Operation | Count | Seconds | Ops/s | Relation bytes | Verification failures | q07 reads/s | q08 reads/s | q09 reads/s |\n|---|---|---:|---:|---:|---:|---:|---:|---:|---:|\n", r.Experiment.Settings.Trial)
 				for _, p := range r.Experiment.Growth {
 					bytes := int64(0)
 					if p.Stats != nil {
@@ -235,7 +248,22 @@ func writeEnhancementReport(dir, outPath string) error {
 					if p.Verify != nil {
 						bad = p.Verify.Failed
 					}
-					fmt.Fprintf(&b, "| %d | %s | %d | %.3f | %.2f | %d | %d |\n", p.Cycle, p.Operation, p.Operations, p.DurationS, p.OpsPerSec, bytes, bad)
+					// Missing or failed reads stay visibly unavailable, never become zero throughput.
+					reads := map[string]string{}
+					for _, q := range p.Reads {
+						if q.Errors == 0 && q.Ops > 0 {
+							reads[q.Query] = fmt.Sprintf("%.2f", q.OpsPerSec)
+						}
+					}
+					values := []string{}
+					for _, name := range []string{"q07_total_donated_global", "q08_total_donated_charity", "q09_person_recent_donations"} {
+						v := reads[name]
+						if v == "" {
+							v = "unavailable / failed"
+						}
+						values = append(values, v)
+					}
+					fmt.Fprintf(&b, "| %d | %s | %d | %.3f | %.2f | %d | %d | %s |\n", p.Cycle, p.Operation, p.Operations, p.DurationS, p.OpsPerSec, bytes, bad, strings.Join(values, " | "))
 				}
 			}
 		}

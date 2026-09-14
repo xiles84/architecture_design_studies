@@ -14,6 +14,7 @@ and FK follow-ups, and an equal-total-resource comparison. Use Git Bash on Windo
 ./run-study.sh --suite enhancements --experiments verify --trials 1 --tag
 ./run-study.sh --suite enhancements --experiments reads,mechanisms --trials 5 --tag
 ./run-study.sh --suite enhancements --experiments growth,contention,exceptions,deployment --trials 3 --tag
+./run-study.sh --suite enhancements --experiments memory-control --trials 3 --tag
 ```
 
 Each command uses the machine-wide benchmark lock, pins an immutable image ID, records
@@ -21,6 +22,8 @@ the committed source and creates a run tag. Database containers must not already
 The default full suite is long; each group can run separately. Read trials use 8 workers,
 3 s per query after 1 s discarded warmup; longer write and arrival windows are explicit
 in `results/<run>/ordered-cells.tsv`. Every reported trial reloads from the same seed.
+The memory-control group repeats D3/D6 at both 256 MiB and 3 GiB, holding the
+medium/history-multiplier=2 dataset and all mutation counts fixed.
 
 The generated `reports/<run>.md` keeps all trials. Signed final analyses remain concise;
 SQL/plan explanations and exchanges between analysts go in `reports/discussions/`.
