@@ -158,6 +158,12 @@ tests, vet and shell syntax checks passed on 2026-09-14. See the tooling report
 `reports/20260914-v3-report-validation.md`. The completed matrix used its original
 pinned image throughout.
 
+**Running — do not start databases:** matched memory controls
+`20260914T104721Z-v3`, run tag `run/01-charity-tree/20260914T104721Z-v3`, source
+`d1b18bf`. Twelve cells: D3/D6 × 256 MiB/3 GiB × three fresh-load trials, with
+identical medium/history-multiplier=2 data and nine mutation phases. The runner
+holds `ads-run-lock`; no further database work may start until it releases the lock.
+
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
