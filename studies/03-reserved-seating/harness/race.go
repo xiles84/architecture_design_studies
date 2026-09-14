@@ -41,21 +41,21 @@ type RaceResult struct {
 	EventsPlanned int `json:"events_planned"`
 	Buyers        int `json:"buyers"`
 
-	Seats           int64 `json:"seats"`
-	Sold            int64 `json:"sold"`
-	Customers       int64 `json:"customers"`
-	HoldsGranted    int64 `json:"holds_granted"`
-	SeatsGranted    int64 `json:"seats_granted"`
-	HoldAttempts    int64 `json:"hold_attempts"`
-	Conflicts       int64 `json:"conflicts"`
-	MapReads        int64 `json:"map_reads"`
-	SectionReads    int64 `json:"section_reads"`
-	EngineRetries   int64 `json:"engine_retries"`
-	GaveUp          int64 `json:"gave_up"`
-	NoBlock         int64 `json:"no_block"`
-	Errors          int64 `json:"errors"`
+	Seats           int64  `json:"seats"`
+	Sold            int64  `json:"sold"`
+	Customers       int64  `json:"customers"`
+	HoldsGranted    int64  `json:"holds_granted"`
+	SeatsGranted    int64  `json:"seats_granted"`
+	HoldAttempts    int64  `json:"hold_attempts"`
+	Conflicts       int64  `json:"conflicts"`
+	MapReads        int64  `json:"map_reads"`
+	SectionReads    int64  `json:"section_reads"`
+	EngineRetries   int64  `json:"engine_retries"`
+	GaveUp          int64  `json:"gave_up"`
+	NoBlock         int64  `json:"no_block"`
+	Errors          int64  `json:"errors"`
 	FirstError      string `json:"first_error,omitempty"`
-	ImmediateFailed int64 `json:"immediate_confirms_refused"`
+	ImmediateFailed int64  `json:"immediate_confirms_refused"`
 
 	DeferredHolds     int64 `json:"deferred_holds"`
 	DeferredConfirmed int64 `json:"deferred_confirmed"`
@@ -69,17 +69,17 @@ type RaceResult struct {
 
 	// AllocateS sums, over the tier's events, the time from the gate to the last
 	// hold granted; SeatsPerSec is seats granted over it.
-	AllocateS          float64 `json:"allocate_s"`
-	WallS              float64 `json:"wall_s"`
-	SeatsPerSec        float64 `json:"seats_per_sec"`
-	ConflictsPerHold   float64 `json:"conflicts_per_hold"`
-	MapReadsPerHold    float64 `json:"map_reads_per_hold"`
-	HoldLatency        measure.LatencyStats `json:"hold_latency"`
-	ConfirmLatency     measure.LatencyStats `json:"confirm_latency"`
-	DeferredLatency    measure.LatencyStats `json:"deferred_confirm_latency"`
-	CustomerLatency    measure.LatencyStats `json:"customer_latency"`
-	TimedOut           int     `json:"timed_out_events"`
-	TimedOutSoldPct    float64 `json:"timed_out_sold_pct,omitempty"`
+	AllocateS        float64              `json:"allocate_s"`
+	WallS            float64              `json:"wall_s"`
+	SeatsPerSec      float64              `json:"seats_per_sec"`
+	ConflictsPerHold float64              `json:"conflicts_per_hold"`
+	MapReadsPerHold  float64              `json:"map_reads_per_hold"`
+	HoldLatency      measure.LatencyStats `json:"hold_latency"`
+	ConfirmLatency   measure.LatencyStats `json:"confirm_latency"`
+	DeferredLatency  measure.LatencyStats `json:"deferred_confirm_latency"`
+	CustomerLatency  measure.LatencyStats `json:"customer_latency"`
+	TimedOut         int                  `json:"timed_out_events"`
+	TimedOutSoldPct  float64              `json:"timed_out_sold_pct,omitempty"`
 
 	Audit *Audit `json:"audit,omitempty"`
 

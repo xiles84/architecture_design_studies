@@ -658,7 +658,7 @@ func (rp *report) writeSetup(b *strings.Builder, ref *Run) {
 	t.Row("Scale", fmt.Sprintf("`%s` — %v venues, %v events, %v tickets sold, %v live and %v expired holds at load",
 		ref.Scale, ref.Dataset["venues"], ref.Dataset["events"], ref.Dataset["tickets_sold_at_load"],
 		ref.Dataset["live_holds_at_load"], ref.Dataset["expired_holds_at_load"]))
-	t.Row("Events", fmt.Sprint(ref.Dataset["events_by_kind_tier"]))
+	t.Row("Events (kind_seats: count)", eventsLine(ref.Dataset["events_by_kind_tier"]))
 	t.Row("Seed", fmt.Sprintf("%v — identical data in every cell", ref.Dataset["seed"]))
 	o := ref.Options
 	t.Row("Reads / isolated writes", fmt.Sprintf("%v workers, %v measured + %v warmup, %v trial(s)", o["conns"], o["duration"], o["warmup"], o["trials"]))
@@ -1180,4 +1180,22 @@ func firstSentence(s string) string {
 		s = s[:97] + "..."
 	}
 	return s
+}
+
+// eventsLine renders {"race_100": 20, ...} as "race_100: 20 · ...", sorted.
+func eventsLine(v any) string {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return fmt.Sprint(v)
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, len(keys))
+	for i, k := range keys {
+		parts[i] = fmt.Sprintf("%s: %v", k, m[k])
+	}
+	return strings.Join(parts, " · ")
 }

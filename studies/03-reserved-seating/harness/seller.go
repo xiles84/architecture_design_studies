@@ -218,19 +218,18 @@ func (s *Seller) retry(ctx context.Context, retries *int, attempt func() (again 
 			return errAttemptDeadline
 		}
 		again, err := attempt()
-		if err != nil {
-			if s.db.Classify(err) == ports.ErrRetryable {
-				*retries++
-				time.Sleep(time.Duration(rand.Int63n(int64(backoff))) + backoff/2)
-				backoff = min(2*backoff, 50*time.Millisecond)
-				continue
-			}
+		if err != nil && s.db.Classify(err) != ports.ErrRetryable {
 			return err
 		}
-		if !again {
+		if err == nil && !again {
 			return nil
 		}
+		// Engine contention and a lost compare-and-set are the same thing to a buyer:
+		// someone else got there first. Both back off (study 02 retried at once and
+		// its analysis suspected the spin understated the designs that retry most).
 		*retries++
+		time.Sleep(time.Duration(rand.Int63n(int64(backoff))) + backoff/2)
+		backoff = min(2*backoff, 50*time.Millisecond)
 	}
 	return errGaveUp
 }

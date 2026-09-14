@@ -42,54 +42,54 @@ type LifecycleResult struct {
 	Buyers        int     `json:"buyers"`
 	HumanMinuteMS float64 `json:"human_minute_ms"`
 
-	Seats             int64 `json:"seats"`
-	Sold              int64 `json:"sold"`
-	Customers         int64 `json:"customers"`
-	HoldsGranted      int64 `json:"holds_granted"`
-	Conflicts         int64 `json:"conflicts"`
-	NoBlockWaits      int64 `json:"no_block_waits"`
-	AbandonedSilent   int64 `json:"abandoned_silently"`
-	AbandonedExplicit int64 `json:"abandoned_explicitly"`
-	ExpiredAtCheck    int64 `json:"expired_at_precheck"`
-	ExpiredAtCheckout int64 `json:"expired_at_checkout,omitempty"`
-	PaymentsStarted   int64 `json:"payments_started"`
-	ConfirmedHolds    int64 `json:"confirmed_holds"`
-	ConfirmedSeats    int64 `json:"confirmed_seats"`
-	RejectedLate      int64 `json:"rejected_late"`
-	RejectedBoundary  int64 `json:"rejected_boundary"`
-	RejectedEarly     int64 `json:"rejected_early"`
-	EngineRetries     int64 `json:"engine_retries"`
-	Errors            int64 `json:"errors"`
+	Seats             int64  `json:"seats"`
+	Sold              int64  `json:"sold"`
+	Customers         int64  `json:"customers"`
+	HoldsGranted      int64  `json:"holds_granted"`
+	Conflicts         int64  `json:"conflicts"`
+	NoBlockWaits      int64  `json:"no_block_waits"`
+	AbandonedSilent   int64  `json:"abandoned_silently"`
+	AbandonedExplicit int64  `json:"abandoned_explicitly"`
+	ExpiredAtCheck    int64  `json:"expired_at_precheck"`
+	ExpiredAtCheckout int64  `json:"expired_at_checkout,omitempty"`
+	PaymentsStarted   int64  `json:"payments_started"`
+	ConfirmedHolds    int64  `json:"confirmed_holds"`
+	ConfirmedSeats    int64  `json:"confirmed_seats"`
+	RejectedLate      int64  `json:"rejected_late"`
+	RejectedBoundary  int64  `json:"rejected_boundary"`
+	RejectedEarly     int64  `json:"rejected_early"`
+	EngineRetries     int64  `json:"engine_retries"`
+	Errors            int64  `json:"errors"`
 	FirstError        string `json:"first_error,omitempty"`
 
-	SweptSeats            int64                `json:"swept_seats"`
-	ReleaseLagHumanMin    measure.LatencyStats `json:"release_lag_human_min"`
-	OutageEvents          int                  `json:"outage_events"`
-	OutageProbed          int64                `json:"outage_probed"`
-	OutageUnavailable     int64                `json:"outage_unavailable_seats"`
-	LeakProbed            int64                `json:"leak_probed"`
-	Leaked                int64                `json:"leaked_seats"`
-	IdleHeldSeatHumanMin  float64              `json:"idle_held_seat_human_minutes"`
-	TimedOut              int                  `json:"timed_out_events"`
-	WallS                 float64              `json:"wall_s"`
-	ConfirmedSeatsPerSec  float64              `json:"confirmed_seats_per_sec"`
-	HoldLatency           measure.LatencyStats `json:"hold_latency"`
-	ConfirmLatency        measure.LatencyStats `json:"confirm_latency"`
-	CheckoutLatency       measure.LatencyStats `json:"checkout_latency,omitempty"`
+	SweptSeats           int64                `json:"swept_seats"`
+	ReleaseLagHumanMin   measure.LatencyStats `json:"release_lag_human_min"`
+	OutageEvents         int                  `json:"outage_events"`
+	OutageProbed         int64                `json:"outage_probed"`
+	OutageUnavailable    int64                `json:"outage_unavailable_seats"`
+	LeakProbed           int64                `json:"leak_probed"`
+	Leaked               int64                `json:"leaked_seats"`
+	IdleHeldSeatHumanMin float64              `json:"idle_held_seat_human_minutes"`
+	TimedOut             int                  `json:"timed_out_events"`
+	WallS                float64              `json:"wall_s"`
+	ConfirmedSeatsPerSec float64              `json:"confirmed_seats_per_sec"`
+	HoldLatency          measure.LatencyStats `json:"hold_latency"`
+	ConfirmLatency       measure.LatencyStats `json:"confirm_latency"`
+	CheckoutLatency      measure.LatencyStats `json:"checkout_latency,omitempty"`
 
 	Audit *Audit `json:"audit,omitempty"`
 }
 
 type lcOne struct {
-	customers, holds, conflicts, noBlock, abSilent, abExplicit      atomic.Int64
-	expCheck, expCheckout, payments, confHolds, confSeats           atomic.Int64
-	late, boundary, early, retries, errs, swept                     atomic.Int64
-	idleMicroHuman                                                  atomic.Int64
-	outageProbed, outageUnavailable, leakProbed, leaked             int64
-	holdL, confL, coL, lagL                                         []time.Duration
-	firstErr                                                        string
-	timedOut, outage                                                bool
-	wall                                                            time.Duration
+	customers, holds, conflicts, noBlock, abSilent, abExplicit atomic.Int64
+	expCheck, expCheckout, payments, confHolds, confSeats      atomic.Int64
+	late, boundary, early, retries, errs, swept                atomic.Int64
+	idleMicroHuman                                             atomic.Int64
+	outageProbed, outageUnavailable, leakProbed, leaked        int64
+	holdL, confL, coL, lagL                                    []time.Duration
+	firstErr                                                   string
+	timedOut, outage                                           bool
+	wall                                                       time.Duration
 }
 
 func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Dataset, s Settings, trial int) ([]LifecycleResult, error) {
@@ -229,7 +229,11 @@ func lifecycleEvent(ctx context.Context, sl *Seller, d Design, ev *Event, s Sett
 		wg       sync.WaitGroup
 		stop     atomic.Bool
 		sweeping atomic.Bool
-		errOnce  sync.Once
+		// probeDone ends the outage. The outage ends when the probe has run, not at a
+		// wall-clock minute: the first dev check had the sweeper resume on its own tick
+		// and release every expired seat before the probe could look at them.
+		probeDone atomic.Bool
+		errOnce   sync.Once
 	)
 	recordErr := func(err error) {
 		one.errs.Add(1)
@@ -380,7 +384,7 @@ func lifecycleEvent(ctx context.Context, sl *Seller, d Design, ev *Event, s Sett
 			}
 			if one.outage {
 				el := time.Since(start)
-				if el >= h(s.LcOutageFrom) && el < h(s.LcOutageTo) {
+				if el >= h(s.LcOutageFrom) && !probeDone.Load() {
 					continue
 				}
 			}
@@ -396,6 +400,7 @@ func lifecycleEvent(ctx context.Context, sl *Seller, d Design, ev *Event, s Sett
 			probed = true
 			gate.Lock() // every buyer is now between database operations
 			one.outageProbed, one.outageUnavailable = outageProbe(ctx, sl, ev, s)
+			probeDone.Store(true)
 			gate.Unlock()
 		}
 		sold, err := eventSold(ctx, sl.db, d, ev.ID)
