@@ -6,6 +6,11 @@
 
 ## v3 follow-ups
 
+The local follow-ups are complete at `study-01/v3-enhancements`:
+[read the concise final analysis](reports/analyses/20260914-study01-v3--gpt-6--2026-09-14.md),
+then follow the [detailed design and analyst discussions](reports/discussions/README.md).
+Real-network and physical-host failure validation still requires independent hosts.
+
 The [enhancement protocol](ENHANCEMENTS.md) adds independently loaded trials, controlled
 D11–D17 variants, growth cycles, fixed-reader scheduled writes, YugabyteDB correctness
 and FK follow-ups, and an equal-total-resource comparison. Use Git Bash on Windows:

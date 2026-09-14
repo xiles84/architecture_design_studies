@@ -46,6 +46,11 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-01/v1` | study 01 code and reports behind its first analysis (`795420b`) |
 | `study-01/v2-second-analysis` | study 01 with the independent GPT-6 analysis and regenerated reports (`918a90f`) |
 | `study-01/v2-before-enhancements` | study 01 before the v3 follow-ups (GPT-6 session) |
+| `study-01/v3-harness` | seven controlled variants, independent-load runner and initial validation |
+| `study-01/v3-verified` | all new variants pass PostgreSQL and YugabyteDB verification |
+| `study-01/v3-mechanisms` | five-load D2/D3 results, concise analysis and mechanism companion |
+| `study-01/v3-followup-results` | 135-cell growth, contention and deployment result set |
+| `study-01/v3-enhancements` | completed local follow-ups, matched memory control, concise final analysis and signed discussions |
 | `study-02/v1-harness` | study 02 designs, harness and shared platform as first run (`774d258`) |
 | `run/02-ticket-booking/20260913T021206Z` | commit that produced study 02's `small` matrix (`7570648`) |
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
@@ -109,12 +114,12 @@ directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/`
 
 ### Study 01 — tree structures (charity → person → donation)
 
-**v3 enhancement in progress (2026-09-13):** the owner approved all six follow-ups in
+**v3 local enhancements completed (2026-09-14):** the owner approved all six follow-ups in
 GPT-6's "What I would measure next". The protocol is in
 [`ENHANCEMENTS.md`](studies/01-charity-tree/ENHANCEMENTS.md); the before-state is tagged
 `study-01/v2-before-enhancements`. Independently loaded trials, mechanism variants,
-growth/churn, fixed-reader contention, YB exceptions and deployment controls are being
-added without migrating the original harness. Real network separation needs other hosts.
+growth/churn, fixed-reader contention, YB exceptions and deployment controls were
+measured without migrating the original harness. Real network separation needs other hosts.
 
 Implementation is isolated in `.worktrees/study01-v3`, branch
 `study-01/measurement-enhancements` (GPT-6 through Codex). D11–D17 and the separate
@@ -171,6 +176,15 @@ its lock. On the 2026-09-14 continuation, the machine lock belongs to Study 03
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
+
+**Final v3 analysis:** [enhancement conclusions](studies/01-charity-tree/reports/analyses/20260914-study01-v3--gpt-6--2026-09-14.md)
+links four signed [discussion companions](studies/01-charity-tree/reports/discussions/README.md).
+All 261 cells completed across four runs; six expected D9 cache-control failures remain
+invalid for performance conclusions. The final milestone is `study-01/v3-enhancements`;
+source/run tags and digests remain independent of the report/analysis commit. Owner
+merges and pushes branch `study-01/measurement-enhancements` after review.
+The [final artifact validation](studies/01-charity-tree/reports/20260914-v3-artifact-validation.md)
+records provenance/link checks and the preserved editions from report regeneration.
 
 **Earlier v1/v2 baseline:** survey and experiments C/D/E completed; D9's cache bug was
 diagnosed and addressed by D10. Two signed analyses remain preserved for those inputs.

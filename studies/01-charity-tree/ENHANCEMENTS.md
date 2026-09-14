@@ -29,6 +29,20 @@ Generated reports contain measurements only. New final analyses are concise and 
 to signed `reports/discussions/` documents for design mechanisms and analyst exchanges.
 The previous analyses remain intact, attributable to the inputs they actually reviewed.
 
+## Completed local coverage — 2026-09-14
+
+| Run | Coverage | Outcome |
+|---|---|---|
+| [20260913T124917Z-v3](reports/20260913T124917Z-v3.md) | D11–D17 on both engines | 14 cells; all 196 checks passed |
+| [20260913T125342Z-v3](reports/20260913T125342Z-v3.md) | D2/D3 repeats and mechanism controls | 100 cells; all gates passed |
+| [20260913T172624Z-v3](reports/20260913T172624Z-v3.md) | Growth, contention, YB exceptions and local deployment | 135 cells; six expected D9 cache failures, other 129 valid |
+| [20260914T104721Z-v3](reports/20260914T104721Z-v3.md) | Matched memory configurations | 12 cells; all 1,680 initial/post-mutation checks passed |
+
+The [concise final analysis](reports/analyses/20260914-study01-v3--gpt-6--2026-09-14.md)
+and [signed discussions](reports/discussions/README.md) interpret these measurements.
+The local protocol is complete at milestone `study-01/v3-enhancements`; the external
+deployment experiment below remains unmeasured because independent hosts are required.
+
 ## External deployment validation
 
 Real network separation cannot be represented by three containers on this laptop.

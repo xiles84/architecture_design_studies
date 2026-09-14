@@ -2,6 +2,11 @@
 
 Measurements, concise final analyses, and detailed discussion companions live here.
 
+For the completed v3 enhancements, start with the
+[final analysis](analyses/20260914-study01-v3--gpt-6--2026-09-14.md).
+The [discussion index](discussions/README.md) leads to the full mechanisms and responses
+to earlier analysts. Original analyses remain available for their original input sets.
+
 ## Generated reports — `<run-id>.md`
 
 Produced by the harness from a results directory. **Numbers only, no interpretation.**

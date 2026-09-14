@@ -18,6 +18,12 @@ the different dataset. The follow-up repeats multiplier=2 under both configurati
 in one run, with the same seed and mutation counts. Keep the original observations,
 but require this control before attributing the difference to the memory configuration.
 
+The completed matched run `20260914T104721Z-v3` reproduced the reversal in all
+three trials per configuration with identical initial dataset summaries. Budget
+settings also changed D6's allocated footprint despite fixed logical data. Report
+the configuration effect separately from its unproven mechanism, and disclose that
+the resource blocks ran in a fixed order even though design order alternated.
+
 ### Zero operation errors does not mean offered demand was served
 
 The v3 arrival tests can have no SQL errors and exact acknowledgement reconciliation
