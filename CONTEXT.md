@@ -382,11 +382,17 @@ unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS
   Decision: measured and reported as its own class (still an INV-3 violation), plus design S1r
   (retry a short confirmation once) to measure the defence. AM-01 in HANDOFF.md §16.
 
-**The owner's workflow for this study:** plan, escalations and final analysis in Claude
-Opus 5 with the `ultracode` setting ("ultra"). Execution in Claude Opus 5 with the `high`
-setting ("high"). An executor that meets a decision the handoff does not map records
-"Escalation Required" (`ER-NN`) and continues with unblocked work; the ultra session
-decides and, if needed, appends an amendment to the handoff.
+**The owner's workflow** (standard notation from 2026-09-14):
+
+- A **higher** model/effort does the planning that needs thinking power, written as the
+  "Execution Handoff". It also decides every "Escalation Required" (`ER-NN`) and writes the
+  result analysis.
+- A **lower** model/effort executes the handoff. It records any decision the handoff does not
+  map as "Escalation Required", then continues with unblocked work.
+- Every iteration ends by naming the next step's model: higher or lower.
+
+Current mapping: higher = Claude Opus 5, setting `ultracode` (study 03's earlier documents say
+"ultra"); lower = Claude Opus 5, setting `high` (they say "high").
 
 **The question:** buyers choose specific seats and keep them for 40 minutes while they pay,
 and must never find a held seat gone. With marked seats, a unique key already prevents a
