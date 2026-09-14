@@ -504,7 +504,9 @@ study 03's handoff.
 **Status (2026-09-14, 20:40 UTC):** harness tagged `study-03/v1-harness` (14 designs, AM-01 dev
 checks dc12–dc14 pass). **ER-02 decided (AM-02, tag `study-03/v0.2-handoff-amendment-02`):**
 calibrate with one `small` S1 cell per topology (dc15), then run the matrix under fixed duration rules
-(hard ceiling 30 h). Next: LOW. Nothing is running and the benchmark lock is free. No `small` run has started. The
+(hard ceiling 30 h). **Running from 23:20 UTC — do not start databases:** AM-02 calibration
+`devchecks/dc15-small-calibration` (S1, `small`, 3 topologies, about 2 h, holds the benchmark lock).
+No matrix run has started. The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
