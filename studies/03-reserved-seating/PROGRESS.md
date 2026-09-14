@@ -13,11 +13,12 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 2 | Study 02 terminology (Part A) | done | `study-02/v1.2-terminology` |
 | 3 | Engine probe | done — every answer as assumed, no fallback used | `53e277e` |
 | 4 | Platform: ErrLockNotAvailable | done — study 02 image still builds | `241e06f`, `repo/platform-lock-not-available` |
-| 5 | SQL catalogue, 13 designs | done | `13941ff` |
+| 5 | SQL catalogue, 13 designs (14 with S1r, AM-01) | done | `13941ff` |
 | 6 | Harness (17 unit tests pass in the build) | done | `eb7e4ff` |
-| 7 | Diagrams | done — five diagrams rendered | (next commit) |
-| 8 | Dev checks and calibration | PostgreSQL passed; YugabyteDB 1-node **blocked by ER-01**; yb-cluster3 subset running | |
-| 9 | Main matrix (`small`) | blocked: ER-01 open | |
+| 7 | Diagrams | done — five diagrams rendered | `8b6d8f9` |
+| 8 | Dev checks and calibration | dc1–dc11 done; ER-01 raised, decided (AM-01) | `0a9b2da`; ER-01 decision `e70c842`, `study-03/v0.1-handoff-amendment-01` |
+| 8a | AM-01: transient-refusal class, refusal diagnostics, S1r, report; dev checks dc12–dc14 | implementation done (19 unit tests pass in the build); dc12 running | `e10dc6c` |
+| 9 | Main matrix (`small`) | pending: after 8a | |
 | 10 | Repeated race trials | pending | |
 | 11 | Context, lessons, README; ready for analysis | pending | |
 

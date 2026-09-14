@@ -819,6 +819,14 @@ func (s *Seller) Sweep(ctx context.Context, node, batch int) (SweepResult, error
 	byHold := map[key][]Row{}
 	for _, r := range out {
 		byHold[key{r.event, r.hold}] = append(byHold[key{r.event, r.hold}], r.row)
+		// Release lag measures the sweeper against holds granted in this phase. Holds
+		// loaded already expired (the dataset's 1%) expired before the phase began and
+		// would report the load's age instead (tens of thousands of human minutes).
+		if el := s.world.ledger.Event(r.event); el != nil {
+			if h, ok := el.Hold(r.hold); ok && h.Loaded {
+				continue
+			}
+		}
 		res.Lags = append(res.Lags, r.row.Now.Sub(r.exp))
 	}
 	for k, rows := range byHold {
