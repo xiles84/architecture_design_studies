@@ -33,16 +33,44 @@ Floating tags (`:latest`, `:17`) make a result unreproducible and make two resul
 this repository silently incomparable. Every image is pinned to an exact tag in
 [`infra/versions.env`](../infra/versions.env), and changing one is a documented event.
 
-## 4. Resources are held constant per node, not per cluster
+## 4. Calculate resources and distinguish per-node from equal-total comparisons
 
 A single-node engine and one node of a three-node cluster get exactly the same CPU and
 memory budget. This makes "single vs cluster" answer the question an operator actually
 asks: *what do I get when I add two more machines?*
 
-The alternative framing — fix the total cluster budget and split it three ways — answers
-a different and also valid question ("is it better to have one big machine or three small
-ones?"). It would need its own run and its own report, and must not be conflated with
-this one.
+The equal-total framing asks a different question: "is one larger machine or several
+smaller ones better at the same resource budget?" Under the owner's 2026-09-14
+requirements in [AGENTS.md](../AGENTS.md#required-comparisons-for-future-studies), future
+multi-node comparisons include this control as a separately labelled condition with
+its own recorded budgets and results. Never pool it with the per-node baseline.
+
+Before measurement, write the resource calculation in the study protocol:
+
+- Use the live resources available to the container VM or each physical host. Reserve
+  explicit CPU and memory for the client, OS and supporting processes. Check each
+  host's allocation sum against its available resources; any deliberate oversubscription
+  is a separate stress condition.
+- With a database budget of `C` CPUs and `M` memory across `N` equal workers/nodes,
+  allocate `C/N` and `M/N` per node. The matched single node receives `C` and `M`.
+  Account for coordinator/master processes inside those totals and record effective
+  engine settings and minimum supported allocations. For example, three nodes at
+  2 CPU/3 GiB match one node at 6 CPU/9 GiB; this is an example, not a universal size.
+- Distinguish database workers/nodes from benchmark client workers. Specify reader
+  and writer counts, the offered arrival schedule, queue bound and pool calculation.
+  For one connection per active worker, the pool allowance must cover readers plus
+  writers plus explicitly counted control connections. Document any other connection
+  model. Hold these choices fixed across a controlled pair; concurrency sweeps are
+  labelled experimental variables, not implicit multipliers of node count.
+- Calibrate the client in reported preliminary checks, then freeze its settings before
+  the comparison. Record delivered demand, queueing/rejections and client throttling
+  so a load-generator limit is visible. Use balanced connections across supported query
+  endpoints for cluster capacity; retain a single-endpoint condition when it answers a
+  separate question. Record per-node CPU throttling, memory and connection distribution.
+
+These calculations establish a reproducible budget, not an optimum inferred from CPU
+count alone. Validate them with measured saturation and independent trials. A node-count
+increase does not itself justify claiming a replication or placement cost.
 
 Limits are CFS quotas (`--cpus`), never core pins (`--cpuset-cpus`). See the environment
 notes for why: on a CPU that mixes performance and efficiency cores, pinning silently
@@ -102,6 +130,44 @@ Generated data must be shaped like the real thing in the ways that matter:
 - **ordered the way it would really arrive** — an append-only stream means the surrogate
   key and the timestamp are correlated; shuffling them makes every time-ordered index
   look worse than it is
+
+## 6a. Design the required controlled comparisons
+
+The minimum coverage is defined in
+[AGENTS.md](../AGENTS.md#required-comparisons-for-future-studies). Each study protocol
+maps those requirements to named design pairs, planned regimes and a correctness
+contract. Include a reason for non-applicability or an explicit pending/unsupported gap;
+never use absence of a scenario as evidence that the mechanism has no effect.
+
+**Information placement:** start with answers derived from base data. Rollup stores
+aggregates at a parent; rolldown copies a parent's key or other information to children;
+embedding stores child information in its parent, possibly as a bounded recent slice.
+Compare each applicable choice with the baseline. Include insert, correction, deletion
+and parent-information changes where supported by the domain; check all maintained
+information covered by the claimed contract. Measure reads, maintenance cost, bytes and
+relevant size/skew/history regimes. Keep SQL and indexes matched when isolating a copied
+field or aggregate; use intermediate designs when an optimized package changes both.
+
+**Physical data colocation:** in every multi-node database study, compare colocated
+and non-colocated placement with identical logical data, business operations, replication
+factor and resource budget. Document the engine's actual placement mechanism, keys,
+partitions/tablets and placement evidence. Plans and RPC/network counters help connect
+the measured difference to placement. Hosting all nodes on one machine only describes
+the environment; it does not satisfy the placement comparison. If the engine cannot
+express a requested layout, record the unsupported case and keep the coverage gap visible.
+
+**Concurrency:** include optimistic conditional/version checks with bounded retries
+and pessimistic locking before the competing read/decision/write. Keep the business
+invariant, offered work, dataset and worker counts comparable; record effective isolation
+and any semantic difference. Exercise low contention and a controlled hotspot, reconcile
+acknowledged outcomes, and report retries, aborts/rejections, throughput and latency.
+Use an invalid negative control for the invariant. Additional strategies can extend this
+minimum when the domain supports them; a database label alone does not identify the
+application's concurrency strategy.
+
+Only expand combinations that answer an attributable question; an exhaustive product of
+all dimensions is not required. Generated reports retain measurements and coverage gaps;
+the concise final analysis links detailed mechanism comparisons in signed discussions.
 
 ## 7. Measurement discipline
 

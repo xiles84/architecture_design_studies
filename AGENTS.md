@@ -43,6 +43,37 @@ These come from the project owner and override convenience:
    parallel; they may not measure in parallel.
 10. **Never edit another analyst's file.** Not to shorten it, restructure it or correct it.
 
+## Required comparisons for future studies
+
+**Owner clarification, 2026-09-14:** these requirements apply to every new study and
+new measurement plan for an existing study. Record their coverage in the study's
+protocol before running; existing published results are not retroactively relabelled.
+
+1. **Calculate and validate cluster and client sizing.** Document available host/VM
+   resources, client and system reserves, node count, per-node CPU/memory and aggregate
+   budget. Multi-node comparisons include a separately labelled equal-total-budget
+   control alongside the per-node baseline. Calculate client readers, writers and
+   connection-pool allowance explicitly, check that the generator can supply the
+   intended demand, and measure per-node throttling and endpoint distribution. A
+   single query endpoint must not silently stand in for balanced cluster access.
+2. **Measure rollup, rolldown and embedding wherever applicable.** Compare derived
+   answers with stored parent aggregates (rollup), copied parent information on children
+   (rolldown), and embedded child information. Include read gains, mutation/maintenance
+   costs, storage and correctness under the relevant workload; isolate decisions with
+   controlled pairs instead of changing several mechanisms together.
+3. **Every multi-node database study includes colocated and non-colocated data
+   scenarios.** Hold logical data, operations, replication and resources constant;
+   verify actual placement and measure its effect. Running containers on the same
+   laptop is not evidence of data colocation. An unsupported placement mechanism is
+   an explicit coverage gap, not a completed comparison.
+4. **Concurrency studies include optimistic and pessimistic strategies at minimum.**
+   Compare a conditional/version-checked approach with a lock-before-update approach
+   under the same business invariant and comparable workload. Include contention,
+   retries/aborts, latency and correctness; add other strategies when applicable.
+
+List measured pairs, justified non-applicability and outstanding gaps in each protocol
+and final analysis. Methodology sections 4 and 6a explain the sizing and control details.
+
 ## Hard rule: commit and tag, never push
 
 Studies are revisited: new designs, new questions, new analysts. Two reports of the same

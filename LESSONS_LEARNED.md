@@ -10,6 +10,28 @@ experiments**.
 
 ## Measurement
 
+### A study-specific finding is not automatically a future-study requirement
+
+Study 01's v3 context and discussions recorded resource, placement and concurrency
+lessons, but the owner had to ask whether every later study would apply them. Keeping
+context current does not by itself establish minimum experimental coverage. The
+2026-09-14 clarification is now explicit in
+[AGENTS.md](AGENTS.md#required-comparisons-for-future-studies), with a protocol coverage
+map and methodology guidance. Include applicable rollup/rolldown/embedding controls,
+multi-node colocated/non-colocated placement, and optimistic/pessimistic concurrency.
+
+### Equal aggregate resources can hide a bottleneck at the query endpoint
+
+Study 01 v3 gave three database nodes the same total CPU/memory as one larger node,
+but sent cluster SQL through only one smaller endpoint. The aggregate budget alone
+could not distinguish replication work from the distribution of query capacity.
+Calculate per-host, per-node and client budgets, account for supporting processes,
+and record endpoint distribution and per-node throttling. Treat client readers/writers
+and connection-pool capacity as separate sizing decisions. Calibrate and freeze them
+across controlled pairs; verify offered demand and rejections instead of assuming a
+fixed worker count can drive every topology. A formula supplies a starting budget,
+while measurements establish its limits.
+
 ### A memory comparison must hold the generated dataset fixed
 
 The first v3 growth matrix used medium/history-multiplier=1 at 3 GiB and multiplier=2

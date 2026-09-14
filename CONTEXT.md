@@ -55,11 +55,38 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/02-ticket-booking/20260913T021206Z` | commit that produced study 02's `small` matrix (`7570648`) |
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
 | `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
+| `repo/study-comparison-minimums` | future-study requirements for calculated sizing, information placement, data colocation and concurrency strategies |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
 
 ---
+
+## Requirements for studies from now on — owner clarification, 2026-09-14
+
+The canonical requirements are in
+[AGENTS.md](AGENTS.md#required-comparisons-for-future-studies), with implementation
+guidance in methodology sections 4 and 6a. Every new study and future measurement plan
+for an existing study records:
+
+- Calculated database-node and client-worker sizing, per-host resource accounting,
+  an equal-total-budget cluster control, and measured endpoint/client bottlenecks.
+- Rollup, rolldown and embedding comparisons wherever applicable, including the cost
+  of maintaining the duplicated information and its correctness.
+- Colocated versus non-colocated data in multi-node database scenarios, verified by
+  physical-placement evidence and controlled independently of data and resource budget.
+- Optimistic and pessimistic concurrency as the minimum when concurrency is involved,
+  with additional strategies where applicable.
+
+Protocols map each requirement to planned/measured pairs or an explicit reason/gap.
+These are prospective requirements; they do not imply that previous runs measured
+every dimension. Context and lessons alone had not made all four requirements mandatory;
+the new AGENTS.md section does so explicitly.
+
+**Merge state checked 2026-09-14:** Study 01 v3 and this clarification remain on
+`study-01/measurement-enhancements`. They are not merged into `main` (observed at
+`8b6d8f9`, including separate Study 03 work). The owner merges, or explicitly asks an
+agent to merge, under AGENTS.md. No push or pull was performed.
 
 ## What this project is
 
