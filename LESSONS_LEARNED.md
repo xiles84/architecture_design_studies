@@ -579,5 +579,5 @@ Study 03's lifecycle report showed a release lag of about 45 000 human minutes o
 tier for every design with lazy expiry (dc3, dc12). The first tier's sweeper was the first to
 release the dataset's holds that were loaded already expired, and their "lag" was the age of the
 load. The numbers looked absurd only because the time was compressed; at real speed the same
-bug would have added a plausible few minutes. Lag now counts only holds granted during the
+bug would have reported a plausible half hour. Lag now counts only holds granted during the
 phase. Any metric measured from a timestamp should say which rows may contribute to it.
