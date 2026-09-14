@@ -1430,3 +1430,96 @@ Recompute the projections for 14 designs. The thresholds are unchanged.
 
 > Apply AM-01 in `studies/03-reserved-seating/HANDOFF.md` §16, then resume from step 8,
 > following the handoff's rules.
+
+### AM-02 — Calibrate `small` before the matrix; fixed rules for its duration
+
+- date: 2026-09-14
+- by: claude-opus-5, setting `ultracode` (higher model/effort), Claude Code desktop
+- escalation: ER-02 (decision in `ESCALATIONS.md`)
+- changes: §9 steps 9–10, §10.4. Everything else is unchanged.
+- tag: `study-03/v0.2-handoff-amendment-02`
+
+**Reason.** The extrapolated duration (≈ 24 h main matrix, ≈ 18.5 h repeated race) exceeds §10.4, and
+it is too uncertain to decide on. One measured `small` cell per topology replaces it. The choice that
+follows is fixed here, so the executor can apply it without another escalation.
+
+#### AM-02.1 Step 8b — calibration run (new, before step 9)
+
+1. Check the benchmark lock and `CONTEXT.md`.
+2. Run:
+
+   ```bash
+   ./run-study.sh --scale small --designs s1_conditional_update --run-id devchecks/dc15-small-calibration
+   ```
+
+   This covers all three topologies and all phases, about 2 h. Record it in `CONTEXT.md` as running.
+3. It must pass what §10.3 asks of S1: gate, no persistent early rejection, deferred confirmations
+   100% (transient refusals allowed on YugabyteDB). A failure is handled by the existing rules
+   (§11 re-run once if environmental, §12 items 2 and 7).
+4. From its results, record per topology in `PROGRESS.md`:
+   - cell wall time (manifest `pass_*` times, or each cell's log);
+   - total load and reload time (`reload_ms`, plus the initial load from the log);
+   - race wall time per tier (`wall_s`), with timed-out events and % sold;
+   - lifecycle wall time;
+   - the remainder.
+5. Commit: "Study 03: small calibration (dc15)".
+
+#### AM-02.2 Projection rules (replace §10.4's thresholds for steps 9 and 10)
+
+Measured projection for the main matrix, per topology:
+
+- PostgreSQL: cell wall × 13.
+- Each YugabyteDB topology: cell wall × 14 × **1.15**. The 1.15 allows for S4, whose races and
+  lifecycle run into every budget and deadline on YugabyteDB, and for the slower E2 and L2 loads.
+
+`M` is the sum over the three topologies.
+
+1. **YugabyteDB 100 000-seat race tier.** If, on a YugabyteDB topology, the calibration's 100 000-seat
+   race event timed out with less than 25% of its seats sold, set `-race-tiers 10,100,1000,10000` in
+   `YB_HARNESS_FLAGS`. Subtract that tier's measured race time from the YugabyteDB cells before
+   computing `M`.
+2. **`M` ≤ 24 h:** run step 9 with no other change.
+3. **24 h < `M` ≤ 30 h:** add `-race-tier-budget 2m` to `YB_HARNESS_FLAGS`, a mapped value (§11).
+   Recompute `M`: subtract, per YugabyteDB cell, one minute for every race tier that used its full
+   3-minute budget in the calibration. Then run step 9.
+4. **`M` > 30 h after rules 1 and 3:** do not start. Raise ER-03 with the measured table.
+
+A change to `YB_HARNESS_FLAGS` goes in `study.env` with a comment naming AM-02 and the measured
+numbers. Commit it before step 9, so the run is tagged from a clean tree.
+
+#### AM-02.3 Step 9 — main matrix (unchanged command)
+
+```bash
+./run-study.sh --scale small --tag
+```
+
+Before starting, add the run to `CONTEXT.md` as running, with its start time and its projected end
+(`M` from now), so other sessions can plan around the benchmark lock.
+
+#### AM-02.4 Step 10 — repeated race (replaces the §9 command)
+
+```bash
+./run-study.sh --scale small --topologies pg-single,yb-cluster3 --phases verify,race --extra "-race-trials 3 -race-tiers 1000,10000" --tag
+```
+
+`--extra` comes after `YB_HARNESS_FLAGS`, so its `-race-tiers` overrides rule 1's on yb-cluster3.
+
+- **Projection.** From the calibration, per topology, per design:
+
+  ```text
+  initial load + verify + 3 × (reload + race time of the 1 000- and 10 000-seat tiers)
+  ```
+
+  Then multiply by 13 (PostgreSQL) or 14 × 1.15 (yb-cluster3).
+- **Over 12 h:** use `-race-trials 2` instead.
+- **Still over 12 h:** raise ER-03.
+
+#### AM-02.5 Reporting
+
+- The README run table records, for each run, the extra flags and which AM-02 rules applied.
+- The generated report already shows the tiers that ran. The executor adds no interpretation.
+
+**Next session:** lower model/effort — Claude Opus 5, setting `high`. Starting prompt:
+
+> Apply AM-02 in `studies/03-reserved-seating/HANDOFF.md` §16 (calibration, then steps 9–11), following
+> the handoff's rules.

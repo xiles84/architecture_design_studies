@@ -70,6 +70,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/platform-lock-not-available` | platform: `ErrLockNotAvailable` (SQLSTATE 55P03) appended for study 03's NOWAIT design |
 | `study-03/v0.1-handoff-amendment-01` | study 03: ER-01 decided (transient refusals on YugabyteDB); AM-01 adds design S1r, refusal diagnostics and amended dev-check criteria |
 | `study-03/v1-harness` | study 03: 14 designs (13 + S1r), harness and SQL as dev-checked on tiny (dc1–dc14) |
+| `study-03/v0.2-handoff-amendment-02` | study 03: ER-02 decided; AM-02 adds the `small` calibration run and duration rules for steps 9–10 |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -160,7 +161,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — built on platform/; v1-harness tagged; ER-02 open
+  03-reserved-seating/    study 03 (see below) — built on platform/; v1-harness tagged; AM-02 (calibration, then matrix) to execute
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,

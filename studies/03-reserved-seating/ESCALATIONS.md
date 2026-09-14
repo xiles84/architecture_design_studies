@@ -322,3 +322,44 @@ YugabyteDB race tier.
 **Work continuing meanwhile:** none that needs the machine. The next session can prepare report-side
 work (no measurement).
 
+
+### Decision (ER-02)
+
+- decided_by: claude-opus-5, setting `ultracode` (higher model/effort), Claude Code desktop
+- decided_at: 2026-09-14 21:00 UTC
+- status: **decided**
+- decision: **option 2, with the follow-up decided in advance.** A measured `small` calibration cell per
+  topology replaces the extrapolation. Fixed rules then choose between running as specified and two
+  reductions that change no invariant, no design and no correctness judgement. A second escalation
+  happens only if even the reduced matrix exceeds a hard ceiling. The repeated race is restricted to
+  the tiers whose events are too few within one trial to show their own spread.
+- handoff_amendment: **AM-02** (HANDOFF.md §16), tag `study-03/v0.2-handoff-amendment-02`
+
+**Rationale.**
+
+- *Why calibrate instead of deciding now:* the projection extrapolates `tiny` cells twelvefold in data.
+  On YugabyteDB it is dominated by loads, whose index build may not scale linearly, so it could be off
+  by more than the ±40% stated. A day-long run must not start on a guess. The calibration also tests
+  `small` itself: the 100 000-seat events, the gate margin after a slower load (risk R9), and memory.
+  Those would otherwise fail hours into the matrix.
+- *Why decide the follow-up now:* the choice after calibration is mechanical once thresholds are
+  fixed. Leaving it open would cost another higher/lower round trip for arithmetic.
+- *Why these two reductions:*
+  - A 2-minute race tier budget on YugabyteDB is within the ×0.5–×2 range §11 already allows for
+    budgets.
+  - Skipping a 100 000-seat YugabyteDB race tier that cannot finish removes a measurement that says
+    only "it timed out". At `tiny` the 10 000-seat tier already does, and the rule applies only if the
+    calibration shows it.
+  - Both keep every design, invariant, phase and topology, and both are recorded in the manifest and
+    the README run table.
+- *Why the ceiling is 30 h rather than §10.4's 14 h:* 14 h was the planner's guard against an
+  unmeasured plan. Above it, the risk was a wrong projection, not the length itself. With measured
+  phase times a day-long run is acceptable. The machine is shared, so the executor records the expected
+  end in `CONTEXT.md` before starting.
+- *Why the repeated race keeps only the 1 000- and 10 000-seat tiers:* its purpose is trial-to-trial
+  spread. Within one `small` trial the 10-seat tier already has 100 events and the 100-seat tier 20,
+  so their spread is visible inside a single run. The 1 000- and 10 000-seat tiers have 5 and 2 events,
+  and they carry the deferred confirmations and the transient refusals that the S1 → S1r comparison
+  depends on.
+- *Why not split the matrix per topology (option 4):* same total time, three reports to join, and no
+  gain unless another study is waiting. The runner already isolates cells.
