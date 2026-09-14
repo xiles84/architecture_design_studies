@@ -267,3 +267,58 @@ wrote, and more often on three nodes.
 **For the owner (not the executor):** the evidence bundle
 (`results/devchecks/er01-*`, ESCALATIONS ER-01) is enough for an upstream report to
 YugabyteDB, should you want one.
+
+---
+
+## ER-02 — Projected duration of the `small` matrix and the repeated race exceeds §10.4
+
+- raised_by: claude-opus-5, setting `high` (lower model/effort), Claude Code desktop (executor session)
+- raised_at: 2026-09-14 20:37 UTC
+- handoff_sections: §9 steps 9–10, §10.4, AM-01.7
+- trigger: §12 item 5 — projected durations exceed §10.4
+- status: open
+
+**Blocked:** step 9 (main matrix) and step 10 (repeated race). Step 8 and AM-01 are done: every
+dev-check criterion of §10.3 as amended holds, and `study-03/v1-harness` is tagged.
+
+**Context.** The projection and its assumptions are in `PROGRESS.md` → "Duration projection".
+In short, using the AM-01 dev-check cells (runner defaults, 5 s measurements):
+
+| Run | pg-single | yb-single | yb-cluster3 | Total | §10.4 threshold |
+|---|---:|---:|---:|---:|---:|
+| Main matrix, `small`, all phases | ≈ 2.6 h | ≈ 9.2 h | ≈ 12.4 h | **≈ 24 h** | 14 h |
+| Repeated race, 3 trials | ≈ 3.5 h | — | ≈ 15 h | **≈ 18.5 h** | 12 h |
+
+The projection is uncertain (about ±40%): it extrapolates `tiny` cells about 12× in data. On
+YugabyteDB the cost is dominated by the six fresh loads per cell (about 8.5 s each on one node and
+21 s on three nodes at `tiny`) and by race tiers that run into the 3-minute tier budget. At `tiny`,
+every 10 000-seat YugabyteDB race already timed out (18–23% sold within 60 s). The `small` 100 000-seat
+race event is expected to time out too, costing about 1.5 minutes per cell.
+
+Study 02's comparable matrix took 6 h 47 min. No other session holds the benchmark lock.
+
+**Options:**
+
+1. **Run as specified.** Main matrix ≈ 24 h in one invocation (cells are independent, so a failure
+   costs one cell), then the repeated race ≈ 18.5 h. *Consequence:* about two days during which no
+   other study can measure on this machine. Thermal drift over a day is mitigated only by the shuffled
+   design order.
+2. **Calibrate first, then decide.** Run one `small` cell of S1 with all phases on yb-single and on
+   yb-cluster3 (≈ 1.5 h), and replace the extrapolation with measured phase times. *Consequence:* a
+   short delay; the decision is taken on measured numbers.
+3. **Cut YugabyteDB cost without changing what is judged.** For example: race tier budget 2 min on
+   YugabyteDB; skip the 100 000-seat race tier on YugabyteDB (it cannot finish there); run the repeated
+   race with 2 trials on yb-cluster3, or only its 1 000- and 10 000-seat tiers, where the transient
+   refusals occur. *Consequence:* fewer events per tier, and results that are not the same shape on
+   every topology. The report must state it.
+4. **Split the main matrix into one run per topology** (same total time, schedulable around other
+   studies). *Consequence:* three run ids and three reports; the analysis must join them, or the report
+   generator must accept several result directories.
+
+**Executor's recommendation:** 2, then 1 if the measured projection stays within about 1.5× the
+thresholds, otherwise 3 on YugabyteDB only. Nothing of AM-01's evidence depends on the 100 000-seat
+YugabyteDB race tier.
+
+**Work continuing meanwhile:** none that needs the machine. The next session can prepare report-side
+work (no measurement).
+
