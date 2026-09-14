@@ -10,6 +10,23 @@ experiments**.
 
 ## Measurement
 
+### A memory comparison must hold the generated dataset fixed
+
+The first v3 growth matrix used medium/history-multiplier=1 at 3 GiB and multiplier=2
+at 256 MiB. A D6/D3 donor-read reversal there could involve both resource pressure and
+the different dataset. The follow-up repeats multiplier=2 under both configurations
+in one run, with the same seed and mutation counts. Keep the original observations,
+but require this control before attributing the difference to the memory configuration.
+
+### Zero operation errors does not mean offered demand was served
+
+The v3 arrival tests can have no SQL errors and exact acknowledgement reconciliation
+while rejecting most offered requests at the bounded queue. Local node-stop trials
+also preserved acknowledged counts while successful response p99 reached about fifteen
+seconds. Report offered, rejected, accepted, completed, errors, drain time and latency
+together; use a no-fault condition at the same arrival rate to quantify the fault's
+incremental effect. Count preservation alone is not an availability or latency result.
+
 ### Result hashes need an explicit checkout byte policy
 
 This Windows repository has `core.autocrlf=true`. New container-written JSON had LF
