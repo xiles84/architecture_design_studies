@@ -104,8 +104,8 @@ type EventLedger struct {
 	// ambiguous counts commits of unknown outcome touching this event.
 	ambiguous int64
 
-	rejLate, rejBoundary, rejEarly int64
-	examples                       []Example
+	rejLate, rejBoundary, rejEarly, rejEarlyTransient int64
+	examples                                          []Example
 }
 
 type Ledger struct {
@@ -259,8 +259,10 @@ func (el *EventLedger) Ambiguous() {
 
 // Reject classifies a confirmation (or checkout start) the design refused.
 // detail, when non-empty, is appended to an early rejection's example: what the
-// database showed right after the refusal.
-func (el *EventLedger) Reject(holdID int64, txnNow time.Time, detail string) string {
+// database showed right after the refusal. transient says the identical statement,
+// issued again inside the refusing transaction, matched every seat (AM-01); it
+// sub-classifies early rejections only.
+func (el *EventLedger) Reject(holdID int64, txnNow time.Time, detail string, transient bool) string {
 	el.mu.Lock()
 	defer el.mu.Unlock()
 	h := el.holds[holdID]
@@ -279,7 +281,12 @@ func (el *EventLedger) Reject(holdID int64, txnNow time.Time, detail string) str
 		return RejBoundary
 	default:
 		el.rejEarly++
-		el.example(Example{Kind: "early rejection", EventID: el.ID, HoldID: holdID,
+		kind := "early rejection"
+		if transient {
+			el.rejEarlyTransient++
+			kind = "early rejection (transient)"
+		}
+		el.example(Example{Kind: kind, EventID: el.ID, HoldID: holdID,
 			Detail: fmt.Sprintf("refused %s before the hold's expiry%s", m.Round(time.Millisecond), detail)})
 		return RejEarly
 	}
@@ -308,6 +315,9 @@ type Violations struct {
 	RejectedLate       int64     `json:"rejected_late"`
 	RejectedBoundary   int64     `json:"rejected_boundary"`
 	RejectedEarly      int64     `json:"rejected_early"`
+	// RejectedEarlyTransient is the part of RejectedEarly whose refusing statement,
+	// issued again in the same transaction, matched every seat (AM-01).
+	RejectedEarlyTransient int64 `json:"rejected_early_transient"`
 	Ambiguous          int64     `json:"ambiguous_commits,omitempty"`
 	Examples           []Example `json:"examples,omitempty"`
 	examplesByCategory map[string]int
@@ -328,6 +338,7 @@ func (v *Violations) add(o Violations) {
 	v.RejectedLate += o.RejectedLate
 	v.RejectedBoundary += o.RejectedBoundary
 	v.RejectedEarly += o.RejectedEarly
+	v.RejectedEarlyTransient += o.RejectedEarlyTransient
 	v.Ambiguous += o.Ambiguous
 	for _, x := range o.Examples {
 		if v.examplesByCategory == nil {
@@ -354,7 +365,7 @@ func (el *EventLedger) Evaluate() (Violations, map[int32]seatFinal) {
 	el.mu.Lock()
 	defer el.mu.Unlock()
 	v := Violations{RejectedLate: el.rejLate, RejectedBoundary: el.rejBoundary, RejectedEarly: el.rejEarly,
-		Ambiguous: el.ambiguous}
+		RejectedEarlyTransient: el.rejEarlyTransient, Ambiguous: el.ambiguous}
 	ex := append([]Example(nil), el.examples...)
 	final := make(map[int32]seatFinal, len(el.seats))
 

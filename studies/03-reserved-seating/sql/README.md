@@ -25,6 +25,7 @@ diff -r sql/s2_lock_then_update sql/s3_lock_nowait                      # FOR UP
 diff -r sql/s1_conditional_update sql/e0_app_clock_expiry               # now() -> $app_now in the logic
 diff -r sql/s1_conditional_update sql/e1_sweeper_expiry                 # the expiry predicates
 diff -r sql/s1_conditional_update sql/k1_payment_window                 # checkout_started_at, w_begin_checkout
+diff -r sql/s1_conditional_update sql/s1r_confirm_retry                 # headers only: the decision (retry a short confirmation) is in the harness
 ```
 
 E2, L1 and L2 change the tables and are read as whole designs.

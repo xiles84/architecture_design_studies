@@ -59,6 +59,7 @@ moves the hard part of the problem:
 | sweeper | background job that garbage-collects expired holds (most designs) or makes expiry take effect (E1) |
 | seat map | a section's seats with state available / held / sold, as a buyer sees them |
 | honored hold | the owner's guarantee: a confirmation made while the hold is valid succeeds |
+| transient refusal | an early rejection where the identical refusing statement, issued again in the same transaction, matched every seat. Seen on YugabyteDB ([ER-01](ESCALATIONS.md)); still a violation of the honored hold |
 
 ### Policy — the same in every design
 
@@ -82,7 +83,7 @@ statement that did the work.
 |---|---|---|
 | INV-1 | **No double sale** — at most one ticket per event seat, and no two buyers told they bought the same seat | any duplicate |
 | INV-2 | **No theft** — the validity intervals of holds on one seat never overlap | a grant or sale inside another hold's interval |
-| INV-3 | **Honored hold** — a confirmation made while the hold is valid succeeds | a rejection at least *G* (2 human minutes) before expiry. Rejections inside *G* are reported as **boundary rejections**, after expiry as **late rejections** |
+| INV-3 | **Honored hold** — a confirmation made while the hold is valid succeeds | a rejection at least *G* (2 human minutes) before expiry. Rejections inside *G* are reported as **boundary rejections**, after expiry as **late rejections**. Early rejections are split into **transient** (see terminology) and persistent |
 | INV-4 | **No leaked seats** — a seat whose hold ended can be held again | a probe hold refused at quiescence |
 | INV-5 | **All or nothing** — holds and confirmations cover exactly their block | a partial hold or sale |
 | INV-6 | **No late sale** — a confirmation after expiry never produces tickets | any |
@@ -132,6 +133,7 @@ here writes the `event` row on the booking path, so the edit would measure nothi
 |---|---|---|---|
 | **S0** ✗ | check-then-hold-rc | read the seats, then update unconditionally, at READ COMMITTED — **negative control** | [S](diagrams/rendered/s_arbitration.svg) |
 | S1 | conditional-update | **the reference:** one conditional multi-row `UPDATE`; fewer rows than seats → roll back. Lazy expiry, checked confirmation | [S](diagrams/rendered/s_arbitration.svg) |
+| S1r | confirm-retry | S1, plus: a confirmation that matches fewer seats than the hold is rolled back and run once more, at once, in a new transaction | [K](diagrams/rendered/k_checkout.svg) |
 | S2 | lock-then-update | `SELECT … ORDER BY seat_id FOR UPDATE`, then S1's update | [S](diagrams/rendered/s_arbitration.svg) |
 | S3 | lock-nowait | S2 with `FOR UPDATE NOWAIT`: fail fast, choose again | [S](diagrams/rendered/s_arbitration.svg) |
 | S4 | check-then-hold-serializable | S0's SQL at SERIALIZABLE | [S](diagrams/rendered/s_arbitration.svg) |
@@ -164,9 +166,10 @@ each design is interesting.
 | S1 → L1 | pre-created per-event seat rows vs claims created on hold |
 | S1 → L2 | seat rows vs an embedded section document |
 | S1 → L3 | (YugabyteDB) one tablet per event vs spread by section |
+| S1 → S1r | retrying a short confirmation once, against transient refusals |
 | yb-single → yb-cluster3 | adding two nodes — with client connections spread over all three |
 
-`q05` and `q06` read the `ticket` table through byte-identical SQL in eleven designs, which
+`q05` and `q06` read the `ticket` table through byte-identical SQL in twelve designs, which
 calibrates the run's own error bar.
 
 ---

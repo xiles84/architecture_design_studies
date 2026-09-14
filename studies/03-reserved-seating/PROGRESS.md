@@ -13,11 +13,12 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 2 | Study 02 terminology (Part A) | done | `study-02/v1.2-terminology` |
 | 3 | Engine probe | done — every answer as assumed, no fallback used | `53e277e` |
 | 4 | Platform: ErrLockNotAvailable | done — study 02 image still builds | `241e06f`, `repo/platform-lock-not-available` |
-| 5 | SQL catalogue, 13 designs | done | `13941ff` |
+| 5 | SQL catalogue, 13 designs (14 with S1r, AM-01) | done | `13941ff` |
 | 6 | Harness (17 unit tests pass in the build) | done | `eb7e4ff` |
-| 7 | Diagrams | done — five diagrams rendered | (next commit) |
-| 8 | Dev checks and calibration | PostgreSQL passed; YugabyteDB 1-node **blocked by ER-01**; yb-cluster3 subset running | |
-| 9 | Main matrix (`small`) | blocked: ER-01 open | |
+| 7 | Diagrams | done — five diagrams rendered | `8b6d8f9` |
+| 8 | Dev checks and calibration | dc1–dc11 done; ER-01 raised, decided (AM-01) | `0a9b2da`; ER-01 decision `e70c842`, `study-03/v0.1-handoff-amendment-01` |
+| 8a | AM-01: transient-refusal class, refusal diagnostics, S1r, report; dev checks dc12–dc14 | done — §10.3 as amended by AM-01.5 holds (19 unit tests pass in the build) | `e10dc6c`, `7ab4b67`, `f43fc0f`, `03d7e8a`; tag `study-03/v1-harness` |
+| 9 | Main matrix (`small`) | **blocked: ER-02** (projected duration over §10.4) | |
 | 10 | Repeated race trials | pending | |
 | 11 | Context, lessons, README; ready for analysis | pending | |
 
@@ -37,6 +38,7 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | M10 | Finite-pool write ops (hold, release, cancel) warm up for one trial's worth of operations instead of a duration. | A duration warmup drained the tiny release pool before the first trial (dc2: 0 releases). Keeps warmup plus trials inside half the pool, as `FiniteBudget` intends. |
 | M11 | Loaded holds' base clock is the database now() truncated to milliseconds. | The gate failed S1 by 1 ms (dc1): microsecond now() plus millisecond offsets vs millisecond truth. |
 | M12 | The sweeper outage ends when the outage probe has run, not at minute 85 by wall clock. | dc3: the sweeper resumed on its own tick first and released every expired seat, so E1's probe saw nothing (0/0). dc4: E1 4/4 and 9/9 unavailable. |
+| M13 | Release lag counts only holds granted during the phase, not holds loaded already expired. | Harness bug: the 10-seat lifecycle tier reported ~45 000 human minutes of lag in every lazy design (dc3, dc12), the age of the load. |
 
 ## Observations for the analysis phase
 
@@ -63,3 +65,39 @@ Facts recorded during dev checks and runs (handoff §13).
 - 2026-09-14 10:47–~11:26 UTC: the study 01 v3 session held the benchmark lock
   (`20260914T104721Z-v3 (memory-control)`). Study 03 waited, wrote code, and started no
   image builds or databases until it was released.
+
+## AM-01 dev checks (step 8a)
+
+Commit `e10dc6c` (harness) plus `7ab4b67` (release-lag fix, M13). `tiny` scale; 5 s measurements.
+
+| Run | Topology | What ran | Result |
+|---|---|---|---|
+| dc12-pg-am01 | PostgreSQL | S1, S1r, K1, L1, E2, all phases | every gate 51/51; no violation; 0 early rejections; S1r retried 7 confirmations of expired holds, 0 sold |
+| dc13a-yb1-s1r-all | YugabyteDB 1 node | S1r, all phases | gate 51/51; no violation; lifecycle retried 1 expired-hold confirmation, 0 sold |
+| dc13b-yb1-race4 | YugabyteDB 1 node | S1, S1r, K1, L1, E1; race x4 | early rejections, all transient: S1 2, E1 5, K1 10, L1 4; S1r 0, with 6 retries, 6 sold; deferred confirmations 100% |
+| dc14a-yb3-s1r-all | YugabyteDB 3 nodes | S1r, all phases | gate 51/51; no violation; race retried 17 short confirmations, 17 sold; lifecycle 2 expired-hold retries, 0 sold |
+| dc14b-yb3-race2 | YugabyteDB 3 nodes | S0, S1, S1r, E0, E1, K1, L1, L3; race x2 | every gate 51/51; S0 fired (646 thefts, 355 early rejections, 19 transient); correct designs' early rejections all transient: S1 23, E1 15, K1 28, L1 38, L3 33; S1r 0, with 20 retries, 20 sold; E0 (no race control) 19 transient; deferred confirmations 100% in every correct design |
+
+Observations (facts): no persistent early rejection appeared in any correct design; transient refusals
+concentrate in the 1 000- and 10 000-seat races and are more frequent on three nodes; every
+confirmation S1r retried after a short match sold on the second attempt.
+
+## Duration projection (§10.4, AM-01.7)
+
+Base: the AM-01 dev-check cells at the runner's default 5 s measurements (dc12, dc13a, dc14a),
+per-cell reload times from `reload_ms` (dc3, dc5, dc11), scaled to `small`. Assumptions: `small` has
+about 12× the seats of `tiny` and loads scale linearly; each race tier is capped by the 3-minute
+tier budget plus in-flight events (60 s race timeout); YugabyteDB lifecycle keeps 2 tiers × 3 events;
+PostgreSQL lifecycle runs 3 tiers × 6 events; everything else (verify, explain, reads, writes,
+audits) grows 1.5×. Uncertainty about ±40%.
+
+| Topology | `tiny` cell (measured) | `small` cell: loads + race + lifecycle + rest | Designs | Main matrix |
+|---|---:|---|---:|---:|
+| pg-single | 4.0 min | 1 + 5 + 2 + 4 ≈ 12 min | 13 | ≈ 2.6 h |
+| yb-single | 13.0 min | 14 + 13 + 3 + 9 ≈ 39 min | 14 | ≈ 9.2 h |
+| yb-cluster3 | 14.7 min | 26 + 15 + 3 + 9 ≈ 53 min | 14 | ≈ 12.4 h |
+| **Total** | | | | **≈ 24 h** (threshold 14 h) |
+
+Repeated race (step 10: pg-single and yb-cluster3, `verify,race`, 3 trials): pg-single ≈ 16 min × 13 ≈
+3.5 h; yb-cluster3 ≈ (5 min load + 2 min verify + 3 × (4 min reload + 15 min race)) ≈ 65 min × 14 ≈
+15 h; **total ≈ 18.5 h** (threshold 12 h). Both exceed §10.4: Escalation Required ER-02.

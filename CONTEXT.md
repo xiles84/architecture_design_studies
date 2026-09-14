@@ -66,6 +66,8 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
 | `study-02/v1.2-terminology` | study 02 README terminology section (general admission); no SQL, harness, report or analysis change |
 | `repo/platform-lock-not-available` | platform: `ErrLockNotAvailable` (SQLSTATE 55P03) appended for study 03's NOWAIT design |
+| `study-03/v0.1-handoff-amendment-01` | study 03: ER-01 decided (transient refusals on YugabyteDB); AM-01 adds design S1r, refusal diagnostics and amended dev-check criteria |
+| `study-03/v1-harness` | study 03: 14 designs (13 + S1r), harness and SQL as dev-checked on tiny (dc1–dc14) |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -135,7 +137,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — built on platform/; dev checks; ER-01 open
+  03-reserved-seating/    study 03 (see below) — built on platform/; v1-harness tagged; ER-02 open
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -475,9 +477,11 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-14):** built and dev-checked; **blocked on Escalation Required ER-01**, so no
-`small` run has started. The specification is the
-[Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
+**Status (2026-09-14, 20:40 UTC):** harness tagged `study-03/v1-harness` (14 designs, AM-01 dev
+checks dc12–dc14 pass). **Blocked on Escalation Required ER-02:** the `small` matrix is projected at
+about 24 h and the repeated race at about 18.5 h, both over §10.4. Needs the higher model/effort.
+Nothing is running and the benchmark lock is free. No `small` run has started. The
+specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
 
@@ -485,18 +489,32 @@ unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS
   held); platform error class for NOWAIT (tag `repo/platform-lock-not-available`); 13-design SQL
   catalogue; Go harness with 17 unit tests; tiny dev checks on PostgreSQL (all gates pass, no
   violation in any correct design, all four controls fire after one harness fix) and YugabyteDB
-  1-node (gates pass, controls fire).
-- **ER-01 (open):** on YugabyteDB 1-node, seat-row designs occasionally refuse a confirmation
-  ~100 ms after its hold committed; the UPDATE matches 0 rows while a SELECT of the same seats in
-  the same transaction shows the hold valid. About one per two 10 000-seat races; never on
-  PostgreSQL; not reproduced by a standalone probe. Needs an ultracode decision (options in
-  ESCALATIONS.md) before the matrix.
+  1-node and 3-node (gates pass, controls fire).
+- **ER-01 (decided):** on YugabyteDB, designs whose confirmation is a guarded statement
+  occasionally refuse a valid hold; the identical statement re-issued in the same transaction
+  matches every seat (a *transient refusal*). Not caused by expression pushdown, wait queues or
+  query-layer retries (`diagnose-er01.sh`, `results/devchecks/er01-*`); never on PostgreSQL.
+  Decision: measured and reported as its own class (still an INV-3 violation), plus design S1r
+  (retry a short confirmation once) to measure the defence. AM-01 in HANDOFF.md §16.
+- **AM-01 dev checks (dc12–dc14):**
+  - PostgreSQL showed no early rejection.
+  - On YugabyteDB, every early rejection in a correct design was transient: 21 on one node, 137 on
+    three.
+  - S1r showed none; every one of its 43 retries after a short match sold.
+- **ER-02 (open):** projected duration; options and the per-phase projection are in ESCALATIONS.md
+  and PROGRESS.md.
 
-**The owner's workflow for this study:** plan, escalations and final analysis in Claude
-Opus 5 with the `ultracode` setting ("ultra"). Execution in Claude Opus 5 with the `high`
-setting ("high"). An executor that meets a decision the handoff does not map records
-"Escalation Required" (`ER-NN`) and continues with unblocked work; the ultra session
-decides and, if needed, appends an amendment to the handoff.
+**The owner's workflow** (standard notation from 2026-09-14):
+
+- A **higher** model/effort does the planning that needs thinking power, written as the
+  "Execution Handoff". It also decides every "Escalation Required" (`ER-NN`) and writes the
+  result analysis.
+- A **lower** model/effort executes the handoff. It records any decision the handoff does not
+  map as "Escalation Required", then continues with unblocked work.
+- Every iteration ends by naming the next step's model: higher or lower.
+
+Current mapping: higher = Claude Opus 5, setting `ultracode` (study 03's earlier documents say
+"ultra"); lower = Claude Opus 5, setting `high` (they say "high").
 
 **The question:** buyers choose specific seats and keep them for 40 minutes while they pay,
 and must never find a held seat gone. With marked seats, a unique key already prevents a

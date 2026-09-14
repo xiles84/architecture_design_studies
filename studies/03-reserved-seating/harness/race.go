@@ -56,6 +56,10 @@ type RaceResult struct {
 	Errors          int64  `json:"errors"`
 	FirstError      string `json:"first_error,omitempty"`
 	ImmediateFailed int64  `json:"immediate_confirms_refused"`
+	// S1r only (AM-01.3): confirmations run a second time after a short match, and
+	// how many of those sold.
+	ConfirmRetries        int64 `json:"confirm_retries"`
+	ConfirmRetrySuccesses int64 `json:"confirm_retry_successes"`
 
 	DeferredHolds     int64 `json:"deferred_holds"`
 	DeferredConfirmed int64 `json:"deferred_confirmed"`
@@ -92,12 +96,23 @@ type raceOne struct {
 	customers, holds, seats, attempts, conflicts, mapReads, secReads atomic.Int64
 	retries, gaveUp, noBlock, errs, immFailed                        atomic.Int64
 	deferredConfirmed, deferredRefused                               atomic.Int64
+	confRetries, confRetrySold                                       atomic.Int64
 	holdL, confL, defL, custL                                        []time.Duration
 	deferred                                                         []deferredHold
 	firstErr                                                         string
 	timedOut                                                         bool
 	sweepSold, underSold, leakProbed, leaked                         int64
 	wall, allocate                                                   time.Duration
+}
+
+// noteConfirm counts S1r's second attempts (zero for every other design).
+func (one *raceOne) noteConfirm(cr ConfirmResult) {
+	if cr.ShortRetried {
+		one.confRetries.Add(1)
+	}
+	if cr.RetrySold {
+		one.confRetrySold.Add(1)
+	}
 }
 
 type deferredHold struct {
@@ -147,6 +162,8 @@ func RunRaces(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Datase
 			res.NoBlock += one.noBlock.Load()
 			res.Errors += one.errs.Load()
 			res.ImmediateFailed += one.immFailed.Load()
+			res.ConfirmRetries += one.confRetries.Load()
+			res.ConfirmRetrySuccesses += one.confRetrySold.Load()
 			res.DeferredHolds += int64(len(one.deferred))
 			res.DeferredConfirmed += one.deferredConfirmed.Load()
 			res.DeferredRefused += one.deferredRefused.Load()
@@ -205,9 +222,9 @@ func RunRaces(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Datase
 		if res.TimedOut > 0 {
 			status += fmt.Sprintf(", %d timed out (%.0f%% sold)", res.TimedOut, res.TimedOutSoldPct)
 		}
-		fmt.Printf("    race %6d seats x%-4d %9.1f seats/s  conflicts/hold=%.2f reads/hold=%.2f  hold p50=%.2fms p99=%.2fms  deferred %d/%d ok  errors=%d  %s\n",
+		fmt.Printf("    race %6d seats x%-4d %9.1f seats/s  conflicts/hold=%.2f reads/hold=%.2f  hold p50=%.2fms p99=%.2fms  deferred %d/%d ok  confirm retries sold/run=%d/%d  errors=%d  %s\n",
 			tier, res.Events, res.SeatsPerSec, res.ConflictsPerHold, res.MapReadsPerHold, res.HoldLatency.P50MS,
-			res.HoldLatency.P99MS, res.DeferredConfirmed, res.DeferredHolds, res.Errors, status)
+			res.HoldLatency.P99MS, res.DeferredConfirmed, res.DeferredHolds, res.ConfirmRetrySuccesses, res.ConfirmRetries, res.Errors, status)
 		fmt.Printf("      audit: %s\n", au)
 		if res.FirstError != "" {
 			fmt.Printf("      first error: %s\n", res.FirstError)
@@ -307,6 +324,7 @@ func raceEvent(ctx context.Context, sl *Seller, ev *Event, s Settings) *raceOne 
 				t1 := time.Now()
 				cr, err := sl.Confirm(ctx, buyer.node, a.Block, a.Hold.HoldID, cust)
 				one.retries.Add(int64(cr.Retries))
+				one.noteConfirm(cr)
 				if err != nil {
 					recordErr(err)
 					continue
@@ -349,6 +367,7 @@ func raceEvent(ctx context.Context, sl *Seller, ev *Event, s Settings) *raceOne 
 				t0 := time.Now()
 				dctx := WithAttemptDeadline(ctx, time.Now().Add(10*time.Second+s.RaceTimeout))
 				cr, err := sl.Confirm(dctx, dh.node, dh.block, dh.hold, dh.customer)
+				one.noteConfirm(cr)
 				if err != nil {
 					recordErr(err)
 					continue
@@ -403,6 +422,7 @@ func finishRaceEvent(ctx context.Context, sl *Seller, ev *Event, s Settings, one
 			continue
 		}
 		cr, err := sl.Confirm(ctx, 0, a.Block, a.Hold.HoldID, cust)
+		one.noteConfirm(cr)
 		if err != nil {
 			one.errs.Add(1)
 			continue

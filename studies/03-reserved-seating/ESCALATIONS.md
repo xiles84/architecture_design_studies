@@ -193,3 +193,132 @@ Two facts that may help the decision:
 Everything else on yb-cluster3 met §10.3: every gate 51/51. The controls fired: S0 in the
 race and the lifecycle, E0 in the lifecycle, K0 in the lifecycle (6 late sales, 5 sales
 without the hold), and the E1 outage probe (3 of 3 unavailable on both tiers).
+
+### Decision (ER-01)
+
+- decided_by: claude-opus-5, setting `ultracode`, Claude Code desktop (planning session)
+- decided_at: 2026-09-14 17:40 UTC
+- status: **decided**
+- decision: **options 1 + 2 + 4**, after a time-boxed investigation (option 3, done by this
+  session). It is recorded as a measured YugabyteDB behaviour, not a harness bug. It is
+  reported as its own class, the **transient refusal**, and a new design **S1r** measures
+  the defence. The matrix starts once the AM-01 dev checks pass.
+- handoff_amendment: **AM-01** (HANDOFF.md §16), tag `study-03/v0.1-handoff-amendment-01`
+
+**Investigation** (`diagnose-er01.sh`; S1; YugabyteDB 1 node; `tiny`; 10 000-seat race;
+8 races per configuration; `results/devchecks/er01-20260914T164638Z` and
+`results/devchecks/er01-20260914T170750Z`):
+
+| Configuration | What it rules in or out | Early rejections |
+|---|---|---:|
+| A default | reproduces within the study's own workload | 2 |
+| B `yb_enable_expression_pushdown=off` (the plan's `Storage Filter` became a query-layer `Filter`, checked in the captured plan) | not pushdown | 2 |
+| C tserver `enable_wait_queues=false` | not wait-on-conflict | 2 |
+| D default + `yb_debug_log_internal_restarts=on`, harness re-issues the refused statement in the same transaction | the miss is **transient**; the refusing backend logged no restart or error at that moment | 1 |
+| E `yb_max_query_layer_retries=0` + restart logging, same re-issue | not an artefact of internal statement retries | 1 |
+
+The evidence for D and E is the same, per occurrence:
+
+1. The confirmation's `UPDATE` matched **0 of N** seats (N = 2 in D, 6 in E).
+2. A `SELECT` of the same seats inside the same transaction showed every seat held by this
+   hold, valid.
+3. **The identical `UPDATE`, issued again in the same transaction, matched N of N.**
+4. The refusing backend (identified by `pg_backend_pid()`) wrote no log line in that window,
+   and no log line named those seats.
+5. In the same second, other backends' hold statements on neighbouring seats failed with
+   `Value write after transaction start: doc ht (…) > read time (…)`. Their read times were
+   about 300 ms older than recent commits.
+
+`SUMMARY.md` of round 2 prints "2 issued again …" per configuration because each refusal's
+detail appears twice in the result JSON. There was one refusal per configuration.
+
+**What this establishes, and what it does not.** Under this workload's CPU saturation, on
+YugabyteDB 2025.2.6 READ COMMITTED, a guarded `UPDATE` can behave as if it evaluated its
+predicate against a state without a commit acknowledged to the same client before the
+statement began, and silently match nothing. The miss is transient: the same statement
+a moment later, in the same transaction, sees the hold. A statement that matches no rows
+writes nothing, so no write-conflict check can turn the stale read into a retryable error;
+that is consistent with the silence in the log. The engine's internal mechanism is **not**
+established: the tserver's own logs at default verbosity say nothing, and finding it would
+take engine-level tracing beyond this study. Two facts from dc11 fit this reading: the
+refusals appear only in designs whose refusing statement filters on columns the hold just
+wrote, and more often on three nodes.
+
+**Rationale.**
+
+- *Why not a harness bug:* the ledger tests pass; the per-occurrence evidence is complete
+  and internally consistent; the re-issue proves the harness bound the right values.
+- *Why run the matrix rather than keep investigating:* this failure is exactly what the
+  owner asked the study to find ("I don't want to find out at payment that the seat is not
+  available"). Measuring how often each design, engine and topology shows it is the study's
+  job. Explaining the engine's internals is not.
+- *Why a separate class:* an early rejection caused by theft, skew or a wrong expiry (S0, E0)
+  is a design failure. A transient refusal is the engine refusing a hold it can see a moment
+  later. Mixing them would make S1 on YugabyteDB look like S0. The class is still an INV-3
+  violation, because the buyer was refused, and the cells still carry ❌.
+- *Why S1r:* the owner needs to know what to do about it. "Retry a short confirmation once"
+  is the smallest application-side defence and is safe by construction: the retried
+  statement is still guarded, so it cannot sell an expired, released or stolen hold.
+  S1 stays unchanged; §12 forbids fixing a design so it passes, and S1r is a new id that
+  differs by one decision.
+- *Why not an engine setting as a design:* none of the settings tried (B, C, E) removed it, and
+  study designs are data-model and transaction decisions, not engine tuning.
+
+**For the owner (not the executor):** the evidence bundle
+(`results/devchecks/er01-*`, ESCALATIONS ER-01) is enough for an upstream report to
+YugabyteDB, should you want one.
+
+---
+
+## ER-02 — Projected duration of the `small` matrix and the repeated race exceeds §10.4
+
+- raised_by: claude-opus-5, setting `high` (lower model/effort), Claude Code desktop (executor session)
+- raised_at: 2026-09-14 20:37 UTC
+- handoff_sections: §9 steps 9–10, §10.4, AM-01.7
+- trigger: §12 item 5 — projected durations exceed §10.4
+- status: open
+
+**Blocked:** step 9 (main matrix) and step 10 (repeated race). Step 8 and AM-01 are done: every
+dev-check criterion of §10.3 as amended holds, and `study-03/v1-harness` is tagged.
+
+**Context.** The projection and its assumptions are in `PROGRESS.md` → "Duration projection".
+In short, using the AM-01 dev-check cells (runner defaults, 5 s measurements):
+
+| Run | pg-single | yb-single | yb-cluster3 | Total | §10.4 threshold |
+|---|---:|---:|---:|---:|---:|
+| Main matrix, `small`, all phases | ≈ 2.6 h | ≈ 9.2 h | ≈ 12.4 h | **≈ 24 h** | 14 h |
+| Repeated race, 3 trials | ≈ 3.5 h | — | ≈ 15 h | **≈ 18.5 h** | 12 h |
+
+The projection is uncertain (about ±40%): it extrapolates `tiny` cells about 12× in data. On
+YugabyteDB the cost is dominated by the six fresh loads per cell (about 8.5 s each on one node and
+21 s on three nodes at `tiny`) and by race tiers that run into the 3-minute tier budget. At `tiny`,
+every 10 000-seat YugabyteDB race already timed out (18–23% sold within 60 s). The `small` 100 000-seat
+race event is expected to time out too, costing about 1.5 minutes per cell.
+
+Study 02's comparable matrix took 6 h 47 min. No other session holds the benchmark lock.
+
+**Options:**
+
+1. **Run as specified.** Main matrix ≈ 24 h in one invocation (cells are independent, so a failure
+   costs one cell), then the repeated race ≈ 18.5 h. *Consequence:* about two days during which no
+   other study can measure on this machine. Thermal drift over a day is mitigated only by the shuffled
+   design order.
+2. **Calibrate first, then decide.** Run one `small` cell of S1 with all phases on yb-single and on
+   yb-cluster3 (≈ 1.5 h), and replace the extrapolation with measured phase times. *Consequence:* a
+   short delay; the decision is taken on measured numbers.
+3. **Cut YugabyteDB cost without changing what is judged.** For example: race tier budget 2 min on
+   YugabyteDB; skip the 100 000-seat race tier on YugabyteDB (it cannot finish there); run the repeated
+   race with 2 trials on yb-cluster3, or only its 1 000- and 10 000-seat tiers, where the transient
+   refusals occur. *Consequence:* fewer events per tier, and results that are not the same shape on
+   every topology. The report must state it.
+4. **Split the main matrix into one run per topology** (same total time, schedulable around other
+   studies). *Consequence:* three run ids and three reports; the analysis must join them, or the report
+   generator must accept several result directories.
+
+**Executor's recommendation:** 2, then 1 if the measured projection stays within about 1.5× the
+thresholds, otherwise 3 on YugabyteDB only. Nothing of AM-01's evidence depends on the 100 000-seat
+YugabyteDB race tier.
+
+**Work continuing meanwhile:** none that needs the machine. The next session can prepare report-side
+work (no measurement).
+

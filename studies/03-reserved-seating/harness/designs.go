@@ -55,6 +55,9 @@ type Design struct {
 	PaymentWindow bool
 	// YBOnly: the SQL uses YugabyteDB-only syntax (L3).
 	YBOnly bool
+	// RetryShortConfirm: a confirmation that matches fewer seats than the hold is
+	// rolled back and run once more, at once, in a new transaction (S1r, AM-01.3).
+	RetryShortConfirm bool
 
 	// NegativeControl is non-empty for a design EXPECTED to violate an invariant.
 	// It stays in the study because an audit that has never caught a wrong design
@@ -128,6 +131,11 @@ var designs = []Design{
 		ID: "k1_payment_window", Short: "K1 window", Title: "payment-window", Family: famCheckout,
 		Summary:  "S1 plus a checkout that extends a valid hold once by a bounded payment window.",
 		Strategy: Guarded, Isolation: ports.ReadCommitted, Layout: SeatRows, PaymentWindow: true,
+	},
+	{
+		ID: "s1r_confirm_retry", Short: "S1r retry", Title: "confirm-retry", Family: famCheckout,
+		Summary:  "S1 plus one decision: a confirmation that matches fewer seats than the hold is rolled back and run once more, at once, in a new transaction.",
+		Strategy: Guarded, Isolation: ports.ReadCommitted, Layout: SeatRows, RetryShortConfirm: true,
 	},
 	{
 		ID: "l1_claim_rows", Short: "L1 claims", Title: "claim-rows", Family: famLayout,
