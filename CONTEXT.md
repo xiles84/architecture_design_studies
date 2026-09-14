@@ -97,14 +97,15 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**LOW execution complete, 2026-09-14 — next HIGH:** the HIGH planning pass incorporated
+**LOW integration closeout, 2026-09-14 — next HIGH:** the HIGH planning pass incorporated
 local `main` at `025b72f` into `study-01/measurement-enhancements` and published EH-01
 at checkpoint `32aec56`. LOW repeated the mapped preflight: both worktrees were clean,
 no benchmark container was running, the task held the short integration lock, all four
 run tags resolved to their producing commits and the generated report digests/indexes
-matched. It fast-forwarded `main` to `32aec56`. The pending closeout commit records the
-final integration receipt; `repo/worktree-to-main-workflow` and `study-01/v3-integrated`
-will tag that verified closeout state after its fast-forward. The
+matched. It fast-forwarded `main` to `32aec56`. This closeout revision records the final
+integration receipt and is the intended target of the immutable
+`repo/worktree-to-main-workflow` and `study-01/v3-integrated` tags immediately after its
+fast-forward. The
 [Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md),
 [progress](docs/handoffs/20260914-study01-integration/PROGRESS.md),
 [execution receipt](docs/handoffs/20260914-study01-integration/EXECUTION_RESULT.md) and

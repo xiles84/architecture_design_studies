@@ -47,7 +47,7 @@ Record partial completion and restart points; do not claim an intended merge occ
   `20260914T104721Z-v3` → `d1b18bf` / `9ead901cb74c4183`.
 - Fast-forwarded local `main` to `32aec56`. No main drift, source interaction,
   failed preservation check, tag conflict or other unmapped decision occurred.
-- The closeout receipt/context commit and integrated tags are the remaining mapped
-  mechanical steps. No database benchmark, image build or report regeneration ran.
+- The closeout receipt/context revision is prepared for the final mapped fast-forward and
+  immutable tags. No database benchmark, image build or report regeneration ran.
 
 **Next: HIGH model / high effort — review the execution evidence after closeout.**

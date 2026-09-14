@@ -41,8 +41,8 @@ generated report contains the registered inputs digest and current final-analysi
 | `20260913T172624Z-v3` | `9b7aa48b329ca44e341fe2aedb6d39de8d4cb70d` | `bd95d304cb39e2de` |
 | `20260914T104721Z-v3` | `d1b18bf437daf972860261e53b422dc87905cc09` | `9ead901cb74c4183` |
 
-The first local-main update was a fast-forward from `025b72f` to `32aec56`. The
-closeout commit, final fast-forward and annotated tags are recorded after they complete.
+The first local-main update was a fast-forward from `025b72f` to `32aec56`. This closeout
+revision is the target for the final fast-forward and the two annotated tags.
 No remote was contacted, altered or synchronized.
 
 **Next: HIGH model / high effort — review this evidence and the completed closeout.**
