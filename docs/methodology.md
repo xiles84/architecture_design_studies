@@ -410,3 +410,20 @@ as blocked, not merged. No push, pull or history rewrite is part of this workflo
 If a cell fails, the matrix continues and the failure is recorded in the run manifest. A
 three-hour matrix that aborts on the fifth of twenty-one cells should leave four usable
 results behind, not an empty directory. Reports state which cells are missing and why.
+
+## 14. Planning, execution and analysis have explicit model roles
+
+Use the owner's [HIGH/LOW workflow](../AGENTS.md#model-roles-execution-handoff-and-escalation-required).
+HIGH prepares the Execution Handoff and decides what the checks must establish. LOW
+implements mapped steps and collects the planned validation evidence. HIGH reviews
+adequacy, resolves Escalation Required items and interprets results in signed analyses.
+If review changes the plan, preserve the earlier handoff and add a dated amendment or
+successor. An execution log records observed facts; it does not replace the analysis.
+
+Every handoff identifies the starting revision, scope and ownership, decided choices,
+permitted routine decisions, commands, expected outputs, acceptance criteria, escalation
+triggers, commit/tag/merge steps and the next model/effort. See the
+[handoff template](templates/EXECUTION_HANDOFF.md) and
+[escalation template](templates/ESCALATION_REQUIRED.md).
+Pausing for the next model is an unfinished-task checkpoint. The final integration
+into main occurs under the usual worktree and provenance rules.

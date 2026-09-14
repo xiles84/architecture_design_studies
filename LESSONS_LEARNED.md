@@ -10,6 +10,16 @@ experiments**.
 
 ## Measurement
 
+### A model handoff must preserve decisions, evidence and the next role
+
+The owner separates expensive reasoning from routine execution: HIGH writes an
+Execution Handoff, LOW carries it out, and HIGH reviews validation and results.
+A bare request to switch models loses the decisions the executor needs. Commit the
+handoff with exact scope, steps, acceptance criteria and permitted choices; log unmapped
+decisions as Escalation Required. Expected waits remain execution work. Each iteration
+names the next role and any agreed model/effort, and context distinguishes a model-switch
+checkpoint from a finished, merged task. These rules now live in AGENTS.md for all studies.
+
 ### Isolation needs an explicit integration step
 
 A completed Study 01 branch contained the results and updated rules while `main`

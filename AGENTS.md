@@ -78,6 +78,41 @@ protocol before running; existing published results are not retroactively relabe
 List measured pairs, justified non-applicability and outstanding gaps in each protocol
 and final analysis. Methodology sections 4 and 6a explain the sizing and control details.
 
+## Model roles: Execution Handoff and Escalation Required
+
+**Owner workflow, 2026-09-14:** HIGH and LOW are roles chosen through the user's
+model/effort settings. Record the actual model/tool and selected effort when known;
+never infer an unavailable setting or switch models silently.
+
+1. **HIGH plans.** Resolve the reasoning-intensive choices, scope, design, dependencies,
+   validation criteria and allowed implementation decisions. Publish a versioned
+   **Execution Handoff** before handing implementation to LOW. Use
+   `docs/templates/EXECUTION_HANDOFF.md`; identify exact paths, commands, expected
+   outcomes, stop conditions and the next required model level.
+2. **LOW executes the mapped work.** Follow the handoff, run the specified checks and
+   collect evidence. Routine observations and explicitly permitted decisions belong
+   in its progress log. LOW does not change the scientific question, design, acceptance
+   criteria or signed conclusions to make a run pass.
+3. **Unmapped decisions are Escalation Required.** Record an item in the task's escalation
+   log using `docs/templates/ESCALATION_REQUIRED.md`, with evidence, blocked steps,
+   options and the decision needed. Stop the dependent work; continue independent mapped
+   work where useful. HIGH resolves the item and publishes an attributable handoff
+   amendment. Keep the original decision and evidence visible.
+4. **HIGH validates and analyses.** LOW may execute predefined validation commands;
+   HIGH judges their adequacy, reviews implementation/results, and writes the signed
+   analysis. A disagreement starts another handoff/escalation iteration. Final mechanical
+   integration can be assigned to LOW only with HIGH's explicit acceptance conditions.
+5. **Every iteration states the next setting.** End with `Next: LOW — <mapped work>` or
+   `Next: HIGH — <planning, escalation decision, validation or analysis>`, including a
+   concrete model/effort when the task has agreed one. If no work remains, say so.
+
+A model-switch handoff is a checkpoint in the same unfinished task. Commit and tag that
+checkpoint, update context/lessons, and state what remains; do not claim the task is
+complete or the changes merged merely because the planning iteration ended. The normal
+task-completion merge rule still applies once the task's acceptance conditions are met.
+An expected wait for a benchmark lock stays with LOW; waiting alone is not an unmapped
+design decision and does not require a model escalation.
+
 ## Hard rule: commit and tag, never push
 
 Studies are revisited: new designs, new questions, new analysts. Two reports of the same

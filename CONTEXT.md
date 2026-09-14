@@ -61,7 +61,8 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-02/v1-analysis` | study 02 report and first signed analysis (`2bc7e1c`) |
 | `repo/agents-md-and-run-lock` | AGENTS.md as the tool-neutral instructions, parallel-work rules, benchmark lock |
 | `repo/study-comparison-minimums` | future-study requirements for calculated sizing, information placement, data colocation and concurrency strategies |
-| `repo/worktree-to-main-workflow` | every task creates/reuses an isolated worktree and merges completed changes into local main by default |
+| `repo/worktree-to-main-workflow` (planned) | EH-01 assigns creation on the final integrated commit; every task uses an isolated worktree and merges into local main |
+| `repo/study01-integration-handoff-v1` | HIGH planning checkpoint for the LOW integration steps and subsequent HIGH review |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
 | `study-02/v1.2-terminology` | study 02 README terminology section (general admission); no SQL, harness, report or analysis change |
@@ -95,12 +96,28 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**Integration in progress, 2026-09-14:** the owner changed the general workflow to
-require a worktree at task start and a merge into local `main` at completion. This
-supersedes the earlier owner-only merge rule. Study 01 v3 and the future-study rules
-are being integrated from `study-01/measurement-enhancements`, preserving the separate
-Study 03 work on `main`. The active Study 03 ER-01 diagnostic must finish before its
-checkout's shared infrastructure is updated. No push or pull is authorized.
+**Execution Handoff ready, 2026-09-14 — next LOW:** the HIGH planning pass incorporated
+local `main` at `025b72f` into `study-01/measurement-enhancements` (reviewed integration
+`e3e31bc`). Study 03's diagnostic is finished; its separate ER-02 remains open. Live
+checks found both worktrees clean and no benchmark containers/lock, but LOW must recheck.
+The [Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md) maps final
+verification, fast-forward into `main`, context updates and annotated integrated tags.
+Its [progress](docs/handoffs/20260914-study01-integration/PROGRESS.md) and
+[escalations](docs/handoffs/20260914-study01-integration/ESCALATIONS.md) keep the iterations
+traceable. The task is not yet merged; the model switch is a checkpoint, not completion.
+
+## Model roles for every study
+
+[AGENTS.md](AGENTS.md#model-roles-execution-handoff-and-escalation-required) defines
+the owner's general workflow: HIGH plans and writes an Execution Handoff, LOW executes
+its mapped steps, unmapped decisions become Escalation Required, and HIGH validates and
+analyses. Each iteration names the next model level and any agreed effort. Routine
+waiting remains LOW work. No automatic model change is implied.
+
+Current task: HIGH = the user's high-level model/effort (this planning pass is GPT-6
+via Codex; exact selected effort is not exposed); next LOW = the user's lower model
+with low effort, following the linked handoff. Final evidence review returns to HIGH.
+Study 03's existing model/effort mapping below remains specific to that study.
 
 ## What this project is
 
@@ -513,7 +530,7 @@ unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS
   map as "Escalation Required", then continues with unblocked work.
 - Every iteration ends by naming the next step's model: higher or lower.
 
-Current mapping: higher = Claude Opus 5, setting `ultracode` (study 03's earlier documents say
+Study 03 mapping: higher = Claude Opus 5, setting `ultracode` (study 03's earlier documents say
 "ultra"); lower = Claude Opus 5, setting `high` (they say "high").
 
 **The question:** buyers choose specific seats and keep them for 40 minutes while they pay,
