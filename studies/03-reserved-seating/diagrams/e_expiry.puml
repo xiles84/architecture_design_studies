@@ -1,0 +1,30 @@
+@startuml e_expiry
+!include _style.puml
+title E — when does an abandoned hold give its seat back, and whose clock says so?
+
+participant "Buyer A\n(walked away)" as A
+participant "Database" as DB
+participant "Sweeper" as S
+participant "Buyer B" as B
+
+A -> DB : hold seat 7, expires_at = now() + 40 min
+... 40 minutes: A never comes back ...
+
+== S1 — lazy expiry (and E2, whose expiry lives on the cart row) ==
+B -> DB : UPDATE … WHERE available OR expires_at <= now()  → taken at once
+S -> DB : later: tidies the row (nothing depends on it)
+
+== E1 — expiry takes effect only when the sweeper runs ==
+B -> DB : UPDATE … WHERE status = 'available'  → 0 rows: still "held"
+S -> DB : sweep: status := 'available'
+B -> DB : retry → taken
+note right of S
+  sweeper stopped (outage, minutes 45–85):
+  every abandoned seat stays unavailable
+end note
+
+== E0 — expiry judged by an application clock (NEGATIVE CONTROL) ==
+A -> DB : hold seat 9 at 12:00 (node 0, exact clock) → expires 12:40
+B -> DB : 12:31 on node 1, whose clock reads 12:41\nUPDATE … WHERE expires_at <= $app_now → **taken 9 minutes early**
+A -> DB : 12:35 confirm → 0 rows: refused five minutes before expiry
+@enduml

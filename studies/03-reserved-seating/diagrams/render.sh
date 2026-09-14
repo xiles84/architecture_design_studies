@@ -16,5 +16,6 @@ mkdir -p "$DIR/rendered"
 # _style.puml is an include, not a diagram, so it is listed explicitly nowhere.
 mapfile -t files < <(cd "$DIR" && ls *.puml | grep -v '^_')
 
-podman run --rm -v "$DIR:/data" -w /data "$IMAGE" "-t$FMT" -o /data/rendered "${files[@]}"
+command -v cygpath >/dev/null 2>&1 && DIR_HOST="$(cygpath -m "$DIR")" || DIR_HOST="$DIR"
+podman run --rm -v "$DIR_HOST:/data" -w /data "$IMAGE" "-t$FMT" -o /data/rendered "${files[@]}"
 echo "rendered ${#files[@]} diagrams to $DIR/rendered as .$FMT"

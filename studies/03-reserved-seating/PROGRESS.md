@@ -15,7 +15,7 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 4 | Platform: ErrLockNotAvailable | done — study 02 image still builds | `241e06f`, `repo/platform-lock-not-available` |
 | 5 | SQL catalogue, 13 designs | done | `13941ff` |
 | 6 | Harness (17 unit tests pass in the build) | done | `eb7e4ff` |
-| 7 | Diagrams | sources written; rendering pending (no CPU-heavy work while measuring) | |
+| 7 | Diagrams | done — five diagrams rendered | (next commit) |
 | 8 | Dev checks and calibration | PostgreSQL passed; YugabyteDB 1-node **blocked by ER-01**; yb-cluster3 subset running | |
 | 9 | Main matrix (`small`) | blocked: ER-01 open | |
 | 10 | Repeated race trials | pending | |
