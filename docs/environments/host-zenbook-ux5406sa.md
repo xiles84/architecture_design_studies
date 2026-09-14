@@ -46,6 +46,11 @@ results are only comparable to each other when the environment id matches.
 
 ### Study 01 v3 resource conditions
 
+Live runtime rechecks for v3: on 2026-09-13 the guest exposed 8 CPUs and
+16,496,418,816 bytes; on 2026-09-14 it exposed 8 CPUs and 16,496,427,008 bytes.
+Both reported kernel `6.6.87.2-microsoft-standard-WSL2`. The tiny guest-memory
+reservation difference is recorded here rather than changing earlier snapshots.
+
 These are separately named experimental conditions on this same hardware. They must not
 be pooled as though the database configuration were identical.
 

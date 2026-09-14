@@ -168,9 +168,11 @@ holds `ads-run-lock`; no further database work may start until it releases the l
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
 companions, using `docs/templates/DISCUSSION.md`. Original published analyses stay intact.
 
-**Status:** all experiments (survey, C, D, E) complete; D9 cache bug found, diagnosed and fixed as D10; two signed analyses written, including an independent GPT-6 review of the available evidence.
+**Earlier v1/v2 baseline:** survey and experiments C/D/E completed; D9's cache bug was
+diagnosed and addressed by D10. Two signed analyses remain preserved for those inputs.
+The v3 enhancements and current execution state are recorded above.
 
-Eight designs, each a single deliberate change from its neighbour:
+Baseline designs D1–D10 (the seven v3 additions are documented above and in the README):
 
 | ID | Design | Isolates |
 |---|---|---|
@@ -321,15 +323,23 @@ to other levels of the tree. Decisions:
 Harness support: `-max-per-person`, `-charities`, `-read-mix portal`, `-cmd report-compare`
 (same designs under two regimes, flags where the per-question **winner** changes).
 
-### Not yet done (from the analysis's "what I would measure next")
+### Follow-up coverage and remaining questions
 
-- Repeated, alternating D2/D3 trials and variants that separate the copied key, new indexes and SQL rewrites; capture representative plans during equivalent database preparation.
-- A `medium` (1 M donations) run: every result so far fits in memory.
-- YugabyteDB 1-node FK re-measurement with trials (one unreplicated 1.8x figure).
-- Longer repeated YugabyteDB 3-node donor-erasure measurements with/without FKs, and D10 cache correctness/cost on YugabyteDB.
-- Asynchronous rollups (queue / logical decoding) — the design Note R1 points at but nobody built.
-- Total-budget sharding framing (1 node x 6 CPU vs 3 nodes x 2 CPU).
-- An open-loop load generator before any tail figure is treated as an SLO.
+V3 completed the five-load D2/D3 mechanism comparisons, medium/long-history growth,
+constrained-memory trials, fixed-reader contention, YB FK/cache checks, equal-total
+budgets and local node-stop diagnostics. Scheduled arrivals now expose queueing,
+rejections and acknowledged-write reconciliation. The matched memory run above is
+the remaining active control; none of these runs certifies a production latency SLO.
+
+- Independent hosts, real network separation, query-endpoint failure and a matching
+  no-fault arrival condition remain external deployment work.
+- Spread YB client connections across all nodes before interpreting a single-query-node
+  bottleneck as a general limit of equal-resource sharding.
+- Extend cache audits from ordered IDs to complete payloads under overlapping mutation
+  streams; test reassignment invariants separately.
+- Longer isolated mutations and covering-index reads under sustained churn would narrow
+  the remaining variance and preparation uncertainty.
+- Asynchronous rollups (queue / logical decoding) remain a separate unimplemented design.
 
 ### Study 02 — avoiding overbooking (band → event → ticket)
 
@@ -413,8 +423,8 @@ asynchronous allocator (virtual waiting room); a second analysis by a different 
 
 ## Open questions worth a future study
 
-- Total-budget framing of sharding (one big node vs three small ones), as opposed to the
-  per-node framing used here.
+- Extend the v3 equal-total-budget comparison to balanced query endpoints, larger data
+  and independent physical hosts.
 - Partitioning in PostgreSQL (`PARTITION BY HASH` + local indexes) as the non-distributed
   equivalent of D7's placement lever.
 - Where the embedded design's crossover lies as array length grows — the write cost is
