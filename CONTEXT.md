@@ -71,6 +71,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-03/v0.1-handoff-amendment-01` | study 03: ER-01 decided (transient refusals on YugabyteDB); AM-01 adds design S1r, refusal diagnostics and amended dev-check criteria |
 | `study-03/v1-harness` | study 03: 14 designs (13 + S1r), harness and SQL as dev-checked on tiny (dc1–dc14) |
 | `study-03/v0.2-handoff-amendment-02` | study 03: ER-02 decided; AM-02 adds the `small` calibration run and duration rules for steps 9–10 |
+| `repo/concurrent-agents-reconciliation` | AGENTS.md hard rule: always assume a concurrent agent; the agent that merges later reconciles shared documents into one coherent project |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -511,6 +512,10 @@ revised end ≈ 2026-09-15 19:00 UTC. The repeated race (step 10, ≈ 4.4 h) fol
 busy until ≈ 2026-09-16 00:00 UTC. **The main folder (`main` checked out) holds that run's
 uncommitted results:** other sessions must not check out, merge into or fast-forward `main` in that
 folder until study 03's step 11 is committed (≈ 00:30 UTC). Work in worktrees is unaffected.
+*Deviation, stated plainly:* since the task-worktree rule (`b290958`), study 03 has kept working
+directly in the checkout of `main`. The running matrix cannot move. Once its results are committed,
+study 03 continues in its own worktree (`.worktrees/study03-*`) and merges into `main` under
+AGENTS.md's worktree and reconciliation rules.
 yb-single S4 and E2 failed in the lifecycle (diagnosed; ER-03, non-blocking). The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
