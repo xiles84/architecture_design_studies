@@ -18,9 +18,9 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 7 | Diagrams | done — five diagrams rendered | `8b6d8f9` |
 | 8 | Dev checks and calibration | dc1–dc11 done; ER-01 raised, decided (AM-01) | `0a9b2da`; ER-01 decision `e70c842`, `study-03/v0.1-handoff-amendment-01` |
 | 8a | AM-01: transient-refusal class, refusal diagnostics, S1r, report; dev checks dc12–dc14 | done — §10.3 as amended by AM-01.5 holds (19 unit tests pass in the build) | `e10dc6c`, `7ab4b67`, `f43fc0f`, `03d7e8a`; tag `study-03/v1-harness` |
-| 8b | AM-02 calibration (dc15, S1 `small`, 3 topologies) | done — passes; rule 1 applies, projection ≈ 15.7 h (rule 2) | see below |
-| 9 | Main matrix (`small`) | running | |
-| 10 | Repeated race trials | pending | |
+| 8b | AM-02 calibration (dc15, S1 `small`, 3 topologies) | done — passes; rule 1 applies, projection ≈ 15.7 h (rule 2) | `3d7aa89` |
+| 9 | Main matrix (`small`) | done — 41 cells, 4 failed (diagnosed; ER-03); ER-04 raised | `3e36cfb`; run tag `run/03-reserved-seating/20260915T002411Z` |
+| 10 | Repeated race trials | running (from worktree `.worktrees/study03-measurement`) | run tag `run/03-reserved-seating/20260915T173255Z` |
 | 11 | Context, lessons, README; ready for analysis | pending | |
 
 ## Mapped decisions (handoff §11)
@@ -129,3 +129,40 @@ rejections on YugabyteDB all transient (yb-single 4, yb-cluster3 43); deferred c
 - Repeated race (step 10, tiers 1 000 and 10 000, 3 trials), with verify taken as 2.5 min per cell:
   pg-single ≈ (0.1 + 2.5 + 3 × 0.62) × 13 ≈ 1.0 h; yb-cluster3 ≈ (0.5 + 2.5 + 3 × (0.53 + 2.69)) × 14 ×
   1.15 ≈ 3.4 h; total ≈ **4.4 h** ≤ 12 h → 3 trials.
+
+## Main matrix (step 9) — facts
+
+Run `20260915T002411Z`: commit `7dbdd11`, tag `run/03-reserved-seating/20260915T002411Z`, inputs digest
+`a56ce92ce38b8204`, report `reports/20260915T002411Z.md`. 2026-09-15 00:24 → 17:30 UTC (17 h 6 min;
+projection 15.7 h).
+
+- **Topology times:** pg-single 1 h 50 min (13 cells); yb-single 7 h 50 min (14 cells, ≈ 34 min/cell);
+  yb-cluster3 ≈ 7 h 20 min (14 cells).
+- **Gates:** 58/58 in every cell.
+- **Negative controls:** 15 of 15 fired, per the report's controls table.
+- **Failed cells (4), each with a DIAGNOSIS.md beside its logs:**
+  - S4 on yb-single: lifecycle monitor timeout, SERIALIZABLE deadlock storm.
+  - S4 on yb-cluster3: the reload before the lifecycle timed out, same storm.
+  - E2 on yb-single and on yb-cluster3: lifecycle monitor timeout, node saturation.
+  - All four completed verify, reads, writes and the race without a violation; ER-03 asks whether
+    to re-run them.
+- **PostgreSQL:** no violation in any correct design, and no early rejection.
+- **YugabyteDB early rejections in correct designs (report TL;DR):**
+  - yb-single: S3 2, E1 1, K1 2, L1 1, all transient; L2 4, unclassified (ER-04).
+  - yb-cluster3: S1 41, S2 27, S3 46, E1 37, E2 7, K1 28, L1 35, L3 1, all transient; L2 13,
+    unclassified (ER-04).
+- **S1r, 0 early rejections on every topology.** Race retries after a short match: yb-cluster3 35,
+  all 35 sold; yb-single 0; pg-single 0. Lifecycle retries (expired holds) never sold: pg 54,
+  yb-single 4, yb-cluster3 2.
+- **E1 sweeper-outage probe (the control condition):** pg-single 59/59, yb-single 8/8, yb-cluster3
+  11/11 seats unavailable after expiry; 0 in every other design.
+- **Throttling:** the yb-single database container was throttled in 63–96% of CPU periods per cell
+  (S4 30%), from the per-cell `cpu.stat` snapshots; yb-cluster3 nodes less (S4 7–15%, E2 32–56%).
+
+## Environment and coordination notes (continued)
+
+- 2026-09-15: the owner stated that another AI agent (OpenAI Codex) works on the repository
+  concurrently. AGENTS.md hard rule "assume a concurrent agent" was added (tag
+  `repo/concurrent-agents-reconciliation`). Study 03 worked directly in the checkout of `main` until
+  the matrix ended. Step 10 onwards runs in `.worktrees/study03-measurement` (branch
+  `study-03/measurement`), which merges into `main` at step 11.

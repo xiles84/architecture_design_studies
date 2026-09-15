@@ -233,8 +233,8 @@ Podman is the only prerequisite. See [docs/replication.md](../../docs/replicatio
 ```
 
 ```bash
-# repeated races: three fresh-load trials of the race only
-./run-study.sh --topologies pg-single,yb-cluster3 --phases verify,race --extra "-race-trials 3" --tag
+# repeated races: three fresh-load trials of the 1 000- and 10 000-seat races (HANDOFF AM-02.4)
+./run-study.sh --scale small --topologies pg-single,yb-cluster3 --phases verify,race --extra "-race-trials 3 -race-tiers 1000,10000" --tag
 ```
 
 ```bash
@@ -244,7 +244,16 @@ Podman is the only prerequisite. See [docs/replication.md](../../docs/replicatio
 
 ## Results and conclusions
 
-Not yet run.
+Generated reports hold numbers only. Conclusions belong in signed analyses under
+[`reports/analyses/`](reports/analyses/); none yet.
+
+| Run | What | Extra flags and handoff rules | Report | Inputs digest | Notes |
+|---|---|---|---|---|---|
+| `20260915T002411Z` (tag `run/03-reserved-seating/20260915T002411Z`) | `small`, all phases, pg-single + yb-single + yb-cluster3, 14 designs | YugabyteDB: `-race-tiers 10,100,1000,10000` (AM-02 rule 1: in calibration dc15 the 100 000-seat event sold 2–3% before timing out); nothing else (AM-02 rule 2) | [report](reports/20260915T002411Z.md) | `a56ce92ce38b8204` | 41 cells, 4 failed: S4 and E2 on both YugabyteDB topologies, each diagnosed beside its logs (ER-03). L2's YugabyteDB early rejections are unclassified (ER-04) |
+| `20260915T173255Z` (tag `run/03-reserved-seating/20260915T173255Z`) | repeated race: `verify,race`, 3 trials, 1 000- and 10 000-seat tiers, pg-single + yb-cluster3 | `-race-trials 3 -race-tiers 1000,10000` (AM-02.4) | running | | |
+
+Dev checks, the ER-01 diagnosis and the `small` calibration are under
+[`results/devchecks/`](results/devchecks/); their measured facts are in [PROGRESS.md](PROGRESS.md).
 
 ## Reading the numbers honestly
 
