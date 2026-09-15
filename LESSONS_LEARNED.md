@@ -676,3 +676,21 @@ release the dataset's holds that were loaded already expired, and their "lag" wa
 load. The numbers looked absurd only because the time was compressed; at real speed the same
 bug would have reported a plausible half hour. Lag now counts only holds granted during the
 phase. Any metric measured from a timestamp should say which rows may contribute to it.
+
+### Instrumentation must not be able to delete a design's results
+
+Study 03's `small` matrix lost the lifecycle phase of four YugabyteDB cells. The designs had not failed:
+the harness's own sold-seat monitor query timed out while the node was saturated, and the harness treated
+the first monitor error as fatal. The designs' own statements, which timed out at the same moments, were
+retried and counted as errors. An observer query should have the same tolerance as the workload it
+observes (retry, count, move on). Otherwise a busy engine produces missing numbers, and a report shows
+"failed" where it should show "slow".
+
+### A classification that needs a diagnostic is silent where the diagnostic does not run
+
+AM-01 split early rejections into transient and persistent by re-issuing the refused statement. L2
+(a section document checked in the application) has no statement to re-issue, so its refusals were
+counted as "0 transient". They had the same shape as the transient refusals of every other design: a
+read 20–100 ms after the hold's commit that did not show it. The report tables printed `n/a`, but the
+TL;DR listed L2 among designs with invariant violations. When a class depends on a diagnostic, report
+"unclassified" wherever the diagnostic cannot run, in every place the number appears.
