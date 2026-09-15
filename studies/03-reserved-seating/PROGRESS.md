@@ -136,8 +136,9 @@ Run `20260915T002411Z`: commit `7dbdd11`, tag `run/03-reserved-seating/20260915T
 `a56ce92ce38b8204`, report `reports/20260915T002411Z.md`. 2026-09-15 00:24 → 17:30 UTC (17 h 6 min;
 projection 15.7 h).
 
-- **Topology times:** pg-single 1 h 50 min (13 cells); yb-single 7 h 50 min (14 cells, ≈ 34 min/cell);
-  yb-cluster3 ≈ 7 h 20 min (14 cells).
+- **Topology times** (from `topology.yaml` and result-file times): pg-single ≈ 1 h 55 min (13 cells);
+  yb-single ≈ 7 h 40 min (14 cells, ≈ 33 min/cell); yb-cluster3 ≈ 7 h 30 min (14 cells, including
+  cluster start).
 - **Gates:** 58/58 in every cell.
 - **Negative controls:** 15 of 15 fired, per the report's controls table.
 - **Failed cells (4), each with a DIAGNOSIS.md beside its logs:**
