@@ -363,3 +363,49 @@ work (no measurement).
   depends on.
 - *Why not split the matrix per topology (option 4):* same total time, three reports to join, and no
   gain unless another study is waiting. The runner already isolates cells.
+
+---
+
+## ER-03 — Two YugabyteDB cells lost their lifecycle to a harness monitor query that timed out
+
+- raised_by: claude-opus-5, setting `high` (LOW model/effort), Claude Code desktop (executor session)
+- raised_at: 2026-09-15 09:24 UTC
+- handoff_sections: §9 step 9 (failed cells), §11 (re-run only environmental failures), §12 item 7
+- trigger: unmapped — a harness behaviour decides which results exist; re-running needs a harness change after the run was tagged
+- status: open (non-blocking: the matrix and the repeated race continue)
+
+**Blocked:** only the question of whether the two failed cells get complete results. Steps 9 and 10 continue.
+
+**Context.** Run `20260915T002411Z`, tag `run/03-reserved-seating/20260915T002411Z`, on yb-single:
+
+| Cell | Finished without violation | Failed at | Cause (diagnosis beside the log) |
+|---|---|---|---|
+| S4 check-then-hold SERIALIZABLE | verify, explain, reads, writes, race, lifecycle 10-seat tier | lifecycle 100-seat tier, event 640 | 57 080 deadlock aborts; statement RPC timeouts; 30% CPU throttled |
+| E2 cart-expiry | same | lifecycle 100-seat tier, event 641 | node saturated (86% CPU throttled), WAL appends and transaction-status RPCs stalled; statement RPC timeouts |
+
+Both cells ended with the same error, from the lifecycle's sold-seat monitor:
+
+> `ERROR: lifecycle monitor event 64x: ERROR: Timed out waiting kResponseSent, state: kProcessingRequest (SQLSTATE XX000)`
+
+`harness/lifecycle.go` returns on the first failure of `eventSold` (line ~423), so one timed-out
+instrumentation query ends the cell. Design statements that time out do not: buyers record them as
+errors and continue. The same can happen on yb-cluster3, which runs after yb-single.
+
+**Options:**
+
+1. **Keep the failed cells as they are.** The report lists them as failed, with the phases they
+   completed and their diagnoses. *Consequence:* S4 and E2 have no 100-seat lifecycle numbers on
+   yb-single (and possibly on yb-cluster3); the harness weakness is recorded as a limitation.
+2. **Make the monitor tolerant** (retry a failed sold-seat count with backoff for, say, 30 s, and
+   count it as an error) in a new commit, then re-run only the failed cells in a follow-up run with
+   its own tag. *Consequence:* complete lifecycle numbers, from a different commit than the rest of
+   the matrix. The report must join two runs or the analysis must cite both.
+3. **As 2, but re-run the whole YugabyteDB lifecycle phase for every design** with the new harness,
+   so all YugabyteDB lifecycle numbers share one commit. *Consequence:* about 3 more hours on
+   yb-single and yb-cluster3.
+
+**Executor's recommendation:** 2 if yb-cluster3 loses no more than these two designs' lifecycle,
+otherwise 3. The monitor is instrumentation; its failure says nothing about the design.
+
+**Work continuing meanwhile:** the main matrix (yb-single E0, then yb-cluster3), the repeated race,
+and step 11 documents.
