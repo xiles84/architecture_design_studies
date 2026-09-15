@@ -64,6 +64,10 @@ type LifecycleResult struct {
 	// how many of those sold.
 	ConfirmRetries        int64 `json:"confirm_retries"`
 	ConfirmRetrySuccesses int64 `json:"confirm_retry_successes"`
+	// AM-03.1: reads of the sold-seat monitor the engine did not answer at once.
+	// MonitorTimeouts counts events whose phase ended early because it never did.
+	MonitorRetries  int64 `json:"monitor_retries"`
+	MonitorTimeouts int64 `json:"monitor_timeouts"`
 	EngineRetries     int64  `json:"engine_retries"`
 	Errors            int64  `json:"errors"`
 	FirstError        string `json:"first_error,omitempty"`
@@ -91,6 +95,7 @@ type lcOne struct {
 	expCheck, expCheckout, payments, confHolds, confSeats      atomic.Int64
 	late, boundary, early, retries, errs, swept                atomic.Int64
 	confRetries, confRetrySold                                 atomic.Int64
+	monRetries, monTimeouts                                    atomic.Int64
 	idleMicroHuman                                             atomic.Int64
 	outageProbed, outageUnavailable, leakProbed, leaked        int64
 	holdL, confL, coL, lagL                                    []time.Duration
@@ -119,9 +124,11 @@ func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Da
 			if err != nil {
 				return nil, err
 			}
-			sold, err := eventSold(ctx, db, d, ev.ID)
+			sold, err := soldTolerantly(ctx, db, d, ev.ID, &one.monRetries)
 			if err != nil {
-				return nil, err
+				// AM-03.1: the tier keeps the events it measured.
+				one.monTimeouts.Add(1)
+				sold = 0
 			}
 			ids = append(ids, ev.ID)
 			res.Events++
@@ -143,6 +150,8 @@ func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Da
 			res.RejectedEarly += one.early.Load()
 			res.ConfirmRetries += one.confRetries.Load()
 			res.ConfirmRetrySuccesses += one.confRetrySold.Load()
+			res.MonitorRetries += one.monRetries.Load()
+			res.MonitorTimeouts += one.monTimeouts.Load()
 			res.EngineRetries += one.retries.Load()
 			res.Errors += one.errs.Load()
 			res.SweptSeats += one.swept.Load()
@@ -188,11 +197,11 @@ func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Da
 		if res.Leaked > 0 {
 			status += fmt.Sprintf(", LEAKED %d seats", res.Leaked)
 		}
-		fmt.Printf("    lifecycle %5d seats x%-3d %7.1f confirmed seats/s  holds=%d abandoned=%d+%d expired@check=%d rejected late/boundary/early(transient)=%d/%d/%d(%d)  confirm retries sold/run=%d/%d  outage unavailable=%d/%d  leaked=%d errors=%d  %s\n",
+		fmt.Printf("    lifecycle %5d seats x%-3d %7.1f confirmed seats/s  holds=%d abandoned=%d+%d expired@check=%d rejected late/boundary/early(transient)=%d/%d/%d(%d)  confirm retries sold/run=%d/%d  outage unavailable=%d/%d  leaked=%d errors=%d  monitor retries/ended early=%d/%d  %s\n",
 			tier, res.Events, res.ConfirmedSeatsPerSec, res.HoldsGranted, res.AbandonedSilent, res.AbandonedExplicit,
 			res.ExpiredAtCheck, res.RejectedLate, res.RejectedBoundary, res.RejectedEarly, res.RejectedEarlyTransient,
 			res.ConfirmRetrySuccesses, res.ConfirmRetries, res.OutageUnavailable,
-			res.OutageProbed, res.Leaked, res.Errors, status)
+			res.OutageProbed, res.Leaked, res.Errors, res.MonitorRetries, res.MonitorTimeouts, status)
 		fmt.Printf("      audit: %s\n", au)
 		if res.FirstError != "" {
 			fmt.Printf("      first error: %s\n", res.FirstError)
@@ -204,6 +213,31 @@ func RunLifecycle(ctx context.Context, db ports.DB, sl *Seller, d Design, ds *Da
 
 // humanLags converts wall-clock lags into human minutes, in the LatencyStats
 // fields (whose "ms" names then mean human minutes).
+// monitorBudget bounds how long the lifecycle's sold-seat monitor retries a read
+// that the engine did not answer (AM-03.1). It is generous enough to outlast the
+// statement timeouts a saturated node produces, and short enough that a database
+// which has genuinely stopped answering is reported rather than waited on.
+const monitorBudget = 30 * time.Second
+
+// soldTolerantly reads the event's sold count, retrying a failed read within the
+// budget. Retries are counted so a reader can see when the engine stopped
+// answering; the returned error means it never did.
+func soldTolerantly(ctx context.Context, db ports.DB, d Design, ev int64, retries *atomic.Int64) (int64, error) {
+	sold, err := eventSold(ctx, db, d, ev)
+	if err == nil {
+		return sold, nil
+	}
+	deadline := time.Now().Add(monitorBudget)
+	backoff := 100 * time.Millisecond
+	for err != nil && time.Now().Before(deadline) && ctx.Err() == nil {
+		retries.Add(1)
+		time.Sleep(backoff)
+		backoff = min(2*backoff, 2*time.Second)
+		sold, err = eventSold(ctx, db, d, ev)
+	}
+	return sold, err
+}
+
 func humanLags(lags []time.Duration, s Settings) measure.LatencyStats {
 	scaled := make([]time.Duration, len(lags))
 	for i, l := range lags {
@@ -420,13 +454,15 @@ func lifecycleEvent(ctx context.Context, sl *Seller, d Design, ev *Event, s Sett
 			probeDone.Store(true)
 			gate.Unlock()
 		}
-		sold, err := eventSold(ctx, sl.db, d, ev.ID)
+		sold, err := soldTolerantly(ctx, sl.db, d, ev.ID, &one.monRetries)
 		if err != nil {
-			stop.Store(true)
-			close(sweepStop)
-			wg.Wait()
-			<-sweepDone
-			return nil, fmt.Errorf("lifecycle monitor event %d: %w", ev.ID, err)
+			// AM-03.1: the monitor watches the workload; it is not part of any design.
+			// A design whose statements are retried must not lose its phase because an
+			// observer query was not. The event ends here and is recorded as such; the
+			// tier and the cell continue.
+			one.monTimeouts.Add(1)
+			recordErr(fmt.Errorf("lifecycle monitor event %d, phase of this event ended early: %w", ev.ID, err))
+			break
 		}
 		if sold >= capacity && probed {
 			break

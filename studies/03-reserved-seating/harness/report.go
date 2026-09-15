@@ -213,12 +213,15 @@ func lifecycleOf(r *Run, tier int) *LifecycleResult {
 	agg.RejectedLate, agg.RejectedBoundary, agg.RejectedEarly, agg.RejectedEarlyTransient = 0, 0, 0, 0
 	agg.ConfirmRetries, agg.ConfirmRetrySuccesses = 0, 0
 	agg.OutageProbed, agg.OutageUnavailable, agg.Leaked, agg.Errors = 0, 0, 0, 0
+	agg.MonitorRetries, agg.MonitorTimeouts = 0, 0
 	for _, t := range trials {
 		agg.RejectedLate += t.RejectedLate
 		agg.RejectedBoundary += t.RejectedBoundary
 		agg.RejectedEarly += t.RejectedEarly
 		agg.RejectedEarlyTransient += t.RejectedEarlyTransient
 		agg.ConfirmRetries += t.ConfirmRetries
+		agg.MonitorRetries += t.MonitorRetries
+		agg.MonitorTimeouts += t.MonitorTimeouts
 		agg.ConfirmRetrySuccesses += t.ConfirmRetrySuccesses
 		agg.OutageProbed += t.OutageProbed
 		agg.OutageUnavailable += t.OutageUnavailable
@@ -305,7 +308,8 @@ func violationMarks(a *Audit) []string {
 	add(a.Ledger.SalesWithoutHold, "sales without the hold")
 	add(a.Ledger.LateSales, "late sales")
 	if a.Ledger.RejectedEarly > 0 {
-		m = append(m, fmt.Sprintf("%d early rejections (%d transient)", a.Ledger.RejectedEarly, a.Ledger.RejectedEarlyTransient))
+		m = append(m, fmt.Sprintf("%d early rejections (transient: %s)",
+			a.Ledger.RejectedEarly, transientCell(a, a.Ledger.RejectedEarlyTransient)))
 	}
 	add(a.DuplicateSeats, "seats with 2+ tickets")
 	add(a.InventoryDrift, "inventory drift")
@@ -316,18 +320,20 @@ func violationMarks(a *Audit) []string {
 }
 
 // earlyCell is "early (transient)" from an audit, or — without one.
-func earlyCell(id string, a *Audit) string {
+func earlyCell(a *Audit) string {
 	if a == nil {
 		return "—"
 	}
-	return fmt.Sprintf("%d (%s)", a.Ledger.RejectedEarly, transientCell(id, a.Ledger.RejectedEarlyTransient))
+	return fmt.Sprintf("%d (%s)", a.Ledger.RejectedEarly, transientCell(a, a.Ledger.RejectedEarlyTransient))
 }
 
 // transientCell is the transient part of early rejections, or n/a for designs whose
 // refusal is not a guarded statement (K0 has no guard; L2 checks in the application).
-func transientCell(id string, n int64) string {
-	if id == "k0_naive_confirm" || id == "l2_section_document" {
-		return "n/a"
+func transientCell(a *Audit, n int64) string {
+	// AM-03.3: a class exists only where a diagnostic recorded one. K0 has no guarded
+	// statement, and runs made before the L2 diagnostic classified nothing for L2.
+	if a == nil || (a.Ledger.RejectedEarly > 0 && a.Ledger.RejectedEarlyClassified == 0) {
+		return "not recorded"
 	}
 	return fmt.Sprint(n)
 }
@@ -843,7 +849,7 @@ func (rp *report) writeGuarantee(b *strings.Builder) {
 	fmt.Fprintf(b, "Release lag is in human minutes.\n\n")
 	for _, tp := range rp.topos {
 		t := md.NewTable("Design", "Tier", "Confirmed seats/s>", "Holds>", "Abandoned>", "Expired at check>", "Refused late / boundary / early (transient)>",
-			"Outage: unavailable / probed>", "Leaked>", "Release lag p50/p99 (min)>", "Idle held seat-min>", "Violations")
+			"Outage: unavailable / probed>", "Leaked>", "Release lag p50/p99 (min)>", "Idle held seat-min>", "Monitor retries / events ended early>", "Violations")
 		for _, id := range rp.designsIn(tp) {
 			for _, tier := range tiers {
 				x := lifecycleOf(rp.runs[tp][id], tier)
@@ -868,9 +874,10 @@ func (rp *report) writeGuarantee(b *strings.Builder) {
 				}
 				t.Row(designShort(id), tierLabel(tier), rate, fmt.Sprint(x.HoldsGranted),
 					fmt.Sprintf("%d+%d", x.AbandonedSilent, x.AbandonedExplicit), expCheck,
-					fmt.Sprintf("%d / %d / %d (%s)", x.RejectedLate, x.RejectedBoundary, x.RejectedEarly, transientCell(id, x.RejectedEarlyTransient)), outage,
+					fmt.Sprintf("%d / %d / %d (%s)", x.RejectedLate, x.RejectedBoundary, x.RejectedEarly, transientCell(x.Audit, x.RejectedEarlyTransient)), outage,
 					fmt.Sprint(x.Leaked), fmt.Sprintf("%.1f / %.1f", x.ReleaseLagHumanMin.P50MS, x.ReleaseLagHumanMin.P99MS),
-					fmt.Sprintf("%.0f", x.IdleHeldSeatHumanMin), viol)
+					fmt.Sprintf("%.0f", x.IdleHeldSeatHumanMin),
+					fmt.Sprintf("%d / %d", x.MonitorRetries, x.MonitorTimeouts), viol)
 			}
 		}
 		if t.Len() > 0 {
@@ -904,7 +911,7 @@ func (rp *report) writeRace(b *strings.Builder) {
 					d.Row(designShort(id), tierLabel(tier), fmt.Sprintf("%.2f", rr.ConflictsPerHold), fmt.Sprintf("%.2f", rr.MapReadsPerHold),
 						fmt.Sprint(rr.EngineRetries), fmt.Sprint(rr.GaveUp), md.MS(rr.HoldLatency.P50MS)+" / "+md.MS(rr.HoldLatency.P99MS),
 						md.MS(rr.ConfirmLatency.P99MS), fmt.Sprintf("%d/%d", rr.DeferredConfirmed, rr.DeferredHolds),
-						earlyCell(id, rr.Audit),
+						earlyCell(rr.Audit),
 						fmt.Sprintf("%d / %d", rr.ConfirmRetries, rr.ConfirmRetrySuccesses), fmt.Sprint(rr.SweepSold))
 				}
 			}

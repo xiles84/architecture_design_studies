@@ -581,7 +581,7 @@ func (s *Seller) BeginCheckout(ctx context.Context, node int, b Block, holdID in
 	}
 	el := s.world.ledger.Event(b.Event.ID)
 	if rows == nil {
-		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, ref), ref.transient)
+		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, ref), ref.transient, ref.ran)
 		return res, nil
 	}
 	el.Extend(holdID, rows)
@@ -613,7 +613,7 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 			vals := s.vals(node, b)
 			vals["hold_id"], vals["customer_id"], vals["ticket_ids"] = holdID, customer, ticketIDs
 			if s.d.Strategy == Document {
-				return s.confirmDocument(ctx, b, holdID, customer, vals, &rows, &tnow, &rejected)
+				return s.confirmDocument(ctx, b, holdID, customer, vals, &rows, &tnow, &rejected, &ref)
 			}
 			tx, err := s.db.Begin(ctx, s.d.Isolation)
 			if err != nil {
@@ -666,7 +666,7 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 	}
 	el := s.world.ledger.Event(b.Event.ID)
 	if rejected {
-		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, ref), ref.transient)
+		res.Class = el.Reject(holdID, tnow, s.diagnoseRefusal(ctx, node, b, holdID, tnow, ref), ref.transient, ref.ran)
 		return res, nil
 	}
 	el.Sale(holdID, rows, ticketOf)
@@ -675,7 +675,7 @@ func (s *Seller) Confirm(ctx context.Context, node int, b Block, holdID, custome
 	return res, nil
 }
 
-func (s *Seller) confirmDocument(ctx context.Context, b Block, holdID, customer int64, vals map[string]any, rows *[]Row, tnow *time.Time, rejected *bool) (bool, error) {
+func (s *Seller) confirmDocument(ctx context.Context, b Block, holdID, customer int64, vals map[string]any, rows *[]Row, tnow *time.Time, rejected *bool, ref *refusal) (bool, error) {
 	doc, err := s.readSection(ctx, s.db, b.Event, b.Section)
 	if err != nil {
 		return false, err
@@ -683,6 +683,25 @@ func (s *Seller) confirmDocument(ctx context.Context, b Block, holdID, customer 
 	*tnow = doc.now
 	if !docHoldValid(doc, b.Seats, holdID) {
 		*rejected = true
+		// AM-03.2: L2 has no guarded statement to re-issue — it checks the hold in the
+		// application, on a document it has just read. The equivalent diagnostic is to
+		// read the document once more: if the hold is there, the first read did not see
+		// a commit that had already been acknowledged, and the refusal is transient.
+		if s.earlyAt(b, holdID, *tnow) {
+			*ref = refusal{ran: true, matched: -1}
+			again, err2 := s.readSection(ctx, s.db, b.Event, b.Section)
+			switch {
+			case err2 != nil:
+				ref.inTx = "; the section document re-read failed: " + err2.Error()
+			case docHoldValid(again, b.Seats, holdID):
+				ref.transient = true
+				ref.inTx = fmt.Sprintf("; the section document re-read shows the hold valid (version %d -> %d, now() %s -> %s)",
+					doc.version, again.version, doc.now.Format(time.RFC3339Nano), again.now.Format(time.RFC3339Nano))
+			default:
+				ref.inTx = fmt.Sprintf("; the section document re-read still does not show the hold (version %d -> %d, now() %s -> %s)",
+					doc.version, again.version, doc.now.Format(time.RFC3339Nano), again.now.Format(time.RFC3339Nano))
+			}
+		}
 		return false, nil
 	}
 	for _, seat := range b.Seats {

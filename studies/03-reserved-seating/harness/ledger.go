@@ -104,7 +104,8 @@ type EventLedger struct {
 	// ambiguous counts commits of unknown outcome touching this event.
 	ambiguous int64
 
-	rejLate, rejBoundary, rejEarly, rejEarlyTransient int64
+	rejLate, rejBoundary, rejEarly                    int64
+	rejEarlyTransient, rejEarlyClassified             int64
 	examples                                          []Example
 }
 
@@ -262,7 +263,7 @@ func (el *EventLedger) Ambiguous() {
 // database showed right after the refusal. transient says the identical statement,
 // issued again inside the refusing transaction, matched every seat (AM-01); it
 // sub-classifies early rejections only.
-func (el *EventLedger) Reject(holdID int64, txnNow time.Time, detail string, transient bool) string {
+func (el *EventLedger) Reject(holdID int64, txnNow time.Time, detail string, transient, classified bool) string {
 	el.mu.Lock()
 	defer el.mu.Unlock()
 	h := el.holds[holdID]
@@ -282,6 +283,11 @@ func (el *EventLedger) Reject(holdID int64, txnNow time.Time, detail string, tra
 	default:
 		el.rejEarly++
 		kind := "early rejection"
+		if classified {
+			// AM-03.3: only a refusal a diagnostic actually looked at has a class. A
+			// report must not print "0 transient" for a design nothing classified.
+			el.rejEarlyClassified++
+		}
 		if transient {
 			el.rejEarlyTransient++
 			kind = "early rejection (transient)"
@@ -318,6 +324,9 @@ type Violations struct {
 	// RejectedEarlyTransient is the part of RejectedEarly whose refusing statement,
 	// issued again in the same transaction, matched every seat (AM-01).
 	RejectedEarlyTransient int64 `json:"rejected_early_transient"`
+	// RejectedEarlyClassified: early rejections a diagnostic examined (AM-03.3). Where it
+	// is zero and RejectedEarly is not, the run did not record the class.
+	RejectedEarlyClassified int64 `json:"rejected_early_classified"`
 	Ambiguous          int64     `json:"ambiguous_commits,omitempty"`
 	Examples           []Example `json:"examples,omitempty"`
 	examplesByCategory map[string]int
@@ -339,6 +348,7 @@ func (v *Violations) add(o Violations) {
 	v.RejectedBoundary += o.RejectedBoundary
 	v.RejectedEarly += o.RejectedEarly
 	v.RejectedEarlyTransient += o.RejectedEarlyTransient
+	v.RejectedEarlyClassified += o.RejectedEarlyClassified
 	v.Ambiguous += o.Ambiguous
 	for _, x := range o.Examples {
 		if v.examplesByCategory == nil {
@@ -365,7 +375,7 @@ func (el *EventLedger) Evaluate() (Violations, map[int32]seatFinal) {
 	el.mu.Lock()
 	defer el.mu.Unlock()
 	v := Violations{RejectedLate: el.rejLate, RejectedBoundary: el.rejBoundary, RejectedEarly: el.rejEarly,
-		RejectedEarlyTransient: el.rejEarlyTransient, Ambiguous: el.ambiguous}
+		RejectedEarlyTransient: el.rejEarlyTransient, RejectedEarlyClassified: el.rejEarlyClassified, Ambiguous: el.ambiguous}
 	ex := append([]Example(nil), el.examples...)
 	final := make(map[int32]seatFinal, len(el.seats))
 
