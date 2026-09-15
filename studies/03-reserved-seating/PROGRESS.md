@@ -18,7 +18,8 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 7 | Diagrams | done — five diagrams rendered | `8b6d8f9` |
 | 8 | Dev checks and calibration | dc1–dc11 done; ER-01 raised, decided (AM-01) | `0a9b2da`; ER-01 decision `e70c842`, `study-03/v0.1-handoff-amendment-01` |
 | 8a | AM-01: transient-refusal class, refusal diagnostics, S1r, report; dev checks dc12–dc14 | done — §10.3 as amended by AM-01.5 holds (19 unit tests pass in the build) | `e10dc6c`, `7ab4b67`, `f43fc0f`, `03d7e8a`; tag `study-03/v1-harness` |
-| 9 | Main matrix (`small`) | **blocked: ER-02** (projected duration over §10.4) | |
+| 8b | AM-02 calibration (dc15, S1 `small`, 3 topologies) | done — passes; rule 1 applies, projection ≈ 15.7 h (rule 2) | see below |
+| 9 | Main matrix (`small`) | running | |
 | 10 | Repeated race trials | pending | |
 | 11 | Context, lessons, README; ready for analysis | pending | |
 
@@ -101,3 +102,30 @@ audits) grows 1.5×. Uncertainty about ±40%.
 Repeated race (step 10: pg-single and yb-cluster3, `verify,race`, 3 trials): pg-single ≈ 16 min × 13 ≈
 3.5 h; yb-cluster3 ≈ (5 min load + 2 min verify + 3 × (4 min reload + 15 min race)) ≈ 65 min × 14 ≈
 15 h; **total ≈ 18.5 h** (threshold 12 h). Both exceed §10.4: Escalation Required ER-02.
+
+## AM-02 calibration (step 8b)
+
+`devchecks/dc15-small-calibration`: S1, `small`, all phases, commit `8b5b0ef`; 2026-09-14 23:19 →
+2026-09-15 00:22 UTC. Every gate 58/58; no failed cell; no violation on PostgreSQL; early
+rejections on YugabyteDB all transient (yb-single 4, yb-cluster3 43); deferred confirmations 100%.
+
+| Measure | pg-single | yb-single | yb-cluster3 |
+|---|---:|---:|---:|
+| Cell wall (topology written → result written) | 8.5 min | 26.4 min | 27.3 min |
+| Initial load | 1.5 s | 30.6 s | 31.5 s |
+| Reloads (5) | 7.5 s | 88 s | 158 s |
+| Race wall, tiers 10 / 100 / 1k / 10k / 100k (s) | 4.6 / 3.0 / 4.1 / 31.3 / 60.4 | 30.8 / 21.6 / 40.5 / 122.2 / 61.0 | 31.6 / 24.2 / 39.0 / 122.1 / 60.9 |
+| 100k race event | timed out, 18% sold | timed out, 2% sold | timed out, 3% sold |
+| Tiers that used the full 3-min budget | none | none | none |
+| Lifecycle wall, all tiers | 136 s | 322 s | 275 s |
+| Remainder (verify, explain, reads, writes, audits) | ≈ 4.4 min | ≈ 14.5 min | ≈ 14.9 min |
+
+**AM-02 rules applied:**
+
+- Rule 1: yes on both YugabyteDB topologies (2% and 3% sold < 25%); `-race-tiers 10,100,1000,10000`
+  added to `YB_HARNESS_FLAGS`.
+- `M` = 8.5 × 13 + (26.4 − 1.0) × 14 × 1.15 + (27.3 − 1.0) × 14 × 1.15 = 1.8 h + 6.8 h + 7.1 h ≈
+  **15.7 h** ≤ 24 h → rule 2: no other change. Rule 3 would have saved nothing (no tier used its budget).
+- Repeated race (step 10, tiers 1 000 and 10 000, 3 trials), with verify taken as 2.5 min per cell:
+  pg-single ≈ (0.1 + 2.5 + 3 × 0.62) × 13 ≈ 1.0 h; yb-cluster3 ≈ (0.5 + 2.5 + 3 × (0.53 + 2.69)) × 14 ×
+  1.15 ≈ 3.4 h; total ≈ **4.4 h** ≤ 12 h → 3 trials.
