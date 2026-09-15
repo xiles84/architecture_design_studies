@@ -75,6 +75,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/03-reserved-seating/20260915T002411Z` | commit that produced study 03's `small` main matrix (`7dbdd11`) |
 | `run/03-reserved-seating/20260915T173255Z` | commit that produced study 03's repeated race (`52a9975`) |
 | `study-03/v1-measured` | study 03 measured: main matrix, repeated race, diagnoses, generated reports, documents; ready for analysis (ER-03, ER-04 open) |
+| `study-03/v0.3-handoff-amendment-03` | study 03: ER-03 and ER-04 decided; AM-03 adds tolerant instrumentation, an L2 refusal diagnostic and a repair run |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -165,7 +166,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — built on platform/; measured (v1-measured); next HIGH: ER-03, ER-04, analysis
+  03-reserved-seating/    study 03 (see below) — built on platform/; measured; AM-03 repair run pending, then analysis
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -505,9 +506,12 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-15, 21:15 UTC): measured, ready for analysis** (tag `study-03/v1-measured`). Next:
-HIGH (Claude Opus 5, `ultracode`) — decide ER-03 and ER-04, then validate and write the signed
-analysis. Nothing is running; the benchmark lock is free.
+**Status (2026-09-15, 21:50 UTC): measured; one repair run to go before the analysis.** ER-03 and
+ER-04 are decided (AM-03, tag `study-03/v0.3-handoff-amendment-03`): the lifecycle monitor and the
+loader's `ANALYZE` become tolerant of statement timeouts, L2 gets a refusal diagnostic, the report
+stops printing "0 transient" where no class was recorded, and one follow-up run (≈ 1.5 h) recovers the
+four cells' lifecycle and re-measures L2's race on YugabyteDB. Next: LOW (Claude Opus 5, `high`) to
+apply AM-03; then HIGH for the signed analysis. Nothing is running; the benchmark lock is free.
 
 | Run | What | Result | Inputs digest |
 |---|---|---|---|
@@ -520,11 +524,14 @@ Facts for the analysis:
   transient refusals, most on three nodes.
 - **S1r:** 0 early rejections anywhere. Every confirmation it retried after a short match sold:
   35 in the matrix, 105 in the repeated race.
-- **ER-03 (open, non-blocking):** the four failed cells lost their lifecycle to an instrumentation
-  query or reload timing out, not to a design statement. Decide whether to re-run them with a
-  tolerant monitor.
-- **ER-04 (open, non-blocking):** L2's YugabyteDB early rejections (matrix 17, repeated race 41) have
-  the transient shape but cannot be classified. The report TL;DR lists them as violations.
+- **ER-03 (decided):** the four failed cells lost their **whole** lifecycle phase — E2, a correct
+  design, has no YugabyteDB lifecycle at all — to an instrumentation query or a reload `ANALYZE`
+  timing out, not to a design statement. AM-03 makes both tolerant and re-runs those four cells'
+  lifecycle; the other cells are not re-run, because the monitor never failed in them.
+- **ER-04 (decided):** L2's YugabyteDB early rejections (matrix 17, repeated race 41) have the
+  transient shape — a document read 21–95 ms after the hold's commit that does not show it — but no
+  diagnostic recorded the class. AM-03 adds one for L2, re-runs its race on both YugabyteDB
+  topologies, and stops the report from printing an unmeasured "0 transient".
 
 How the plan got here: ER-02 was decided by AM-02 (tag `study-03/v0.2-handoff-amendment-02`). A
 `small` calibration (dc15) replaced the duration extrapolation, and rule 1 dropped the 100 000-seat
