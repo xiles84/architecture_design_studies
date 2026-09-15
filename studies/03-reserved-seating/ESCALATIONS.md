@@ -409,3 +409,49 @@ otherwise 3. The monitor is instrumentation; its failure says nothing about the 
 
 **Work continuing meanwhile:** the main matrix (yb-single E0, then yb-cluster3), the repeated race,
 and step 11 documents.
+
+---
+
+## ER-04 — L2 (section document) early rejections on YugabyteDB cannot be classified, and the report reads them as design failures
+
+- raised_by: claude-opus-5, setting `high` (LOW model/effort), Claude Code desktop (executor session)
+- raised_at: 2026-09-15 17:33 UTC
+- handoff_sections: AM-01.1, AM-01.2 (L2 "not applicable"), AM-01.4, §3.11
+- trigger: unmapped — how a class of refusals is judged and reported
+- status: open (non-blocking: step 10 is running; the decision affects the analysis and possibly a report regeneration)
+
+**Context.** In the main matrix (`20260915T002411Z`), L2 recorded early rejections on YugabyteDB only:
+yb-single 4, yb-cluster3 13 (10 of them in the race). PostgreSQL recorded 0. Every example has the same
+shape as ER-01:
+
+> refused 39m59.976s before the hold's expiry; ... right after, the database showed 1 of the hold's
+> seats validly held by it; inside the refusing transaction: no diagnostics (not a guarded statement)
+> (`yb-cluster3/l2_section_document.json`)
+
+L2's confirmation reads the section document (`w_read_section`, outside any transaction) and checks the
+hold in the application. In the examples, the read came 21–95 ms after the hold's commit (grant `now()` to
+confirm `now()`). It did not show the hold, while `q04` a moment later did. That is a plain read missing
+a commit acknowledged to the same client, the read-side form of the ER-01 behaviour.
+
+AM-01.2 declared L2 "not applicable" (no guarded statement to re-issue), so these rejections are counted
+as early with 0 transient. The generated report's TL;DR lists "L2 document ... (13 early rejections
+(0 transient))" among invariant violations in correct designs. A reader will take that as a persistent
+design failure, which the evidence does not support. The report tables print `n/a` for L2's transient
+part, but the TL;DR's violation line does not.
+
+**Options:**
+
+1. **Report as is,** and let the analysis explain it. *Consequence:* the generated report's TL;DR
+   overstates L2's failure. Only the analysis corrects it.
+2. **Report-only fix:** print L2 (and K0) early rejections as "unclassified" in the TL;DR, as the tables
+   already do, then regenerate the report from the same results. That is allowed when report code changes
+   (§9), and is recorded in the commit. *Consequence:* no new measurement; the class stays unproven for L2.
+3. **Add an L2 diagnostic** (re-read the section document once on a refusal and record whether the
+   hold is then visible), then re-run L2 on both YugabyteDB topologies (≈ 1 h), with option 2 as well.
+   *Consequence:* L2's refusals become classifiable, from a different commit than the matrix.
+
+**Executor's recommendation:** 2 now, and 3 bundled with any re-run ER-03 decides, so both follow-ups
+share one commit and one run.
+
+**Work continuing meanwhile:** step 10 (repeated race, which includes L2 on yb-cluster3 with 3 trials), then
+step 11.
