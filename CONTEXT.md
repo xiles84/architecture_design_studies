@@ -506,17 +506,21 @@ study 03's handoff.
 checks dc12–dc14 pass). **ER-02 decided (AM-02, tag `study-03/v0.2-handoff-amendment-02`):**
 calibrate with one `small` S1 cell per topology (dc15), then run the matrix under fixed duration rules
 (hard ceiling 30 h). Calibration dc15 passed (63 min); rule 1 applied (no 100 000-seat race tier on
-YugabyteDB); projection ≈ 15.7 h. **Running from 2026-09-15 00:25 UTC — do not start databases:**
-the `small` main matrix (step 9, all 3 topologies, 14 designs, `--tag`). It holds the benchmark lock;
-revised end ≈ 2026-09-15 19:00 UTC. The repeated race (step 10, ≈ 4.4 h) follows, so the lock is
-busy until ≈ 2026-09-16 00:00 UTC. **The main folder (`main` checked out) holds that run's
-uncommitted results:** other sessions must not check out, merge into or fast-forward `main` in that
-folder until study 03's step 11 is committed (≈ 00:30 UTC). Work in worktrees is unaffected.
-*Deviation, stated plainly:* since the task-worktree rule (`b290958`), study 03 has kept working
-directly in the checkout of `main`. The running matrix cannot move. Once its results are committed,
-study 03 continues in its own worktree (`.worktrees/study03-*`) and merges into `main` under
-AGENTS.md's worktree and reconciliation rules.
-yb-single S4 and E2 failed in the lifecycle (diagnosed; ER-03, non-blocking). The
+YugabyteDB); projection ≈ 15.7 h.
+
+**Main matrix done** (`20260915T002411Z`, tag `run/03-reserved-seating/20260915T002411Z`, commit
+`3e36cfb`, inputs digest `a56ce92ce38b8204`):
+- 17 h 6 min; 41 cells, 4 failed (S4 and E2 on both YugabyteDB topologies), each diagnosed beside its
+  logs.
+- ER-03 (non-blocking) asks HIGH whether to re-run them with a timeout-tolerant lifecycle monitor.
+
+**Running from 2026-09-15 17:45 UTC — do not start databases:** the repeated race (step 10, ≈ 4.4 h,
+holds the benchmark lock). It runs from study 03's own worktree `.worktrees/study03-measurement`
+(branch `study-03/measurement`). The main folder is no longer used by study 03, which merges back into
+`main` at step 11 under AGENTS.md's worktree and reconciliation rules.
+
+*Deviation, stated plainly:* between the task-worktree rule (`b290958`) and the end of the matrix,
+study 03 worked directly in the checkout of `main`. The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
