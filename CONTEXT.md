@@ -507,7 +507,11 @@ calibrate with one `small` S1 cell per topology (dc15), then run the matrix unde
 (hard ceiling 30 h). Calibration dc15 passed (63 min); rule 1 applied (no 100 000-seat race tier on
 YugabyteDB); projection ≈ 15.7 h. **Running from 2026-09-15 00:25 UTC — do not start databases:**
 the `small` main matrix (step 9, all 3 topologies, 14 designs, `--tag`). It holds the benchmark lock;
-projected end ≈ 2026-09-15 16:00 UTC. The repeated race (step 10, ≈ 4.4 h) follows. The
+revised end ≈ 2026-09-15 19:00 UTC. The repeated race (step 10, ≈ 4.4 h) follows, so the lock is
+busy until ≈ 2026-09-16 00:00 UTC. **The main folder (`main` checked out) holds that run's
+uncommitted results:** other sessions must not check out, merge into or fast-forward `main` in that
+folder until study 03's step 11 is committed (≈ 00:30 UTC). Work in worktrees is unaffected.
+yb-single S4 and E2 failed in the lifecycle (diagnosed; ER-03, non-blocking). The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
