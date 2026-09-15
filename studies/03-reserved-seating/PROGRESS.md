@@ -20,8 +20,8 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 8a | AM-01: transient-refusal class, refusal diagnostics, S1r, report; dev checks dc12–dc14 | done — §10.3 as amended by AM-01.5 holds (19 unit tests pass in the build) | `e10dc6c`, `7ab4b67`, `f43fc0f`, `03d7e8a`; tag `study-03/v1-harness` |
 | 8b | AM-02 calibration (dc15, S1 `small`, 3 topologies) | done — passes; rule 1 applies, projection ≈ 15.7 h (rule 2) | `3d7aa89` |
 | 9 | Main matrix (`small`) | done — 41 cells, 4 failed (diagnosed; ER-03); ER-04 raised | `3e36cfb`; run tag `run/03-reserved-seating/20260915T002411Z` |
-| 10 | Repeated race trials | running (from worktree `.worktrees/study03-measurement`) | run tag `run/03-reserved-seating/20260915T173255Z` |
-| 11 | Context, lessons, README; ready for analysis | pending | |
+| 10 | Repeated race trials | done — 27 cells, 0 failed, 3 h 33 min (from worktree `.worktrees/study03-measurement`) | `3d1d1b0`; run tag `run/03-reserved-seating/20260915T173255Z` |
+| 11 | Context, lessons, README; ready for analysis | done — merged into `main`; ER-03 and ER-04 open (non-blocking) | tag `study-03/v1-measured` |
 
 ## Mapped decisions (handoff §11)
 
@@ -167,3 +167,20 @@ projection 15.7 h).
   `repo/concurrent-agents-reconciliation`). Study 03 worked directly in the checkout of `main` until
   the matrix ended. Step 10 onwards runs in `.worktrees/study03-measurement` (branch
   `study-03/measurement`), which merges into `main` at step 11.
+
+## Repeated race (step 10) — facts
+
+Run `20260915T173255Z`: commit `52a9975`, tag `run/03-reserved-seating/20260915T173255Z`, inputs digest
+`29296b1fe8dea2e3`, report `reports/20260915T173255Z.md`. 2026-09-15 17:33 → 21:06 UTC (3 h 33 min;
+projection 4.4 h). `verify,race`, 3 fresh-load trials, 1 000- and 10 000-seat tiers, pg-single and
+yb-cluster3.
+
+- **Cells:** 27, 0 failed. Gates 58/58. Both S0 controls fired.
+- **pg-single:** no violation and no early rejection in any correct design. Race spread across trials
+  3–21% (report race table).
+- **yb-cluster3 early rejections in correct designs:**
+  - transient: S1 85, S2 89, S3 96, E1 95, E2 9, K1 108, L1 127, L3 10;
+  - unclassified (ER-04): L2 41.
+- **S1r on yb-cluster3:** 0 early rejections; 105 short confirmations retried, all 105 sold.
+- The session was interrupted by a client logout at ≈ 20:30 UTC. The runner process and containers
+  kept running and the run completed normally.

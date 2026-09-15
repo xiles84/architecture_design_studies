@@ -72,6 +72,9 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-03/v1-harness` | study 03: 14 designs (13 + S1r), harness and SQL as dev-checked on tiny (dc1–dc14) |
 | `study-03/v0.2-handoff-amendment-02` | study 03: ER-02 decided; AM-02 adds the `small` calibration run and duration rules for steps 9–10 |
 | `repo/concurrent-agents-reconciliation` | AGENTS.md hard rule: always assume a concurrent agent; the agent that merges later reconciles shared documents into one coherent project |
+| `run/03-reserved-seating/20260915T002411Z` | commit that produced study 03's `small` main matrix (`7dbdd11`) |
+| `run/03-reserved-seating/20260915T173255Z` | commit that produced study 03's repeated race (`52a9975`) |
+| `study-03/v1-measured` | study 03 measured: main matrix, repeated race, diagnoses, generated reports, documents; ready for analysis (ER-03, ER-04 open) |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -162,7 +165,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — built on platform/; v1-harness tagged; AM-02 (calibration, then matrix) to execute
+  03-reserved-seating/    study 03 (see below) — built on platform/; measured (v1-measured); next HIGH: ER-03, ER-04, analysis
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -502,25 +505,33 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-14, 20:40 UTC):** harness tagged `study-03/v1-harness` (14 designs, AM-01 dev
-checks dc12–dc14 pass). **ER-02 decided (AM-02, tag `study-03/v0.2-handoff-amendment-02`):**
-calibrate with one `small` S1 cell per topology (dc15), then run the matrix under fixed duration rules
-(hard ceiling 30 h). Calibration dc15 passed (63 min); rule 1 applied (no 100 000-seat race tier on
-YugabyteDB); projection ≈ 15.7 h.
+**Status (2026-09-15, 21:15 UTC): measured, ready for analysis** (tag `study-03/v1-measured`). Next:
+HIGH (Claude Opus 5, `ultracode`) — decide ER-03 and ER-04, then validate and write the signed
+analysis. Nothing is running; the benchmark lock is free.
 
-**Main matrix done** (`20260915T002411Z`, tag `run/03-reserved-seating/20260915T002411Z`, commit
-`3e36cfb`, inputs digest `a56ce92ce38b8204`):
-- 17 h 6 min; 41 cells, 4 failed (S4 and E2 on both YugabyteDB topologies), each diagnosed beside its
-  logs.
-- ER-03 (non-blocking) asks HIGH whether to re-run them with a timeout-tolerant lifecycle monitor.
+| Run | What | Result | Inputs digest |
+|---|---|---|---|
+| `20260915T002411Z` ([report](studies/03-reserved-seating/reports/20260915T002411Z.md)) | `small` main matrix, 3 topologies, 14 designs, 17 h 6 min | 41 cells, 4 failed (S4 and E2 on both YugabyteDB topologies, each diagnosed beside its logs); 15/15 controls fired | `a56ce92ce38b8204` |
+| `20260915T173255Z` ([report](studies/03-reserved-seating/reports/20260915T173255Z.md)) | repeated race, 3 trials, 1 000- and 10 000-seat tiers, pg-single + yb-cluster3, 3 h 33 min | 27 cells, 0 failed; both controls fired | `29296b1fe8dea2e3` |
 
-**Running from 2026-09-15 17:45 UTC — do not start databases:** the repeated race (step 10, ≈ 4.4 h,
-holds the benchmark lock). It runs from study 03's own worktree `.worktrees/study03-measurement`
-(branch `study-03/measurement`). The main folder is no longer used by study 03, which merges back into
-`main` at step 11 under AGENTS.md's worktree and reconciliation rules.
+Facts for the analysis:
+- **PostgreSQL:** no invariant violation and no early rejection in any correct design.
+- **YugabyteDB, transient refusals:** every correct design with a guarded statement recorded
+  transient refusals, most on three nodes.
+- **S1r:** 0 early rejections anywhere. Every confirmation it retried after a short match sold:
+  35 in the matrix, 105 in the repeated race.
+- **ER-03 (open, non-blocking):** the four failed cells lost their lifecycle to an instrumentation
+  query or reload timing out, not to a design statement. Decide whether to re-run them with a
+  tolerant monitor.
+- **ER-04 (open, non-blocking):** L2's YugabyteDB early rejections (matrix 17, repeated race 41) have
+  the transient shape but cannot be classified. The report TL;DR lists them as violations.
 
-*Deviation, stated plainly:* between the task-worktree rule (`b290958`) and the end of the matrix,
-study 03 worked directly in the checkout of `main`. The
+How the plan got here: ER-02 was decided by AM-02 (tag `study-03/v0.2-handoff-amendment-02`). A
+`small` calibration (dc15) replaced the duration extrapolation, and rule 1 dropped the 100 000-seat
+race tier on YugabyteDB, because it sold 2–3% before timing out. The repeated race ran from study 03's
+own worktree (`.worktrees/study03-measurement`, branch `study-03/measurement`), merged into `main` at
+step 11. *Deviation, stated plainly:* between the task-worktree rule (`b290958`) and the end of the
+main matrix, study 03 worked directly in the checkout of `main`. The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
