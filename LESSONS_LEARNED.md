@@ -679,10 +679,11 @@ phase. Any metric measured from a timestamp should say which rows may contribute
 
 ### Instrumentation must not be able to delete a design's results
 
-Study 03's `small` matrix lost the lifecycle phase of four YugabyteDB cells. The designs had not failed:
-the harness's own sold-seat monitor query timed out while the node was saturated, and the harness treated
-the first monitor error as fatal. The designs' own statements, which timed out at the same moments, were
-retried and counted as errors. An observer query should have the same tolerance as the workload it
+Study 03's `small` matrix lost the lifecycle phase of four YugabyteDB cells. In three of them no design
+statement had failed. The harness's own sold-seat monitor query timed out while the node was saturated,
+and the harness treated the first monitor error as fatal. In the fourth, a harness reload's `ANALYZE` did
+the same. The designs' own statements, which timed out at the same moments, were retried and counted as
+errors. An observer query should have the same tolerance as the workload it
 observes (retry, count, move on). Otherwise a busy engine produces missing numbers, and a report shows
 "failed" where it should show "slow".
 
