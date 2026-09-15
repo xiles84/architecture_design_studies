@@ -1523,3 +1523,98 @@ Before starting, add the run to `CONTEXT.md` as running, with its start time and
 
 > Apply AM-02 in `studies/03-reserved-seating/HANDOFF.md` §16 (calibration, then steps 9–11), following
 > the handoff's rules.
+
+### AM-03 — Tolerant instrumentation, L2 refusal diagnostic, repair run
+
+- date: 2026-09-15
+- by: claude-opus-5, setting `ultracode` (HIGH), Claude Code desktop
+- escalations: ER-03 and ER-04 (decisions in `ESCALATIONS.md`)
+- changes: §5.3 (harness conventions), §3.11 (report), §9 (a repair run after step 10). AM-01.2's
+  "L2: not applicable" is superseded by AM-03.2. Nothing else changes: no design's SQL, no invariant,
+  no pass criterion.
+- tag: `study-03/v0.3-handoff-amendment-03`
+
+**Reason.** Four cells of the main matrix lost their whole lifecycle phase to instrumentation that had
+no tolerance for a statement timeout, and L2's refusals on YugabyteDB cannot be classified because it
+has no diagnostic. Both are harness gaps, not design results.
+
+#### AM-03.1 Tolerant instrumentation (§5.3)
+
+1. **Lifecycle monitor.** `eventSold` in the lifecycle loop retries a failed read with the harness's
+   usual jittered backoff for up to **30 s**. If it succeeds, the event continues and the retry is
+   counted. If it does not:
+   - end that event only, record it, and continue with the next event and tier;
+   - never end the cell.
+2. **Loader `ANALYZE`.** A failed `ANALYZE` is retried up to **3 times** with the same backoff. Every
+   other load failure stays fatal: a load that cannot create or fill the schema is not a result.
+3. **Both are counted and reported**, so a reader can see when the engine stopped answering:
+   - new result fields `monitor_retries` and `monitor_timeouts` (lifecycle), `analyze_retries` (load);
+   - the lifecycle table shows a cell with `monitor_timeouts > 0` as such, and the TL;DR names any cell
+     whose phase ended early this way. A phase that ended early is not silently a complete phase.
+4. Unit-testable parts get a test; the timeout paths are exercised by the repair run.
+
+#### AM-03.2 L2 refusal diagnostic (supersedes AM-01.2's "L2: not applicable")
+
+On a Document-strategy refusal (`docHoldValid` false) whose ledger margin is ≥ G:
+
+1. Re-read the section document once (`w_read_section`), and record whether the hold's seats are then
+   present, held by this hold and unexpired.
+2. If they are, the refusal is **transient**, exactly as for a guarded statement re-issued in its
+   transaction; otherwise persistent.
+3. The example detail records: the seats, the first read's `version` and `now()`, the second read's
+   `version` and `now()`, the grant's `now()`, and the client time.
+4. L2 keeps its compare-and-set retry behaviour (M9); the diagnostic runs only on the refusal path,
+   after the design has decided.
+
+#### AM-03.3 Report (§3.11)
+
+- Where a refusal class was not recorded, the report says so instead of printing a zero. K0 has no
+  guarded statement and never records a class; L2 records one only in runs made with AM-03.2.
+  The fixed rule: **print the transient count only when the run recorded the class for that design;
+  otherwise print "class not recorded".** This applies in the TL;DR violation line as well as the
+  tables, which already print `n/a`.
+- After the report code changes, **regenerate the reports of `20260915T002411Z` and
+  `20260915T173255Z`** from their unchanged results, and say in the commit that only report code
+  changed. Their inputs digests must not change; check that they do not.
+
+#### AM-03.4 Dev check before the repair run (`tiny`)
+
+```bash
+./run-study.sh --scale tiny --topologies yb-single --designs l2_section_document,e2_cart_expiry --run-id devchecks/dc16-am03
+```
+
+Expected: gates pass; L2 records a class for any early rejection; E2 completes its lifecycle;
+`monitor_retries` and `analyze_retries` appear in the results. §10.3 as amended by AM-01.5 still
+applies.
+
+#### AM-03.5 Repair run (after step 10, before the analysis)
+
+Two invocations, each from a committed tree, each tagged:
+
+```bash
+# A — the lifecycle the four failed cells lost
+./run-study.sh --scale small --topologies yb-single,yb-cluster3 \
+  --designs e2_cart_expiry,s4_check_then_hold_serializable --phases verify,lifecycle --tag
+
+# B — L2's race, now classifiable
+./run-study.sh --scale small --topologies yb-single,yb-cluster3 \
+  --designs l2_section_document --phases verify,race --tag
+```
+
+- Projected from the matrix's measured cells: A ≈ 1 h, B ≈ 25 min.
+- A cell that fails again is diagnosed as before. If S4 fails again for the same reason after the
+  tolerance is in place, record it and move on: that is then a measured property of S4 on this
+  engine, not a harness gap.
+- Record both runs in `PROGRESS.md` and the README runs table, with their inputs digests, and state in
+  both that they come from a later commit than the matrix.
+
+#### AM-03.6 What the analysis will be told
+
+The signed analysis (HIGH) cites the matrix, the repeated race and both repair runs, and states for
+every number which run produced it. It must not merge L2's race rows from `20260915T002411Z` and from
+repair run B into one comparison without naming the difference in commit.
+
+**Next session:** LOW — Claude Opus 5, setting `high`. Starting prompt:
+
+> Apply AM-03 in `studies/03-reserved-seating/HANDOFF.md` §16 (tolerant instrumentation, L2
+> diagnostic, report rule, dev check dc16, then the two repair runs), following the handoff's rules.
