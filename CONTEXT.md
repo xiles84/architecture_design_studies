@@ -64,6 +64,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/worktree-to-main-workflow` | integrated task workflow: every task uses an isolated worktree and merges completed changes into local main |
 | `study-01/v3-integrated` | integrated Study 01 v3 local enhancements, final analysis and discussion companions |
 | `study-01/v3-high-review` | HIGH acceptance of the integrated v3 evidence; review documentation awaits the safe final merge under EH-02 |
+| `study-01/v3-high-review-r2` | amended HIGH checkpoint preserves the peer's main-checkout reservation through Study 03 step 11 |
 | `repo/study01-integration-handoff-v1` | HIGH planning checkpoint for the LOW integration steps and subsequent HIGH review |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
@@ -107,10 +108,11 @@ commits, images, environment and four report digests. The six expected D9 failur
 excluded from performance conclusions. HIGH accepts the existing local enhancements,
 concise final analysis, signed discussions and prospective study requirements.
 
-This review incorporates committed main through `c7d4067` in the task worktree only.
+This review incorporates committed main through `7a9aea2` in the task worktree only.
 Study 03's matrix is running from main with unfinished result files, so the new review
 documentation has not been merged. [EH-02](docs/handoffs/20260914-study01-integration/FINALIZATION_HANDOFF.md)
-maps the remaining LOW work: wait for a free lock and clean main checkout, preserve later
+maps the remaining LOW work: wait for Study 03's explicit checkout reservation to end,
+a free lock and clean main checkout, preserve later
 Study 03 work, merge the review documents and tag `study-01/v3-reviewed`. No further HIGH
 pass is required if its acceptance conditions pass. Source changes or conflicting
 decisions require escalation. The
@@ -521,7 +523,11 @@ calibrate with one `small` S1 cell per topology (dc15), then run the matrix unde
 (hard ceiling 30 h). Calibration dc15 passed (63 min); rule 1 applied (no 100 000-seat race tier on
 YugabyteDB); projection ≈ 15.7 h. **Running from 2026-09-15 00:25 UTC — do not start databases:**
 the `small` main matrix (step 9, all 3 topologies, 14 designs, `--tag`). It holds the benchmark lock;
-projected end ≈ 2026-09-15 16:00 UTC. The repeated race (step 10, ≈ 4.4 h) follows. The
+revised end ≈ 2026-09-15 19:00 UTC. The repeated race (step 10, ≈ 4.4 h) follows, so the lock is
+busy until ≈ 2026-09-16 00:00 UTC. **The main folder (`main` checked out) holds that run's
+uncommitted results:** other sessions must not check out, merge into or fast-forward `main` in that
+folder until study 03's step 11 is committed (≈ 00:30 UTC). Work in worktrees is unaffected.
+yb-single S4 and E2 failed in the lifecycle (diagnosed; ER-03, non-blocking). The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).

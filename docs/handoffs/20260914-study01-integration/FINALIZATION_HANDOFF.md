@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Handoff | `study01-integration/EH-02`, revision 1; supplements historical EH-01 |
+| Handoff | `study01-integration/EH-02`, revision 2; supplements historical EH-01; revision 1 is preserved at `study-01/v3-high-review` |
 | Planner/reviewer | GPT-6 via Codex desktop, HIGH, 2026-09-15; selected effort not exposed |
-| Review checkpoint | `study-01/v3-high-review` (resolve the annotated tag to a commit) |
-| Incoming-main baseline | `c7d4067e1c870602e9f794d9067c8163018523dd` |
+| Review checkpoint | `study-01/v3-high-review-r2` (resolve the annotated tag to a commit) |
+| Incoming-main baseline | `7a9aea2f5c6921461ea87d67dd54a6bd511b3119` |
 | Already integrated implementation | `db77fe60b5bfe78b29ec04db9150f33cc1a0bb49`, `study-01/v3-integrated` |
 | Acceptance | [HIGH_REVIEW.md](HIGH_REVIEW.md); scientific work and EH-01 integration accepted |
 | Remaining work | Safe merge of review documentation, completion record and annotated final tag |
@@ -35,8 +35,8 @@ in [PROGRESS.md](PROGRESS.md).
 ```powershell
 git status --porcelain=v1
 git branch --show-current
-git rev-parse 'study-01/v3-high-review^{commit}'
-git merge-base --is-ancestor study-01/v3-high-review HEAD
+git rev-parse 'study-01/v3-high-review-r2^{commit}'
+git merge-base --is-ancestor study-01/v3-high-review-r2 HEAD
 git -C C:/extra/code/architecture_design_studies status --porcelain=v1
 git rev-parse main
 podman volume ls --filter name=ads-run-lock --format '{{.Name}}'
@@ -54,14 +54,22 @@ record an escalation; no cleanup or lock removal is mapped here.
 The owner confirmed another AI is active. Verify actual worktree/branch ownership;
 do not move another task or change its checkout to enforce isolation during its run.
 
+**Revision 2 — checkout reservation:** main commit `7a9aea2` explicitly reserves its
+checkout until Study 03 step 11 is committed, including the gap between steps 9 and 10.
+Read current main context and Study 03 progress. Require evidence that step 11's output
+commit/release has occurred and no newer reservation exists, in addition to a free lock,
+no containers and a clean checkout. The projected time is not a release condition.
+While this known reservation remains, keep waiting in LOW; do not merge during an idle
+gap or ask HIGH to waive it. If the release/ownership becomes ambiguous, escalate.
+
 ## 3. Incorporate and preserve later main work
 
 Once main is clean and the runtime is idle, record its full SHA as `$incomingMain`.
 Require it to descend from the incoming baseline. Inspect:
 
 ```powershell
-git log --oneline c7d4067..main
-git diff --name-only c7d4067 main
+git log --oneline 7a9aea2..main
+git diff --name-only 7a9aea2 main
 ```
 
 Permitted new main changes are inside `studies/02-ticket-booking/`,

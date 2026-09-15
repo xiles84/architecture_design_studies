@@ -132,3 +132,9 @@ mid-run is outside this handoff. Its run and files remain untouched.
 The existing enhancements and rules are already on main; only this new review checkpoint
 awaits integration. **Next: LOW model / low effort — execute EH-02.** If its mapped
 preservation checks pass, LOW may complete the task without another HIGH review.
+
+**Later HIGH check:** main then advanced to `7a9aea2`, changing only context to reserve
+its checkout explicitly until Study 03 step 11 is committed. The task worktree retains
+that incoming entry. EH-02 revision 2 also requires that reservation to end; a brief
+idle gap between matrix runs does not permit a main update. The initial review remains
+at `study-01/v3-high-review`; the amended checkpoint is `study-01/v3-high-review-r2`.

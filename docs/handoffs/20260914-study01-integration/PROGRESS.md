@@ -78,3 +78,13 @@ Reviewer: GPT-6 via Codex desktop, HIGH role; selected effort not exposed.
   may close the task without a third HIGH pass; unmapped changes still require escalation.
 
 **Next: LOW model / low effort — execute EH-02 after the benchmark lock and main checkout are free.**
+
+### HIGH amendment — peer checkout reservation
+
+Before ending this review, main advanced to `7a9aea2f5c6921461ea87d67dd54a6bd511b3119`.
+The only change was the peer's CONTEXT.md update: its main checkout is reserved until
+Study 03 step 11 is committed, including inter-run gaps. Integrated that incoming
+session's entry without conflict in this worktree. EH-02 revision 2 requires evidence
+of release/step-11 completion as well as a clean checkout and free runtime; elapsed time
+or a temporary missing lock is insufficient. Its checkpoint is
+`study-01/v3-high-review-r2`; the first HIGH tag stays unchanged. Next remains LOW.
