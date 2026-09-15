@@ -504,9 +504,10 @@ study 03's handoff.
 **Status (2026-09-14, 20:40 UTC):** harness tagged `study-03/v1-harness` (14 designs, AM-01 dev
 checks dc12–dc14 pass). **ER-02 decided (AM-02, tag `study-03/v0.2-handoff-amendment-02`):**
 calibrate with one `small` S1 cell per topology (dc15), then run the matrix under fixed duration rules
-(hard ceiling 30 h). **Running from 23:20 UTC — do not start databases:** AM-02 calibration
-`devchecks/dc15-small-calibration` (S1, `small`, 3 topologies, about 2 h, holds the benchmark lock).
-No matrix run has started. The
+(hard ceiling 30 h). Calibration dc15 passed (63 min); rule 1 applied (no 100 000-seat race tier on
+YugabyteDB); projection ≈ 15.7 h. **Running from 2026-09-15 00:25 UTC — do not start databases:**
+the `small` main matrix (step 9, all 3 topologies, 14 designs, `--tag`). It holds the benchmark lock;
+projected end ≈ 2026-09-15 16:00 UTC. The repeated race (step 10, ≈ 4.4 h) follows. The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).
