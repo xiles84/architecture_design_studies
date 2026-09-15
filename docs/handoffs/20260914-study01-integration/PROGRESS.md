@@ -51,3 +51,30 @@ Record partial completion and restart points; do not claim an intended merge occ
   immutable tags. No database benchmark, image build or report regeneration ran.
 
 **Next: HIGH model / high effort — review the execution evidence after closeout.**
+
+## HIGH iteration 2 — 2026-09-15
+
+Reviewer: GPT-6 via Codex desktop, HIGH role; selected effort not exposed.
+
+- Verified EH-01's final closeout `db77fe60b5bfe78b29ec04db9150f33cc1a0bb49`, both
+  annotated integrated tags at that revision, and its containment in current main.
+  The original enhancement and producing-run tags remain unchanged.
+- Recomputed all four result digests from 261 JSON files; verified each cell's manifest
+  commit/image/environment and report index. Rechecked headline medians, matched data,
+  gate counts and the six D9 cache failures. [HIGH_REVIEW.md](HIGH_REVIEW.md) is the
+  validation report and acceptance decision. No new benchmark was needed.
+- Incorporated committed main through `c7d4067e1c870602e9f794d9067c8163018523dd` by
+  fast-forwarding this task worktree only. Main's newer commits concern Study 03 and
+  its context. Its code/settings, results and decisions remain the other task's work.
+- At 2026-09-15 09:43 UTC, main was running Study 03 matrix `20260915T002411Z` with
+  `ads-run-lock` and uncommitted outputs. The new review documentation therefore stays
+  on this task branch until safe integration. No main update or runtime mutation occurred.
+- Corrected living context's stale integration language and incomplete model-role
+  sentence; kept the original handoff/execution receipt and signed analyses intact.
+- An attempted independent subagent audit ended at its usage limit and supplied no
+  review; acceptance is based on the primary HIGH review's checks, not a second sign-off.
+- Published [EH-02](FINALIZATION_HANDOFF.md) for LOW's final documentation merge.
+  Existing scientific conclusions and rules are accepted. The mapped clean integration
+  may close the task without a third HIGH pass; unmapped changes still require escalation.
+
+**Next: LOW model / low effort — execute EH-02 after the benchmark lock and main checkout are free.**

@@ -20,6 +20,15 @@ decisions as Escalation Required. Expected waits remain execution work. Each ite
 names the next role and any agreed model/effort, and context distinguishes a model-switch
 checkpoint from a finished, merged task. These rules now live in AGENTS.md for all studies.
 
+The final review must verify the actual tag targets and main ancestry: a committed
+receipt can only name its own final tag as intended before that tag is created. EH-01's
+receipt retained this forward-looking wording even after integration succeeded. The
+next HIGH review records the observed commit/tag outcome without rewriting that
+historical receipt. When only a documentation merge remains, HIGH can give LOW explicit
+preservation and completion conditions so a routine lock wait does not create another
+unnecessary review cycle. Keep the already merged implementation distinct from any
+new review documents still awaiting integration.
+
 ### Isolation needs an explicit integration step
 
 A completed Study 01 branch contained the results and updated rules while `main`
@@ -30,6 +39,12 @@ current `main` in the task worktree, preserve concurrent contributions when reso
 conflicts, validate, then update `main` and verify commit reachability. Wait before
 changing shared scripts used by a running benchmark. A tagged branch alone is not a
 completed integration; remote pushes and pulls remain separate owner actions.
+
+Check the live lock's branch/worktree labels as well as `git worktree list`. During
+the 2026-09-15 HIGH review, the peer Study 03 matrix still identified the main checkout
+despite the standing isolation rule. Keep working in the owned worktree, leave the
+active run in place, and wait for a safe shared-main update; do not assume another
+agent has already isolated its work merely because the rule exists.
 
 ### A study-specific finding is not automatically a future-study requirement
 

@@ -4,7 +4,7 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-15
 
 ---
 
@@ -63,6 +63,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/study-comparison-minimums` | future-study requirements for calculated sizing, information placement, data colocation and concurrency strategies |
 | `repo/worktree-to-main-workflow` | integrated task workflow: every task uses an isolated worktree and merges completed changes into local main |
 | `study-01/v3-integrated` | integrated Study 01 v3 local enhancements, final analysis and discussion companions |
+| `study-01/v3-high-review` | HIGH acceptance of the integrated v3 evidence; review documentation awaits the safe final merge under EH-02 |
 | `repo/study01-integration-handoff-v1` | HIGH planning checkpoint for the LOW integration steps and subsequent HIGH review |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
@@ -98,20 +99,28 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**LOW integration closeout, 2026-09-14 — next HIGH:** the HIGH planning pass incorporated
-local `main` at `025b72f` into `study-01/measurement-enhancements` and published EH-01
-at checkpoint `32aec56`. LOW repeated the mapped preflight: both worktrees were clean,
-no benchmark container was running, the task held the short integration lock, all four
-run tags resolved to their producing commits and the generated report digests/indexes
-matched. It fast-forwarded `main` to `32aec56`. This closeout revision records the final
-integration receipt and is the intended target of the immutable
-`repo/worktree-to-main-workflow` and `study-01/v3-integrated` tags immediately after its
-fast-forward. The
+**HIGH review accepted, 2026-09-15 — next LOW:** EH-01's final local integration is
+verified at `db77fe60b5bfe78b29ec04db9150f33cc1a0bb49`. Both annotated tags,
+`repo/worktree-to-main-workflow` and `study-01/v3-integrated`, resolve to that commit,
+which is an ancestor of current local `main`. The 261 saved cells retain their producing
+commits, images, environment and four report digests. The six expected D9 failures stay
+excluded from performance conclusions. HIGH accepts the existing local enhancements,
+concise final analysis, signed discussions and prospective study requirements.
+
+This review incorporates committed main through `c7d4067` in the task worktree only.
+Study 03's matrix is running from main with unfinished result files, so the new review
+documentation has not been merged. [EH-02](docs/handoffs/20260914-study01-integration/FINALIZATION_HANDOFF.md)
+maps the remaining LOW work: wait for a free lock and clean main checkout, preserve later
+Study 03 work, merge the review documents and tag `study-01/v3-reviewed`. No further HIGH
+pass is required if its acceptance conditions pass. Source changes or conflicting
+decisions require escalation. The
 [Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md),
 [progress](docs/handoffs/20260914-study01-integration/PROGRESS.md),
 [execution receipt](docs/handoffs/20260914-study01-integration/EXECUTION_RESULT.md) and
 [escalation log](docs/handoffs/20260914-study01-integration/ESCALATIONS.md) preserve the
-iteration. Study 03's ER-02 remains an independent open HIGH decision.
+iteration; the [HIGH review](docs/handoffs/20260914-study01-integration/HIGH_REVIEW.md)
+records the acceptance evidence. Study 03's current decisions and running state remain
+in its own section and logs.
 
 ## Model roles for every study
 
@@ -121,9 +130,11 @@ its mapped steps, unmapped decisions become Escalation Required, and HIGH valida
 analyses. Each iteration names the next model level and any agreed effort. Routine
 waiting remains LOW work. No automatic model change is implied.
 
-Current task: HIGH = the user's high-level model/effort (the planning pass was GPT-6
-via Codex; exact selected effort was not exposed); LOW = GPT-5 via Codex desktop under
-the user-selected low role (exact effort not exposed). LOW completed EH-01; final evidence
+Current task: HIGH planning/review = GPT-6 via Codex (exact selected effort not exposed);
+EH-01's executor recorded GPT-5 via Codex desktop under the user-selected LOW role
+(exact effort not exposed). HIGH has accepted EH-01. Next: LOW model / low effort for
+EH-02's safe documentation merge; record the actual executor model rather than assuming
+the preceding executor's identity.
 Study 03's existing model/effort mapping below remains specific to that study.
 
 ## What this project is
@@ -193,7 +204,8 @@ Implementation is isolated in `.worktrees/study01-v3`, branch
 creates a run tag, pins the image ID, takes the shared benchmark lock and keeps every
 fresh-load trial. Containerized catalogue/control, scheduler overload and grouping tests
 pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 checks per cell).
-The task integrates this branch into local `main` under the standing completion rule.
+The implementation is already integrated into local `main` at `study-01/v3-integrated`;
+only the subsequent HIGH review documentation awaits EH-02's final merge.
 
 **Completed:** `20260913T124917Z-v3`, 14 successful verification cells
 (seven new variants on PostgreSQL and YugabyteDB single-node), run tag
@@ -237,8 +249,9 @@ Final-phase donor-read medians at 256 MiB were D3 4,578.18/s and D6 16,034.40/s;
 at 3 GiB they were D3 25,222.57/s and D6 15,415.07/s. The same dataset now
 supports a memory-configuration-dependent reversal; it does not isolate the container
 ceiling from PostgreSQL memory settings. This run removed its database and released
-its lock. On the 2026-09-14 continuation, the machine lock belongs to Study 03
-`devchecks/dc11-yb3-subset` in the owner's main worktree; do not disturb that run.
+its lock. During the 2026-09-14 continuation, Study 03's historical
+`devchecks/dc11-yb3-subset` held the machine lock. Check Study 03's current entry and
+the live lock for today's running workload; do not resume that historical wait.
 
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
@@ -248,8 +261,9 @@ companions, using `docs/templates/DISCUSSION.md`. Original published analyses st
 links four signed [discussion companions](studies/01-charity-tree/reports/discussions/README.md).
 All 261 cells completed across four runs; six expected D9 cache-control failures remain
 invalid for performance conclusions. The final milestone is `study-01/v3-enhancements`;
-source/run tags and digests remain independent of the report/analysis commit. The agent
-merges branch `study-01/measurement-enhancements` locally; the owner controls remote pushes.
+source/run tags and digests remain independent of the report/analysis commit. The branch
+was integrated locally at `db77fe6`; the owner controls remote pushes. HIGH accepted
+the existing evidence on 2026-09-15; EH-02 covers only the later review-document merge.
 The [final artifact validation](studies/01-charity-tree/reports/20260914-v3-artifact-validation.md)
 records provenance/link checks and the preserved editions from report regeneration.
 
