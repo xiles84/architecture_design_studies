@@ -1,0 +1,66 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  database clock minus client clock: 0.010 ms
+  dataset: 5 venues, 658 events, 56103 tickets and 2217 holds at load
+  loading s4_check_then_hold_serializable ...
+  loaded in 30.3s (copy 4.4s, index 15.9s)
+  verifying answers against ground truth ...
+    58/58 checks passed (margin 574s); audit on load: consistent (658 events, 56103 tickets; rejections late=0 boundary=0)
+  capturing plans ...
+  read benchmark:
+    q01_section_map@10                     3784.6 ops/s  p50=  1.701ms p99=  16.532ms  errors=0
+    q02_event_sections@10                  4635.3 ops/s  p50=  1.152ms p99=  28.126ms  errors=0
+    q03_event_available@10                 5176.4 ops/s  p50=  0.987ms p99=  31.638ms  errors=0
+    q01_section_map@100                    2338.4 ops/s  p50=  2.519ms p99=  27.333ms  errors=0
+    q02_event_sections@100                 3951.7 ops/s  p50=  1.318ms p99=  31.532ms  errors=0
+    q03_event_available@100                4390.4 ops/s  p50=  1.084ms p99=  35.662ms  errors=0
+    q01_section_map@1000                   1810.4 ops/s  p50=  2.959ms p99=  35.909ms  errors=0
+    q02_event_sections@1000                2355.9 ops/s  p50=  1.936ms p99=  43.845ms  errors=0
+    q03_event_available@1000               2457.0 ops/s  p50=  1.537ms p99=  52.853ms  errors=0
+    q01_section_map@10000                  1290.1 ops/s  p50=  3.746ms p99=  44.910ms  errors=0
+    q02_event_sections@10000                299.9 ops/s  p50= 14.302ms p99=  69.990ms  errors=0
+    q03_event_available@10000               509.6 ops/s  p50=  4.877ms p99=  77.058ms  errors=0
+    q01_section_map@100000                  784.2 ops/s  p50=  5.586ms p99=  54.026ms  errors=0
+    q02_event_sections@100000                30.6 ops/s  p50=286.174ms p99= 318.415ms  errors=0
+    q03_event_available@100000               57.5 ops/s  p50=111.387ms p99= 195.632ms  errors=0
+    q04_hold_seats                          957.4 ops/s  p50=  4.704ms p99=  52.832ms  errors=0
+    q05_customer_tickets                   3144.3 ops/s  p50=  2.089ms p99=  14.580ms  errors=0
+    q06_ticket_by_id                       5179.1 ops/s  p50=  1.041ms p99=  28.057ms  errors=0
+  write benchmark (fresh load per op):
+    hold                                      1.0 ops/s  p50=10413.376ms p99=12902.679ms  rejected=0 retries=404 errors=0
+      audit after hold: consistent (658 events, 59388 tickets; rejections late=0 boundary=0)
+    release                                 514.7 ops/s  p50= 11.643ms p99=  41.079ms  rejected=0 retries=0 errors=0
+      audit after release: consistent (658 events, 56103 tickets; rejections late=0 boundary=0)
+    cancel                                  242.5 ops/s  p50= 28.502ms p99=  68.019ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (658 events, 40857 tickets; rejections late=0 boundary=0)
+    publish@10                              187.5 ops/s  p50= 17.204ms p99=  53.316ms  rejected=0 retries=0 errors=0
+    publish@100                             146.0 ops/s  p50= 25.314ms p99=  46.304ms  rejected=0 retries=0 errors=0
+    publish@1000                             45.1 ops/s  p50= 82.179ms p99= 112.399ms  rejected=0 retries=0 errors=0
+    publish@10000                             5.7 ops/s  p50=319.040ms p99= 319.040ms  rejected=0 retries=0 errors=0
+    publish@100000                            0.5 ops/s  p50=3479.856ms p99=3479.856ms  rejected=0 retries=0 errors=0
+      audit after publish: consistent (2887 events, 56103 tickets; rejections late=0 boundary=0)
+  race trial 1/1 (32 buyers per event, fresh load):
+      race event 501: gate 2026-09-15T13:52:26.846952829Z, deadline 2026-09-15T13:53:26.846952829Z
+      race event 502: gate 2026-09-15T13:53:37.023564593Z, deadline 2026-09-15T13:54:37.023564593Z
+      race event 503: gate 2026-09-15T13:54:57.297407736Z, deadline 2026-09-15T13:55:57.297407736Z
+    race     10 seats x3          0.1 seats/s  conflicts/hold=7.60 reads/hold=27.20  hold p50=60959.56ms p99=62018.40ms  deferred 0/0 ok  confirm retries sold/run=0/0  errors=0  ok, 3 timed out (43% sold)
+      audit: consistent (3 events, 13 tickets; rejections late=0 boundary=0)
+      race event 601: gate 2026-09-15T13:56:06.18060834Z, deadline 2026-09-15T13:57:06.18060834Z
+      race event 602: gate 2026-09-15T13:57:22.502492944Z, deadline 2026-09-15T13:58:22.502492944Z
+      race event 603: gate 2026-09-15T13:59:05.229711841Z, deadline 2026-09-15T14:00:05.229711841Z
+    race    100 seats x3          0.0 seats/s  conflicts/hold=1.80 reads/hold=25.80  hold p50=28786.31ms p99=67827.12ms  deferred 0/0 ok  confirm retries sold/run=0/0  errors=29  ok, 3 timed out (4% sold)
+      audit: consistent (3 events, 11 tickets; rejections late=0 boundary=0)
+      first error: ERROR: Timed out waiting kResponseSent, state: kProcessingRequest (SQLSTATE XX000)
+      race event 621: gate 2026-09-15T14:00:16.124195167Z, deadline 2026-09-15T14:01:16.124195167Z
+      race event 622: gate 2026-09-15T14:01:27.057678983Z, deadline 2026-09-15T14:02:27.057678983Z
+      race event 623: gate 2026-09-15T14:02:41.323227046Z, deadline 2026-09-15T14:03:41.323227046Z
+    race   1000 seats x3          2.8 seats/s  conflicts/hold=0.06 reads/hold=20.82  hold p50=63.63ms p99=1778.12ms  deferred 6/22 ok  confirm retries sold/run=0/0  errors=7585  ok, 2 timed out (0% sold)
+      audit: consistent (3 events, 754 tickets; rejections late=0 boundary=0)
+      first error: ERROR: Timed out waiting kResponseSent, state: kProcessingRequest (SQLSTATE XX000)
+      race event 626: gate 2026-09-15T14:03:52.135520782Z, deadline 2026-09-15T14:04:52.135520782Z
+      race event 627: gate 2026-09-15T14:05:01.881073129Z, deadline 2026-09-15T14:06:01.881073129Z
+    race  10000 seats x2         28.4 seats/s  conflicts/hold=0.00 reads/hold=7.05  hold p50=10.17ms p99=808.78ms  deferred 23/128 ok  confirm retries sold/run=0/0  errors=22696  ok, 2 timed out (9% sold)
+      audit: consistent (2 events, 1798 tickets; rejections late=0 boundary=0)
+      first error: ERROR: Timed out waiting kResponseSent, state: kRequestSent (SQLSTATE XX000)
+ERROR: load before lifecycle#1: analyze venue_seat: ERROR: Timed out waiting kResponseSent, state: kRequestSent (SQLSTATE XX000)
+  wrote /results/s4_check_then_hold_serializable.json
