@@ -46,6 +46,10 @@ These come from the project owner and override convenience:
 9. **One benchmark on the machine at a time.** Agents may write code and analyses in
    parallel; they may not measure in parallel.
 10. **Never edit another analyst's file.** Not to shorten it, restructure it or correct it.
+11. **Always assume another AI agent is working in this repository at the same time**, and
+    work so that neither interferes with the other. Findings reach `main` by merging; the
+    agent that merges later reconciles both sides so `main` reads as one project, not a
+    patchwork of sessions ("Hard rule: assume a concurrent agent").
 
 ## Required comparisons for future studies
 
@@ -203,6 +207,55 @@ while someone else holds it. Rules:
 - `ADS_IGNORE_RUN_LOCK=1` exists for poking at a database by hand when you are certain
   nothing is measuring. Never set it inside a runner.
 - Record a long run in `CONTEXT.md` ("running — do not start databases") when it starts.
+
+## Hard rule: assume a concurrent agent; the later merger reconciles
+
+**Owner rule, 2026-09-15:** another AI agent, from any vendor, is always expected to be working on
+this project at the same time. Both must be able to work without interfering, and both agents'
+findings end up merged on `main`. Nobody waits for the other to finish before starting.
+
+**Never interfere:**
+
+- Assume the other agent exists even when you cannot see it. Before touching anything
+  shared, check:
+  - `git worktree list`;
+  - the benchmark lock (`podman volume inspect ads-run-lock`);
+  - `CONTEXT.md`.
+- Work only in your own task worktree and branch. Never check out, reset, merge into or
+  fast-forward a branch in a folder you do not own. Never touch another task's worktree,
+  branch, untracked files or containers.
+- A long run's results live uncommitted in its worktree until the run ends. Keep a runner and
+  its results out of any folder another agent may need, including the checkout of `main`.
+- Keep edits to shared documents small and local to your own study or task. This keeps
+  merges mechanical.
+
+**The later merger reconciles.** When you merge into `main` and it has moved, you own the
+integration of both sides. Integrate the latest `main` into your task branch, then make the shared
+documents read as one coherent project, as if one author had kept them:
+
+- **`CONTEXT.md`:** one current status per study or task. Where the merged commits prove an
+  earlier statement stale (for example "ER-02 open" after its decision was merged), replace it with
+  the current state and keep the fact of what happened. Tags and runs tables list both sides once.
+- **`LESSONS_LEARNED.md`:** keep every distinct lesson under the section it belongs to. When two
+  sessions wrote the same lesson, merge them into one entry that keeps both sides' evidence.
+- **`AGENTS.md`, `docs/methodology.md`, templates:** one rule set. Merge two wordings of the
+  same rule into one that satisfies both, and remove duplicates and contradictions. If two
+  rules genuinely conflict, keep both visible, mark the conflict and ask the owner. Do not
+  pick a side.
+- **READMEs and indexes:** one consistent terminology and structure. Every study and report
+  stays reachable.
+
+Reconciliation edits living shared documents only. It never changes:
+
+- signed analyses or discussions;
+- another session's handoff, progress or escalation entries;
+- reports, results or manifests;
+- history (no rewrite, no force, no moved tags).
+
+It never deletes another session's findings or evidence. Rule 10 still protects attributed
+files. A disagreement with another session's conclusion becomes your own signed file, not an
+edit. Name the reconciliation in the merge commit message, including what was consolidated, and
+check the combined result before fast-forwarding `main`.
 
 ## Hard rule: correctness gates timing
 
