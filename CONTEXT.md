@@ -82,6 +82,9 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-03/v1-analysis` | study 03: signed analysis of the small matrix, report index, README and context complete |
 | `repo/recency-reports-handoff-v1` | HIGH planning checkpoint: study 01's recency protocol, studies 02/03 reporting protocols and EH-02, before any code |
 | `study-01/v4-harness` | study 01: D18–D24, catalogue/harness/runner/diagram changes for the recency question, dev-checked on `tiny` (PostgreSQL and YugabyteDB, single and 3-node) and calibrated on `small`; no reported run yet |
+| `run/01-charity-tree/20260916T090036Z-v3` | commit that produced study 01's measured recency matrix (192 cells, 0 failed) |
+| `study-01/v4.1-handoff-amendment-01` | EH-02 AM-01: phase 1 validated and accepted; five repairs specified before phase 2 |
+| `study-01/v4-measured` | study 01: recency matrix measured (AM-01 repairs applied and held under the real run); ready for analysis |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -233,16 +236,21 @@ real operation asks for.
   was never exercised on the flag designs, where the delete trigger fires once per child
   row. Three of the five follow from EH-02's own under-specification of the reporting
   path, not from execution.
-- **Phase 2 — RUNNING (started 2026-09-16, LOW, Claude Sonnet 5).** All five AM-01
-  repairs are committed (`ff79475`, `2c6f515`) and `delete_person` was dev-checked clean
-  on D20/D21 (AM-01.5: 6,000+ ops/s, 0 errors, audits consistent, no escalation). The
-  measured recency matrix — `recency-reads`, `recency-maintenance`, `recency-hot-donor`,
-  `recency-placement`, 3 trials — is running via `run-study.sh --suite enhancements
-  --tag`, sized at ~4 hours. **Do not start another database while this runs; it holds
-  the benchmark lock.** Check `podman volume inspect ads-run-lock` for the holder.
+- **Phase 2 complete (2026-09-16, LOW, Claude Sonnet 5).** All five AM-01 repairs
+  committed (`ff79475`, `2c6f515`) and `delete_person` dev-checked clean on D20/D21
+  first (AM-01.5: 6,000+ ops/s, 0 errors, audits consistent, no escalation). The
+  measured recency matrix ran via `run-study.sh --suite enhancements --experiments
+  recency-reads,recency-maintenance,recency-hot-donor,recency-placement --trials 3
+  --tag`: **192 cells, 0 failed processes**, well under the ~4-hour estimate. Run tag
+  `run/01-charity-tree/20260916T090036Z-v3` (auto-created by the runner). The AM-01
+  repairs held under the real run — D21's negative control fired in every
+  `recency-maintenance` trial and in the `hot-donor-w16` sweep, visible in the generated
+  report exactly where AM-01.3/1.4 put it. One new finding for the analysis: D23
+  (optimistic CAS) recorded write errors (up to 18/10000) under the hottest single-donor
+  contention — a genuine abort-under-contention measurement, not a defect. Report:
+  [`reports/20260916T090036Z-v3.md`](studies/01-charity-tree/reports/20260916T090036Z-v3.md).
+  Results: `results/20260916T090036Z-v3/`. Nothing is running; lock released.
 - **Phase 3 (still not authorised):** studies 02/03's report queries.
-- The phase-2 matrix above is running and holds the lock; no other measurement should
-  start on this machine until it finishes and the lock is released.
 
 ### Study 01 — tree structures (charity → person → donation)
 

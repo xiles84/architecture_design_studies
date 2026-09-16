@@ -194,3 +194,69 @@ amendment authorising them.**
   4's bound. Phase 3 remains unauthorised.
 
 **Next: LOW — Claude Opus 5, setting `high` — execute AM-01.1 through AM-01.6.**
+
+## LOW iteration 2 — 2026-09-16 (AM-01 repairs and phase 2)
+
+- Executor: Claude Sonnet 5, Claude Code desktop app.
+- **AM-01.1** — `run-enhancements.sh`'s `recency-maintenance` group now loops
+  `for op in insert insert_backdated delete update delete_person`, one cell per op,
+  matching the `exceptions` group's existing shape. `delete_person` was added to the
+  group's operation list at this point, ahead of AM-01.5's dev check, since AM-01.1's
+  fix already had to enumerate every operation individually.
+- **AM-01.2** — `experiment.go`'s `writes` and `arrival` cases now call `AuditRecency`
+  for `LastFlag`/`RecencyRollupIdx` designs, storing the result on `run.RecencyAudit`
+  (and `run.Writes[0].RecencyAudit` where the rollup audit is attached that way too).
+- **AM-01.3** — `experimentProblems` (`report_enhancements.go`) now flags
+  `r.RecencyAudit` and `Arrival.WarmupRecencyAudit` mismatches, using the existing
+  `recencyAuditBad` helper from phase 1.
+- **AM-01.4** — added a per-trial recency-audit line to the per-group report output, and
+  a new `recencyAuditSummary` helper that names D21 explicitly and states plainly
+  whether it fired, never wording another design's mismatch as a control. Confirmed the
+  generic per-operation metrics table already lists q13-q16 with their regime spelled
+  out via the existing `@trailing`/`@historical` suffix, so no separate table was
+  needed for that half of the requirement. New unit test:
+  `TestRecencyAuditSummaryNamesD21AsTheControl`.
+  - All ten harness tests pass; `go vet` and `gofmt` clean (checked by LF-normalizing
+    the CRLF checkout before diffing, same as phase 1).
+  - Committed at `ff79475`.
+- **AM-01.5** — dev-checked `delete_person` on D20 and D21 at `tiny`, `pg-single`,
+  directly via `-cmd full -write-ops delete_person` (first attempt used the default read
+  duration and ran the full twelve-plus-recency read catalogue unnecessarily, making it
+  look slow; a second attempt with `-duration 1s` on the reads isolated the actual
+  question). D20: 6,561 delete_person/s, 0 errors, recency audit consistent (236 donors
+  checked — the finite-budget benchmark had already consumed half the pool). D21:
+  6,116/s, 0 errors, also consistent — `delete_person` walks the person id space
+  monotonically with no concurrent contention on the same donor, so a clean audit here
+  says nothing about the guard either way; it only confirms the trigger's per-child-row
+  firing during a cascade does not deadlock or error. Neither cell approached the
+  five-minute stop condition. No escalation. Committed at `2c6f515`.
+- **AM-01.6** — ran phase 2 through the proper runner (`run-study.sh --suite
+  enhancements --experiments recency-reads,recency-maintenance,recency-hot-donor,
+  recency-placement --trials 3 --tag`), under the benchmark lock, recorded as running in
+  `CONTEXT.md` first. First launch attempt failed at the runner's own dirty-tree check
+  because a `tee`d log file had been written inside `studies/01-charity-tree/`; removed
+  it and relaunched from a clean tree with output redirected outside the study
+  directory. **192 cells, 0 failed processes**, completed well under the ~4-hour
+  estimate (small scale, short per-query durations). Auto-tagged
+  `run/01-charity-tree/20260916T090036Z-v3` by the runner itself.
+  - **The AM-01 repairs held under the real run**: D21's negative control fired in
+    every `recency-maintenance` trial (4, 7, 3 of 5000 donors) and in the
+    `hot-donor-w16` sweep's third trial (1 of 5000) — consistent with the dev-check
+    evidence — and every firing is visible in the generated report, worded exactly as
+    AM-01.4 specified.
+  - **One genuine, unflagged finding**: D23 (application-maintained rollup, optimistic
+    CAS) recorded write errors under the hottest single-donor contention — up to 18 of
+    10,000 at `w8`/`w16` — `first_error: "statement affected no rows"`, i.e. the CAS
+    comparison lost the race. Recorded in the commit message as a measurement for
+    HIGH's analysis to characterise, not suppressed or treated as a defect: it is
+    exactly the abort-under-contention cost optimistic concurrency trades for not
+    locking, and study 01 now has it measured for the first time under this exact
+    contention shape.
+  - Report: [`reports/20260916T090036Z-v3.md`](../../../studies/01-charity-tree/reports/20260916T090036Z-v3.md).
+    Results: `results/20260916T090036Z-v3/`. Committed at `42a2f32`.
+- Lock released and every database torn down after every step; verified via
+  `podman volume inspect ads-run-lock` and `podman ps -a` before and after.
+- No escalations raised in this iteration.
+
+**Next: HIGH — review the AM-01 repairs and the phase-2 measured matrix, check the
+D23 contention finding, and write the signed analysis.**
