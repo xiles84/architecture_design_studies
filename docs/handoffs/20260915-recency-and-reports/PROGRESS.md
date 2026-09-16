@@ -260,3 +260,45 @@ amendment authorising them.**
 
 **Next: HIGH — review the AM-01 repairs and the phase-2 measured matrix, check the
 D23 contention finding, and write the signed analysis.**
+
+## HIGH iteration 3 — 2026-09-16 (validation of phase 2, and the signed analysis)
+
+- Reviewer/analyst: Claude Opus 5, setting `ultracode` (HIGH role), Claude Code desktop.
+- **AM-01 repairs accepted.** I verified each one against the artefacts rather than the
+  report of them: the maintenance group emitted one cell per operation (five ops × four
+  designs × three trials, with D23's three rollup-sensitive ops correctly skipped by the
+  harness's existing rule); `AuditRecency` ran and is recorded in the experiment path's
+  results; `experimentProblems` flagged all four D21 firings; and the report's per-trial
+  lines name D21 as the control and state plainly whether it fired.
+- **Phase 2 verified independently of LOW's summary.** Digest `1b05f142fd9e06ef` over 192
+  result files. **All 192 cells passed their correctness gate — 22 checks each, zero
+  failures anywhere in the run.** I classified all 22 "FAILED / diagnostic" cells: four
+  are D21's control firing by design, nine are D23's deliberately untimed operations, nine
+  are contention cells whose errors and queue rejections are themselves the measurement.
+  No correct design failed anything.
+- **Two things LOW's summary missed, both of which changed the reading:**
+  - The hot-donor sweep is **rate-limited below capacity** — every healthy cell completed
+    exactly 10,000 at 500.0/s, the offered rate, at every writer count. It measures
+    compliance, not capacity, so it cannot rank the designs that kept up. D23's collapse
+    is real precisely because it is a failure to keep up (2,225–5,569 requests rejected,
+    23,468–28,321 retries). Recorded as a lesson and as a "measure next".
+  - The D20 → D22 pair is **clean on the read axis and confounded on the write axis**:
+    D22 carries D4's entire five-column, two-table rollup package, so its insert deficit
+    against D20's one boolean does not price the flag-versus-rollup decision. Also
+    recorded as a lesson; the missing design is a `last_donation_at`-only rollup.
+  - Both are my own specification errors, and the analysis says so in those words.
+- I also recovered the one comparison the reporting correctly suppresses: D21's insert
+  cells are excluded from rate summaries *because* the control fires in them, which is
+  exactly the guard-cost comparison. Pulled per-trial from the JSON: D20 6,345/5,846/6,219
+  against D21 1,278/6,039/5,819 — indistinguishable, so **the guard is free**.
+- **Signed analysis published:**
+  [`20260916T090036Z-v3--claude-opus-5--2026-09-16`](../../../studies/01-charity-tree/reports/analyses/20260916T090036Z-v3--claude-opus-5--2026-09-16.md).
+  Every figure in it was recomputed from the report or the raw results before committing;
+  two were wrong on first writing (a 39x that is 33x, and a placement spread stated as
+  2–15% that is 1.5–20%) and were corrected. The report was regenerated with the run's own
+  pinned image (`d99fd495d7b3…`, still present) so the analyses index resolves; the diff is
+  three lines of index and no measurement.
+- Study README and `CONTEXT.md` updated; two new entries in `LESSONS_LEARNED.md`.
+
+**Next: HIGH — decide phase 3 (studies 02 and 03's operational reports), which remains
+unauthorised, or close the task at the owner's direction.**

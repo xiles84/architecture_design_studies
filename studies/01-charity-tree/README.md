@@ -4,16 +4,28 @@
 **Environment:** [`host-zenbook-ux5406sa`](../../docs/environments/host-zenbook-ux5406sa.md)
 **Engines:** PostgreSQL 17.11 · YugabyteDB 2025.2.6.0 (1 node and 3 nodes, RF=3)
 
-## v4 in planning — "who donated last in a period"
+## v4 measured — "who donated last in a period"
 
 The owner asked on 2026-09-15 for the question *"which people made their LAST donation
 last week (or another period)"*, and offered a candidate design: a `last_donation` flag on
-`donation`, indexed. [`RECENCY.md`](RECENCY.md) is the protocol that answers it — the
-exact semantics (two window regimes, and why the cheap answer is right in one and wrong in
-the other), seven new designs including the owner's flag and its unguarded negative
-control, the controlled pairs, the correctness gate and audit, the experiments and the
-limitations. No result exists yet; implementation is
-[EH-02](../../docs/handoffs/20260915-recency-and-reports/HANDOFF.md).
+`donation`, indexed. [`RECENCY.md`](RECENCY.md) is the protocol written before any code —
+the exact semantics (two window regimes, and why the cheap answer is right in one and
+wrong in the other), seven new designs including the owner's flag and its unguarded
+negative control, the controlled pairs, the correctness gate and audit, the experiments
+and the limitations.
+
+**Measured:** `20260916T090036Z-v3`, 192 cells, every one passing its correctness gate
+([report](reports/20260916T090036Z-v3.md), digest `1b05f142fd9e06ef`).
+**[Read the signed analysis](reports/analyses/20260916T090036Z-v3--claude-opus-5--2026-09-16.md)**
+— in short: the flag works and is cheap, but where the parent row already carries
+`last_donation_at`, **one index on it answers the same question 2.9x faster on PostgreSQL
+and 7.9x faster on YugabyteDB**, with no new column, trigger or write path. The guard on
+the flag's trigger costs nothing measurable and the unguarded control corrupted donors in
+every trial. Embedding buys nothing for this question, and the "obvious" per-donor index
+probe (D18) is slower than the naive aggregate — catastrophically so on YugabyteDB.
+
+Implementation history: [EH-02](../../docs/handoffs/20260915-recency-and-reports/HANDOFF.md)
+and its [progress log](../../docs/handoffs/20260915-recency-and-reports/PROGRESS.md).
 
 ## v3 follow-ups
 

@@ -85,6 +85,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/01-charity-tree/20260916T090036Z-v3` | commit that produced study 01's measured recency matrix (192 cells, 0 failed) |
 | `study-01/v4.1-handoff-amendment-01` | EH-02 AM-01: phase 1 validated and accepted; five repairs specified before phase 2 |
 | `study-01/v4-measured` | study 01: recency matrix measured (AM-01 repairs applied and held under the real run); ready for analysis |
+| `study-01/v4-analysis` | study 01: signed analysis of the recency matrix (digest `1b05f142fd9e06ef`), report index regenerated |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -250,6 +251,20 @@ real operation asks for.
   contention — a genuine abort-under-contention measurement, not a defect. Report:
   [`reports/20260916T090036Z-v3.md`](studies/01-charity-tree/reports/20260916T090036Z-v3.md).
   Results: `results/20260916T090036Z-v3/`. Nothing is running; lock released.
+- **Analysis published (2026-09-16, HIGH, Claude Opus 5).**
+  [`20260916T090036Z-v3--claude-opus-5--2026-09-16`](studies/01-charity-tree/reports/analyses/20260916T090036Z-v3--claude-opus-5--2026-09-16.md),
+  digest `1b05f142fd9e06ef`. **Answer to the owner's question:** the `last_donation` flag
+  works and is cheap (+0.95% storage, 6,219 inserts/s), but where the parent already
+  carries `last_donation_at` — as D4/D5 have since the original survey — **one index on it
+  is 2.9x faster on PostgreSQL and 7.9x faster on YugabyteDB**, with no new column, trigger
+  or write path. The flag's guard (a person-row lock) costs nothing measurable while the
+  unguarded control corrupted 3–7 donors per trial: take the lock. Embedding buys nothing
+  for a cross-parent recency question (D6 is 4.9x *slower* than the plain aggregate); the
+  per-donor index probe D18 is slower than the naive aggregate on PostgreSQL and 22x slower
+  on YugabyteDB; colocation (D20 vs D24) is a null result. Two limitations the analysis
+  names as the planner's own errors: no no-flag write baseline in the maintenance group,
+  and a hot-donor sweep that was rate-limited below capacity. The report was regenerated
+  with the run's own pinned image so its analyses index resolves; no measurement changed.
 - **Phase 3 (still not authorised):** studies 02/03's report queries.
 
 ### Study 01 — tree structures (charity → person → donation)

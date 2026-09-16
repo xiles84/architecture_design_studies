@@ -144,6 +144,33 @@ it actually caught was two bugs in the measurement apparatus:
 Both would have been invisible in a timing-only benchmark: the queries ran, returned
 rows, and were fast. **A benchmark with no correctness gate does not fail — it lies.**
 
+### A fixed arrival rate measures compliance, not capacity
+
+Study 01's recency hot-donor sweep varied the writer count (1, 4, 8, 16) while holding the
+offered arrival rate at 500/s. Every healthy cell completed exactly 10,000 requests at
+500.0/s — the offered rate — at every writer count, because the rate, not any design, was
+the binding constraint. The sweep therefore answered "who can keep up with 500/s?" and not
+"how much can each design do?", and the only design it distinguished was the one that
+*failed* to keep up (D23's compare-and-set, which lost 22–56% of its offered load at 16
+writers). An open-loop arrival experiment that fixes the rate across a concurrency sweep
+measures a threshold, not a curve. Either scale the rate with the worker count, or set it
+well above the expected ceiling and read the drop rate — and say which of the two you did,
+because "500/s, no errors" looks like a result and is not one.
+
+### A controlled pair can be clean on one axis and confounded on another
+
+RECENCY.md paired D20 (a flag on the child) against D22 (a rollup on the parent) to ask
+where a derived fact should live. On the **read** side the pair is exactly one decision:
+both answer the same four statements, one from a partial index on `donation`, the other
+from an index on `person`. On the **write** side it is not: D22 inherits D4's whole rollup
+package — five maintained columns across two parent tables — while D20 maintains one
+boolean. So D20's 6,219 inserts/s against D22's 3,436 prices four extra columns and a
+second hot row, not the flag-versus-rollup decision the pair was built to isolate. The
+protocol's own controlled-pair table did not distinguish the two axes, and the analysis had
+to state the confound instead of a result. **When registering a pair, check it separately
+for each axis it will be measured on**; a pair can need a third design (here, a
+`last_donation_at`-only rollup) to become one decision on the axis you care about.
+
 ### A negative control needs the RIGHT kind of contention, not just SOME contention
 
 D21's unguarded flag-race control (RECENCY.md, v4) fired reliably under 8 ordinary
