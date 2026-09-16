@@ -302,3 +302,40 @@ D23 contention finding, and write the signed analysis.**
 
 **Next: HIGH — decide phase 3 (studies 02 and 03's operational reports), which remains
 unauthorised, or close the task at the owner's direction.**
+
+## HIGH iteration 4 — 2026-09-16 (phase 3a planned)
+
+- Planner: Claude Opus 5, setting `ultracode` (HIGH role), Claude Code desktop.
+- The owner said continue, so this plans the second half of their 2026-09-15 request:
+  the operational reports of studies 02 and 03.
+- **First I verified the two claims I had made in those protocols on 2026-09-15 after
+  reading only one design each.** Both hold, and are now established across all 28
+  designs rather than sampled:
+  - Study 02: cancellation destroys the sale in **every** design — C1–C5, R1–R3, H0, H1
+    `DELETE FROM ticket`; P1–P4 reset the row and null out `customer_id`/`sold_at`. The
+    designs' own comments say so. No design can report refunds, and `r01`'s revenue is
+    wrong across a refund in all fourteen.
+  - Study 03: **no** design retains hold history — zero hold-event tables, zero
+    `expired_at`/`released_at` columns, and `w_release_expired` clears the seat row. The
+    abandonment funnel cannot be computed from any design's state.
+  - These are findings obtained by reading schemas; they need no benchmark to be true.
+    What needs measuring is what the answerable reports cost and what making the
+    unanswerable ones answerable costs on the hot path.
+- I also checked the harness shape before specifying work: both studies build on
+  `platform/`, and their read helpers bind exactly one parameter per query
+  (`db.Query(ctx, st.SQL, key(r))`), while the new reports need up to three. AM-02.4 asks
+  for a multi-parameter variant rather than a reshape, so the existing read questions keep
+  their exact call path.
+- **[AM-02](HANDOFF.md#amendments) authorises phase 3a: implementation and dev checks for
+  both studies, no measured run.** Key decisions: reports appended with zero change to any
+  existing statement, schema, index or write path; answerability declared in Go **and
+  pinned to the SQL by a unit test**, because a declaration that can drift from the SQL is
+  worth little; study 02 gains exactly one new design (X1, P3 plus an append-only sale
+  ledger) with a ledger reconciliation audit; study 03 gains no new design, as its own
+  protocol already reasoned.
+- Both lessons from phase 2 are carried into the plan explicitly: X1 was checked on **both**
+  axes before being registered as a controlled pair (clean on the write axis, deliberately
+  different on the read axis, which is what it buys), and AM-02.7 pre-commits phase 3b's
+  race sizing so a fixed offered load cannot produce a second null result.
+
+**Next: LOW — Claude Opus 5, setting `high` — execute AM-02.1 through AM-02.5.**

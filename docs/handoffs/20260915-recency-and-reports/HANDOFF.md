@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Handoff ID / revision | **EH-02 / v1, amended by AM-01 (2026-09-16)** |
+| Handoff ID / revision | **EH-02 / v1, amended by AM-01 and AM-02 (2026-09-16)** |
 | Planner | Claude Opus 5, setting `ultracode` (HIGH), Claude Code desktop, 2026-09-15 |
 | Starting source / main revision | local `main` at `7123da6`; task worktree `.worktrees/recency-reports`, branch `repo/recency-and-reports`, created from `7123da6` |
 | Checkpoint tag | `repo/recency-reports-handoff-v1` (annotated; never moved) |
-| Status | phase 1 executed and accepted; AM-01 adds five repairs and authorises phase 2 |
+| Status | phases 1 and 2 complete and analysed; AM-02 authorises phase 3a (studies 02/03 reporting, implementation and dev checks) |
 | Next setting | **LOW — Claude Opus 5, setting `high`** |
 | Progress / escalations | [`PROGRESS.md`](PROGRESS.md) · [`ESCALATIONS.md`](ESCALATIONS.md) (this task owns both) |
 
@@ -514,3 +514,96 @@ escalate rather than improvise if `delete_person` misbehaves.
 
 **Next after execution: HIGH — review the repairs and the phase 2 results, then write the
 signed analysis.**
+
+### AM-02 — phase 3a authorised: studies 02 and 03 reporting, implementation and dev checks
+
+- Decided by: Claude Opus 5, setting `ultracode` (HIGH), Claude Code desktop, 2026-09-16.
+- Follows: phase 2 measured and analysed (`study-01/v4-analysis`, digest `1b05f142fd9e06ef`).
+- Next setting: **LOW — Claude Opus 5, setting `high`.**
+
+Study 01's half of the owner's 2026-09-15 request is finished. This authorises the other
+half — the operational reports of
+[study 02](../../../studies/02-ticket-booking/REPORTS.md) and
+[study 03](../../../studies/03-reserved-seating/REPORTS.md) — as **implementation and dev
+checks only**. No measured run; phase 3b will authorise those once this is reviewed and
+the cost is known, exactly as phase 1 gated phase 2.
+
+**AM-02.0 — two claims in those protocols are now verified, and they are the finding.**
+I wrote both after reading one design each; I have since checked all 28. State them as
+established:
+
+- **Study 02: cancellation destroys the sale in every design.** C1–C5, R1–R3 and H0–H1
+  `DELETE FROM ticket`; P1–P4 reset the row to `available` with `customer_id = NULL,
+  sold_at = NULL`. The designs' own comments say it outright ("A refund deletes the
+  ticket"; "The row stays; only its state changes"). **No design can report refunds, and
+  `r01`'s revenue is wrong across a refund in all fourteen.**
+- **Study 03: no design retains any hold history.** Zero designs have a hold-event table
+  or any `expired_at`/`released_at` column; `w_release_expired` clears the seat row.
+  **The abandonment funnel — the number that decides whether 40 minutes is right — cannot
+  be computed from any design's state.**
+
+These are results obtained by reading the schemas, and they do not need a benchmark to be
+true. What needs measuring is what the *answerable* reports cost, and what making the
+unanswerable ones answerable costs on the hot path.
+
+**AM-02.1 — add the reports, changing nothing that exists.** Add `r01`–`r06` from each
+study's REPORTS.md to the `queries.sql` of every design that can answer them, appended,
+with **no change to any existing statement, schema, index or write path** in the fourteen
+designs of either study. Study 02 is measured and analysed, study 03 is measured, analysed
+and signed; their published numbers must stay valid. The same append-only diff check
+phase 1 used applies: `git diff -U0` over those directories must show no removed lines.
+
+**AM-02.2 — answerability is declared in Go and bound to the SQL by a test.** A design
+answers a report iff its catalogue defines that statement. Record coverage in a
+`reportCoverage` map in each study's harness — per design, per report, one of
+`answerable`, `partial` (with the caveat text) or `unanswerable` (with the reason) — and
+add a **unit test that fails if the declaration and the SQL disagree**: every `answerable`
+or `partial` entry must have a statement of that name in that design's catalogue, and
+every `unanswerable` must not. A declaration that can drift from the SQL is worth little;
+one a test pins to it is worth having. The generated report prints the table, and an
+unanswerable report is never timed and never shown as a zero.
+
+**AM-02.3 — study 02 gets one new design, X1.** `x1_cas_ledger`: P3 plus an append-only
+`sale_event` table written in the same transaction as the sale and the cancellation, with
+`r01`, `r03` and `r05` answered from it. Copy `p3_precreated_cas` and make exactly that one
+change. **Checked on both axes this time** (LESSONS_LEARNED, "a controlled pair can be
+clean on one axis and confounded on another"): on the write axis P3 → X1 is one decision,
+one extra insert in the same transaction; on the read axis the two deliberately differ,
+because answering `r05` at all is what X1 buys. Say so in the design's own comments.
+X1 also needs a **ledger reconciliation audit** — the ledger's sales and cancellations must
+reconstruct the live ticket state exactly, and must match the sales the harness saw commit.
+Study 03 gets **no new design**; its REPORTS.md already reasoned that out and the reasoning
+still holds.
+
+**AM-02.4 — harness work, both studies.** The read helper in each study passes exactly one
+bound parameter (`db.Query(ctx, st.SQL, key(r))` in study 02's `workload.go`); the new
+reports take up to three. Add a multi-parameter variant rather than reshaping the existing
+one, so the existing five/six read questions keep their exact call path. Window parameters
+follow study 01's rule and RECENCY.md §2: **derived from the dataset's own time span, never
+from `now()`**, and `r03`/`r05` measured in both the trailing and historical regimes with
+the regime in the result name. Reuse study 01's naming (`name@regime`) — both studies'
+reporters already tolerate an `@` suffix.
+
+**AM-02.5 — dev checks, then stop.** `tiny`, PostgreSQL then YugabyteDB 1-node, under the
+benchmark lock, for both studies: every design passes its correctness gate including the
+new reports; the answerability table matches the SQL; X1's ledger audit passes and its
+negative controls (C1, H0 in study 02) still fire where they fired before. Record the
+per-report throughput observed at `tiny` so phase 3b can be sized from data rather than
+from my guess. **Do not start a measured run.**
+
+**AM-02.6 — what not to do.** Do not add a hold-history design to study 03. Do not touch
+study 03's signed analysis or study 02's. Do not change either study's race, churn or
+lifecycle experiments — the reports belong to the read phase, and whether a finance query
+throttles a live drop is a separate experiment that both protocols already name as out of
+scope. Do not "fix" `experimentReadScore`-style aggregate guards in either study's
+reporter without checking first whether they already exclude `@`-suffixed names, as study
+01's did.
+
+**AM-02.7 — when phase 3b is planned, size the race honestly.** Study 02's sell-out race is
+where X1's cost must show. When that run is specified, the buyers-per-event count is the
+experimental variable and the offered load must not be pinned below capacity across it —
+see LESSONS_LEARNED, "a fixed arrival rate measures compliance, not capacity". That rule
+cost this task a null result in phase 2 and must not cost it another.
+
+**Next after execution: HIGH — review the answerability tables against the SQL, confirm
+X1's ledger audit is real, and size phase 3b's measured runs from the dev-check numbers.**

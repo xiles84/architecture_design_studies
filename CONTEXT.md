@@ -265,7 +265,18 @@ real operation asks for.
   names as the planner's own errors: no no-flag write baseline in the maintenance group,
   and a hot-donor sweep that was rate-limited below capacity. The report was regenerated
   with the run's own pinned image so its analyses index resolves; no measurement changed.
-- **Phase 3 (still not authorised):** studies 02/03's report queries.
+- **Phase 3a authorised (2026-09-16, HIGH):** studies 02 and 03's operational reports,
+  **implementation and dev checks only**, per
+  [AM-02](docs/handoffs/20260915-recency-and-reports/HANDOFF.md#amendments). Two protocol
+  claims are now verified across all 28 designs rather than sampled, and stand as findings
+  in their own right: **study 02 destroys the sale on cancellation in every design** (C/R/H
+  delete the ticket, P resets it), so no design can report refunds and `r01`'s revenue is
+  wrong across a refund; and **no study-03 design retains any hold history**, so the
+  abandonment funnel cannot be computed at all. AM-02 adds the reports with zero change to
+  any existing statement, schema, index or write path; declares answerability in Go and
+  pins it to the SQL with a unit test; adds exactly one new design (study 02's X1 = P3 plus
+  an append-only sale ledger, with a reconciliation audit); and adds none to study 03.
+  Phase 3b — the measured runs — stays gated until the dev-check numbers exist.
 
 ### Study 01 — tree structures (charity → person → donation)
 
