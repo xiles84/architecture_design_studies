@@ -76,6 +76,9 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/03-reserved-seating/20260915T173255Z` | commit that produced study 03's repeated race (`52a9975`) |
 | `study-03/v1-measured` | study 03 measured: main matrix, repeated race, diagnoses, generated reports, documents; ready for analysis (ER-03, ER-04 open) |
 | `study-03/v0.3-handoff-amendment-03` | study 03: ER-03 and ER-04 decided; AM-03 adds tolerant instrumentation, an L2 refusal diagnostic and a repair run |
+| `run/03-reserved-seating/20260915T232736Z` | commit that produced study 03's ER-03 repair run (`4044dd5`) |
+| `run/03-reserved-seating/20260916T000706Z` | commit that produced study 03's ER-04 repair run (`4044dd5`) |
+| `study-03/v1.1-repairs` | study 03: AM-03 harness, both repair runs, regenerated reports, and results/reports pinned to LF |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -166,7 +169,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — built on platform/; measured; AM-03 repair run pending, then analysis
+  03-reserved-seating/    study 03 (see below) — built on platform/; measured, repairs done; next HIGH: the signed analysis
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -506,17 +509,20 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-15, 21:50 UTC): measured; one repair run to go before the analysis.** ER-03 and
-ER-04 are decided (AM-03, tag `study-03/v0.3-handoff-amendment-03`): the lifecycle monitor and the
-loader's `ANALYZE` become tolerant of statement timeouts, L2 gets a refusal diagnostic, the report
-stops printing "0 transient" where no class was recorded, and one follow-up run (≈ 1.5 h) recovers the
-four cells' lifecycle and re-measures L2's race on YugabyteDB. Next: LOW (Claude Opus 5, `high`) to
-apply AM-03; then HIGH for the signed analysis. Nothing is running; the benchmark lock is free.
+**Status (2026-09-16, 00:45 UTC): measurement complete; ready for the signed analysis.** Every
+escalation is decided and executed: ER-01 (AM-01), ER-02 (AM-02), ER-03 and ER-04 (AM-03). Next:
+HIGH (Claude Opus 5, `ultracode`) — validate and write the analysis. Nothing is running; the
+benchmark lock is free.
 
 | Run | What | Result | Inputs digest |
 |---|---|---|---|
 | `20260915T002411Z` ([report](studies/03-reserved-seating/reports/20260915T002411Z.md)) | `small` main matrix, 3 topologies, 14 designs, 17 h 6 min | 41 cells, 4 failed (S4 and E2 on both YugabyteDB topologies, each diagnosed beside its logs); 15/15 controls fired | `a56ce92ce38b8204` |
 | `20260915T173255Z` ([report](studies/03-reserved-seating/reports/20260915T173255Z.md)) | repeated race, 3 trials, 1 000- and 10 000-seat tiers, pg-single + yb-cluster3, 3 h 33 min | 27 cells, 0 failed; both controls fired | `29296b1fe8dea2e3` |
+| `20260915T232736Z` ([report](studies/03-reserved-seating/reports/20260915T232736Z.md)) | repair (ER-03): E2 and S4 lifecycle on both YugabyteDB topologies, 40 min | 4 cells, 0 failed, no violation | `2ccece48793fe693` |
+| `20260916T000706Z` ([report](studies/03-reserved-seating/reports/20260916T000706Z.md)) | repair (ER-04): L2 race on both YugabyteDB topologies, 11 min | 2 cells, 0 failed | `903de88de503ded2` |
+
+The two repair runs come from a later commit than the matrix (AM-03's harness); the analysis states
+which numbers come from which run.
 
 Facts for the analysis:
 - **PostgreSQL:** no invariant violation and no early rejection in any correct design.
@@ -524,14 +530,21 @@ Facts for the analysis:
   transient refusals, most on three nodes.
 - **S1r:** 0 early rejections anywhere. Every confirmation it retried after a short match sold:
   35 in the matrix, 105 in the repeated race.
-- **ER-03 (decided):** the four failed cells lost their **whole** lifecycle phase — E2, a correct
-  design, has no YugabyteDB lifecycle at all — to an instrumentation query or a reload `ANALYZE`
-  timing out, not to a design statement. AM-03 makes both tolerant and re-runs those four cells'
-  lifecycle; the other cells are not re-run, because the monitor never failed in them.
-- **ER-04 (decided):** L2's YugabyteDB early rejections (matrix 17, repeated race 41) have the
-  transient shape — a document read 21–95 ms after the hold's commit that does not show it — but no
-  diagnostic recorded the class. AM-03 adds one for L2, re-runs its race on both YugabyteDB
-  topologies, and stops the report from printing an unmeasured "0 transient".
+- **ER-03 (decided and executed):** the four failed cells had lost their **whole** lifecycle phase to
+  an instrumentation query or a reload `ANALYZE` timing out, not to a design statement. AM-03 made
+  both tolerant and re-ran those cells: all four completed, E2 with no violation on either topology,
+  S4 collapsing at 0.0–0.1 confirmed seats/s — measured instead of missing.
+- **ER-04 (decided and executed):** L2's YugabyteDB early rejections could not be classified, and the
+  report read them as design failures. AM-03 gave L2 its own diagnostic — re-read the section
+  document once on a refusal — and re-ran its race. On yb-cluster3 **all 17 early rejections were
+  transient**: the document re-read showed the hold valid. So the ER-01 behaviour is not limited to
+  statements filtering on columns the hold just wrote; a plain read of a recently committed row can
+  miss it too. Reports now print "transient: not recorded" where no diagnostic ran (K0 always, L2
+  before this change) instead of an unmeasured zero.
+- **Provenance fix:** a run's inputs digest is a hash over its result bytes, and Windows line-ending
+  conversion on checkout changed them (the matrix hashed two ways with identical measurements).
+  Studies 02 and 03 are now pinned to `text eol=lf`, matching study 01's policy; every report
+  reproduces its run's original digest.
 
 How the plan got here: ER-02 was decided by AM-02 (tag `study-03/v0.2-handoff-amendment-02`). A
 `small` calibration (dc15) replaced the duration extrapolation, and rule 1 dropped the 100 000-seat
