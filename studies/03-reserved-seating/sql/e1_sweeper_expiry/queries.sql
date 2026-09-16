@@ -62,3 +62,70 @@ SELECT ticket_id, event_id, seat_id
 SELECT ticket_id, event_id, seat_id, customer_id
   FROM ticket
  WHERE ticket_id = $1;
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md). r03-r05 use the `ticket`
+-- table, which is byte-identical across every design in this study (the
+-- confirmed-sale record); this SQL is therefore the same for all of them.
+-- ---------------------------------------------------------------------------
+
+-- name: r03_section_sales_window
+-- params: event_id, since, until
+-- Confirmed sales per section inside a window -- selling pace, section by
+-- section.
+SELECT section_no, COUNT(*) AS confirmed, COALESCE(SUM(price_cents), 0) AS revenue_cents
+  FROM ticket
+ WHERE event_id = $1 AND sold_at >= $2 AND sold_at < $3
+ GROUP BY section_no
+ ORDER BY section_no;
+
+-- name: r04_event_recent_confirmations
+-- params: event_id
+-- The operations feed: the last 50 confirmed sales, newest first.
+SELECT ticket_id, seat_id, customer_id, sold_at
+  FROM ticket
+ WHERE event_id = $1
+ ORDER BY sold_at DESC
+ LIMIT 50;
+
+-- name: r05_customers_last_purchase_window
+-- params: since, until
+-- Customers whose LAST purchase falls in the window -- the recency question
+-- RECENCY.md section 2 asks of donors, in this domain. Same trap: in the
+-- trailing regime "bought in the window" and "last bought in the window"
+-- coincide (nothing is newer); the historical regime is where a design that
+-- only checked the former would be wrong.
+SELECT customer_id, MAX(sold_at) AS last_at
+  FROM ticket
+ GROUP BY customer_id
+HAVING MAX(sold_at) >= $1 AND MAX(sold_at) < $2
+ ORDER BY 2 DESC
+ LIMIT 100;
+
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md), r01-r02: this design keeps
+-- one row per seat per event (event_seat), so both are a direct filter on it.
+-- ---------------------------------------------------------------------------
+
+-- name: r01_holds_expiring_soon
+-- params: event_id, within
+-- Which holds expire soon -- the operations desk's view, and what actually
+-- sizes a sweeper. `within` is bound as an absolute cutoff instant (now +
+-- the desk's lookahead), computed by the harness rather than in SQL, so the
+-- comparison needs no engine-specific INTERVAL arithmetic.
+SELECT seat_id, hold_id, customer_id, hold_expires_at
+  FROM event_seat
+ WHERE event_id = $1
+   AND status = 'held'
+   AND hold_expires_at <= $2
+ ORDER BY hold_expires_at;
+
+-- name: r02_seat_status_lookup
+-- params: event_id, seat_id
+-- Who holds or owns this seat right now -- the call the box office makes
+-- while a customer is on the phone. `at` is when the current state started
+-- (hold expiry if held, sale time if sold).
+SELECT status, hold_id, customer_id, COALESCE(hold_expires_at, sold_at) AS at
+  FROM event_seat
+ WHERE event_id = $1 AND seat_id = $2;

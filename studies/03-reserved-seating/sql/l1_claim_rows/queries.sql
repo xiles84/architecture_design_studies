@@ -69,3 +69,69 @@ SELECT ticket_id, event_id, seat_id
 SELECT ticket_id, event_id, seat_id, customer_id
   FROM ticket
  WHERE ticket_id = $1;
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md). r03-r05 use the `ticket`
+-- table, which is byte-identical across every design in this study (the
+-- confirmed-sale record); this SQL is therefore the same for all of them.
+-- ---------------------------------------------------------------------------
+
+-- name: r03_section_sales_window
+-- params: event_id, since, until
+-- Confirmed sales per section inside a window -- selling pace, section by
+-- section.
+SELECT section_no, COUNT(*) AS confirmed, COALESCE(SUM(price_cents), 0) AS revenue_cents
+  FROM ticket
+ WHERE event_id = $1 AND sold_at >= $2 AND sold_at < $3
+ GROUP BY section_no
+ ORDER BY section_no;
+
+-- name: r04_event_recent_confirmations
+-- params: event_id
+-- The operations feed: the last 50 confirmed sales, newest first.
+SELECT ticket_id, seat_id, customer_id, sold_at
+  FROM ticket
+ WHERE event_id = $1
+ ORDER BY sold_at DESC
+ LIMIT 50;
+
+-- name: r05_customers_last_purchase_window
+-- params: since, until
+-- Customers whose LAST purchase falls in the window -- the recency question
+-- RECENCY.md section 2 asks of donors, in this domain. Same trap: in the
+-- trailing regime "bought in the window" and "last bought in the window"
+-- coincide (nothing is newer); the historical regime is where a design that
+-- only checked the former would be wrong.
+SELECT customer_id, MAX(sold_at) AS last_at
+  FROM ticket
+ GROUP BY customer_id
+HAVING MAX(sold_at) >= $1 AND MAX(sold_at) < $2
+ ORDER BY 2 DESC
+ LIMIT 100;
+
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md), r01-r02: this design keeps
+-- a row only for a seat that is HELD or SOLD (seat_claim); a free seat has
+-- no row at all, so "available" is absence, not a status value.
+-- ---------------------------------------------------------------------------
+
+-- name: r01_holds_expiring_soon
+-- params: event_id, within
+-- `within` is bound as an absolute cutoff instant (see event_seat's own copy
+-- of this comment for why).
+SELECT seat_id, hold_id, customer_id, expires_at AS hold_expires_at
+  FROM seat_claim
+ WHERE event_id = $1
+   AND expires_at < 'infinity'
+   AND expires_at <= $2
+ ORDER BY expires_at;
+
+-- name: r02_seat_status_lookup
+-- params: event_id, seat_id
+-- Zero rows means the seat is available -- there is no row to return one.
+SELECT CASE WHEN expires_at = 'infinity' THEN 'sold' ELSE 'held' END AS status,
+       hold_id, customer_id,
+       CASE WHEN expires_at = 'infinity' THEN claimed_at ELSE expires_at END AS at
+  FROM seat_claim
+ WHERE event_id = $1 AND seat_id = $2;

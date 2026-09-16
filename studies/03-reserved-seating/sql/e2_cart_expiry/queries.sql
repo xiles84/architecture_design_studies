@@ -65,3 +65,75 @@ SELECT ticket_id, event_id, seat_id
 SELECT ticket_id, event_id, seat_id, customer_id
   FROM ticket
  WHERE ticket_id = $1;
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md). r03-r05 use the `ticket`
+-- table, which is byte-identical across every design in this study (the
+-- confirmed-sale record); this SQL is therefore the same for all of them.
+-- ---------------------------------------------------------------------------
+
+-- name: r03_section_sales_window
+-- params: event_id, since, until
+-- Confirmed sales per section inside a window -- selling pace, section by
+-- section.
+SELECT section_no, COUNT(*) AS confirmed, COALESCE(SUM(price_cents), 0) AS revenue_cents
+  FROM ticket
+ WHERE event_id = $1 AND sold_at >= $2 AND sold_at < $3
+ GROUP BY section_no
+ ORDER BY section_no;
+
+-- name: r04_event_recent_confirmations
+-- params: event_id
+-- The operations feed: the last 50 confirmed sales, newest first.
+SELECT ticket_id, seat_id, customer_id, sold_at
+  FROM ticket
+ WHERE event_id = $1
+ ORDER BY sold_at DESC
+ LIMIT 50;
+
+-- name: r05_customers_last_purchase_window
+-- params: since, until
+-- Customers whose LAST purchase falls in the window -- the recency question
+-- RECENCY.md section 2 asks of donors, in this domain. Same trap: in the
+-- trailing regime "bought in the window" and "last bought in the window"
+-- coincide (nothing is newer); the historical regime is where a design that
+-- only checked the former would be wrong.
+SELECT customer_id, MAX(sold_at) AS last_at
+  FROM ticket
+ GROUP BY customer_id
+HAVING MAX(sold_at) >= $1 AND MAX(sold_at) < $2
+ ORDER BY 2 DESC
+ LIMIT 100;
+
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md), r01-r02: this design's holds
+-- are carts (one hold table row can cover several seats), so hold_expires_at
+-- and the holding customer live on `hold`, not on event_seat -- unlike every
+-- other design in this study, whose event_seat row carries its own expiry.
+-- ---------------------------------------------------------------------------
+
+-- name: r01_holds_expiring_soon
+-- params: event_id, within
+-- `within` is bound as an absolute cutoff instant (see event_seat's own copy
+-- of this comment, in the designs that carry hold_expires_at directly).
+SELECT es.seat_id, es.hold_id, h.customer_id, h.expires_at AS hold_expires_at
+  FROM event_seat es
+  JOIN hold h ON h.hold_id = es.hold_id
+ WHERE es.event_id = $1
+   AND es.status = 'held'
+   AND h.expires_at <= $2
+ ORDER BY h.expires_at;
+
+-- name: r02_seat_status_lookup
+-- params: event_id, seat_id
+-- customer_id comes from the cart while held (event_seat's own customer_id
+-- is NULL until sold, by this design's own CHECK constraint) and from
+-- event_seat once sold; `at` follows the same split.
+SELECT es.status,
+       es.hold_id,
+       COALESCE(es.customer_id, h.customer_id) AS customer_id,
+       CASE WHEN es.status = 'sold' THEN es.sold_at ELSE h.expires_at END AS at
+  FROM event_seat es
+  LEFT JOIN hold h ON h.hold_id = es.hold_id
+ WHERE es.event_id = $1 AND es.seat_id = $2;
