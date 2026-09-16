@@ -41,6 +41,17 @@ var queryLabel = map[string]string{
 	"q04_hold_seats":       "A hold's seats (basket page)",
 	"q05_customer_tickets": "A customer's tickets",
 	"q06_ticket_by_id":     "Ticket by id (control)",
+	// Operational reports (REPORTS.md v2, AM-02). r01/r03/r05's window
+	// regime lives in the Query name suffix ("@trailing"/"@historical"),
+	// which writeReads' generic column-discovery already treats as a
+	// distinct column, exactly as it does q01's tier suffix.
+	"r01_holds_expiring_soon":                       "Holds expiring soon",
+	"r02_seat_status_lookup":                        "Seat status lookup",
+	"r03_section_sales_window@trailing":             "Section sales (trailing week)",
+	"r03_section_sales_window@historical":           "Section sales (historical week)",
+	"r04_event_recent_confirmations":                "Recent confirmations",
+	"r05_customers_last_purchase_window@trailing":   "Customers' last purchase (trailing)",
+	"r05_customers_last_purchase_window@historical": "Customers' last purchase (historical)",
 }
 
 type pair struct{ a, b, question string }
@@ -411,6 +422,7 @@ func WriteReport(dir, outPath string) error {
 	rp.writeControls(&b)
 	rp.writeGuarantee(&b)
 	rp.writeRace(&b)
+	rp.writeReportCoverage(&b)
 	rp.writeReads(&b)
 	rp.writeWrites(&b)
 	rp.writePairs(&b)
@@ -938,6 +950,66 @@ func (rp *report) writeRace(b *strings.Builder) {
 		fmt.Fprintf(b, "<details><summary>Race detail — %s</summary>\n\n", topologyLabel[tp])
 		d.Write(b)
 		fmt.Fprintf(b, "</details>\n\n")
+	}
+}
+
+// writeReportCoverage is the mandatory answerability table (REPORTS.md v2
+// section 2 / AM-02.1-.2): mechanical, from ReportCoverage, printed BEFORE
+// the throughput table so a reader sees why a dash in that table is a dash --
+// r01-r05's actual ops/s (where answerable) is in ## Reads, which already
+// discovers them generically; r06 never appears there because it is never
+// benchmarked, unanswerable in every design in this study.
+func (rp *report) writeReportCoverage(b *strings.Builder) {
+	fmt.Fprintf(b, "## Operational reports: answerability (REPORTS.md v2)\n\n")
+	fmt.Fprintf(b, "The back office's and operations desk's questions, not the buyer's. Added to every\n")
+	fmt.Fprintf(b, "design's `queries.sql` with no change to any existing statement, schema, index or write\n")
+	fmt.Fprintf(b, "path. ✅ answerable, ⚠️ partial (caveat below), ✗ unanswerable. Throughput for whatever\n")
+	fmt.Fprintf(b, "each design can actually answer is in [Reads](#reads) below, under the same report id.\n\n")
+
+	for _, tp := range rp.topos {
+		ids := rp.designsIn(tp)
+		head := []string{"Report"}
+		for _, id := range ids {
+			head = append(head, designShort(id)+">")
+		}
+		t := md.NewTable(head...)
+		for _, rname := range allReports {
+			row := []string{reportName[rname]}
+			for _, id := range ids {
+				d, err := designByID(id)
+				if err != nil {
+					row = append(row, "—")
+					continue
+				}
+				switch ReportCoverage(d)[rname].Status {
+				case "answerable":
+					row = append(row, "✅")
+				case "partial":
+					row = append(row, "⚠️")
+				default:
+					row = append(row, "✗")
+				}
+			}
+			t.Row(row...)
+		}
+		fmt.Fprintf(b, "### %s\n\n", topologyLabel[tp])
+		t.Write(b)
+		fmt.Fprintf(b, "\n")
+		notes := map[string]bool{}
+		for _, id := range ids {
+			d, err := designByID(id)
+			if err != nil {
+				continue
+			}
+			for _, rname := range allReports {
+				st := ReportCoverage(d)[rname]
+				if st.Note != "" && !notes[rname+st.Note] {
+					notes[rname+st.Note] = true
+					fmt.Fprintf(b, "- **%s** (%s): %s\n", reportName[rname], designShort(id), st.Note)
+				}
+			}
+		}
+		fmt.Fprintf(b, "\n")
 	}
 }
 

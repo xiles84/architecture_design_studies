@@ -76,6 +76,32 @@ func BenchmarkReads(ctx context.Context, db ports.DB, d Design, ds *Dataset, loa
 	}
 	q := catalog.Map(stmts)
 	budget := measure.Budget{Workers: s.Workers, Warmup: s.Warmup, Duration: s.Duration, Trials: s.Trials}
+	// runRegime is run's sibling for r03/r05 (REPORTS.md v2): the statement
+	// name it looks up in q is fixed, but the label and the ReadResult.Query
+	// it reports carry the window regime, the same "@regime" convention study
+	// 01's RECENCY.md and study 02's REPORTS.md already use. Kept separate
+	// from run() rather than folded into it: run()'s tier suffix is a display
+	// label only (ReadResult.Query stays the bare statement name, with Tier as
+	// its own field), and changing that meaning would move every existing
+	// caller's Query field.
+	runRegime := func(name, regime string, key func(r *rand.Rand) []any) ReadResult {
+		st := q[name]
+		label := name + "@" + regime
+		res := measure.Run(ctx, budget, label, func(ctx context.Context, r *rand.Rand) (measure.Outcome, error) {
+			args := key(r)
+			rows, err := db.Query(ctx, st.SQL, args...)
+			if err != nil {
+				return measure.Outcome{}, err
+			}
+			defer rows.Close()
+			for rows.Next() {
+			}
+			return measure.Outcome{}, rows.Err()
+		})
+		fmt.Printf("    %-34s %10.1f ops/s  p50=%7.3fms p99=%8.3fms  errors=%d%s\n",
+			label, res.OpsPerSec, res.Latency.P50MS, res.Latency.P99MS, res.Errors, measure.SpreadNote(res))
+		return ReadResult{Result: res, Query: label}
+	}
 	run := func(name string, tier int, key func(r *rand.Rand) []any) ReadResult {
 		st := q[name]
 		label := name
@@ -135,6 +161,48 @@ func BenchmarkReads(ctx context.Context, db ports.DB, d Design, ds *Dataset, loa
 	sort.Slice(custList, func(i, j int) bool { return custList[i] < custList[j] })
 	out = append(out, run("q05_customer_tickets", 0, func(r *rand.Rand) []any { return []any{custList[r.Intn(len(custList))]} }))
 	out = append(out, run("q06_ticket_by_id", 0, func(r *rand.Rand) []any { return []any{ds.Sold[r.Intn(len(ds.Sold))].ID} }))
+
+	// Operational reports (REPORTS.md v2, AM-02). r06 is unanswerable in every
+	// design (AM-02.0): not run, not timed, never shown as a zero.
+	cov := ReportCoverage(d)
+	allCatalogue := ds.eventsOf("catalogue", 0)
+	if len(allCatalogue) > 0 {
+		if cov["r01"].Status != "unanswerable" {
+			cutoff := time.Now().Add(holdsLookahead)
+			out = append(out, run("r01_holds_expiring_soon", 0, func(r *rand.Rand) []any {
+				return []any{allCatalogue[r.Intn(len(allCatalogue))].ID, cutoff}
+			}))
+		}
+		if cov["r02"].Status != "unanswerable" {
+			out = append(out, run("r02_seat_status_lookup", 0, func(r *rand.Rand) []any {
+				e := allCatalogue[r.Intn(len(allCatalogue))]
+				v := ds.venue(e.VenueID)
+				seat := v.Seats[r.Intn(len(v.Seats))]
+				return []any{e.ID, seat.ID}
+			}))
+		}
+		if cov["r03"].Status != "unanswerable" {
+			for _, regime := range []string{"trailing", "historical"} {
+				since, until := reportWindowFor(regime)
+				out = append(out, runRegime("r03_section_sales_window", regime, func(r *rand.Rand) []any {
+					return []any{allCatalogue[r.Intn(len(allCatalogue))].ID, since, until}
+				}))
+			}
+		}
+		if cov["r04"].Status != "unanswerable" {
+			out = append(out, run("r04_event_recent_confirmations", 0, func(r *rand.Rand) []any {
+				return []any{allCatalogue[r.Intn(len(allCatalogue))].ID}
+			}))
+		}
+	}
+	if cov["r05"].Status != "unanswerable" {
+		for _, regime := range []string{"trailing", "historical"} {
+			since, until := reportWindowFor(regime)
+			out = append(out, runRegime("r05_customers_last_purchase_window", regime, func(r *rand.Rand) []any {
+				return []any{since, until}
+			}))
+		}
+	}
 	return out, nil
 }
 

@@ -57,16 +57,18 @@ type Run struct {
 	Dataset map[string]any `json:"dataset"`
 	Options map[string]any `json:"options"`
 
-	Load      *LoadPhases        `json:"load,omitempty"`
-	Verify    *VerifyReport      `json:"verify,omitempty"`
-	LoadAudit *Audit             `json:"load_audit,omitempty"`
-	PreSweep  int                `json:"pre_verify_swept_seats,omitempty"`
-	Stats     *DBStats           `json:"stats,omitempty"`
-	Reads     []ReadResult       `json:"reads,omitempty"`
-	Writes    []WriteResult      `json:"writes,omitempty"`
-	Races     []RaceResult       `json:"races,omitempty"`
-	Lifecycle []LifecycleResult  `json:"lifecycle,omitempty"`
-	ReloadMS  map[string]float64 `json:"reload_ms,omitempty"`
+	Load      *LoadPhases   `json:"load,omitempty"`
+	Verify    *VerifyReport `json:"verify,omitempty"`
+	LoadAudit *Audit        `json:"load_audit,omitempty"`
+	PreSweep  int           `json:"pre_verify_swept_seats,omitempty"`
+	Stats     *DBStats      `json:"stats,omitempty"`
+	Reads     []ReadResult  `json:"reads,omitempty"`
+	// ReportCov: REPORTS.md v2 / AM-02 answerability, per report.
+	ReportCov map[string]ReportStatus `json:"report_coverage,omitempty"`
+	Writes    []WriteResult           `json:"writes,omitempty"`
+	Races     []RaceResult            `json:"races,omitempty"`
+	Lifecycle []LifecycleResult       `json:"lifecycle,omitempty"`
+	ReloadMS  map[string]float64      `json:"reload_ms,omitempty"`
 	// ClientCPU is the benchmark client's own CPU accounting per phase.
 	ClientCPU map[string]cgroup.CPUStat `json:"client_cpu,omitempty"`
 	Explain   map[string]string         `json:"-"`
@@ -330,6 +332,7 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 			return err
 		}
 		run.Verify = vr
+		run.ReportCov = ReportCoverage(d)
 		for _, c := range vr.Checks {
 			if !c.OK {
 				fmt.Printf("    FAIL %-22s %s: expected %s, got %s\n", c.Query, c.Key, c.Expect, c.Got)
@@ -375,6 +378,7 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 			return err
 		}
 		run.Reads = rs
+		run.ReportCov = ReportCoverage(d)
 	}
 
 	// Every writing phase gets its own fresh load; the initial load is still

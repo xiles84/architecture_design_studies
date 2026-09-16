@@ -59,7 +59,10 @@ const gateMargin = 5 * time.Minute
 
 // columns is each read's result width, identical in every design.
 var columns = map[string]int{"q01_section_map": 2, "q02_event_sections": 2, "q03_event_available": 1,
-	"q04_hold_seats": 2, "q05_customer_tickets": 3, "q06_ticket_by_id": 4}
+	"q04_hold_seats": 2, "q05_customer_tickets": 3, "q06_ticket_by_id": 4,
+	// Operational reports (REPORTS.md v2, AM-02).
+	"r01_holds_expiring_soon": 4, "r02_seat_status_lookup": 4, "r03_section_sales_window": 3,
+	"r04_event_recent_confirmations": 4, "r05_customers_last_purchase_window": 2}
 
 // Verify runs the gate. E0's statements read the application clock with no skew.
 func Verify(ctx context.Context, db ports.DB, d Design, ds *Dataset, loadNow time.Time) (*VerifyReport, error) {
@@ -175,6 +178,8 @@ func Verify(ctx context.Context, db ports.DB, d Design, ds *Dataset, loadNow tim
 		run("q06_ticket_by_id", fmt.Sprintf("ticket %d", t.ID), []any{t.ID},
 			[]string{fmt.Sprintf("%d|%d|%d|%d", t.ID, t.EventID, t.SeatID, t.CustomerID)})
 	}
+
+	verifyReports(ctx, db, d, ds, q, loadNow, vr)
 	return vr, nil
 }
 
