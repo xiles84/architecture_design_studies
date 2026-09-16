@@ -166,7 +166,7 @@ SELECT (e ->> 'i')::BIGINT       AS donation_id,
 -- params: since, until
 SELECT p.person_id, p.full_name, l.last_at
   FROM person p
- CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
                        FROM jsonb_array_elements(p.donations) e) l
  WHERE l.last_at >= $1 AND l.last_at < $2
  ORDER BY l.last_at DESC
@@ -176,7 +176,7 @@ SELECT p.person_id, p.full_name, l.last_at
 -- params: since, until
 SELECT COUNT(*) AS donor_count
   FROM person p
- CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
                        FROM jsonb_array_elements(p.donations) e) l
  WHERE l.last_at >= $1 AND l.last_at < $2;
 
@@ -184,7 +184,7 @@ SELECT COUNT(*) AS donor_count
 -- params: charity_id, since, until
 SELECT p.person_id, p.full_name, l.last_at
   FROM person p
- CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
                        FROM jsonb_array_elements(p.donations) e) l
  WHERE p.charity_id = $1 AND l.last_at >= $2 AND l.last_at < $3
  ORDER BY l.last_at DESC
@@ -194,6 +194,6 @@ SELECT p.person_id, p.full_name, l.last_at
 -- params: since
 SELECT COUNT(*) AS donor_count
   FROM person p
- CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
                        FROM jsonb_array_elements(p.donations) e) l
  WHERE l.last_at < $1;

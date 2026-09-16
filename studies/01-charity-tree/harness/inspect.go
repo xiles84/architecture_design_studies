@@ -66,10 +66,17 @@ func ExplainAll(ctx context.Context, pool *pgxpool.Pool, d Design, ds *Dataset, 
 			}
 		}
 	}
+	// since/until: RECENCY.md's q13-q16 (v4). The trailing regime is enough for
+	// a plan capture -- EXPLAIN is about the access path an access path takes,
+	// not about which regime is correct, and that question is the verify gate's
+	// job (verify.go), not this one's.
+	since, until := recencyWindowFor(epochEnd, "trailing")
 	vals := map[string]any{
 		"charity_id":  int64(1),
 		"person_id":   t.personID,
 		"donation_id": donationID,
+		"since":       since,
+		"until":       until,
 	}
 
 	out := map[string]string{}

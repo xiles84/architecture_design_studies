@@ -13,28 +13,34 @@ import (
 )
 
 type ArrivalResult struct {
-	Offered          int64        `json:"offered"`
-	Accepted         int64        `json:"accepted"`
-	Completed        int64        `json:"completed"`
-	Errors           int64        `json:"errors"`
-	Dropped          int64        `json:"dropped"`
-	ReadErrors       int64        `json:"read_errors"`
-	FirstError       string       `json:"first_error,omitempty"`
-	Retries          int64        `json:"retries"`
-	WindowS          float64      `json:"window_s"`
-	ElapsedS         float64      `json:"elapsed_s"`
-	CompletedPerSec  float64      `json:"completed_per_sec_including_drain"`
-	ReadsPerSec      float64      `json:"reads_per_sec"`
-	Service          LatencyStats `json:"successful_service_latency"`
-	Response         LatencyStats `json:"successful_scheduled_response_latency"`
-	QueueDelay       LatencyStats `json:"successful_queue_delay"`
-	SchedulerLag     LatencyStats `json:"scheduler_lag"`
-	Reconciled       bool         `json:"reconciled"`
-	WarmupErrors     int64        `json:"warmup_errors"`
-	WarmupAudit      *RollupAudit `json:"warmup_audit,omitempty"`
-	InitialDonations int64        `json:"initial_donations"`
-	FinalDonations   int64        `json:"final_donations"`
-	WarmupCompleted  int64        `json:"warmup_completed"`
+	Offered         int64        `json:"offered"`
+	Accepted        int64        `json:"accepted"`
+	Completed       int64        `json:"completed"`
+	Errors          int64        `json:"errors"`
+	Dropped         int64        `json:"dropped"`
+	ReadErrors      int64        `json:"read_errors"`
+	FirstError      string       `json:"first_error,omitempty"`
+	Retries         int64        `json:"retries"`
+	WindowS         float64      `json:"window_s"`
+	ElapsedS        float64      `json:"elapsed_s"`
+	CompletedPerSec float64      `json:"completed_per_sec_including_drain"`
+	ReadsPerSec     float64      `json:"reads_per_sec"`
+	Service         LatencyStats `json:"successful_service_latency"`
+	Response        LatencyStats `json:"successful_scheduled_response_latency"`
+	QueueDelay      LatencyStats `json:"successful_queue_delay"`
+	SchedulerLag    LatencyStats `json:"scheduler_lag"`
+	Reconciled      bool         `json:"reconciled"`
+	WarmupErrors    int64        `json:"warmup_errors"`
+	WarmupAudit     *RollupAudit `json:"warmup_audit,omitempty"`
+	// WarmupRecencyAudit: RECENCY.md's LastFlag/RecencyRollupIdx designs
+	// (D20-D24), audited at the same point AuditRollups already is here --
+	// after warmup, before the measured phase. This is where the
+	// recency-hot-donor experiment's negative control (D21) is expected to
+	// fire under concurrent writers for the same donor.
+	WarmupRecencyAudit *RecencyAudit `json:"warmup_recency_audit,omitempty"`
+	InitialDonations   int64         `json:"initial_donations"`
+	FinalDonations     int64         `json:"final_donations"`
+	WarmupCompleted    int64         `json:"warmup_completed"`
 }
 
 // A bounded open-loop scheduler. Due times come from one fixed-rate timeline,
@@ -211,6 +217,13 @@ func benchmarkArrival(ctx context.Context, pool *pgxpool.Pool, d Design, ds *Dat
 			return nil, err
 		}
 	}
+	var warmRecencyAudit *RecencyAudit
+	if d.LastFlag || d.RecencyRollupIdx {
+		warmRecencyAudit, err = AuditRecency(ctx, pool, d)
+		if err != nil {
+			return nil, err
+		}
+	}
 	retries.Store(0)
 	fmt.Println("arrival_measurement_started")
 	r, err := phase(opts.Duration)
@@ -220,6 +233,7 @@ func benchmarkArrival(ctx context.Context, pool *pgxpool.Pool, d Design, ds *Dat
 	r.Retries = retries.Load()
 	r.WarmupErrors = warm.Errors + warm.ReadErrors
 	r.WarmupAudit = warmAudit
+	r.WarmupRecencyAudit = warmRecencyAudit
 	var after int64
 	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM donation").Scan(&after); err != nil {
 		return nil, err

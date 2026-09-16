@@ -130,10 +130,10 @@ SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
 -- name: q13_donors_last_gift_window
 -- params: since, until
 SELECT p.person_id, p.full_name,
-       (p.recent_donations->0->>'donated_at')::timestamptz AS last_at
+       (p.recent_donations->0->>'t')::timestamptz AS last_at
   FROM person p
- WHERE (p.recent_donations->0->>'donated_at')::timestamptz >= $1
-   AND (p.recent_donations->0->>'donated_at')::timestamptz <  $2
+ WHERE (p.recent_donations->0->>'t')::timestamptz >= $1
+   AND (p.recent_donations->0->>'t')::timestamptz <  $2
  ORDER BY last_at DESC
  LIMIT 100;
 
@@ -141,17 +141,17 @@ SELECT p.person_id, p.full_name,
 -- params: since, until
 SELECT COUNT(*) AS donor_count
   FROM person p
- WHERE (p.recent_donations->0->>'donated_at')::timestamptz >= $1
-   AND (p.recent_donations->0->>'donated_at')::timestamptz <  $2;
+ WHERE (p.recent_donations->0->>'t')::timestamptz >= $1
+   AND (p.recent_donations->0->>'t')::timestamptz <  $2;
 
 -- name: q15_charity_donors_last_gift_window
 -- params: charity_id, since, until
 SELECT p.person_id, p.full_name,
-       (p.recent_donations->0->>'donated_at')::timestamptz AS last_at
+       (p.recent_donations->0->>'t')::timestamptz AS last_at
   FROM person p
  WHERE p.charity_id = $1
-   AND (p.recent_donations->0->>'donated_at')::timestamptz >= $2
-   AND (p.recent_donations->0->>'donated_at')::timestamptz <  $3
+   AND (p.recent_donations->0->>'t')::timestamptz >= $2
+   AND (p.recent_donations->0->>'t')::timestamptz <  $3
  ORDER BY last_at DESC
  LIMIT 100;
 
@@ -159,4 +159,4 @@ SELECT p.person_id, p.full_name,
 -- params: since
 SELECT COUNT(*) AS donor_count
   FROM person p
- WHERE (p.recent_donations->0->>'donated_at')::timestamptz < $1;
+ WHERE (p.recent_donations->0->>'t')::timestamptz < $1;
