@@ -49,27 +49,24 @@ SELECT COUNT(*)::BIGINT AS sold
    AND t.status = 'sold';
 
 -- ---------------------------------------------------------------------------
--- Operational reports (study 02 v2, REPORTS.md). The back office's questions,
--- not the buyer's -- and they land on the same tables the overbooking design
--- reshaped.
---
--- This design pre-creates a ticket row per SEAT, sold or not: every report
--- below must filter on status = 'sold', or it would count empty seats as sales.
+-- Operational reports (study 02 v2, REPORTS.md). r02 and r04 are P3's own
+-- formulation, unchanged (the ticket table is unchanged). r01, r03 and r05 are
+-- what the ledger buys: answered from sale_event instead of from a ticket row
+-- that a cancellation would otherwise have erased.
 -- ---------------------------------------------------------------------------
 
 -- name: r01_event_sales_window
 -- params: event_id, since, until
--- How the drop went: tickets sold and revenue inside a window. PARTIAL: a
--- ticket sold in this window and later refunded is NOT counted, because
--- cancellation resets the row to available (REPORTS.md section 2) and this
--- design keeps no record of the sale having happened.
+-- How the drop went, CORRECTLY across refunds: a sale that happened in this
+-- window and was later cancelled still counts as having happened then -- what
+-- a finance report means by "sold in this period", and what P3 (see
+-- p3_precreated_cas) cannot say.
 SELECT COUNT(*) AS tickets_sold, COALESCE(SUM(price_cents), 0) AS revenue_cents
-  FROM ticket
- WHERE event_id = $1 AND status = 'sold' AND sold_at >= $2 AND sold_at < $3;
+  FROM sale_event
+ WHERE event_id = $1 AND kind = 'sold' AND at >= $2 AND at < $3;
 
 -- name: r02_event_recent_buyers
 -- params: event_id
--- The operations feed: the last 50 sales with the buyer, newest first.
 SELECT ticket_id, customer_id, sold_at
   FROM ticket
  WHERE event_id = $1 AND status = 'sold'
@@ -78,23 +75,19 @@ SELECT ticket_id, customer_id, sold_at
 
 -- name: r03_customers_last_purchase_window
 -- params: since, until
--- Customers whose LAST purchase falls in the window -- the recency question
--- RECENCY.md section 2 asks of donors, in this domain. The trap is the same:
--- in the trailing regime "bought in the window" and "last bought in the
--- window" happen to coincide (nothing is newer); the historical regime is
--- where a design that only checked "bought in the window" would be wrong.
-SELECT t.customer_id, MAX(t.sold_at) AS last_at
-  FROM ticket t
- WHERE t.status = 'sold'
- GROUP BY t.customer_id
-HAVING MAX(t.sold_at) >= $1 AND MAX(t.sold_at) < $2
+-- Answered from the ledger's 'sold' events, not the live ticket table: a
+-- customer's last purchase does not stop being their last purchase because
+-- they later cancelled a DIFFERENT, earlier ticket.
+SELECT customer_id, MAX(at) AS last_at
+  FROM sale_event
+ WHERE kind = 'sold'
+ GROUP BY customer_id
+HAVING MAX(at) >= $1 AND MAX(at) < $2
  ORDER BY 2 DESC
  LIMIT 100;
 
 -- name: r04_band_sellthrough
 -- params: band_id
--- The management report that decides the next tour: capacity, sold and the
--- percentage, per event.
 SELECT e.event_id, e.capacity,
        COUNT(t.ticket_id) FILTER (WHERE t.status = 'sold') AS sold_count,
        ROUND(100.0 * COUNT(t.ticket_id) FILTER (WHERE t.status = 'sold') / e.capacity, 1) AS sold_pct
@@ -103,3 +96,11 @@ SELECT e.event_id, e.capacity,
  WHERE e.band_id = $1
  GROUP BY e.event_id, e.capacity
  ORDER BY e.event_id;
+
+-- name: r05_refunds_window
+-- params: since, until
+-- What the ledger buys that no other design in this study can answer at all:
+-- cancellations and the money returned, inside a window.
+SELECT COUNT(*) AS refunds, COALESCE(SUM(price_cents), 0) AS refunded_cents
+  FROM sale_event
+ WHERE kind = 'cancelled' AND at >= $1 AND at < $2;
