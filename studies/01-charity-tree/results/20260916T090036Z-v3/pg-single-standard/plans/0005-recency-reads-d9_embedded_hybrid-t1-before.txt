@@ -1,0 +1,141 @@
+# Targeted plans — before
+run: 20260916T090036Z-v3; commit: b0c32d84d7b91e82137551801f7985e18ca7396d; preparation: analyze
+
+## before/largest/q08_total_donated_charity; charity_id=1
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Aggregate  (cost=1983.56..1983.57 rows=1 width=32) (actual time=3.881..3.882 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared hit=1216
+  ->  Index Only Scan using donation_charity_amount_idx on public.donation  (cost=0.42..1905.27 rows=31318 width=8) (actual time=0.012..2.983 rows=31293 loops=1)
+        Output: charity_id, amount_cents
+        Index Cond: (donation.charity_id = '1'::bigint)
+        Heap Fetches: 31293
+        Buffers: shared hit=1216
+Planning Time: 0.040 ms
+Execution Time: 3.891 ms
+
+
+## before/largest/q12_charity_recent_feed; charity_id=1
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- The bounded cache is maintained NEWEST FIRST, so element 0 IS the donor's
+-- latest gift -- when the cache is correct. This is where a corrupted cache
+-- (the bug D9's original trigger had, and D10 fixes) produces a wrong answer
+-- to a question nobody was asking it before: q09 only ever asked for the
+-- cache's own contents, never for donors ordered by their cache head. No new
+-- index: the cast from the array's stored text timestamp is STABLE, not
+-- IMMUTABLE, so PostgreSQL refuses an expression index on it (RECENCY.md
+-- section 3). That refusal is part of the finding, not a workaround target.
+-- ---------------------------------------------------------------------------
+
+Limit  (cost=0.71..7.06 rows=50 width=37) (actual time=0.013..0.064 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=139
+  ->  Nested Loop  (cost=0.71..3977.59 rows=31318 width=37) (actual time=0.013..0.062 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=139
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.42..1916.12 rows=31318 width=32) (actual time=0.005..0.009 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+              Index Cond: (d.charity_id = '1'::bigint)
+              Buffers: shared hit=7
+        ->  Memoize  (cost=0.29..0.33 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 6  Misses: 44  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+              Buffers: shared hit=132
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.32 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=44)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=132
+Planning:
+  Buffers: shared hit=14
+Planning Time: 0.115 ms
+Execution Time: 0.074 ms
+
+
+## before/smallest/q08_total_donated_charity; charity_id=10
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Aggregate  (cost=1039.40..1039.41 rows=1 width=32) (actual time=0.451..0.451 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared hit=872
+  ->  Bitmap Heap Scan on public.donation  (cost=21.60..1035.05 rows=1740 width=8) (actual time=0.121..0.383 rows=1756 loops=1)
+        Output: donation_id, person_id, charity_id, amount_cents, currency, donated_at, note
+        Recheck Cond: (donation.charity_id = '10'::bigint)
+        Heap Blocks: exact=862
+        Buffers: shared hit=872
+        ->  Bitmap Index Scan on donation_charity_amount_idx  (cost=0.00..21.17 rows=1740 width=0) (actual time=0.060..0.061 rows=1756 loops=1)
+              Index Cond: (donation.charity_id = '10'::bigint)
+              Buffers: shared hit=10
+Planning Time: 0.026 ms
+Execution Time: 0.471 ms
+
+
+## before/smallest/q12_charity_recent_feed; charity_id=10
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- The bounded cache is maintained NEWEST FIRST, so element 0 IS the donor's
+-- latest gift -- when the cache is correct. This is where a corrupted cache
+-- (the bug D9's original trigger had, and D10 fixes) produces a wrong answer
+-- to a question nobody was asking it before: q09 only ever asked for the
+-- cache's own contents, never for donors ordered by their cache head. No new
+-- index: the cast from the array's stored text timestamp is STABLE, not
+-- IMMUTABLE, so PostgreSQL refuses an expression index on it (RECENCY.md
+-- section 3). That refusal is part of the finding, not a workaround target.
+-- ---------------------------------------------------------------------------
+
+Limit  (cost=0.71..61.21 rows=50 width=37) (actual time=0.007..0.040 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=88
+  ->  Nested Loop  (cost=0.71..2106.27 rows=1740 width=37) (actual time=0.007..0.038 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=88
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.42..1105.89 rows=1740 width=32) (actual time=0.003..0.009 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+              Index Cond: (d.charity_id = '10'::bigint)
+              Buffers: shared hit=28
+        ->  Memoize  (cost=0.29..0.68 rows=1 width=21) (actual time=0.000..0.000 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 30  Misses: 20  Evictions: 0  Overflows: 0  Memory Usage: 3kB
+              Buffers: shared hit=60
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.67 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=20)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=60
+Planning:
+  Buffers: shared hit=14
+Planning Time: 0.098 ms
+Execution Time: 0.048 ms
+

@@ -1,0 +1,575 @@
+# Query plans
+
+run_id:      20260916T090036Z-v3
+environment: host-zenbook-ux5406sa
+engine:      yugabyte (yb-single)
+version:     PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+design:      d9_embedded_hybrid (embedded-hybrid)
+scale:       small -- 5000 people, 108081 donations
+captured:    EXPLAIN (ANALYZE, DIST, COSTS OFF, TIMING OFF)
+keys used:   charity_id=1 (the largest charity, 30% of donors); person_id and
+             donation_id belong to that charity's busiest donor, so these plans
+             show real work rather than a donor who happens to have three rows
+
+==============================================================================
+## q01_last_donation_global
+==============================================================================
+
+SELECT donation_id, person_id, amount_cents, currency, donated_at
+  FROM donation
+ ORDER BY donated_at DESC
+ LIMIT 1
+
+Limit (actual rows=1 loops=1)
+  ->  Index Scan using donation_time_idx on donation (actual rows=1 loops=1)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 1
+Planning Time: 0.040 ms
+Execution Time: 0.370 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 2
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## q02_last_donation_charity
+==============================================================================
+
+# No join: donation_charity_time_idx answers this with a one-row index scan.
+
+SELECT donation_id, person_id, amount_cents, currency, donated_at
+  FROM donation
+ WHERE charity_id = $1
+ ORDER BY donated_at DESC
+ LIMIT 1
+
+Limit (actual rows=1 loops=1)
+  ->  Index Scan using donation_charity_time_idx on donation (actual rows=1 loops=1)
+        Index Cond: (charity_id = '1'::bigint)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 1
+Planning Time: 0.051 ms
+Execution Time: 0.323 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 2
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## q03_top_donor_charity
+==============================================================================
+
+# Still a full aggregate over the charity's donations -- denormalising the key
+# removes the join but does NOT remove the GROUP BY. Only a rollup (D4/D5) can.
+# person is joined back for the name, but against a single already-chosen row.
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM (SELECT person_id, SUM(amount_cents) AS total_cents
+          FROM donation
+         WHERE charity_id = $1
+         GROUP BY person_id
+         ORDER BY total_cents DESC
+         LIMIT 1) t
+  JOIN person p ON p.person_id = t.person_id
+
+Nested Loop (actual rows=1 loops=1)
+  ->  Limit (actual rows=1 loops=1)
+        ->  Sort (actual rows=1 loops=1)
+              Sort Key: (sum(donation.amount_cents)) DESC
+              Sort Method: top-N heapsort  Memory: 25kB
+              ->  HashAggregate (actual rows=1472 loops=1)
+                    Group Key: donation.person_id
+                    Batches: 1  Memory Usage: 465kB
+                    ->  Seq Scan on donation (actual rows=31293 loops=1)
+                          Storage Filter: (charity_id = '1'::bigint)
+                          Storage Table Read Requests: 31
+                          Storage Table Read Ops: 31
+                          Storage Table Rows Scanned: 108081
+  ->  Index Scan using person_pkey on person p (actual rows=1 loops=1)
+        Index Cond: (person_id = donation.person_id)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+Planning Time: 0.174 ms
+Execution Time: 36.666 ms
+Storage Read Requests: 32
+Storage Read Ops: 32
+Storage Rows Scanned: 108082
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 640 kB
+
+==============================================================================
+## q04_top_donors_leaderboard
+==============================================================================
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM (SELECT person_id, SUM(amount_cents) AS total_cents
+          FROM donation
+         WHERE charity_id = $1
+         GROUP BY person_id
+         ORDER BY total_cents DESC
+         LIMIT 10) t
+  JOIN person p ON p.person_id = t.person_id
+ ORDER BY t.total_cents DESC
+
+Result (actual rows=10 loops=1)
+  ->  YB Batched Nested Loop Join (actual rows=10 loops=1)
+        Join Filter: (donation.person_id = p.person_id)
+        Sort Keys: (sum(donation.amount_cents)) DESC
+        ->  Limit (actual rows=10 loops=1)
+              ->  Sort (actual rows=10 loops=1)
+                    Sort Key: (sum(donation.amount_cents)) DESC
+                    Sort Method: top-N heapsort  Memory: 25kB
+                    ->  HashAggregate (actual rows=1472 loops=1)
+                          Group Key: donation.person_id
+                          Batches: 1  Memory Usage: 465kB
+                          ->  Seq Scan on donation (actual rows=31293 loops=1)
+                                Storage Filter: (charity_id = '1'::bigint)
+                                Storage Table Read Requests: 31
+                                Storage Table Read Ops: 31
+                                Storage Table Rows Scanned: 108081
+        ->  Index Scan using person_pkey on person p (actual rows=10 loops=1)
+              Index Cond: (person_id = ANY (ARRAY[donation.person_id, $1, $2, ..., $1023]))
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 10
+Planning Time: 0.294 ms
+Execution Time: 37.925 ms
+Storage Read Requests: 32
+Storage Read Ops: 32
+Storage Rows Scanned: 108091
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 1245 kB
+
+==============================================================================
+## q05_last_donor_charity
+==============================================================================
+
+SELECT d.person_id, p.full_name, d.donated_at
+  FROM (SELECT person_id, donated_at
+          FROM donation
+         WHERE charity_id = $1
+         ORDER BY donated_at DESC
+         LIMIT 1) d
+  JOIN person p ON p.person_id = d.person_id
+
+Nested Loop (actual rows=1 loops=1)
+  ->  Limit (actual rows=1 loops=1)
+        ->  Index Scan using donation_charity_time_idx on donation (actual rows=1 loops=1)
+              Index Cond: (charity_id = '1'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 1
+              Storage Index Read Requests: 1
+              Storage Index Read Ops: 1
+              Storage Index Rows Scanned: 1
+  ->  Index Scan using person_pkey on person p (actual rows=1 loops=1)
+        Index Cond: (person_id = donation.person_id)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+Planning Time: 0.132 ms
+Execution Time: 0.552 ms
+Storage Read Requests: 3
+Storage Read Ops: 3
+Storage Rows Scanned: 3
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 128 kB
+
+==============================================================================
+## q06_person_first_last
+==============================================================================
+
+SELECT MIN(donated_at) AS first_at, MAX(donated_at) AS last_at
+  FROM donation
+ WHERE person_id = $1
+
+Result (actual rows=1 loops=1)
+  InitPlan 1 (returns $0)
+    ->  Limit (actual rows=1 loops=1)
+          ->  Index Only Scan Backward using donation_person_time_idx on donation (actual rows=1 loops=1)
+                Index Cond: ((person_id = '4330'::bigint) AND (donated_at IS NOT NULL))
+                Heap Fetches: 0
+                Storage Index Read Requests: 1
+                Storage Index Read Ops: 1
+                Storage Index Rows Scanned: 1
+  InitPlan 2 (returns $1)
+    ->  Limit (actual rows=1 loops=1)
+          ->  Index Only Scan using donation_person_time_idx on donation donation_1 (actual rows=1 loops=1)
+                Index Cond: ((person_id = '4330'::bigint) AND (donated_at IS NOT NULL))
+                Heap Fetches: 0
+                Storage Index Read Requests: 1
+                Storage Index Read Ops: 1
+                Storage Index Rows Scanned: 1
+Planning Time: 0.127 ms
+Execution Time: 0.364 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 2
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 128 kB
+
+==============================================================================
+## q07_total_donated_global
+==============================================================================
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+
+Aggregate (actual rows=1 loops=1)
+  ->  Index Only Scan using donation_charity_amount_idx on donation (actual rows=108081 loops=1)
+        Heap Fetches: 0
+        Storage Index Read Requests: 106
+        Storage Index Read Ops: 106
+        Storage Index Rows Scanned: 108081
+Planning Time: 0.089 ms
+Execution Time: 31.061 ms
+Storage Read Requests: 106
+Storage Read Ops: 106
+Storage Rows Scanned: 108081
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 65 kB
+
+==============================================================================
+## q08_total_donated_charity
+==============================================================================
+
+# donation_charity_amount_idx covers both the predicate and the summed column,
+# so this should be an index-only scan that never touches the heap.
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Aggregate (actual rows=1 loops=1)
+  ->  Index Only Scan using donation_charity_amount_idx on donation (actual rows=31293 loops=1)
+        Index Cond: (charity_id = '1'::bigint)
+        Heap Fetches: 0
+        Storage Index Read Requests: 31
+        Storage Index Read Ops: 31
+        Storage Index Rows Scanned: 31293
+Planning Time: 0.084 ms
+Execution Time: 9.819 ms
+Storage Read Requests: 31
+Storage Read Ops: 31
+Storage Rows Scanned: 31293
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 65 kB
+
+==============================================================================
+## q09_person_recent_donations
+==============================================================================
+
+# The design's whole reason to exist. Answered entirely from the parent row:
+# one primary-key read, no child table, no index descent, no sort. The cache is
+# already stored newest-first and already capped at 20, so array position IS
+# the answer order.
+
+SELECT (e.value ->> 'i')::BIGINT      AS donation_id,
+       (e.value ->> 'a')::BIGINT      AS amount_cents,
+       e.value ->> 'c'                AS currency,
+       (e.value ->> 't')::TIMESTAMPTZ AS donated_at,
+       e.value ->> 'n'                AS note
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.recent_donations) WITH ORDINALITY AS e(value, ord)
+ WHERE p.person_id = $1
+ ORDER BY e.ord
+
+Sort (actual rows=20 loops=1)
+  Sort Key: e.ord
+  Sort Method: quicksort  Memory: 26kB
+  ->  Nested Loop (actual rows=20 loops=1)
+        ->  Index Scan using person_pkey on person p (actual rows=1 loops=1)
+              Index Cond: (person_id = '4330'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 1
+        ->  Function Scan on jsonb_array_elements e (actual rows=20 loops=1)
+Planning Time: 0.055 ms
+Execution Time: 0.255 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 205 kB
+
+==============================================================================
+## q10_donation_by_id
+==============================================================================
+
+SELECT donation_id, person_id, amount_cents, currency, donated_at, note
+  FROM donation
+ WHERE donation_id = $1
+
+Index Scan using donation_pkey on donation (actual rows=1 loops=1)
+  Index Cond: (donation_id = '33227'::bigint)
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.043 ms
+Execution Time: 0.182 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## q11_person_donation_count
+==============================================================================
+
+SELECT COUNT(*) AS donation_count
+  FROM donation
+ WHERE person_id = $1
+
+Finalize Aggregate (actual rows=1 loops=1)
+  ->  Index Only Scan using donation_person_time_idx on donation (actual rows=1 loops=1)
+        Index Cond: (person_id = '4330'::bigint)
+        Heap Fetches: 0
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 496
+        Partial Aggregate: true
+Planning Time: 0.123 ms
+Execution Time: 0.530 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 496
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 65 kB
+
+==============================================================================
+## q12_charity_recent_feed
+==============================================================================
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- The bounded cache is maintained NEWEST FIRST, so element 0 IS the donor's
+-- latest gift -- when the cache is correct. This is where a corrupted cache
+-- (the bug D9's original trigger had, and D10 fixes) produces a wrong answer
+-- to a question nobody was asking it before: q09 only ever asked for the
+-- cache's own contents, never for donors ordered by their cache head. No new
+-- index: the cast from the array's stored text timestamp is STABLE, not
+-- IMMUTABLE, so PostgreSQL refuses an expression index on it (RECENCY.md
+-- section 3). That refusal is part of the finding, not a workaround target.
+-- ---------------------------------------------------------------------------
+
+Limit (actual rows=50 loops=1)
+  ->  Nested Loop (actual rows=50 loops=1)
+        ->  Index Scan using donation_charity_time_idx on donation d (actual rows=50 loops=1)
+              Index Cond: (charity_id = '1'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 50
+              Storage Index Read Requests: 1
+              Storage Index Read Ops: 1
+              Storage Index Rows Scanned: 50
+        ->  Memoize (actual rows=1 loops=50)
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 6  Misses: 44  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+              ->  Index Scan using person_pkey on person p (actual rows=1 loops=44)
+                    Index Cond: (person_id = d.person_id)
+                    Storage Table Read Requests: 1
+                    Storage Table Read Ops: 1
+                    Storage Table Rows Scanned: 1
+Planning Time: 0.184 ms
+Execution Time: 7.068 ms
+Storage Read Requests: 46
+Storage Read Ops: 46
+Storage Rows Scanned: 144
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 397 kB
+
+==============================================================================
+## q13_donors_last_gift_window
+==============================================================================
+
+SELECT p.person_id, p.full_name,
+       (p.recent_donations->0->>'t')::timestamptz AS last_at
+  FROM person p
+ WHERE (p.recent_donations->0->>'t')::timestamptz >= $1
+   AND (p.recent_donations->0->>'t')::timestamptz <  $2
+ ORDER BY last_at DESC
+ LIMIT 100
+
+Limit (actual rows=100 loops=1)
+  ->  Sort (actual rows=100 loops=1)
+        Sort Key: ((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 37kB
+        ->  Seq Scan on person p (actual rows=616 loops=1)
+              Filter: (((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone >= '2026-08-25 00:00:00+00'::timestamp with time zone) AND ((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone < '2026-09-01 00:00:00+00'::timestamp with time zone))
+              Rows Removed by Filter: 4384
+              Storage Table Read Requests: 5
+              Storage Table Read Ops: 5
+              Storage Table Rows Scanned: 5000
+Planning Time: 0.078 ms
+Execution Time: 4.731 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 1204 kB
+
+==============================================================================
+## q14_donors_last_gift_window_count
+==============================================================================
+
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ WHERE (p.recent_donations->0->>'t')::timestamptz >= $1
+   AND (p.recent_donations->0->>'t')::timestamptz <  $2
+
+Aggregate (actual rows=1 loops=1)
+  ->  Seq Scan on person p (actual rows=616 loops=1)
+        Filter: (((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone >= '2026-08-25 00:00:00+00'::timestamp with time zone) AND ((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone < '2026-09-01 00:00:00+00'::timestamp with time zone))
+        Rows Removed by Filter: 4384
+        Storage Table Read Requests: 5
+        Storage Table Read Ops: 5
+        Storage Table Rows Scanned: 5000
+Planning Time: 0.059 ms
+Execution Time: 4.357 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## q15_charity_donors_last_gift_window
+==============================================================================
+
+SELECT p.person_id, p.full_name,
+       (p.recent_donations->0->>'t')::timestamptz AS last_at
+  FROM person p
+ WHERE p.charity_id = $1
+   AND (p.recent_donations->0->>'t')::timestamptz >= $2
+   AND (p.recent_donations->0->>'t')::timestamptz <  $3
+ ORDER BY last_at DESC
+ LIMIT 100
+
+Limit (actual rows=100 loops=1)
+  ->  Sort (actual rows=100 loops=1)
+        Sort Key: ((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: quicksort  Memory: 38kB
+        ->  Seq Scan on person p (actual rows=176 loops=1)
+              Storage Filter: (charity_id = '1'::bigint)
+              Filter: (((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone >= '2026-08-25 00:00:00+00'::timestamp with time zone) AND ((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone < '2026-09-01 00:00:00+00'::timestamp with time zone))
+              Rows Removed by Filter: 1296
+              Storage Table Read Requests: 2
+              Storage Table Read Ops: 2
+              Storage Table Rows Scanned: 5000
+Planning Time: 0.086 ms
+Execution Time: 2.724 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 1164 kB
+
+==============================================================================
+## q16_lapsed_donors_count
+==============================================================================
+
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ WHERE (p.recent_donations->0->>'t')::timestamptz < $1
+
+Aggregate (actual rows=1 loops=1)
+  ->  Seq Scan on person p (actual rows=4384 loops=1)
+        Filter: ((((recent_donations -> 0) ->> 't'::text))::timestamp with time zone < '2026-08-25 00:00:00+00'::timestamp with time zone)
+        Rows Removed by Filter: 616
+        Storage Table Read Requests: 5
+        Storage Table Read Ops: 5
+        Storage Table Rows Scanned: 5000
+Planning Time: 0.059 ms
+Execution Time: 4.602 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+

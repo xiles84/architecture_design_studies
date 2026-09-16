@@ -1,0 +1,138 @@
+# Targeted plans — after
+run: 20260916T090036Z-v3; commit: b0c32d84d7b91e82137551801f7985e18ca7396d; preparation: analyze
+
+## after/largest/q08_total_donated_charity; charity_id=1
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Aggregate  (cost=854.22..854.23 rows=1 width=32) (actual time=5.838..5.839 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared hit=125
+  ->  Index Only Scan using donation_charity_amount_idx on public.donation  (cost=0.42..775.72 rows=31398 width=8) (actual time=0.080..3.830 rows=31293 loops=1)
+        Output: charity_id, amount_cents
+        Index Cond: (donation.charity_id = '1'::bigint)
+        Heap Fetches: 51
+        Buffers: shared hit=125
+Planning Time: 0.080 ms
+Execution Time: 5.888 ms
+
+
+## after/largest/q12_charity_recent_feed; charity_id=1
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d3's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- D19 is D3's exact schema, indexes and write path -- the only change is this
+-- formulation: read the WINDOW first (an index range scan on donated_at),
+-- then confirm each candidate donor gave nothing after the window closes.
+-- Correct in both regimes -- a donor qualifies exactly when they gave inside
+-- the window AND gave nothing after it. Costs what the window holds, unlike
+-- D18's parent-driven probe (d18_recency_probe/queries.sql), which costs one
+-- descent per donor whatever the window holds. Isolates SQL formulation
+-- alone: see d18 -> d19 in RECENCY.md section 4.
+-- ---------------------------------------------------------------------------
+
+Limit  (cost=0.71..7.01 rows=50 width=37) (actual time=0.032..0.093 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=137
+  ->  Nested Loop  (cost=0.71..3958.10 rows=31398 width=37) (actual time=0.032..0.090 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=137
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.42..1963.98 rows=31398 width=32) (actual time=0.006..0.010 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+              Index Cond: (d.charity_id = '1'::bigint)
+              Buffers: shared hit=5
+        ->  Memoize  (cost=0.29..0.31 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 6  Misses: 44  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+              Buffers: shared hit=132
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.30 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=44)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=132
+Planning:
+  Buffers: shared hit=14
+Planning Time: 0.127 ms
+Execution Time: 0.107 ms
+
+
+## after/smallest/q08_total_donated_charity; charity_id=10
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Aggregate  (cost=118.56..118.57 rows=1 width=32) (actual time=0.145..0.146 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared hit=13
+  ->  Index Only Scan using donation_charity_amount_idx on public.donation  (cost=0.42..114.25 rows=1722 width=8) (actual time=0.007..0.092 rows=1756 loops=1)
+        Output: charity_id, amount_cents
+        Index Cond: (donation.charity_id = '10'::bigint)
+        Heap Fetches: 5
+        Buffers: shared hit=13
+Planning Time: 0.036 ms
+Execution Time: 0.153 ms
+
+
+## after/smallest/q12_charity_recent_feed; charity_id=10
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d3's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- D19 is D3's exact schema, indexes and write path -- the only change is this
+-- formulation: read the WINDOW first (an index range scan on donated_at),
+-- then confirm each candidate donor gave nothing after the window closes.
+-- Correct in both regimes -- a donor qualifies exactly when they gave inside
+-- the window AND gave nothing after it. Costs what the window holds, unlike
+-- D18's parent-driven probe (d18_recency_probe/queries.sql), which costs one
+-- descent per donor whatever the window holds. Isolates SQL formulation
+-- alone: see d18 -> d19 in RECENCY.md section 4.
+-- ---------------------------------------------------------------------------
+
+Limit  (cost=0.71..48.52 rows=50 width=37) (actual time=0.008..0.048 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=86
+  ->  Nested Loop  (cost=0.71..1647.18 rows=1722 width=37) (actual time=0.008..0.045 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=86
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.42..1116.02 rows=1722 width=32) (actual time=0.004..0.013 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+              Index Cond: (d.charity_id = '10'::bigint)
+              Buffers: shared hit=26
+        ->  Memoize  (cost=0.29..0.36 rows=1 width=21) (actual time=0.000..0.000 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 30  Misses: 20  Evictions: 0  Overflows: 0  Memory Usage: 3kB
+              Buffers: shared hit=60
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.35 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=20)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=60
+Planning:
+  Buffers: shared hit=14
+Planning Time: 0.092 ms
+Execution Time: 0.056 ms
+

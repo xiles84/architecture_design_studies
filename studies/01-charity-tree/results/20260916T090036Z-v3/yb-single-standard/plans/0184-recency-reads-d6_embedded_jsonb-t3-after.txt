@@ -1,0 +1,164 @@
+# Targeted plans — after
+run: 20260916T090036Z-v3; commit: b0c32d84d7b91e82137551801f7985e18ca7396d; preparation: analyze
+
+## after/largest/q08_total_donated_charity; charity_id=1
+
+SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+
+Aggregate (actual rows=1 loops=1)
+  ->  Nested Loop (actual rows=31293 loops=1)
+        ->  Seq Scan on person p (actual rows=1472 loops=1)
+              Storage Filter: (charity_id = '1'::bigint)
+              Storage Table Read Requests: 2
+              Storage Table Read Ops: 2
+              Storage Table Rows Scanned: 5000
+        ->  Function Scan on jsonb_array_elements e (actual rows=21 loops=1472)
+Planning Time: 0.117 ms
+Execution Time: 46.491 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2612 kB
+
+
+## after/largest/q12_charity_recent_feed; charity_id=1
+
+SELECT (e ->> 'i')::BIGINT       AS donation_id,
+       (e ->> 'a')::BIGINT       AS amount_cents,
+       (e ->> 't')::TIMESTAMPTZ  AS donated_at,
+       p.full_name
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- D6 has no separate donation table to aggregate: the whole history lives in
+-- person.donations. Answering "who last gave in this window" means unnesting
+-- every donor's ENTIRE document to find its maximum timestamp -- this is the
+-- honest cost of taking embedding to its conclusion, and it is measured here
+-- rather than excused. There is no useful index for this: an expression index
+-- on the array's timestamp text is either impossible (a STABLE cast is
+-- rejected by PostgreSQL for an index) or unsound (indexing raw text makes
+-- correctness depend on JSON rendering). See RECENCY.md section 3.
+-- ---------------------------------------------------------------------------
+
+Limit (actual rows=50 loops=1)
+  ->  Sort (actual rows=50 loops=1)
+        Sort Key: (((e.value ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 32kB
+        ->  Nested Loop (actual rows=31293 loops=1)
+              ->  Seq Scan on person p (actual rows=1472 loops=1)
+                    Storage Filter: (charity_id = '1'::bigint)
+                    Storage Table Read Requests: 2
+                    Storage Table Read Ops: 2
+                    Storage Table Rows Scanned: 5000
+              ->  Function Scan on jsonb_array_elements e (actual rows=21 loops=1472)
+Planning Time: 0.103 ms
+Execution Time: 26.676 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2672 kB
+
+
+## after/smallest/q08_total_donated_charity; charity_id=10
+
+SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+
+Aggregate (actual rows=1 loops=1)
+  ->  Nested Loop (actual rows=1756 loops=1)
+        ->  Index Scan using person_charity_idx on person p (actual rows=101 loops=1)
+              Index Cond: (charity_id = '10'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 101
+              Storage Index Read Requests: 1
+              Storage Index Read Ops: 1
+              Storage Index Rows Scanned: 101
+        ->  Function Scan on jsonb_array_elements e (actual rows=17 loops=101)
+Planning Time: 0.081 ms
+Execution Time: 1.526 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 202
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 654 kB
+
+
+## after/smallest/q12_charity_recent_feed; charity_id=10
+
+SELECT (e ->> 'i')::BIGINT       AS donation_id,
+       (e ->> 'a')::BIGINT       AS amount_cents,
+       (e ->> 't')::TIMESTAMPTZ  AS donated_at,
+       p.full_name
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- D6 has no separate donation table to aggregate: the whole history lives in
+-- person.donations. Answering "who last gave in this window" means unnesting
+-- every donor's ENTIRE document to find its maximum timestamp -- this is the
+-- honest cost of taking embedding to its conclusion, and it is measured here
+-- rather than excused. There is no useful index for this: an expression index
+-- on the array's timestamp text is either impossible (a STABLE cast is
+-- rejected by PostgreSQL for an index) or unsound (indexing raw text makes
+-- correctness depend on JSON rendering). See RECENCY.md section 3.
+-- ---------------------------------------------------------------------------
+
+Limit (actual rows=50 loops=1)
+  ->  Sort (actual rows=50 loops=1)
+        Sort Key: (((e.value ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 31kB
+        ->  Nested Loop (actual rows=1756 loops=1)
+              ->  Index Scan using person_charity_idx on person p (actual rows=101 loops=1)
+                    Index Cond: (charity_id = '10'::bigint)
+                    Storage Table Read Requests: 1
+                    Storage Table Read Ops: 1
+                    Storage Table Rows Scanned: 101
+                    Storage Index Read Requests: 1
+                    Storage Index Read Ops: 1
+                    Storage Index Rows Scanned: 101
+              ->  Function Scan on jsonb_array_elements e (actual rows=17 loops=101)
+Planning Time: 0.065 ms
+Execution Time: 2.352 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 202
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 690 kB
+

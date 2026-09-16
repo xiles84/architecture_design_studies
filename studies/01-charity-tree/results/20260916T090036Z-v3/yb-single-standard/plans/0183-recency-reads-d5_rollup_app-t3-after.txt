@@ -1,0 +1,152 @@
+# Targeted plans — after
+run: 20260916T090036Z-v3; commit: b0c32d84d7b91e82137551801f7985e18ca7396d; preparation: analyze
+
+## after/largest/q08_total_donated_charity; charity_id=1
+
+SELECT total_donated_cents AS total_cents
+  FROM charity
+ WHERE charity_id = $1
+
+Index Scan using charity_pkey on charity (actual rows=1 loops=1)
+  Index Cond: (charity_id = '1'::bigint)
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.055 ms
+Execution Time: 0.190 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+
+## after/largest/q12_charity_recent_feed; charity_id=1
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- person.last_donation_at is already maintained (D4's trigger / D5's
+-- application path); a donor with no donations has it NULL, which the
+-- comparisons below correctly exclude. This is the rollup answer, and it
+-- has no global access path yet -- see D22/D23, which add exactly one index
+-- to this same column and nothing else.
+-- ---------------------------------------------------------------------------
+
+Limit (actual rows=50 loops=1)
+  ->  Nested Loop (actual rows=50 loops=1)
+        ->  Index Scan using donation_charity_time_idx on donation d (actual rows=50 loops=1)
+              Index Cond: (charity_id = '1'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 50
+              Storage Index Read Requests: 1
+              Storage Index Read Ops: 1
+              Storage Index Rows Scanned: 50
+        ->  Memoize (actual rows=1 loops=50)
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 6  Misses: 44  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+              ->  Index Scan using person_pkey on person p (actual rows=1 loops=44)
+                    Index Cond: (person_id = d.person_id)
+                    Storage Table Read Requests: 1
+                    Storage Table Read Ops: 1
+                    Storage Table Rows Scanned: 1
+Planning Time: 0.194 ms
+Execution Time: 8.258 ms
+Storage Read Requests: 46
+Storage Read Ops: 46
+Storage Rows Scanned: 144
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 398 kB
+
+
+## after/smallest/q08_total_donated_charity; charity_id=10
+
+SELECT total_donated_cents AS total_cents
+  FROM charity
+ WHERE charity_id = $1
+
+Index Scan using charity_pkey on charity (actual rows=1 loops=1)
+  Index Cond: (charity_id = '10'::bigint)
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.036 ms
+Execution Time: 0.234 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+
+## after/smallest/q12_charity_recent_feed; charity_id=10
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- person.last_donation_at is already maintained (D4's trigger / D5's
+-- application path); a donor with no donations has it NULL, which the
+-- comparisons below correctly exclude. This is the rollup answer, and it
+-- has no global access path yet -- see D22/D23, which add exactly one index
+-- to this same column and nothing else.
+-- ---------------------------------------------------------------------------
+
+Limit (actual rows=50 loops=1)
+  ->  YB Batched Nested Loop Join (actual rows=50 loops=1)
+        Join Filter: (d.person_id = p.person_id)
+        Sort Keys: d.donated_at DESC
+        ->  Index Scan using donation_charity_time_idx on donation d (actual rows=50 loops=1)
+              Index Cond: (charity_id = '10'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 50
+              Storage Index Read Requests: 1
+              Storage Index Read Ops: 1
+              Storage Index Rows Scanned: 50
+        ->  Index Scan using person_pkey on person p (actual rows=20 loops=1)
+              Index Cond: (person_id = ANY (ARRAY[d.person_id, $1, $2, ..., $1023]))
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 20
+Planning Time: 0.358 ms
+Execution Time: 1.679 ms
+Storage Read Requests: 3
+Storage Read Ops: 3
+Storage Rows Scanned: 120
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 619 kB
+

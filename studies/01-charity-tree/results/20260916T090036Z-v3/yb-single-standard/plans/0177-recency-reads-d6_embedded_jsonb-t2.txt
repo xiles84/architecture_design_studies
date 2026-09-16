@@ -1,0 +1,591 @@
+# Query plans
+
+run_id:      20260916T090036Z-v3
+environment: host-zenbook-ux5406sa
+engine:      yugabyte (yb-single)
+version:     PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+design:      d6_embedded_jsonb (embedded-jsonb)
+scale:       small -- 5000 people, 108081 donations
+captured:    EXPLAIN (ANALYZE, DIST, COSTS OFF, TIMING OFF)
+keys used:   charity_id=1 (the largest charity, 30% of donors); person_id and
+             donation_id belong to that charity's busiest donor, so these plans
+             show real work rather than a donor who happens to have three rows
+
+==============================================================================
+## q01_last_donation_global
+==============================================================================
+
+# One element inspected per person, but every person row must still be read.
+
+SELECT (e ->> 'i')::BIGINT        AS donation_id,
+       p.person_id,
+       (e ->> 'a')::BIGINT        AS amount_cents,
+       e ->> 'c'                  AS currency,
+       (e ->> 't')::TIMESTAMPTZ   AS donated_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT p.donations -> -1 AS e) x
+ WHERE jsonb_array_length(p.donations) > 0
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 1
+
+Limit (actual rows=1 loops=1)
+  ->  Sort (actual rows=1 loops=1)
+        Sort Key: ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        ->  Seq Scan on person p (actual rows=5000 loops=1)
+              Storage Filter: (jsonb_array_length(donations) > 0)
+              Storage Table Read Requests: 5
+              Storage Table Read Ops: 5
+              Storage Table Rows Scanned: 5000
+Planning Time: 0.143 ms
+Execution Time: 16.496 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2964 kB
+
+==============================================================================
+## q02_last_donation_charity
+==============================================================================
+
+SELECT (e ->> 'i')::BIGINT        AS donation_id,
+       p.person_id,
+       (e ->> 'a')::BIGINT        AS amount_cents,
+       e ->> 'c'                  AS currency,
+       (e ->> 't')::TIMESTAMPTZ   AS donated_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT p.donations -> -1 AS e) x
+ WHERE p.charity_id = $1
+   AND jsonb_array_length(p.donations) > 0
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 1
+
+Limit (actual rows=1 loops=1)
+  ->  Sort (actual rows=1 loops=1)
+        Sort Key: ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        ->  Seq Scan on person p (actual rows=1472 loops=1)
+              Storage Filter: ((charity_id = '1'::bigint) AND (jsonb_array_length(donations) > 0))
+              Storage Table Read Requests: 2
+              Storage Table Read Ops: 2
+              Storage Table Rows Scanned: 5000
+Planning Time: 0.112 ms
+Execution Time: 5.132 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2436 kB
+
+==============================================================================
+## q03_top_donor_charity
+==============================================================================
+
+# Every array in the charity must be fully unnested and summed. This is the
+# shape of query the embedded design is worst at.
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM person p
+ CROSS JOIN LATERAL (
+        SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+          FROM jsonb_array_elements(p.donations) e
+      ) t
+ WHERE p.charity_id = $1
+ ORDER BY t.total_cents DESC
+ LIMIT 1
+
+Limit (actual rows=1 loops=1)
+  ->  Sort (actual rows=1 loops=1)
+        Sort Key: (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        ->  Nested Loop (actual rows=1472 loops=1)
+              ->  Seq Scan on person p (actual rows=1472 loops=1)
+                    Storage Filter: (charity_id = '1'::bigint)
+                    Storage Table Read Requests: 2
+                    Storage Table Read Ops: 2
+                    Storage Table Rows Scanned: 5000
+              ->  Aggregate (actual rows=1 loops=1472)
+                    ->  Function Scan on jsonb_array_elements e (actual rows=21 loops=1472)
+Planning Time: 0.141 ms
+Execution Time: 16.227 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2672 kB
+
+==============================================================================
+## q04_top_donors_leaderboard
+==============================================================================
+
+SELECT p.person_id, p.full_name, t.total_cents
+  FROM person p
+ CROSS JOIN LATERAL (
+        SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+          FROM jsonb_array_elements(p.donations) e
+      ) t
+ WHERE p.charity_id = $1
+ ORDER BY t.total_cents DESC
+ LIMIT 10
+
+Limit (actual rows=10 loops=1)
+  ->  Sort (actual rows=10 loops=1)
+        Sort Key: (COALESCE(sum(((e.value ->> 'a'::text))::bigint), '0'::numeric)) DESC
+        Sort Method: top-N heapsort  Memory: 26kB
+        ->  Nested Loop (actual rows=1472 loops=1)
+              ->  Seq Scan on person p (actual rows=1472 loops=1)
+                    Storage Filter: (charity_id = '1'::bigint)
+                    Storage Table Read Requests: 2
+                    Storage Table Read Ops: 2
+                    Storage Table Rows Scanned: 5000
+              ->  Aggregate (actual rows=1 loops=1472)
+                    ->  Function Scan on jsonb_array_elements e (actual rows=21 loops=1472)
+Planning Time: 0.135 ms
+Execution Time: 15.340 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2696 kB
+
+==============================================================================
+## q05_last_donor_charity
+==============================================================================
+
+SELECT p.person_id, p.full_name, (e ->> 't')::TIMESTAMPTZ AS donated_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT p.donations -> -1 AS e) x
+ WHERE p.charity_id = $1
+   AND jsonb_array_length(p.donations) > 0
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 1
+
+Limit (actual rows=1 loops=1)
+  ->  Sort (actual rows=1 loops=1)
+        Sort Key: ((((p.donations -> '-1'::integer) ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 25kB
+        ->  Seq Scan on person p (actual rows=1472 loops=1)
+              Storage Filter: ((charity_id = '1'::bigint) AND (jsonb_array_length(donations) > 0))
+              Storage Table Read Requests: 2
+              Storage Table Read Ops: 2
+              Storage Table Rows Scanned: 5000
+Planning Time: 0.094 ms
+Execution Time: 5.546 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2460 kB
+
+==============================================================================
+## q06_person_first_last
+==============================================================================
+
+# The embedded design's best case: no unnesting, no second table, no index
+# lookup. Read one row, index into both ends of the array.
+
+SELECT (donations -> 0  ->> 't')::TIMESTAMPTZ AS first_at,
+       (donations -> -1 ->> 't')::TIMESTAMPTZ AS last_at
+  FROM person
+ WHERE person_id = $1
+
+Index Scan using person_pkey on person (actual rows=1 loops=1)
+  Index Cond: (person_id = '4330'::bigint)
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.035 ms
+Execution Time: 0.388 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 267 kB
+
+==============================================================================
+## q07_total_donated_global
+==============================================================================
+
+# Full unnest of every donation in the database.
+
+SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+
+Aggregate (actual rows=1 loops=1)
+  ->  Nested Loop (actual rows=108081 loops=1)
+        ->  Seq Scan on person p (actual rows=5000 loops=1)
+              Storage Table Read Requests: 5
+              Storage Table Read Ops: 5
+              Storage Table Rows Scanned: 5000
+        ->  Function Scan on jsonb_array_elements e (actual rows=22 loops=5000)
+Planning Time: 0.141 ms
+Execution Time: 50.952 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 3130 kB
+
+==============================================================================
+## q08_total_donated_charity
+==============================================================================
+
+SELECT COALESCE(SUM((e ->> 'a')::BIGINT), 0) AS total_cents
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+
+Aggregate (actual rows=1 loops=1)
+  ->  Nested Loop (actual rows=31293 loops=1)
+        ->  Seq Scan on person p (actual rows=1472 loops=1)
+              Storage Filter: (charity_id = '1'::bigint)
+              Storage Table Read Requests: 2
+              Storage Table Read Ops: 2
+              Storage Table Rows Scanned: 5000
+        ->  Function Scan on jsonb_array_elements e (actual rows=21 loops=1472)
+Planning Time: 0.106 ms
+Execution Time: 16.684 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2620 kB
+
+==============================================================================
+## q09_person_recent_donations
+==============================================================================
+
+# Array-position slice: no timestamp parsing, no sort, one row read.
+
+SELECT e.value ->> 'i'                   AS donation_id,
+       (e.value ->> 'a')::BIGINT         AS amount_cents,
+       e.value ->> 'c'                   AS currency,
+       (e.value ->> 't')::TIMESTAMPTZ    AS donated_at,
+       e.value ->> 'n'                   AS note
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) WITH ORDINALITY AS e(value, ord)
+ WHERE p.person_id = $1
+ ORDER BY e.ord DESC
+ LIMIT 20
+
+Limit (actual rows=20 loops=1)
+  ->  Sort (actual rows=20 loops=1)
+        Sort Key: e.ord DESC
+        Sort Method: top-N heapsort  Memory: 28kB
+        ->  Nested Loop (actual rows=496 loops=1)
+              ->  Index Scan using person_pkey on person p (actual rows=1 loops=1)
+                    Index Cond: (person_id = '4330'::bigint)
+                    Storage Table Read Requests: 1
+                    Storage Table Read Ops: 1
+                    Storage Table Rows Scanned: 1
+              ->  Function Scan on jsonb_array_elements e (actual rows=496 loops=1)
+Planning Time: 0.091 ms
+Execution Time: 0.807 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 507 kB
+
+==============================================================================
+## q10_donation_by_id
+==============================================================================
+
+# Identity lookup is the embedded design's structural weak point: donation_id
+# is buried inside a document. The GIN index turns this from a sequential scan
+# into a containment probe, but it still requires a recheck and an unnest of
+# the matching person's whole array.
+
+SELECT (e ->> 'i')::BIGINT       AS donation_id,
+       p.person_id,
+       (e ->> 'a')::BIGINT       AS amount_cents,
+       e ->> 'c'                 AS currency,
+       (e ->> 't')::TIMESTAMPTZ  AS donated_at,
+       e ->> 'n'                 AS note
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.donations @> jsonb_build_array(jsonb_build_object('i', $1::BIGINT))
+   AND (e ->> 'i')::BIGINT = $1::BIGINT
+
+Nested Loop (actual rows=1 loops=1)
+  ->  Index Scan using person_donations_gin on person p (actual rows=1 loops=1)
+        Index Cond: (donations @> jsonb_build_array(jsonb_build_object('i', '33227'::bigint)))
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 1
+  ->  Function Scan on jsonb_array_elements e (actual rows=1 loops=1)
+        Filter: (((value ->> 'i'::text))::bigint = '33227'::bigint)
+        Rows Removed by Filter: 495
+Planning Time: 0.106 ms
+Execution Time: 0.507 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 2
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 513 kB
+
+==============================================================================
+## q11_person_donation_count
+==============================================================================
+
+# Stored in the document header by JSONB itself; no scan at all.
+
+SELECT jsonb_array_length(donations) AS donation_count
+  FROM person
+ WHERE person_id = $1
+
+Index Scan using person_pkey on person (actual rows=1 loops=1)
+  Index Cond: (person_id = '4330'::bigint)
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.036 ms
+Execution Time: 0.327 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 267 kB
+
+==============================================================================
+## q12_charity_recent_feed
+==============================================================================
+
+# A merge of many per-person arrays. There is no index that can order across
+# documents, so this unnests the charity and sorts.
+
+SELECT (e ->> 'i')::BIGINT       AS donation_id,
+       (e ->> 'a')::BIGINT       AS amount_cents,
+       (e ->> 't')::TIMESTAMPTZ  AS donated_at,
+       p.full_name
+  FROM person p
+ CROSS JOIN LATERAL jsonb_array_elements(p.donations) e
+ WHERE p.charity_id = $1
+ ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- D6 has no separate donation table to aggregate: the whole history lives in
+-- person.donations. Answering "who last gave in this window" means unnesting
+-- every donor's ENTIRE document to find its maximum timestamp -- this is the
+-- honest cost of taking embedding to its conclusion, and it is measured here
+-- rather than excused. There is no useful index for this: an expression index
+-- on the array's timestamp text is either impossible (a STABLE cast is
+-- rejected by PostgreSQL for an index) or unsound (indexing raw text makes
+-- correctness depend on JSON rendering). See RECENCY.md section 3.
+-- ---------------------------------------------------------------------------
+
+Limit (actual rows=50 loops=1)
+  ->  Sort (actual rows=50 loops=1)
+        Sort Key: (((e.value ->> 't'::text))::timestamp with time zone) DESC
+        Sort Method: top-N heapsort  Memory: 32kB
+        ->  Nested Loop (actual rows=31293 loops=1)
+              ->  Seq Scan on person p (actual rows=1472 loops=1)
+                    Storage Filter: (charity_id = '1'::bigint)
+                    Storage Table Read Requests: 2
+                    Storage Table Read Ops: 2
+                    Storage Table Rows Scanned: 5000
+              ->  Function Scan on jsonb_array_elements e (actual rows=21 loops=1472)
+Planning Time: 0.109 ms
+Execution Time: 27.275 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2672 kB
+
+==============================================================================
+## q13_donors_last_gift_window
+==============================================================================
+
+SELECT p.person_id, p.full_name, l.last_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE l.last_at >= $1 AND l.last_at < $2
+ ORDER BY l.last_at DESC
+ LIMIT 100
+
+Limit (actual rows=100 loops=1)
+  ->  Sort (actual rows=100 loops=1)
+        Sort Key: (max(((e.value ->> 't'::text))::timestamp with time zone)) DESC
+        Sort Method: top-N heapsort  Memory: 37kB
+        ->  Nested Loop (actual rows=616 loops=1)
+              ->  Seq Scan on person p (actual rows=5000 loops=1)
+                    Storage Table Read Requests: 5
+                    Storage Table Read Ops: 5
+                    Storage Table Rows Scanned: 5000
+              ->  Aggregate (actual rows=0 loops=5000)
+                    Filter: ((max(((e.value ->> 't'::text))::timestamp with time zone) >= '2026-08-25 00:00:00+00'::timestamp with time zone) AND (max(((e.value ->> 't'::text))::timestamp with time zone) < '2026-09-01 00:00:00+00'::timestamp with time zone))
+                    Rows Removed by Filter: 1
+                    ->  Function Scan on jsonb_array_elements e (actual rows=22 loops=5000)
+Planning Time: 0.133 ms
+Execution Time: 65.036 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 3216 kB
+
+==============================================================================
+## q14_donors_last_gift_window_count
+==============================================================================
+
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE l.last_at >= $1 AND l.last_at < $2
+
+Aggregate (actual rows=1 loops=1)
+  ->  Nested Loop (actual rows=616 loops=1)
+        ->  Seq Scan on person p (actual rows=5000 loops=1)
+              Storage Table Read Requests: 5
+              Storage Table Read Ops: 5
+              Storage Table Rows Scanned: 5000
+        ->  Aggregate (actual rows=0 loops=5000)
+              Filter: ((max(((e.value ->> 't'::text))::timestamp with time zone) >= '2026-08-25 00:00:00+00'::timestamp with time zone) AND (max(((e.value ->> 't'::text))::timestamp with time zone) < '2026-09-01 00:00:00+00'::timestamp with time zone))
+              Rows Removed by Filter: 1
+              ->  Function Scan on jsonb_array_elements e (actual rows=22 loops=5000)
+Planning Time: 0.108 ms
+Execution Time: 63.352 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 3132 kB
+
+==============================================================================
+## q15_charity_donors_last_gift_window
+==============================================================================
+
+SELECT p.person_id, p.full_name, l.last_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE p.charity_id = $1 AND l.last_at >= $2 AND l.last_at < $3
+ ORDER BY l.last_at DESC
+ LIMIT 100
+
+Limit (actual rows=100 loops=1)
+  ->  Sort (actual rows=100 loops=1)
+        Sort Key: (max(((e.value ->> 't'::text))::timestamp with time zone)) DESC
+        Sort Method: quicksort  Memory: 38kB
+        ->  Nested Loop (actual rows=176 loops=1)
+              ->  Seq Scan on person p (actual rows=1472 loops=1)
+                    Storage Filter: (charity_id = '1'::bigint)
+                    Storage Table Read Requests: 2
+                    Storage Table Read Ops: 2
+                    Storage Table Rows Scanned: 5000
+              ->  Aggregate (actual rows=0 loops=1472)
+                    Filter: ((max(((e.value ->> 't'::text))::timestamp with time zone) >= '2026-08-25 00:00:00+00'::timestamp with time zone) AND (max(((e.value ->> 't'::text))::timestamp with time zone) < '2026-09-01 00:00:00+00'::timestamp with time zone))
+                    Rows Removed by Filter: 1
+                    ->  Function Scan on jsonb_array_elements e (actual rows=21 loops=1472)
+Planning Time: 0.131 ms
+Execution Time: 20.009 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2680 kB
+
+==============================================================================
+## q16_lapsed_donors_count
+==============================================================================
+
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'t')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE l.last_at < $1
+
+Aggregate (actual rows=1 loops=1)
+  ->  Nested Loop (actual rows=4384 loops=1)
+        ->  Seq Scan on person p (actual rows=5000 loops=1)
+              Storage Table Read Requests: 5
+              Storage Table Read Ops: 5
+              Storage Table Rows Scanned: 5000
+        ->  Aggregate (actual rows=1 loops=5000)
+              Filter: (max(((e.value ->> 't'::text))::timestamp with time zone) < '2026-08-25 00:00:00+00'::timestamp with time zone)
+              Rows Removed by Filter: 0
+              ->  Function Scan on jsonb_array_elements e (actual rows=22 loops=5000)
+Planning Time: 0.105 ms
+Execution Time: 63.520 ms
+Storage Read Requests: 5
+Storage Read Ops: 5
+Storage Rows Scanned: 5000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 3132 kB
+
