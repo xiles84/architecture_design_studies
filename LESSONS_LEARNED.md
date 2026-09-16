@@ -85,6 +85,15 @@ unchanged Git revision can produce a different raw-byte input digest on another
 checkout. The attribute is scoped to new v3 runs so historical bytes are not silently
 rewritten. Verify `git ls-files --eol` and `git check-attr` when adding new run formats.
 
+Study 03 then met the same thing from the other side, which shows what it costs when the
+attribute is missing: its `small` matrix hashed to `a56ce92ce38b8204` in the checkout that
+produced it and to `b8913f899a9584ae` in a fresh worktree, with every measurement identical
+and no result file changed in git. A report regenerated there would have published a digest
+no reader could reproduce. Studies 02 and 03 are now pinned in the repository-root
+`.gitattributes`, and regenerating the four study 03 reports restored each run's original
+digest. When a digest changes, check the bytes before the data: the same measurements must
+not hash two ways.
+
 ### Database preparation can change during a short read experiment
 
 The v3 ANALYZE-only diagnostic started a D15 sum plan with 31,293 heap fetches and
@@ -696,10 +705,3 @@ read 20–100 ms after the hold's commit that did not show it. The report tables
 TL;DR listed L2 among designs with invariant violations. When a class depends on a diagnostic, report
 "unclassified" wherever the diagnostic cannot run, in every place the number appears.
 
-### A digest over text files is not reproducible across checkouts
-
-A run's inputs digest is a SHA-256 over its result JSON. On Windows, git rewrites line endings on
-checkout, so the same results hashed to `a56ce92ce38b8204` where they were produced and to
-`b8913f899a9584ae` in a fresh worktree. Nothing had changed but the bytes git handed back. A digest
-that identifies data must be taken over bytes the version-control system promises not to touch:
-`.gitattributes` now marks `studies/*/results/**` and `studies/*/reports/**` as `-text`.
