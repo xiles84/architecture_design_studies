@@ -388,7 +388,201 @@ func Verify(ctx context.Context, pool *pgxpool.Pool, d Design, ds *Dataset) (*Ve
 			fmt.Sprintf("%d rows, newest %s", n, at.UTC()), nil
 	})
 
+	// -----------------------------------------------------------------------
+	// q13-q16 -- "who made their LAST donation in this period" (RECENCY.md).
+	//
+	// A different shape from everything above: the answer is a SET defined by
+	// a per-donor aggregate over the DONOR'S WHOLE HISTORY, not a row selected
+	// by a key. Truth is computed once (independent of any window) as every
+	// donor's own MAX(donated_at); each regime then filters that already-
+	// computed aggregate, exactly mirroring what a correct design must do.
+	// -----------------------------------------------------------------------
+
+	lastByPerson := map[int64]time.Time{}
+	personCharityID := map[int64]int64{}
+	for i := range ds.People {
+		personCharityID[ds.People[i].ID] = ds.People[i].CharityID
+	}
+	for i := range ds.Donations {
+		d := &ds.Donations[i]
+		if cur, ok := lastByPerson[d.PersonID]; !ok || d.DonatedAt.After(cur) {
+			lastByPerson[d.PersonID] = d.DonatedAt
+		}
+	}
+
+	for _, regime := range []string{"trailing", "historical"} {
+		since, until := recencyWindowFor(epochEnd, regime)
+		suffix := "@" + regime
+
+		// q13/q15 -- ranked top-100, with the boundary-tie rule the rest of
+		// this gate already uses: any donor sharing the exact cutoff instant
+		// is an acceptable fill for the remaining slots.
+		checkRanked := func(name string, scopeCharity int64) {
+			check(name+suffix, func() (bool, string, string, error) {
+				type row struct {
+					id int64
+					at time.Time
+				}
+
+				st, ok := q[name]
+				if !ok {
+					return false, "", "", fmt.Errorf("query %s missing from catalogue", name)
+				}
+				argVals := map[string]any{"charity_id": scopeCharity, "since": since, "until": until}
+				args, err := bind(st.Params, argVals)
+				if err != nil {
+					return false, "", "", err
+				}
+				rows, err := pool.Query(ctx, st.SQL, args...)
+				if err != nil {
+					return false, "", "", err
+				}
+				defer rows.Close()
+				var got []row
+				for rows.Next() {
+					v, err := rows.Values()
+					if err != nil {
+						return false, "", "", err
+					}
+					got = append(got, row{id: toI64(v[0]), at: toTime(v[2])})
+				}
+				if err := rows.Err(); err != nil {
+					return false, "", "", err
+				}
+				n := len(got)
+
+				expectedAll := recencyExpectedMatches(lastByPerson, personCharityID, since, until, scopeCharity)
+				var expected []row
+				for _, e := range expectedAll {
+					expected = append(expected, row{id: e.PersonID, at: e.LastAt})
+				}
+				wantN := len(expected)
+				if wantN > 100 {
+					wantN = 100
+				}
+
+				if n != wantN {
+					return false, fmt.Sprintf("%d rows", wantN), fmt.Sprintf("%d rows", n), nil
+				}
+
+				// Order: non-increasing last_at.
+				for i := 1; i < len(got); i++ {
+					if got[i].at.After(got[i-1].at) {
+						return false, "non-increasing last_at", "out of order", nil
+					}
+				}
+
+				// Every returned donor must genuinely match the predicate, and
+				// the value returned must equal that donor's true last gift.
+				for _, r := range got {
+					want, ok := lastByPerson[r.id]
+					if !ok || !want.Equal(r.at) || !recencyMatches(want, personCharityID[r.id], since, until, scopeCharity) {
+						return false, "", fmt.Sprintf("donor %d at %s", r.id, r.at.UTC()),
+							fmt.Errorf("returned donor does not match the window predicate")
+					}
+				}
+
+				if wantN == 0 {
+					return true, "0 rows", fmt.Sprintf("%d rows", n), nil
+				}
+
+				// Boundary tie handling: every expected donor STRICTLY newer
+				// than the cutoff (the wantN-th expected value) must appear;
+				// donors AT the cutoff instant are an acceptable substitute
+				// for each other, as q04/q12's boundary already allows.
+				boundary := expected[wantN-1].at
+				gotSet := map[int64]bool{}
+				for _, r := range got {
+					gotSet[r.id] = true
+				}
+				for _, e := range expected[:wantN] {
+					if e.at.After(boundary) && !gotSet[e.id] {
+						return false, fmt.Sprintf("donor %d (above the tie boundary)", e.id), "missing", nil
+					}
+				}
+				return true,
+					fmt.Sprintf("%d rows, newest %s", wantN, expected[0].at.UTC()),
+					fmt.Sprintf("%d rows, newest %s", n, got[0].at.UTC()), nil
+			})
+		}
+
+		checkCount := func(name string, want int) {
+			check(name+suffix, func() (bool, string, string, error) {
+				st, ok := q[name]
+				if !ok {
+					return false, "", "", fmt.Errorf("query %s missing from catalogue", name)
+				}
+				argVals := map[string]any{"charity_id": charityID, "since": since, "until": until}
+				args, err := bind(st.Params, argVals)
+				if err != nil {
+					return false, "", "", err
+				}
+				var got int64
+				if err := pool.QueryRow(ctx, st.SQL, args...).Scan(&got); err != nil {
+					return false, "", "", err
+				}
+				return got == int64(want), fmt.Sprint(want), fmt.Sprint(got), nil
+			})
+		}
+
+		checkRanked("q13_donors_last_gift_window", 0)
+		checkCount("q14_donors_last_gift_window_count", len(recencyExpectedMatches(lastByPerson, personCharityID, since, until, 0)))
+
+		checkRanked("q15_charity_donors_last_gift_window", charityID)
+		checkCount("q16_lapsed_donors_count", recencyExpectedLapsedCount(lastByPerson, since))
+	}
+
 	return rep, nil
+}
+
+// ---------------------------------------------------------------------------
+// Recency truth (RECENCY.md section 2/5) -- pure functions, no DB, unit
+// tested directly against a hand-built lastByPerson map in
+// experiment_test.go. Extracted out of Verify's closures so the window
+// predicate and the expected-set computation have exactly one definition,
+// used both to check the gate and to build the negative-control examples.
+// ---------------------------------------------------------------------------
+
+// recencyMatches is the window-set predicate every correct design must
+// implement, whichever table or column it reads it from: is this donor's
+// last gift inside [since, until), and (if scopeCharity != 0) do they belong
+// to that charity?
+func recencyMatches(lastAt time.Time, donorCharity int64, since, until time.Time, scopeCharity int64) bool {
+	if scopeCharity != 0 && donorCharity != scopeCharity {
+		return false
+	}
+	return !lastAt.Before(since) && lastAt.Before(until)
+}
+
+type recencyDonorLast struct {
+	PersonID int64
+	LastAt   time.Time
+}
+
+// recencyExpectedMatches returns every donor matching the window predicate,
+// sorted newest-first -- the full expected set for q13/q15 (the caller caps
+// it at the LIMIT) and the exact count for q14.
+func recencyExpectedMatches(lastByPerson map[int64]time.Time, personCharityID map[int64]int64, since, until time.Time, scopeCharity int64) []recencyDonorLast {
+	var out []recencyDonorLast
+	for pid, at := range lastByPerson {
+		if recencyMatches(at, personCharityID[pid], since, until, scopeCharity) {
+			out = append(out, recencyDonorLast{PersonID: pid, LastAt: at})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].LastAt.After(out[j].LastAt) })
+	return out
+}
+
+// recencyExpectedLapsedCount is q16's truth: donors whose last gift is
+// strictly before since.
+func recencyExpectedLapsedCount(lastByPerson map[int64]time.Time, since time.Time) int {
+	n := 0
+	for _, at := range lastByPerson {
+		if at.Before(since) {
+			n++
+		}
+	}
+	return n
 }
 
 func keys(m map[int64]bool) []int64 {

@@ -1,0 +1,67 @@
+@startuml d20_recency_flag
+!include _style.puml
+title D20 — recency-flag  (materialise "this donor's last gift" on the child)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name : TEXT
+  * country : TEXT
+  * founded_on : DATE
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id : BIGINT <<FK>>
+  * full_name : TEXT
+  * email : TEXT
+  * joined_at : TIMESTAMPTZ
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id : BIGINT <<FK>>
+  * charity_id : BIGINT <<FK>> — denormalised (D3)
+  * amount_cents : BIGINT
+  * currency : CHAR(3)
+  * donated_at : TIMESTAMPTZ
+  note : TEXT
+  --
+  <back:#D8F0DE>* is_last_donation : BOOLEAN</back>
+}
+c ||--o{ p
+p ||--o{ d
+c ||..o{ d : "redundant shortcut\n(derivable via person)"
+
+d -[#B03A2E,thickness=2]-> p : "BEFORE INSERT trigger locks\nthe donor's person row first"
+
+note right of d
+  **all D3 indexes, plus**
+  **+ donation_last_flag_idx** (donated_at DESC) **WHERE is_last_donation**
+
+  A PARTIAL index: exactly one TRUE row per donor,
+  so it stays one row per donor no matter how long
+  the study's history grows.
+
+  q13-q16 (RECENCY.md) read this column directly —
+  no aggregate, no second table.
+end note
+
+note bottom of p
+  <back:#FFCCCC> **The guard.** </back> The trigger locks THIS row
+  (FOR UPDATE) before touching the flag, so two
+  concurrent inserts for the same donor cannot both
+  conclude "I am the newest". d21_recency_flag_unguarded
+  is this exact design with that lock removed — the
+  negative control, expected to leave two flagged
+  donations for one donor under concurrent inserts.
+end note
+
+note bottom of d
+  **The asymmetry, again (compare D4).** INSERT can push
+  the flag forward for free (a new donation is trivially
+  newer than nothing). DELETE cannot: if the deleted row
+  carried the flag, the donor's next-newest survivor must
+  be found and promoted — a MAX cannot be decremented.
+end note
+@enduml

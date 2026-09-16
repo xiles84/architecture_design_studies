@@ -238,3 +238,144 @@ SELECT COUNT(*) AS checked,
 	a.DriftCents = toI64(drift)
 	return a, nil
 }
+
+// ---------------------------------------------------------------------------
+// Recency audit (RECENCY.md section 5)
+//
+// The gate (verify.go) proves the invariant holds on quiescent, freshly loaded
+// data. This audit asks the same question AuditRollups asks of D4/D5's
+// aggregates, but of "who made their LAST donation in a period" (v4):
+//
+//	after concurrent writers hammered the same donors' rows, does exactly
+//	ONE donation per donor still carry is_last_donation, and is it genuinely
+//	their newest? Does person.last_donation_at still agree with the table?
+//
+// D21 (d21_recency_flag_unguarded) is expected to FAIL this audit under
+// contention -- it is the negative control this design needs (methodology
+// 5a). A run where it does NOT fail said too little about the guarded
+// designs' own audits: the contention was too low to test anything.
+// ---------------------------------------------------------------------------
+
+type RecencyAudit struct {
+	Ran bool `json:"ran"`
+
+	// LastFlag designs (D20, D21, D24): donors whose flagged-row count is not
+	// exactly one, or whose flagged row is not their newest donation.
+	FlagDonorsChecked int64          `json:"flag_donors_checked,omitempty"`
+	FlagMismatches    int64          `json:"flag_mismatches,omitempty"`
+	FlagExamples      []FlagMismatch `json:"flag_mismatch_examples,omitempty"`
+
+	// RecencyRollupIdx designs (D22, D23): person.last_donation_at disagreeing
+	// with the donation table's own MAX. AuditRollups' existing person check
+	// never looked at this column -- it only checks donation_count and
+	// total_donated_cents -- so this is new coverage, not a change to what
+	// D4/D5's own published audits already meant.
+	RollupIdxRows       int64 `json:"rollup_idx_rows_checked,omitempty"`
+	RollupIdxMismatches int64 `json:"rollup_idx_mismatches,omitempty"`
+}
+
+type FlagMismatch struct {
+	PersonID     int64   `json:"person_id"`
+	FlaggedCount int     `json:"flagged_count"` // != 1 is already a violation
+	FlaggedIDs   []int64 `json:"flagged_donation_ids"`
+	TrueNewestID int64   `json:"true_newest_donation_id"`
+	Diagnosis    string  `json:"diagnosis"`
+}
+
+// AuditRecency runs whichever half applies to the design; both run for D24
+// only in the sense that a design is never both LastFlag and RecencyRollupIdx
+// at once (RECENCY.md's designs are one decision apart).
+func AuditRecency(ctx context.Context, pool *pgxpool.Pool, d Design) (*RecencyAudit, error) {
+	a := &RecencyAudit{}
+
+	if d.LastFlag {
+		a.Ran = true
+		const countSQL = `
+SELECT COUNT(*) AS donors_checked,
+       COUNT(*) FILTER (WHERE flagged <> 1 OR flagged_max IS DISTINCT FROM true_max) AS mismatches
+  FROM (
+    SELECT p.person_id,
+           COUNT(*) FILTER (WHERE d.is_last_donation) AS flagged,
+           MAX(d.donated_at) FILTER (WHERE d.is_last_donation) AS flagged_max,
+           MAX(d.donated_at) AS true_max
+      FROM person p
+      JOIN donation d ON d.person_id = p.person_id
+     GROUP BY p.person_id
+  ) s`
+		if err := pool.QueryRow(ctx, countSQL).Scan(&a.FlagDonorsChecked, &a.FlagMismatches); err != nil {
+			return nil, fmt.Errorf("recency flag audit: %w", err)
+		}
+		if a.FlagMismatches > 0 {
+			ex, err := flagMismatchExamples(ctx, pool, 10)
+			if err != nil {
+				return nil, err
+			}
+			a.FlagExamples = ex
+		}
+	}
+
+	if d.RecencyRollupIdx {
+		a.Ran = true
+		const q = `
+SELECT COUNT(*) AS checked,
+       COUNT(*) FILTER (WHERE p.last_donation_at IS DISTINCT FROM d.true_max) AS mismatches
+  FROM person p
+  LEFT JOIN (SELECT person_id, MAX(donated_at) AS true_max FROM donation GROUP BY person_id) d
+    ON d.person_id = p.person_id`
+		if err := pool.QueryRow(ctx, q).Scan(&a.RollupIdxRows, &a.RollupIdxMismatches); err != nil {
+			return nil, fmt.Errorf("recency rollup-index audit: %w", err)
+		}
+	}
+
+	return a, nil
+}
+
+// flagMismatchExamples returns up to limit donors whose flag invariant is
+// broken, with a diagnosis -- following AuditRecentCache's pattern (RECENCY.md
+// section 5: "a count alone has never been enough to diagnose one of these").
+func flagMismatchExamples(ctx context.Context, pool *pgxpool.Pool, limit int) ([]FlagMismatch, error) {
+	const q = `
+SELECT person_id, flagged_ids, true_newest_id FROM (
+    SELECT p.person_id,
+           COALESCE(ARRAY_AGG(d.donation_id ORDER BY d.donation_id) FILTER (WHERE d.is_last_donation), '{}') AS flagged_ids,
+           (SELECT d2.donation_id FROM donation d2
+             WHERE d2.person_id = p.person_id
+             ORDER BY d2.donated_at DESC, d2.donation_id DESC LIMIT 1) AS true_newest_id,
+           COUNT(*) FILTER (WHERE d.is_last_donation) AS flagged_count
+      FROM person p
+      JOIN donation d ON d.person_id = p.person_id
+     GROUP BY p.person_id
+) s
+WHERE flagged_count <> 1 OR NOT (true_newest_id = ANY(flagged_ids))
+LIMIT $1`
+	rows, err := pool.Query(ctx, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []FlagMismatch
+	for rows.Next() {
+		var m FlagMismatch
+		if err := rows.Scan(&m.PersonID, &m.FlaggedIDs, &m.TrueNewestID); err != nil {
+			return nil, err
+		}
+		m.FlaggedCount = len(m.FlaggedIDs)
+		m.Diagnosis = diagnoseFlagMismatch(m.FlaggedCount)
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// diagnoseFlagMismatch classifies a broken is_last_donation invariant by the
+// symptom alone (RECENCY.md section 5: "a count alone has never been enough
+// to diagnose one of these"). A pure function, unit tested directly.
+func diagnoseFlagMismatch(flaggedCount int) string {
+	switch {
+	case flaggedCount == 0:
+		return "no flagged donation: the flag was cleared but never moved forward"
+	case flaggedCount > 1:
+		return "more than one flagged donation for this donor -- the unguarded race (RECENCY.md D21)"
+	default:
+		return "flagged donation is not the donor's newest"
+	}
+}

@@ -26,7 +26,7 @@ done
 [[ "$RUN_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || die "unsafe run id"
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"
 for suite in ${EXPERIMENTS//,/ }; do
-  case "$suite" in verify|reads|mechanisms|growth|memory-control|contention|exceptions|deployment) ;; *) die "unknown experiment $suite" ;; esac
+  case "$suite" in verify|reads|mechanisms|growth|memory-control|contention|exceptions|deployment|recency-reads|recency-maintenance|recency-hot-donor|recency-placement) ;; *) die "unknown experiment $suite" ;; esac
 done
 need_podman
 run_lock_acquire "study-01 v3 $RUN_ID ($EXPERIMENTS)"
@@ -154,6 +154,65 @@ for ((t=1;t<=TRIALS;t++)); do
       if [[ "$topo" == yb-cluster3 ]]; then
         cell "$topo" "$budget" local-node-stop d3_flattened_fk arrival small "$t" 1 "-arrival-rate 100 -duration 30s"
       fi
+    done
+  fi
+
+  # --- v4: "who made their LAST donation in a period" (RECENCY.md) ---------
+
+  # q13-q16, both window regimes (the harness loops them internally). -queries
+  # restricts a "reads" phase to just these four, so a cell stays cheap even
+  # though every design's whole catalogue would answer them anyway. Shared by
+  # both recency-reads and recency-placement below.
+  recencyQ="q13_donors_last_gift_window,q14_donors_last_gift_window_count,q15_charity_donors_last_gift_window,q16_lapsed_donors_count"
+
+  if enabled recency-reads; then
+    # Every recency design plus the D3/D4/D5/D6/D9/D10 baselines the pairs in
+    # RECENCY.md section 4 compare against.
+    for topo in pg-single yb-single; do
+      order=0
+      for d in $(ordered "$t" d3_flattened_fk d4_rollup_trigger d5_rollup_app d6_embedded_jsonb d9_embedded_hybrid d10_embedded_hybrid_locked d18_recency_probe d19_recency_window_sql d20_recency_flag d21_recency_flag_unguarded d22_recency_rollup_idx d23_recency_rollup_app_idx); do
+        order=$((order+1)); cell "$topo" standard recency-reads "$d" reads small "$t" "$order" "-preparation analyze -queries $recencyQ"
+      done
+    done
+  fi
+
+  if enabled recency-maintenance; then
+    # Isolated writes on fresh loads: the ordinary insert, the backdated
+    # insert (flag must not move), delete (promotes the next-newest) and
+    # amount correction (flag must not move either). Every design here
+    # carries either LastFlag or RecencyRollupIdx, so main.go's write loop
+    # attaches AuditRecency after each op automatically.
+    order=0
+    for d in $(ordered "$t" d20_recency_flag d21_recency_flag_unguarded d22_recency_rollup_idx d23_recency_rollup_app_idx); do
+      order=$((order+1)); cell pg-single standard recency-maintenance "$d" writes small "$t" "$order" "-write-ops insert,insert_backdated,delete,update -duration 15s"
+    done
+  fi
+
+  if enabled recency-hot-donor; then
+    # Concurrent writers all inserting for the SAME donor, where the flag's
+    # (or the app-maintained rollup's) per-donor maintenance serialises.
+    # D20/D22 are trigger-maintained (pessimistic: a person-row lock);
+    # D23 is application-maintained (needs -strategy, like D5); D21 is the
+    # unguarded control, expected to leave two flagged rows for one donor
+    # (RECENCY.md section 5 -- methodology 5a's negative control).
+    for writers in 1 4 8 16; do
+      order=0
+      for d in $(ordered "$t" d20_recency_flag d21_recency_flag_unguarded d22_recency_rollup_idx); do
+        order=$((order+1)); cell pg-single standard "hot-donor-w${writers}" "$d" arrival small "$t" "$order" "-read-workers 0 -write-workers $writers -arrival-rate 500 -hot-probability 1 -hot-donors 1 -duration 20s"
+      done
+      cell pg-single standard "hot-donor-w${writers}" d23_recency_rollup_app_idx arrival small "$t" 1 "-strategy optimistic -read-workers 0 -write-workers $writers -arrival-rate 500 -hot-probability 1 -hot-donors 1 -duration 20s"
+    done
+  fi
+
+  if enabled recency-placement; then
+    # D20 -> D24 isolates data placement alone: identical SQL, the same flag
+    # and trigger, on yb-cluster3. Physical placement evidence and per-node
+    # CPU throttling are captured the same way D7's are (see infra/lib.sh's
+    # record_topology, already called for every cell above).
+    order=0
+    for d in $(ordered "$t" d20_recency_flag d24_recency_flag_colocated); do
+      order=$((order+1)); cell yb-cluster3 standard recency-placement "$d" reads small "$t" "$order" "-preparation analyze -queries $recencyQ"
+      cell yb-cluster3 standard recency-placement "$d" writes small "$t" "$order" "-write-ops insert -duration 20s"
     done
   fi
 done

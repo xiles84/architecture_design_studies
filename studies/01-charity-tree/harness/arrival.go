@@ -142,7 +142,7 @@ func benchmarkArrival(ctx context.Context, pool *pgxpool.Pool, d Design, ds *Dat
 		return nil, err
 	}
 	var retries atomic.Int64
-	insert := b.insertFn(pool, d, StmtMap(ws), opts, &retries)
+	insert := b.insertFn(pool, d, StmtMap(ws), opts, &retries, nil)
 	qsrc, err := readSQL(d.ID, "queries.sql")
 	if err != nil {
 		return nil, err

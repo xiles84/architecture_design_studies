@@ -105,6 +105,46 @@ type Binder struct {
 	FixedCharity   int64
 	HotPeople      []int64
 	HotProbability float64
+
+	// EpochEnd is the dataset's fixed generation horizon (RECENCY.md section 2).
+	// Recency windows are derived from it, never from time.Now(): the generated
+	// history ends at a fixed instant, and a wall-clock window would drift with
+	// the calendar and make two runs incomparable.
+	EpochEnd time.Time
+	// Regime selects which recency window readVals binds for q13-q16: "trailing"
+	// (until = EpochEnd) or "historical" (until well before it). Both regimes
+	// answer a genuinely different question -- see RECENCY.md section 2 for why
+	// a design that only gets one right is not credited with the question.
+	Regime string
+}
+
+const (
+	recencyWindow         = 7 * 24 * time.Hour
+	recencyHistoricalLead = 90 * 24 * time.Hour
+)
+
+// recencyQueries are benchmarked in BOTH window regimes (trailing and
+// historical), never once: q13/q14 are excluded from the study's original
+// twelve-question read score (harness/report.go's coreQueries) precisely so
+// that score keeps meaning what it meant.
+var recencyQueries = map[string]bool{
+	"q13_donors_last_gift_window":         true,
+	"q14_donors_last_gift_window_count":   true,
+	"q15_charity_donors_last_gift_window": true,
+	"q16_lapsed_donors_count":             true,
+}
+
+// recencyWindowFor returns (since, until) for the named regime, derived from
+// the dataset's own horizon rather than the wall clock. A free function (not a
+// Binder method) so verify.go's truth computation derives the identical window
+// without needing a Binder.
+func recencyWindowFor(epochEnd time.Time, regime string) (since, until time.Time) {
+	until = epochEnd
+	if regime == "historical" {
+		until = until.Add(-recencyHistoricalLead)
+	}
+	since = until.Add(-recencyWindow)
+	return since, until
 }
 
 func NewBinder(ds *Dataset) *Binder {
@@ -118,6 +158,8 @@ func NewBinder(ds *Dataset) *Binder {
 		b.personCharity[i] = ds.People[i].CharityID
 	}
 	b.nextDonation.Store(int64(len(ds.Donations)) + 1)
+	b.EpochEnd = epochEnd
+	b.Regime = "trailing"
 	return b
 }
 
@@ -141,10 +183,13 @@ func (b *Binder) readVals(r *rand.Rand) map[string]any {
 	if b.FixedCharity > 0 {
 		charity = b.FixedCharity
 	}
+	since, until := recencyWindowFor(b.EpochEnd, b.Regime)
 	return map[string]any{
 		"charity_id":  charity,
 		"person_id":   r.Int63n(b.People) + 1,
 		"donation_id": r.Int63n(b.Donations) + 1,
+		"since":       since,
+		"until":       until,
 	}
 }
 
@@ -381,15 +426,10 @@ func BenchmarkReads(ctx context.Context, pool *pgxpool.Pool, d Design, b *Binder
 		keep[q] = true
 	}
 
-	var out []QueryResult
-	for _, st := range stmts {
-		if len(keep) > 0 && !keep[st.Name] {
-			continue
-		}
-		st := st
-		sql := st.SQL
-		r := runLoop(ctx, o, st.Name, func(ctx context.Context, rnd *rand.Rand) error {
-			args, err := bind(st.Params, b.readVals(rnd))
+	run := func(name string, sql string, params []string, regime string) QueryResult {
+		b.Regime = regime
+		r := runLoop(ctx, o, name, func(ctx context.Context, rnd *rand.Rand) error {
+			args, err := bind(params, b.readVals(rnd))
 			if err != nil {
 				return err
 			}
@@ -406,7 +446,26 @@ func BenchmarkReads(ctx context.Context, pool *pgxpool.Pool, d Design, b *Binder
 		})
 		fmt.Printf("    %-30s %10.1f ops/s  p50=%7.3fms p99=%8.3fms  errors=%d%s\n",
 			r.Query, r.OpsPerSec, r.Latency.P50MS, r.Latency.P99MS, r.Errors, spreadNote(r))
-		out = append(out, r)
+		return r
+	}
+
+	var out []QueryResult
+	for _, st := range stmts {
+		if len(keep) > 0 && !keep[st.Name] {
+			continue
+		}
+		st := st
+		if recencyQueries[st.Name] {
+			// Both window regimes are measured, and neither substitutes for the
+			// other: in the trailing regime the cheap wrong answer is right by
+			// accident, and only the historical regime exposes a design that
+			// got the aggregate wrong (RECENCY.md section 2).
+			for _, regime := range []string{"trailing", "historical"} {
+				out = append(out, run(st.Name+"@"+regime, st.SQL, st.Params, regime))
+			}
+			continue
+		}
+		out = append(out, run(st.Name, st.SQL, st.Params, b.Regime))
 	}
 	return out, nil
 }
@@ -426,6 +485,9 @@ type WriteResult struct {
 	Skipped string `json:"skipped,omitempty"`
 	// Audit is the correctness check run on the state this op produced.
 	Audit *RollupAudit `json:"rollup_audit,omitempty"`
+	// RecencyAudit is set for LastFlag (D20/D21/D24) and RecencyRollupIdx
+	// (D22/D23) designs (RECENCY.md section 5); nil for every other design.
+	RecencyAudit *RecencyAudit `json:"recency_audit,omitempty"`
 }
 
 var errNoop = errors.New("statement affected no rows")
@@ -656,7 +718,16 @@ func (b *Binder) writeFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o Benc
 
 	switch op {
 	case "insert":
-		return b.insertFn(pool, d, w, o, retries), nil
+		return b.insertFn(pool, d, w, o, retries, nil), nil
+
+	case "insert_backdated":
+		// The existing w_insert_donation statement, with donated_at bound to a
+		// fixed instant before the dataset's own epoch start -- always older
+		// than every generated donation, so "the flag must not move" is an
+		// exact expectation, not a probabilistic one (RECENCY.md section 3).
+		// No new SQL in any design.
+		backdated := epochStart.Add(-24 * time.Hour)
+		return b.insertFn(pool, d, w, o, retries, func(*rand.Rand) time.Time { return backdated }), nil
 
 	case "update":
 		st := w["w_update_amount"]
@@ -742,7 +813,9 @@ func (b *Binder) writeFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o Benc
 // insertFn builds the append path for a design. This is where the designs stop
 // looking alike: one statement for D1-D4, a multi-statement transaction for D5,
 // and a whole-document rewrite for D6.
-func (b *Binder) insertFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o BenchOpts, retries *atomic.Int64) func(context.Context, *rand.Rand) error {
+// donatedAt overrides the timestamp bound for the inserted row; nil means "now"
+// (the ordinary hot-path insert). insert_backdated passes a fixed past instant.
+func (b *Binder) insertFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o BenchOpts, retries *atomic.Int64, donatedAt func(*rand.Rand) time.Time) func(context.Context, *rand.Rand) error {
 	ins := w["w_insert_donation"]
 
 	newDonation := func(r *rand.Rand) map[string]any {
@@ -751,13 +824,17 @@ func (b *Binder) insertFn(pool *pgxpool.Pool, d Design, w map[string]Stmt, o Ben
 			pid = b.HotPeople[r.Intn(len(b.HotPeople))]
 		}
 		note := noteTemplates[r.Intn(len(noteTemplates))]
+		at := time.Now().UTC()
+		if donatedAt != nil {
+			at = donatedAt(r)
+		}
 		return map[string]any{
 			"donation_id":  b.nextDonation.Add(1),
 			"person_id":    pid,
 			"charity_id":   b.personCharity[pid-1],
 			"amount_cents": int64(500 + r.Intn(500000)),
 			"currency":     "USD",
-			"donated_at":   time.Now().UTC(),
+			"donated_at":   at,
 			"note":         note,
 		}
 	}

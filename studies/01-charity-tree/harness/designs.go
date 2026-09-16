@@ -18,6 +18,8 @@ type Design struct {
 	AppRollup         bool // the harness, not a trigger, maintains the aggregates
 	RecentCache       bool // person carries a bounded newest-first cache of children
 	SumOnly           bool // only total_donated_cents is materialised; other reads use D3 SQL
+	LastFlag          bool // donation carries is_last_donation, maintained by a trigger (RECENCY.md)
+	RecencyRollupIdx  bool // D22/D23: person.last_donation_at gets a global index; audited for correctness like LastFlag
 }
 
 // recentCacheSize is the bound on D9's embedded slice. It is a design constant,
@@ -90,6 +92,50 @@ var designs = []Design{
 		Summary:           "D3's columns, with donation sharded by person_id so one person's donations share a tablet.",
 		Engines:           []string{"yugabyte"},
 		CharityOnDonation: true,
+	},
+
+	// --- v4: "who made their LAST donation in a period" (RECENCY.md) ---
+	{
+		ID: "d18_recency_probe", Title: "recency-probe",
+		Summary:           "D3's exact schema/indexes/writes; q13-q16 answered by a parent-driven probe (one index descent per donor).",
+		Engines:           []string{"postgres", "yugabyte"},
+		CharityOnDonation: true,
+	},
+	{
+		ID: "d19_recency_window_sql", Title: "recency-window-first",
+		Summary:           "D3's exact schema/indexes/writes; q13-q16 answered window-first, confirming each candidate is the donor's max.",
+		Engines:           []string{"postgres", "yugabyte"},
+		CharityOnDonation: true,
+	},
+	{
+		ID: "d20_recency_flag", Title: "recency-flag",
+		Summary:           "D3 plus donation.is_last_donation, a partial index, and a trigger that locks the donor's person row before moving the flag.",
+		Engines:           []string{"postgres", "yugabyte"},
+		CharityOnDonation: true, Triggers: true, LastFlag: true,
+	},
+	{
+		ID: "d21_recency_flag_unguarded", Title: "recency-flag-unguarded",
+		Summary:           "D20 with the person-row lock removed from the flag trigger -- negative control, expected to leave two flagged rows for one donor under concurrent inserts.",
+		Engines:           []string{"postgres", "yugabyte"},
+		CharityOnDonation: true, Triggers: true, LastFlag: true,
+	},
+	{
+		ID: "d22_recency_rollup_idx", Title: "recency-rollup-index",
+		Summary:           "D4 plus one index: person (last_donation_at DESC), a global access path onto an aggregate D4 already stores.",
+		Engines:           []string{"postgres", "yugabyte"},
+		CharityOnDonation: true, Rollups: true, Triggers: true, RecencyRollupIdx: true,
+	},
+	{
+		ID: "d23_recency_rollup_app_idx", Title: "recency-rollup-app-index",
+		Summary:           "D5 plus the same one index, on the application-maintained rollup -- trigger vs application maintenance of the same column.",
+		Engines:           []string{"postgres", "yugabyte"},
+		CharityOnDonation: true, Rollups: true, AppRollup: true, RecencyRollupIdx: true,
+	},
+	{
+		ID: "d24_recency_flag_colocated", Title: "recency-flag-colocated",
+		Summary:           "D20's flag with D7's placement: donation sharded by person_id. Isolates data placement alone.",
+		Engines:           []string{"yugabyte"},
+		CharityOnDonation: true, Triggers: true, LastFlag: true,
 	},
 }
 

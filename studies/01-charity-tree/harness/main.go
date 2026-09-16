@@ -19,30 +19,31 @@ import (
 // plans. A results file that needs external context to read is a results file
 // that will be misread later.
 type Run struct {
-	RunID       string            `json:"run_id"`
-	StartedAt   time.Time         `json:"started_at"`
-	FinishedAt  time.Time         `json:"finished_at"`
-	Environment string            `json:"environment"`
-	Engine      string            `json:"engine"`
-	Topology    string            `json:"topology"`
-	EngineVer   string            `json:"engine_version"`
-	DesignID    string            `json:"design_id"`
-	DesignTitle string            `json:"design_title"`
-	DesignNote  string            `json:"design_summary"`
-	Scale       string            `json:"scale"`
-	Dataset     map[string]any    `json:"dataset"`
-	Options     map[string]any    `json:"options"`
-	Load        *LoadPhases       `json:"load,omitempty"`
-	Verify      *VerifyReport     `json:"verify,omitempty"`
-	Stats       *DBStats          `json:"stats,omitempty"`
-	Reads       []QueryResult     `json:"reads,omitempty"`
-	Writes      []WriteResult     `json:"writes,omitempty"`
-	Audit       *RollupAudit      `json:"rollup_audit,omitempty"`
-	Mixed       []*MixedResult    `json:"mixed,omitempty"`
-	Explain     map[string]string `json:"explain,omitempty"`
-	Error       string            `json:"error,omitempty"`
-	Provenance  map[string]string `json:"provenance,omitempty"`
-	Experiment  *ExperimentResult `json:"experiment,omitempty"`
+	RunID        string            `json:"run_id"`
+	StartedAt    time.Time         `json:"started_at"`
+	FinishedAt   time.Time         `json:"finished_at"`
+	Environment  string            `json:"environment"`
+	Engine       string            `json:"engine"`
+	Topology     string            `json:"topology"`
+	EngineVer    string            `json:"engine_version"`
+	DesignID     string            `json:"design_id"`
+	DesignTitle  string            `json:"design_title"`
+	DesignNote   string            `json:"design_summary"`
+	Scale        string            `json:"scale"`
+	Dataset      map[string]any    `json:"dataset"`
+	Options      map[string]any    `json:"options"`
+	Load         *LoadPhases       `json:"load,omitempty"`
+	Verify       *VerifyReport     `json:"verify,omitempty"`
+	Stats        *DBStats          `json:"stats,omitempty"`
+	Reads        []QueryResult     `json:"reads,omitempty"`
+	Writes       []WriteResult     `json:"writes,omitempty"`
+	Audit        *RollupAudit      `json:"rollup_audit,omitempty"`
+	RecencyAudit *RecencyAudit     `json:"recency_audit,omitempty"`
+	Mixed        []*MixedResult    `json:"mixed,omitempty"`
+	Explain      map[string]string `json:"explain,omitempty"`
+	Error        string            `json:"error,omitempty"`
+	Provenance   map[string]string `json:"provenance,omitempty"`
+	Experiment   *ExperimentResult `json:"experiment,omitempty"`
 }
 
 func main() {
@@ -386,6 +387,17 @@ func execute(ctx context.Context, run *Run, d Design, dsn, cmd, scale string,
 					run.Audit = au
 				}
 			}
+			if (d.LastFlag || d.RecencyRollupIdx) && len(ws) > 0 && ws[0].Skipped == "" {
+				ra, err := AuditRecency(ctx, pool, d)
+				if err != nil {
+					return err
+				}
+				ws[0].RecencyAudit = ra
+				reportRecencyAudit(op, d, ra)
+				if run.RecencyAudit == nil || recencyAuditBad(ra) > recencyAuditBad(run.RecencyAudit) {
+					run.RecencyAudit = ra
+				}
+			}
 			run.Writes = append(run.Writes, ws...)
 		}
 	}
@@ -418,6 +430,32 @@ func reportAudit(op string, d Design, au *RollupAudit) {
 				op, au.CacheMismatches, au.CacheChecked)
 		}
 	}
+}
+
+func reportRecencyAudit(op string, d Design, ra *RecencyAudit) {
+	if d.LastFlag {
+		if ra.FlagMismatches == 0 {
+			fmt.Printf("    recency audit after %s: flag consistent (%d donors)\n", op, ra.FlagDonorsChecked)
+		} else {
+			fmt.Printf("    recency audit after %s: flag INCONSISTENT — %d of %d donors wrong\n",
+				op, ra.FlagMismatches, ra.FlagDonorsChecked)
+		}
+	}
+	if d.RecencyRollupIdx {
+		if ra.RollupIdxMismatches == 0 {
+			fmt.Printf("    recency audit after %s: last_donation_at consistent (%d rows)\n", op, ra.RollupIdxRows)
+		} else {
+			fmt.Printf("    recency audit after %s: last_donation_at INCONSISTENT — %d of %d rows wrong\n",
+				op, ra.RollupIdxMismatches, ra.RollupIdxRows)
+		}
+	}
+}
+
+func recencyAuditBad(ra *RecencyAudit) int64 {
+	if ra == nil {
+		return 0
+	}
+	return ra.FlagMismatches + ra.RollupIdxMismatches
 }
 
 // parseSplit reads a "readers:writers" worker split, e.g. "6:2".

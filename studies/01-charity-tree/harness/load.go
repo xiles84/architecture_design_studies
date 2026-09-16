@@ -204,12 +204,36 @@ func copyData(ctx context.Context, pool *pgxpool.Pool, d Design, ds *Dataset, lo
 	if d.CharityOnDonation {
 		dcols = []string{"donation_id", "person_id", "charity_id", "amount_cents", "currency", "donated_at", "note"}
 	}
+	if d.LastFlag {
+		dcols = append(dcols, "is_last_donation")
+	}
+	// lastFlag marks, for LastFlag designs, exactly the donations that are
+	// their donor's newest. The loader already knows this from
+	// DonationsByPerson (chronological, so the newest is the last index) --
+	// computing it here means the bulk load sets the flag directly, the way
+	// D4's rollups are loaded, instead of paying per-row trigger cost that
+	// would measure the loader rather than the design (RECENCY.md section 3).
+	var lastFlag []bool
+	if d.LastFlag {
+		lastFlag = make([]bool, len(ds.Donations))
+		for _, idxs := range ds.DonationsByPerson {
+			if len(idxs) > 0 {
+				lastFlag[idxs[len(idxs)-1]] = true
+			}
+		}
+	}
 	row := func(i int) ([]any, error) {
 		v := ds.Donations[i]
+		var out []any
 		if d.CharityOnDonation {
-			return []any{v.ID, v.PersonID, v.CharityID, v.AmountCents, v.Currency, v.DonatedAt, v.Note}, nil
+			out = []any{v.ID, v.PersonID, v.CharityID, v.AmountCents, v.Currency, v.DonatedAt, v.Note}
+		} else {
+			out = []any{v.ID, v.PersonID, v.AmountCents, v.Currency, v.DonatedAt, v.Note}
 		}
-		return []any{v.ID, v.PersonID, v.AmountCents, v.Currency, v.DonatedAt, v.Note}, nil
+		if d.LastFlag {
+			out = append(out, lastFlag[i])
+		}
+		return out, nil
 	}
 	return parallelCopy(ctx, pool, "donation", dcols, len(ds.Donations), loadConns, row)
 }

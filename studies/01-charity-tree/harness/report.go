@@ -33,6 +33,14 @@ var designOrder = []string{
 	"d9_embedded_hybrid",
 	"d10_embedded_hybrid_locked",
 	"d7_yb_child_colocated",
+	// v4: "who made their LAST donation in a period" (RECENCY.md)
+	"d18_recency_probe",
+	"d19_recency_window_sql",
+	"d20_recency_flag",
+	"d21_recency_flag_unguarded",
+	"d22_recency_rollup_idx",
+	"d23_recency_rollup_app_idx",
+	"d24_recency_flag_colocated",
 }
 
 var designShort = map[string]string{
@@ -47,6 +55,13 @@ var designShort = map[string]string{
 	"d9_embedded_hybrid":         "D9 hybrid",
 	"d10_embedded_hybrid_locked": "D10 hybrid/locked",
 	"d7_yb_child_colocated":      "D7 yb-coloc",
+	"d18_recency_probe":          "D18 recency probe",
+	"d19_recency_window_sql":     "D19 recency window",
+	"d20_recency_flag":           "D20 recency flag",
+	"d21_recency_flag_unguarded": "D21 flag/unguarded",
+	"d22_recency_rollup_idx":     "D22 rollup+idx",
+	"d23_recency_rollup_app_idx": "D23 rollup+idx/app",
+	"d24_recency_flag_colocated": "D24 flag/yb-coloc",
 }
 
 var topologyOrder = []string{"pg-single", "yb-single", "yb-cluster3"}
@@ -72,6 +87,30 @@ var queryQuestion = map[string]string{
 	"q10_donation_by_id":          "Donation by id (point lookup)",
 	"q11_person_donation_count":   "How many donations a person made",
 	"q12_charity_recent_feed":     "Charity activity feed (last 50, with names)",
+}
+
+// coreQueries is the study's ORIGINAL twelve questions. geomeanReads is
+// defined over exactly this set, on purpose: every already-published read
+// score in this study means "geometric mean across these twelve", and q13-q16
+// (RECENCY.md, v4) must never silently join that average and change what a
+// past score meant. See experiment_test.go's geomean-unchanged test.
+var coreQueries = map[string]bool{
+	"q01_last_donation_global": true, "q02_last_donation_charity": true,
+	"q03_top_donor_charity": true, "q04_top_donors_leaderboard": true,
+	"q05_last_donor_charity": true, "q06_person_first_last": true,
+	"q07_total_donated_global": true, "q08_total_donated_charity": true,
+	"q09_person_recent_donations": true, "q10_donation_by_id": true,
+	"q11_person_donation_count": true, "q12_charity_recent_feed": true,
+}
+
+// recencyQueryQuestion labels q13-q16 (RECENCY.md); reported separately from
+// queryQuestion's twelve, in their own section, with the window regime
+// (trailing/historical) they were measured under attached to the result name.
+var recencyQueryQuestion = map[string]string{
+	"q13_donors_last_gift_window":         "Donors whose last gift falls in a period",
+	"q14_donors_last_gift_window_count":   "How many donors, same question (no early exit)",
+	"q15_charity_donors_last_gift_window": "Same, restricted to one charity",
+	"q16_lapsed_donors_count":             "Donors whose last gift is BEFORE a date (lapsed)",
 }
 
 type resultSet struct {
@@ -345,6 +384,9 @@ func writeReport(resultsDir, outPath string) error {
 		fmt.Fprintf(&b, "\n")
 	}
 
+	// -- recency (v4, RECENCY.md) ----------------------------------------------
+	recencyTradeoff(&b, rs)
+
 	// -- writes ---------------------------------------------------------------
 	fmt.Fprintf(&b, "## Write throughput (ops/s, higher is better)\n\n")
 	fmt.Fprintf(&b, "`insert` appends a donation, `update` corrects one amount, `delete` removes one\n")
@@ -492,6 +534,9 @@ func geomeanReads(r *Run) float64 {
 	}
 	sum, n := 0.0, 0
 	for i := range r.Reads {
+		if !coreQueries[r.Reads[i].Query] {
+			continue
+		}
 		if v := r.Reads[i].OpsPerSec; v > 0 {
 			sum += math.Log(v)
 			n++
@@ -566,6 +611,139 @@ func writeTradeoff(b *strings.Builder, rs *resultSet) {
 	}
 }
 
+// recencyTradeoff reports q13-q16 (RECENCY.md, v4) -- "who made their last
+// donation in a period" -- entirely separately from the study's original
+// twelve questions. Two window regimes are shown per question (trailing and
+// historical, see RECENCY.md section 2): a design that only gets the trailing
+// regime right is not credited with the question.
+func recencyTradeoff(b *strings.Builder, rs *resultSet) {
+	hasAny := false
+	for _, t := range rs.topologies {
+		if len(sortedRecencyQueries(rs, t)) > 0 {
+			hasAny = true
+			break
+		}
+	}
+	if !hasAny {
+		return
+	}
+
+	fmt.Fprintf(b, "## Recency: who made their last donation in a period\n\n")
+	fmt.Fprintf(b, "The owner's question (2026-09-15): donors whose LAST gift falls in a window.\n")
+	fmt.Fprintf(b, "Measured in two regimes that are NOT the same question -- see\n")
+	fmt.Fprintf(b, "[RECENCY.md](../RECENCY.md) section 2 -- because the cheap wrong answer\n")
+	fmt.Fprintf(b, "(\"donated in the window\") is accidentally right in the trailing regime and\n")
+	fmt.Fprintf(b, "wrong in the historical one. These four questions are reported separately from\n")
+	fmt.Fprintf(b, "the study's original twelve and are **not** part of the read score above.\n\n")
+
+	for _, t := range rs.topologies {
+		qs := sortedRecencyQueries(rs, t)
+		if len(qs) == 0 {
+			continue
+		}
+		ds := rs.designsIn(t)
+		fmt.Fprintf(b, "### %s\n\n", topologyLabel[t])
+		fmt.Fprintf(b, "| Question | Regime | ")
+		for _, d := range ds {
+			fmt.Fprintf(b, "%s | ", designShort[d])
+		}
+		fmt.Fprintf(b, "Winner |\n|---|---|")
+		for range ds {
+			fmt.Fprintf(b, "---:|")
+		}
+		fmt.Fprintf(b, "---|\n")
+		for _, q := range qs {
+			for _, regime := range []string{"trailing", "historical"} {
+				name := q + "@" + regime
+				bestOps, bestDesign := -1.0, ""
+				fmt.Fprintf(b, "| %s | %s | ", recencyQueryQuestion[q], regime)
+				for _, d := range ds {
+					qr := readOf(rs.runs[t][d], name)
+					if qr == nil {
+						fmt.Fprintf(b, "— | ")
+						continue
+					}
+					fmt.Fprintf(b, "%s | ", fmtOps(qr.OpsPerSec))
+					if qr.OpsPerSec > bestOps {
+						bestOps, bestDesign = qr.OpsPerSec, designShort[d]
+					}
+				}
+				if bestDesign == "" {
+					fmt.Fprintf(b, "— |\n")
+				} else {
+					fmt.Fprintf(b, "%s |\n", bestDesign)
+				}
+			}
+		}
+		fmt.Fprintf(b, "\n")
+
+		// Maintenance cost: the ordinary insert against the same design's
+		// backdated insert (must leave the flag alone) sit side by side, so a
+		// design's write price for this question is visible where its read
+		// price is.
+		haveMaint := false
+		for _, d := range ds {
+			if writeOf(rs.runs[t][d], "insert_backdated") != nil {
+				haveMaint = true
+				break
+			}
+		}
+		if haveMaint {
+			fmt.Fprintf(b, "**Maintenance cost** (ops/s, higher is better):\n\n")
+			fmt.Fprintf(b, "| Operation | ")
+			for _, d := range ds {
+				fmt.Fprintf(b, "%s | ", designShort[d])
+			}
+			fmt.Fprintf(b, "\n|---|")
+			for range ds {
+				fmt.Fprintf(b, "---:|")
+			}
+			fmt.Fprintf(b, "\n")
+			for _, op := range []string{"insert", "insert_backdated"} {
+				fmt.Fprintf(b, "| %s | ", writeOpLabel[op])
+				for _, d := range ds {
+					wr := writeOf(rs.runs[t][d], op)
+					if wr == nil {
+						fmt.Fprintf(b, "— | ")
+						continue
+					}
+					fmt.Fprintf(b, "%s | ", fmtOps(wr.OpsPerSec))
+				}
+				fmt.Fprintf(b, "\n")
+			}
+			fmt.Fprintf(b, "\n")
+		}
+
+		// Audit outcomes: the negative control (D21) MUST be seen to fail
+		// this, or the run says too little about the guarded designs' own
+		// clean audits (methodology 5a).
+		haveAudit := false
+		for _, d := range ds {
+			if rs.runs[t][d].RecencyAudit != nil {
+				haveAudit = true
+				break
+			}
+		}
+		if haveAudit {
+			fmt.Fprintf(b, "**Recency audit** (after the maintenance writes above):\n\n")
+			fmt.Fprintf(b, "| Design | Checked | Mismatches |\n|---|---:|---:|\n")
+			for _, d := range ds {
+				ra := rs.runs[t][d].RecencyAudit
+				if ra == nil {
+					continue
+				}
+				checked, bad := ra.FlagDonorsChecked+ra.RollupIdxRows, ra.FlagMismatches+ra.RollupIdxMismatches
+				mark := "✅"
+				if bad > 0 {
+					mark = "❌"
+				}
+				fmt.Fprintf(b, "| %s | %d | %s %d |\n", designShort[d], checked, mark, bad)
+			}
+			fmt.Fprintf(b, "\n")
+		}
+	}
+}
+
 // pair is a comparison between two designs that differ in exactly one decision.
 type pair struct{ a, bb, question string }
 
@@ -589,6 +767,16 @@ var pairs = []pair{
 	{"d3_flattened_fk", "d9_embedded_hybrid", "What does a bounded embedded cache buy and cost?"},
 	{"d9_embedded_hybrid", "d10_embedded_hybrid_locked", "What does making the cache trigger concurrency-correct cost?"},
 	{"d3_flattened_fk", "d7_yb_child_colocated", "What does sharding children next to their parent buy?"},
+	// v4: "who made their LAST donation in a period" (RECENCY.md)
+	{"d3_flattened_fk", "d18_recency_probe", "SQL formulation alone: a parent-driven probe, identical schema"},
+	{"d3_flattened_fk", "d19_recency_window_sql", "SQL formulation alone: window-first, identical schema"},
+	{"d18_recency_probe", "d19_recency_window_sql", "Which formulation suits which window regime?"},
+	{"d3_flattened_fk", "d20_recency_flag", "What does materialising 'is this donor's last gift' on the child buy and cost?"},
+	{"d20_recency_flag", "d21_recency_flag_unguarded", "What does the guard (a person-row lock) cost, and what breaks without it?"},
+	{"d4_rollup_trigger", "d22_recency_rollup_idx", "One index: does D4's own stored rollup already answer this, given a global access path?"},
+	{"d5_rollup_app", "d23_recency_rollup_app_idx", "The same one index, trigger vs application maintenance"},
+	{"d20_recency_flag", "d22_recency_rollup_idx", "Where should the derived fact live: on the child (a flag) or the parent (a rollup)?"},
+	{"d20_recency_flag", "d24_recency_flag_colocated", "Data placement alone, identical SQL (YugabyteDB)"},
 }
 
 // noiseFloor measures this run's own error bar, empirically, from the D4/D5
@@ -726,14 +914,37 @@ func writePairs(b *strings.Builder, rs *resultSet) {
 	}
 }
 
+// sortedQueries lists the ORIGINAL twelve questions present in a topology's
+// results. Restricted to coreQueries so the study's long-standing "read
+// throughput by question" and tail-latency tables never silently grow rows
+// for q13-q16 (RECENCY.md, v4) -- those get their own section, below.
 func sortedQueries(rs *resultSet, topo string) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, d := range rs.designsIn(topo) {
 		for _, q := range rs.runs[topo][d].Reads {
-			if !seen[q.Query] {
+			if coreQueries[q.Query] && !seen[q.Query] {
 				seen[q.Query] = true
 				out = append(out, q.Query)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// sortedRecencyQueries lists the recency result names actually present
+// (base query names, e.g. "q13_donors_last_gift_window", without the
+// "@regime" suffix -- the caller looks up each regime explicitly).
+func sortedRecencyQueries(rs *resultSet, topo string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, d := range rs.designsIn(topo) {
+		for _, q := range rs.runs[topo][d].Reads {
+			base, _, ok := strings.Cut(q.Query, "@")
+			if ok && recencyQueryQuestion[base] != "" && !seen[base] {
+				seen[base] = true
+				out = append(out, base)
 			}
 		}
 	}
@@ -774,4 +985,8 @@ var writeOpLabel = map[string]string{
 	"delete":        "remove one donation",
 	"update_person": "donor edits their profile",
 	"delete_person": "erase a donor and all their donations",
+	// v4 (RECENCY.md): the existing insert statement with a fixed past
+	// donated_at, always older than every generated donation -- proves a
+	// LastFlag design's "the flag must not move" claim, rather than assuming it.
+	"insert_backdated": "insert a backdated donation (flag must not move)",
 }

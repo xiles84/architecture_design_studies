@@ -1,0 +1,73 @@
+@startuml d22_recency_rollup_idx
+!include _style.puml
+title D22 — recency-rollup-index  (one index on an aggregate D4 already stores)
+
+entity "charity" as c {
+  * charity_id : BIGINT <<PK>>
+  --
+  * name : TEXT
+  * country : TEXT
+  * founded_on : DATE
+  --
+  <back:#D8F0DE>* donation_count : BIGINT</back>
+  <back:#D8F0DE>* total_donated_cents : BIGINT</back>
+  <back:#D8F0DE>last_donation_id : BIGINT</back>
+  <back:#D8F0DE>last_donation_at : TIMESTAMPTZ</back>
+  <back:#D8F0DE>last_donor_person_id : BIGINT</back>
+}
+entity "person" as p {
+  * person_id : BIGINT <<PK>>
+  --
+  * charity_id : BIGINT <<FK>>
+  * full_name : TEXT
+  * email : TEXT
+  * joined_at : TIMESTAMPTZ
+  --
+  <back:#D8F0DE>* donation_count : BIGINT</back>
+  <back:#D8F0DE>* total_donated_cents : BIGINT</back>
+  <back:#D8F0DE>first_donation_at : TIMESTAMPTZ</back>
+  <back:#D8F0DE>last_donation_at : TIMESTAMPTZ</back>
+  <back:#D8F0DE>last_donation_id : BIGINT</back>
+}
+entity "donation" as d {
+  * donation_id : BIGINT <<PK>>
+  --
+  * person_id : BIGINT <<FK>>
+  * charity_id : BIGINT <<FK>>
+  * amount_cents : BIGINT
+  * currency : CHAR(3)
+  * donated_at : TIMESTAMPTZ
+  note : TEXT
+}
+c ||--o{ p
+p ||--o{ d
+c ||..o{ d
+
+d -[#B03A2E,thickness=2]-> p : "AFTER INSERT/UPDATE/DELETE\ntrigger updates 1 person row (D4, unchanged)"
+d -[#B03A2E,thickness=2]-> c : "...and 1 charity row"
+
+note right of p
+  **all D4 columns and indexes, plus ONE line:**
+  **+ person_last_donation_global_idx** (last_donation_at DESC)
+
+  D4 already MAINTAINS last_donation_at on every write —
+  q06 already reads it, per-person. What it never had is
+  a GLOBAL access path: person_last_donation_idx is
+  (charity_id, last_donation_at DESC), scoped to one
+  charity, and q13/q14/q16 (RECENCY.md) ask across all of
+  them.
+
+  This is the whole design: one index, zero new
+  maintenance. Compare against D20 (a flag materialised
+  on the CHILD, with its own trigger and write cost) —
+  see the D20 -> D22 pair in RECENCY.md section 4.
+end note
+
+note bottom of d
+  d23_recency_rollup_app_idx is the same one-line index,
+  on D5's APPLICATION-maintained rollup instead of D4's
+  trigger — reads byte-identical, so any measured
+  difference between D22 and D23 is the concurrency
+  strategy (trigger vs application), not the SQL.
+end note
+@enduml

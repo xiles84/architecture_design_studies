@@ -90,6 +90,10 @@ aggregation — at read time, at write time, or never.
 | q10 | Donation by id — point lookup *(the control)* |
 | q11 | How many donations a person made |
 | q12 | Charity activity feed — last 50 donations with donor names |
+| q13 | Donors whose LAST gift falls in a period *(RECENCY.md, v4)* |
+| q14 | The same, as a count (no early exit) |
+| q15 | The same, restricted to one charity |
+| q16 | Donors whose last gift is BEFORE a date (lapsed) |
 
 ### Writes the study measures
 
@@ -131,6 +135,13 @@ views or time-bucketed tables ("how much between two dates"). The point here is 
 | **D9** | [embedded-hybrid](diagrams/rendered/d9_embedded_hybrid.svg) | A **bounded** 20-element newest-first cache on `person`; the table stays. |
 | **D10** | [embedded-hybrid-locked](diagrams/rendered/d10_embedded_hybrid_locked.svg) | D9 with a **concurrency-correct** cache trigger. D9's original trigger silently corrupted caches under concurrent writes. |
 | **D7** | [yb-child-colocated](diagrams/rendered/d7_yb_child_colocated.svg) | D3's columns; donation's **PRIMARY KEY rebuilt for data placement**. YugabyteDB only. |
+| **D18** | recency-probe | D3's exact schema; q13–q16 answered by a **parent-driven probe** (one index descent per donor). |
+| **D19** | recency-window-first | D3's exact schema; q13–q16 answered **window-first**, confirming each candidate is the donor's max. |
+| **D20** | [recency-flag](diagrams/rendered/d20_recency_flag.svg) | D3 + `is_last_donation` on `donation`, a **partial index**, and a trigger that **locks the donor's person row** first. The owner's proposal. |
+| **D21** | recency-flag-unguarded | D20 with the person-row lock **removed** — negative control. |
+| **D22** | [recency-rollup-index](diagrams/rendered/d22_recency_rollup_idx.svg) | D4 + **one index** on `last_donation_at`, an aggregate D4 already stores but has no global access path to. |
+| **D23** | recency-rollup-app-index | D5 + the same one index, on the **application-maintained** rollup. |
+| **D24** | recency-flag-colocated | D20's flag with D7's **data placement**. YugabyteDB only. |
 
 D6 and D9 are the two ends of the embedding question. D6 takes it to its conclusion and
 meets unbounded write amplification: appending one donation rewrites a document that grows
