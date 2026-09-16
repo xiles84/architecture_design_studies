@@ -4,6 +4,17 @@
 **Environment:** [`host-zenbook-ux5406sa`](../../docs/environments/host-zenbook-ux5406sa.md)
 **Engines:** PostgreSQL 17.11 · YugabyteDB 2025.2.6.0 (1 node and 3 nodes, RF=3)
 
+## v4 in planning — "who donated last in a period"
+
+The owner asked on 2026-09-15 for the question *"which people made their LAST donation
+last week (or another period)"*, and offered a candidate design: a `last_donation` flag on
+`donation`, indexed. [`RECENCY.md`](RECENCY.md) is the protocol that answers it — the
+exact semantics (two window regimes, and why the cheap answer is right in one and wrong in
+the other), seven new designs including the owner's flag and its unguarded negative
+control, the controlled pairs, the correctness gate and audit, the experiments and the
+limitations. No result exists yet; implementation is
+[EH-02](../../docs/handoffs/20260915-recency-and-reports/HANDOFF.md).
+
 ## v3 follow-ups
 
 The local follow-ups are complete at `study-01/v3-enhancements`:

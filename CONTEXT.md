@@ -80,6 +80,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/03-reserved-seating/20260916T000706Z` | commit that produced study 03's ER-04 repair run (`4044dd5`) |
 | `study-03/v1.1-repairs` | study 03: AM-03 harness, both repair runs, regenerated reports, and results/reports pinned to LF |
 | `study-03/v1-analysis` | study 03: signed analysis of the small matrix, report index, README and context complete |
+| `repo/recency-reports-handoff-v1` | HIGH planning checkpoint: study 01's recency protocol, studies 02/03 reporting protocols and EH-02, before any code |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -186,6 +187,29 @@ directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/`
 `run-study.sh`, `results/<run-id>/`, `reports/`.
 
 ## Current state
+
+### Task in progress — recency question and operational reports (from 2026-09-15)
+
+**Worktree `.worktrees/recency-reports`, branch `repo/recency-and-reports`, from `7123da6`.**
+Owner's request of 2026-09-15: study 01 gains the question *"which people made their last
+donation in a period"* (their own suggestion — a `last_donation` flag on `donation`,
+indexed — measured as one design among several), and studies 02 and 03 gain the reports a
+real operation asks for.
+
+- Planning is published: [`studies/01-charity-tree/RECENCY.md`](studies/01-charity-tree/RECENCY.md),
+  [`studies/02-ticket-booking/REPORTS.md`](studies/02-ticket-booking/REPORTS.md),
+  [`studies/03-reserved-seating/REPORTS.md`](studies/03-reserved-seating/REPORTS.md) and
+  [EH-02](docs/handoffs/20260915-recency-and-reports/HANDOFF.md) with its
+  [progress](docs/handoffs/20260915-recency-and-reports/PROGRESS.md) and
+  [escalation log](docs/handoffs/20260915-recency-and-reports/ESCALATIONS.md).
+- **Phase 1 (authorised, LOW):** study 01 implementation — four new statements appended to
+  every existing catalogue, seven new designs (D18–D24), loader/verifier/audit/report/
+  runner changes, dev checks on `tiny` across all three topologies, and a `small`
+  calibration. It ends at a checkpoint tag `study-01/v4-harness`; it does **not** merge to
+  `main` and produces no reported run.
+- **Phases 2 and 3 (not authorised yet):** the measured study-01 recency matrix, and
+  studies 02/03's report queries. HIGH sizes them from phase 1's calibration.
+- Nothing is running; no benchmark lock was taken by this task.
 
 ### Study 01 — tree structures (charity → person → donation)
 

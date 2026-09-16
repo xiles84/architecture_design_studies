@@ -9,6 +9,16 @@
 
 ---
 
+## v2 in planning — the reports the box office asks for
+
+The owner asked on 2026-09-15 for the queries and reports a real reserved-seating
+operation needs. [`REPORTS.md`](REPORTS.md) is the protocol: six operational reports added
+to every design, and the answerability finding that comes with them — **releasing an
+expired hold erases it, so the abandonment funnel that decides how long a checkout window
+should be cannot be computed from any design's state**. No result exists yet.
+
+---
+
 ## The question
 
 A show company sells **reserved seats**: every ticket is for one physical seat — section,

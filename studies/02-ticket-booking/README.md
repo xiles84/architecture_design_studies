@@ -7,6 +7,16 @@
 
 ---
 
+## v2 in planning — the reports the back office asks for
+
+The owner asked on 2026-09-15 for the queries and reports a real ticketing operation
+needs. [`REPORTS.md`](REPORTS.md) is the protocol: six operational reports added to every
+design, the answerability table they produce — **no current design can report refunds,
+because cancelling a ticket erases the sale** — and one new design (X1) that adds an
+append-only sale ledger to P3 so that it can. No result exists yet.
+
+---
+
 ## The question
 
 A show company sells **general-admission** tickets — no buyer chooses a place; see
