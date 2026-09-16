@@ -44,7 +44,15 @@ func verifyReports(ctx context.Context, db ports.DB, d Design, ds *Dataset, q ma
 			st := ds.State[ev.ID]
 			wantHeld := 0
 			for _, s := range st {
-				if s == stLive {
+				// stExpired counts too, EXCEPT for a design whose expiry only
+				// takes effect on a sweep (d.ExpiryOnSweeper, E1): the harness
+				// runs that design's sweeper to completion before Verify, so
+				// its expired holds are already status='available' by the
+				// time this check runs, and every other design's are not --
+				// expiry there is lazy, so a row whose true expiry already
+				// passed still reads status='held' until something sweeps it,
+				// which is exactly what an operations desk needs to see.
+				if s == stLive || (s == stExpired && !d.ExpiryOnSweeper) {
 					wantHeld++
 				}
 			}

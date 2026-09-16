@@ -32,27 +32,6 @@ CREATE TABLE event (
     description  TEXT NOT NULL
 );
 
-CREATE TABLE band (
-    band_id  BIGINT PRIMARY KEY,
-    name     TEXT NOT NULL,
-    genre    TEXT NOT NULL,
-    country  TEXT NOT NULL
-);
-
-CREATE TABLE event (
-    event_id     BIGINT PRIMARY KEY,
-    band_id      BIGINT NOT NULL REFERENCES band (band_id),
-    name         TEXT NOT NULL,
-    venue        TEXT NOT NULL,
-    starts_at    TIMESTAMPTZ NOT NULL,
-    capacity     INT NOT NULL CHECK (capacity > 0),
-    price_cents  BIGINT NOT NULL,
-    -- Edited by the organiser while a sale is running (the race's "editor").
-    -- In designs that keep a counter on this row, those edits contend with
-    -- bookings; here they do not.
-    description  TEXT NOT NULL
-);
-
 CREATE TABLE ticket (
     ticket_id    BIGINT PRIMARY KEY,
     event_id     BIGINT NOT NULL REFERENCES event (event_id),
