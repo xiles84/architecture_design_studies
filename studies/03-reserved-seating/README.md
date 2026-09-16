@@ -245,7 +245,13 @@ Podman is the only prerequisite. See [docs/replication.md](../../docs/replicatio
 ## Results and conclusions
 
 Generated reports hold numbers only. Conclusions belong in signed analyses under
-[`reports/analyses/`](reports/analyses/); none yet.
+[`reports/analyses/`](reports/analyses/):
+
+- [claude-opus-5, 2026-09-16](reports/analyses/20260915T002411Z--claude-opus-5--2026-09-16.md) —
+  on YugabyteDB a guarded confirmation is not enough: every correct design refused valid holds,
+  and retrying the refused statement once (S1r) removed every refusal at no measurable cost;
+  on PostgreSQL the guarantee held everywhere. A second analyst is invited to disagree,
+  especially about L3.
 
 | Run | What | Extra flags and handoff rules | Report | Inputs digest | Notes |
 |---|---|---|---|---|---|

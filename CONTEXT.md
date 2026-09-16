@@ -79,6 +79,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/03-reserved-seating/20260915T232736Z` | commit that produced study 03's ER-03 repair run (`4044dd5`) |
 | `run/03-reserved-seating/20260916T000706Z` | commit that produced study 03's ER-04 repair run (`4044dd5`) |
 | `study-03/v1.1-repairs` | study 03: AM-03 harness, both repair runs, regenerated reports, and results/reports pinned to LF |
+| `study-03/v1-analysis` | study 03: signed analysis of the small matrix, report index, README and context complete |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -169,7 +170,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — built on platform/; measured, repairs done; next HIGH: the signed analysis
+  03-reserved-seating/    study 03 (see below) — built on platform/; measured and analysed (v1-analysis)
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -509,10 +510,26 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-16, 00:45 UTC): measurement complete; ready for the signed analysis.** Every
-escalation is decided and executed: ER-01 (AM-01), ER-02 (AM-02), ER-03 and ER-04 (AM-03). Next:
-HIGH (Claude Opus 5, `ultracode`) — validate and write the analysis. Nothing is running; the
-benchmark lock is free.
+**Status (2026-09-16, 01:30 UTC): complete — measured, analysed and signed** (tag
+`study-03/v1-analysis`). Every escalation is decided and executed: ER-01 (AM-01), ER-02 (AM-02),
+ER-03 and ER-04 (AM-03). The signed analysis is
+[`20260915T002411Z--claude-opus-5--2026-09-16`](studies/03-reserved-seating/reports/analyses/20260915T002411Z--claude-opus-5--2026-09-16.md).
+Nothing is running; the benchmark lock is free.
+
+**What study 03 concluded** (details in the analysis):
+
+- On YugabyteDB every correct design refused holds that were valid, and every such refusal was
+  transient — the same statement moments later matched all the seats. PostgreSQL showed none.
+- S1r, which retries a short confirmation once, recorded zero refusals; all 140 retries sold, at
+  a cost inside the trial spread. It is the recommended defence on YugabyteDB.
+- Publishing, not selling, separates the layouts: a 100 000-seat event costs 541 ms (PostgreSQL)
+  and 3 216 ms (YugabyteDB) with per-seat rows against 0.89 ms and 1.56 ms for claim-on-hold.
+- Avoid a JSONB section document for hot selling (28 976–33 712 compare-and-set retries per race
+  tier on the cluster), and SERIALIZABLE on YugabyteDB (0.0–0.1 seats/s, every event timed out).
+
+**Open for a future session:** a second analyst's view is invited, especially on L3, whose 4–8×
+slowdown under contention this analysis reports without explaining. The analysis lists five next
+experiments.
 
 | Run | What | Result | Inputs digest |
 |---|---|---|---|
