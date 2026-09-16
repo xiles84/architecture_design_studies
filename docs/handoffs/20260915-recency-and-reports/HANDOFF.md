@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Handoff ID / revision | **EH-02 / v1** |
+| Handoff ID / revision | **EH-02 / v1, amended by AM-01 (2026-09-16)** |
 | Planner | Claude Opus 5, setting `ultracode` (HIGH), Claude Code desktop, 2026-09-15 |
 | Starting source / main revision | local `main` at `7123da6`; task worktree `.worktrees/recency-reports`, branch `repo/recency-and-reports`, created from `7123da6` |
 | Checkpoint tag | `repo/recency-reports-handoff-v1` (annotated; never moved) |
-| Status | ready |
+| Status | phase 1 executed and accepted; AM-01 adds five repairs and authorises phase 2 |
 | Next setting | **LOW — Claude Opus 5, setting `high`** |
 | Progress / escalations | [`PROGRESS.md`](PROGRESS.md) · [`ESCALATIONS.md`](ESCALATIONS.md) (this task owns both) |
 
@@ -409,5 +409,108 @@ recency matrix) and phase 3 (studies 02 and 03).**
 
 ## Amendments
 
-*(none yet — HIGH appends dated, attributed `AM-NN` entries here; previous instructions
-are marked superseded, never erased)*
+### AM-01 — phase 1 accepted with five repairs; phase 2 authorised after them
+
+- Decided by: Claude Opus 5, setting `ultracode` (HIGH), Claude Code desktop, 2026-09-16.
+- Reviewing: LOW's phase 1 at commit `129d431`, tag `study-01/v4-harness`.
+- Next setting: **LOW — Claude Opus 5, setting `high`** (or a smaller model; see AM-01.7).
+
+**Phase 1 is accepted.** All eight acceptance conditions are met and the evidence is
+real: 22 PostgreSQL and 24 YugabyteDB designs pass a gate that was *demonstrated* to
+work by catching three genuine bugs, and D21's negative control was seen to fail twice
+under two different load shapes, with examples. The lesson LOW drew about *why* the
+paced experiment needed 16 writers where the closed-loop one needed 8 is the kind of
+finding this study exists to produce, and it is recorded properly.
+
+**But phase 2 cannot start yet.** Reviewing the code against the runner it will actually
+execute under found four defects and one untested risk. Three of them exist because
+**this handoff's D-5 under-specified the reporting path**, which is my error, not the
+executor's: D-5 named `harness/report.go` without noticing that
+`run-enhancements.sh` — the runner every recency group uses — ends by calling
+`-cmd report-enhancements`, which is `harness/report_enhancements.go`, a different
+reporter that D-5 never mentioned.
+
+**AM-01.1 — `recency-maintenance` would fail on its first cell.** `experiment.go`'s
+`writes` mode refuses a cell with more than one operation ("each experiment write cell
+must specify exactly one operation"). The group as written passes
+`-write-ops insert,insert_backdated,delete,update` in a single cell, so **every cell in
+that group errors immediately**. It was never caught because the maintenance dev check
+ran `-cmd full` directly rather than through the group. Fix: emit one cell per operation,
+following the `exceptions` group's existing `for op in update delete; do cell ...` shape.
+
+**AM-01.2 — the experiment `writes` path never runs `AuditRecency`.** LOW correctly wired
+it into `main.go`'s write loop and into `arrival.go`, but `experiment.go`'s `writes` case
+audits only rollups. So even after AM-01.1, the maintenance group would record **no
+recency audit at all** — and D21's failure would be invisible in the very group designed
+to price flag maintenance. Fix: in `experiment.go`, alongside each existing
+`AuditRollups` call in the `writes` and `arrival` cases, run `AuditRecency` when
+`d.LastFlag || d.RecencyRollupIdx` and store it on `run.RecencyAudit` (and on
+`run.Writes[0].RecencyAudit` where the rollup audit is already attached that way).
+
+**AM-01.3 — a fired negative control would not be reported as a problem.**
+`experimentProblems` in `report_enhancements.go` flags `r.Audit` and
+`a.WarmupAudit` mismatches but knows nothing about the recency audits. A run where D21
+corrupts flags would therefore generate a report that does not say so. **This is a
+methodology 5a violation in the reporting path and is the most important of the five
+repairs:** a control that fires invisibly is no control. Fix: extend
+`experimentProblems` to flag `r.RecencyAudit` and `Arrival.WarmupRecencyAudit`
+mismatches, in the same wording style as the existing entries.
+
+**AM-01.4 — recency results need a recency-aware presentation in the reporter that is
+actually generated.** Today the enhancements reporter would render the eight
+`q13..q16@regime` entries as anonymous rows in its generic per-operation table: no
+statement of which regime is which question, no per-question winner, no pairing of read
+gain against maintenance cost, no audit outcome. Two things are required, and no more:
+
+1. In `report_enhancements.go`, a section that lists the recency questions with their
+   regime spelled out, and — mandatory — **the recency audit outcome per design**,
+   including an explicit line naming D21 as the negative control and stating whether it
+   fired. Where no recency audit ran for a design, print that it was not measured, never
+   a zero (study 03's "transient: not recorded" precedent).
+2. Leave the richer section LOW built in `report.go` exactly as it is. It is correct for
+   the survey reporter and will be wanted when a recency matrix is ever run through
+   `run-study.sh`. Do not delete it and do not duplicate its code — a shared helper is
+   welcome but not required.
+
+Note for whoever implements this: the existing `experimentReadScore` already skips any
+`@`-suffixed query and requires exactly twelve, so it is **already** immune to the new
+questions, and a recency-only cell correctly contributes no score rather than a zero.
+Do not "fix" that function; it is behaving correctly.
+
+**AM-01.5 — `delete_person` is untested on the flag designs.** ER trigger 5 of this
+handoff named exactly this risk and the dev checks never exercised it. D20's `AFTER
+DELETE` trigger fires **once per child row** and each firing takes the donor's `person`
+row lock, runs an ordering query over the survivors and issues an `UPDATE` — during a
+cascade that deletes the whole history in one statement. That is plausibly pathological
+and it is in study 01's standard write set, so a long matrix could hit it far from a
+human. Before any measured run: dev-check `-write-ops delete_person` on D20 and D21 at
+`tiny` on `pg-single`, confirm the recency audit passes afterwards, and record the
+observed throughput. If it errors, deadlocks, or is so slow the cell cannot finish in
+five minutes, **stop and escalate** — do not redesign the trigger to make it pass.
+
+**AM-01.6 — then run phase 2, sized as follows.** Derived from LOW's calibration
+(~30 s of measured time per read cell per trial; reads are duration-boxed, so a slow
+engine costs the same wall-clock as a fast one, and only load time differs):
+
+| Group | Cells at 3 trials | Estimate |
+|---|---|---|
+| `recency-reads` | 12 designs × 2 topologies × 3 | ~2.2 h |
+| `recency-maintenance` (after AM-01.1, incl. `delete_person`) | ~4 designs × 5 ops × 3, PostgreSQL only, minus D23's skips | ~30 min |
+| `recency-hot-donor` | 4 writer levels × 4 designs × 3 | ~30 min |
+| `recency-placement` | 2 designs × 2 modes × 3, `yb-cluster3` | ~45 min |
+
+**Total ≈ 4 hours**, comfortably inside ER trigger 4's 12-hour bound. Run with
+`--trials 3 --tag`, one group at a time, in the order above, and record the run in
+`CONTEXT.md` as running before it starts. The hot-donor group keeps **16 writers** in its
+sweep — LOW established that 8 does not reproduce the race under paced arrival, and a
+sweep that cannot make its own control fire measures nothing about the others.
+
+**AM-01.7 — model.** AM-01.1 through AM-01.3 are mechanical and well specified. AM-01.4
+involves judgement about presentation and AM-01.5 may surface a real design problem. A
+smaller model is acceptable for .1–.3; keep the executing model for .4 and .5, and
+escalate rather than improvise if `delete_person` misbehaves.
+
+**Phase 3 (studies 02 and 03) remains unauthorised** and is unchanged by this amendment.
+
+**Next after execution: HIGH — review the repairs and the phase 2 results, then write the
+signed analysis.**

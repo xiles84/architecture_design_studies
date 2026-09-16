@@ -222,9 +222,21 @@ real operation asks for.
   160–450 ops/s at `small` scale (no supporting index, as expected), client CPU ~4% of
   its budget (not the bottleneck). Full [progress log](docs/handoffs/20260915-recency-and-reports/PROGRESS.md).
   Checkpoint tag: `study-01/v4-harness`. Not merged to `main`; no reported run yet.
-- **Phases 2 and 3 (not authorised yet):** the measured study-01 recency matrix, and
-  studies 02/03's report queries. HIGH sizes them from phase 1's calibration and reviews
-  the dev-check evidence above.
+- **Phase 1 validated by HIGH (2026-09-16) and accepted**, with five repairs required
+  before any measured run ([AM-01](docs/handoffs/20260915-recency-and-reports/HANDOFF.md#amendments)).
+  The repairs are all in the path a *reported* run takes, which no dev check exercised:
+  the maintenance group passes four write ops where the experiment path accepts one;
+  `experiment.go` never calls the new `AuditRecency`; `experimentProblems` cannot see a
+  recency-audit failure, so the negative control could fire invisibly (a methodology 5a
+  violation in the reporting path); the new reporting section lives in `report.go` while
+  the runner generates its report with `report_enhancements.go`; and `delete_person`
+  was never exercised on the flag designs, where the delete trigger fires once per child
+  row. Three of the five follow from EH-02's own under-specification of the reporting
+  path, not from execution.
+- **Phase 2 (authorised after the AM-01 repairs):** the measured study-01 recency matrix,
+  sized at ~4 hours at three trials — `recency-reads` ~2.2 h, `recency-maintenance`
+  ~30 min, `recency-hot-donor` ~30 min, `recency-placement` ~45 min.
+- **Phase 3 (still not authorised):** studies 02/03's report queries.
 - Nothing is running; every dev-check database was torn down and the benchmark lock
   released.
 

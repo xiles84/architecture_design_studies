@@ -153,3 +153,44 @@ its execution log. Nobody edits another iteration's entry.
 **Next: HIGH — review this evidence, size the study-01 recency matrix (phase 2) and the
 studies 02/03 report queries (phase 3) from the calibration above, and publish an
 amendment authorising them.**
+
+## HIGH iteration 2 — 2026-09-16 (validation of phase 1)
+
+- Reviewer: Claude Opus 5, setting `ultracode` (HIGH role), Claude Code desktop.
+- Reviewed LOW's phase 1 at `129d431` / `study-01/v4-harness`. **Accepted.** All eight
+  acceptance conditions in the handoff are met, and the evidence is real rather than
+  asserted: the gate proved itself by catching three genuine bugs, and D21's negative
+  control was seen to fail under two different load shapes with examples recorded. LOW's
+  finding about *why* the paced arrival experiment needed 16 writers where the
+  closed-loop benchmark needed 8 is a genuine methodological result and is recorded in
+  `LESSONS_LEARNED.md` where it belongs.
+- I re-derived the claims rather than taking them on trust: checked the append-only diff
+  property, the one-decision `diff -r` relationships, the formulation-to-design mapping,
+  the window regimes' half-open interval and sentinel handling, and the tie rule in
+  `checkRanked`.
+- **Validation found four defects and one untested risk, none of them visible from the
+  dev checks LOW ran, because they live in the path a *reported* run takes rather than
+  the path a dev check takes.** They are decided in [AM-01](HANDOFF.md#amendments):
+  1. `recency-maintenance` passes four write ops in one cell; `experiment.go` refuses
+     more than one, so every cell in that group would have failed immediately.
+  2. `experiment.go`'s `writes` and `arrival` cases never call `AuditRecency`, so the
+     maintenance group would have produced no recency audit at all.
+  3. `experimentProblems` does not consider the recency audits, so a fired negative
+     control would not be flagged in the generated enhancements report — a methodology
+     5a violation in the reporting path, and the most important of the five repairs.
+  4. The recency reporting section LOW built lives in `report.go`, but every recency
+     group runs through `run-enhancements.sh`, which generates its report with
+     `report_enhancements.go`. **This is my specification error:** D-5 named a reporter
+     without checking which one the runner calls.
+  5. `delete_person` — ER trigger 5's own subject — was never exercised on the flag
+     designs, where the delete trigger fires once per child row during a cascade.
+- Two things I checked that turned out **not** to be problems, recorded so the next
+  reader does not re-investigate them: `experimentReadScore` already skips `@`-suffixed
+  queries and requires exactly twelve, so the new questions cannot contaminate the
+  enhancements read score and a recency-only cell contributes no score rather than a
+  zero; and the `@` suffix LOW chose coincides with an existing convention in that
+  reporter (`@largest`/`@smallest` for targeted re-runs) without colliding with it.
+- Phase 2 is sized in AM-01.6 at roughly four hours at three trials, inside ER trigger
+  4's bound. Phase 3 remains unauthorised.
+
+**Next: LOW — Claude Opus 5, setting `high` — execute AM-01.1 through AM-01.6.**
