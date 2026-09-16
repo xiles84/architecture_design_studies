@@ -21,7 +21,8 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 8b | AM-02 calibration (dc15, S1 `small`, 3 topologies) | done — passes; rule 1 applies, projection ≈ 15.7 h (rule 2) | `3d7aa89` |
 | 9 | Main matrix (`small`) | done — 41 cells, 4 failed (diagnosed; ER-03); ER-04 raised | `3e36cfb`; run tag `run/03-reserved-seating/20260915T002411Z` |
 | 10 | Repeated race trials | done — 27 cells, 0 failed, 3 h 33 min (from worktree `.worktrees/study03-measurement`) | `3d1d1b0`; run tag `run/03-reserved-seating/20260915T173255Z` |
-| 11 | Context, lessons, README; ready for analysis | done — merged into `main`; ER-03 and ER-04 open (non-blocking) | tag `study-03/v1-measured` |
+| 11 | Context, lessons, README; ready for analysis | done | tag `study-03/v1-measured` |
+| 12 | AM-03: tolerant instrumentation, L2 diagnostic, repair runs (ER-03, ER-04) | done — 6 cells, 0 failed; reports regenerated; digest provenance fixed | `6d17f3f`, `4044dd5`, `0c88156`, `1d4ee1e` |
 
 ## Mapped decisions (handoff §11)
 
@@ -184,3 +185,38 @@ yb-cluster3.
 - **S1r on yb-cluster3:** 0 early rejections; 105 short confirmations retried, all 105 sold.
 - The session was interrupted by a client logout at ≈ 20:30 UTC. The runner process and containers
   kept running and the run completed normally.
+
+## AM-03 repair runs (ER-03 and ER-04)
+
+Harness `6d17f3f`, dev check `devchecks/dc16-am03` (`4044dd5`, yb-single, tiny: gates 51/51, no
+violation, E2 completed both lifecycle tiers, new counters present).
+
+| Run | Tag | What | Result | Inputs digest |
+|---|---|---|---|---|
+| `20260915T232736Z` | `run/03-reserved-seating/20260915T232736Z` | E2 and S4, `verify,lifecycle`, yb-single + yb-cluster3 | 4 cells, 0 failed, 40 min; no violation in any of them | `2ccece48793fe693` |
+| `20260916T000706Z` | `run/03-reserved-seating/20260916T000706Z` | L2, `verify,race`, yb-single + yb-cluster3 | 2 cells, 0 failed, 11 min | `903de88de503ded2` |
+
+Facts:
+
+- **The lifecycle the matrix lost now exists.** E2 completed both tiers on both topologies with no
+  violation (yb-single 0.2 and 1.7 confirmed seats/s; yb-cluster3 0.2 and 1.3). S4 completed both
+  tiers at 0.0–0.1 confirmed seats/s with 9–33 late refusals and no early ones — its collapse
+  measured rather than missing.
+- **No monitor retry was needed** in any repair cell (`monitor retries / events ended early` 0/0
+  everywhere), so these cells did not depend on the new tolerance; it removes the failure mode for
+  future runs.
+- **ER-04 answered: L2's refusals are transient.** On yb-cluster3, 17 early rejections, all 17
+  classified transient by the new diagnostic — the section document re-read shows the hold valid.
+  yb-single recorded none this time (the matrix recorded 4 there, unclassified).
+- Reports of all four runs were regenerated with AM-03.3's rule, which prints "transient: not
+  recorded" for runs whose harness could not classify (K0 always; L2 before this change).
+
+## Provenance fix found while regenerating (mapped: harness/infra bug)
+
+Regenerating the matrix report in this worktree produced a different inputs digest
+(`b8913f899a9584ae`) from the run's own (`a56ce92ce38b8204`) with no result file changed. Cause:
+Windows line-ending conversion on checkout rewrote the result JSON bytes the digest hashes. The
+repository root now pins `studies/02-*` and `studies/03-*` results and reports to `text eol=lf`,
+matching the policy study 01 had already adopted for its v3 runs; after re-checkout every run's
+report reproduces its original digest. Recorded in LESSONS_LEARNED.md, merged into study 01's
+existing entry.
