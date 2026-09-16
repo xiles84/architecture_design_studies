@@ -339,3 +339,74 @@ unauthorised, or close the task at the owner's direction.**
   race sizing so a fixed offered load cannot produce a second null result.
 
 **Next: LOW — Claude Opus 5, setting `high` — execute AM-02.1 through AM-02.5.**
+
+## LOW iteration 3 — 2026-09-16 (AM-02, studies 02/03 operational reports)
+
+- Executor: Claude Sonnet 5, Claude Code desktop app.
+- **AM-02.1 (both studies)** — r01-r06 appended to every existing design's `queries.sql`,
+  zero change to any existing statement, schema, index or write path. Study 02: shape
+  splits on `d.Precreated` (unsold ticket rows exist and need a `status='sold'` filter,
+  or not). Study 03: r03-r05 are the same SQL everywhere (the `ticket` table is
+  byte-identical across all 14 designs); r01/r02 split on `d.Layout`
+  (SeatRows/ClaimRows/Documents) plus one design (E2) whose hold expiry lives on a
+  separate `hold` table rather than the seat row. Both append-only diffs verified clean.
+- **AM-02.2 (both studies)** — `ReportCoverage(d Design)`, computed from existing design
+  flags rather than a literal per-design map, so it cannot drift from the schema without
+  the schema itself changing. `TestReportCoverageMatchesSQL` binds it to the actual
+  catalogue in both studies; study 03 also gets `TestR06UnanswerableEverywhere`, pinning
+  AM-02.0's verified finding so a future hold-history design would fail the test rather
+  than pass silently.
+- **AM-02.3** — `x1_cas_ledger`: P3 plus `sale_event`, written in the same statement as
+  the sale/cancellation via a data-modifying CTE (no change to `Booker`'s control flow;
+  `w_sell_seat`'s row count still means "0 = lost the race" because the driver reports
+  the final statement's count). Ledger reconciliation audit added
+  (`RunLedgerAudit`/`LedgerAudit`), composing with the existing harness-observation audit
+  rather than duplicating it. Study 03 gets no new design, as specified.
+- **AM-02.4** — Study 02: a `BenchmarkReports` sibling to `BenchmarkReads` with a proper
+  multi-parameter bind (`catalog.Bind` against a `map[string]any`), never touching the
+  five-question read path. Study 03: its existing `run` helper already bound an
+  arbitrary `[]any`, so r01-r05 were appended directly into `BenchmarkReads`' own
+  results; a small `runRegime` sibling carries the `@regime` suffix in the reported name
+  without changing what `run()`'s existing tier suffix means. Both studies derive
+  `since`/`until` from the dataset's load epoch (RECENCY.md section 2); study 03's r01
+  additionally needs a live wall-clock cutoff, since "holds expiring soon" is a real-time
+  operational question, not a historical one — bound as an absolute instant rather than
+  an engine-specific INTERVAL.
+- **Two bugs found and fixed before the dev checks would have caught them structurally**
+  (both self-corrected while writing the harness, not silent):
+  - Study 02: `runReport`'s row-count-only check for X1's r02-style lookups would have
+    passed a design that always answered the same status; rewrote to a status-prefix
+    check instead.
+  - Collect()'s (study 03) fixed column budget of 4 forced r02's original 5-column design
+    (status, hold_id, customer_id, hold_expires_at, sold_at) down to 4 by merging the two
+    mutually-exclusive timestamp columns into one `COALESCE(hold_expires_at, sold_at) AS
+    at` — applied across all four r01/r02 formulations (event_seat, L1, L2, E2) before
+    any SQL was applied to a design directory.
+- **AM-02.5 — dev checks, `tiny`, `pg-single` then `yb-single`, under the lock.** Two
+  real bugs caught and fixed (recorded in a separate commit, `a74b3f8`, since they were
+  found by *running* the gate, not by writing it):
+  - An earlier edit had duplicated `CREATE TABLE band`/`CREATE TABLE event` in
+    `x1_cas_ledger/schema.sql`. Worked in isolation on a fresh database, failed
+    ("relation band already exists") the moment it ran after any other design in the
+    same container — the correctness gate's whole reason for existing.
+  - Study 03's r01 truth counted only `stLive` seats, but expiry is lazy in every design
+    except E1 (whose sweeper the harness already runs to completion before `Verify`): a
+    hold whose true expiry has passed still reads `status='held'` until swept, which
+    r01's own SQL correctly returns. Fixed to count `stExpired` too, except when
+    `d.ExpiryOnSweeper`.
+  - After both fixes: **study 02, all 15 designs (14 + X1) pass on both engines**
+    (44-46 checks each); **study 03, all 13 PostgreSQL-capable designs and all 14
+    YugabyteDB-capable designs pass** (58/58 checks each), including L3.
+  - C1's negative control fired in a race (every event overbooked); H0's fired in its
+    own dedicated holds experiment (overbooking at every tier) — both confirmed, not
+    assumed, and neither touched by the reporting changes.
+  - One calibration cell per study on `yb-single` (`-phases verify,read`, one design
+    each): every answerable/partial report produced real throughput (hundreds to low
+    thousands of ops/s at `tiny`); unanswerable reports were correctly absent, never a
+    zero. Reports regenerated from both dev-check directories; the answerability tables
+    and throughput render exactly as AM-02.1/.4 specify.
+  - Every database torn down, lock released, verified before and after.
+- No escalations raised in this iteration.
+
+**Next: HIGH — review the answerability tables against the SQL, confirm X1's ledger
+audit is real, and size phase 3b's measured runs from the dev-check throughput above.**

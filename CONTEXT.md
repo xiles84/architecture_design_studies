@@ -86,6 +86,9 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-01/v4.1-handoff-amendment-01` | EH-02 AM-01: phase 1 validated and accepted; five repairs specified before phase 2 |
 | `study-01/v4-measured` | study 01: recency matrix measured (AM-01 repairs applied and held under the real run); ready for analysis |
 | `study-01/v4-analysis` | study 01: signed analysis of the recency matrix (digest `1b05f142fd9e06ef`), report index regenerated |
+| `study-01/v4.2-handoff-amendment-02` | EH-02 AM-02: phase 3a authorised (studies 02/03 operational reports, implementation and dev checks); two protocol claims verified across all 28 designs; measured runs still gated |
+| `study-02/v2-reports-devchecked` | study 02: r01-r06 and the new X1 design (append-only sale ledger) implemented, dev-checked correct on PostgreSQL and YugabyteDB `tiny`; phase 3b (measured runs) not yet authorised |
+| `study-03/v2-reports-devchecked` | study 03: r01-r06 implemented (r06 unanswerable everywhere, verified), dev-checked correct on PostgreSQL and YugabyteDB `tiny`, including L3; phase 3b not yet authorised |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -277,6 +280,19 @@ real operation asks for.
   pins it to the SQL with a unit test; adds exactly one new design (study 02's X1 = P3 plus
   an append-only sale ledger, with a reconciliation audit); and adds none to study 03.
   Phase 3b — the measured runs — stays gated until the dev-check numbers exist.
+- **Phase 3a implementation and dev checks complete (2026-09-16, LOW, Claude Sonnet 5).**
+  All of AM-02.1–.5 executed. **All 15 study-02 designs (14 + X1) and all 14 study-03
+  designs pass the correctness gate on both PostgreSQL and YugabyteDB** (`tiny`), including
+  the new report checks. Two real bugs were caught by the dev-check gate itself before any
+  measured run — a duplicated `CREATE TABLE` in X1's schema that only failed once another
+  design's tables were already present, and study 03's r01 truth missing lazy-expired
+  holds (fixed for every design except E1, whose sweeper the harness already runs to
+  completion first). Both negative controls (study 02's C1 and H0) were confirmed still
+  firing in their own experiments, unaffected by the reporting changes. One calibration
+  cell per study on `yb-single` shows every answerable report at hundreds to low
+  thousands of ops/s at `tiny` scale; unanswerable reports are correctly absent, never a
+  zero. **Phase 3b (the measured runs) is not yet authorised** — HIGH sizes it from this
+  throughput next, exactly as phase 1 gated phase 2. Nothing is running; lock released.
 
 ### Study 01 — tree structures (charity → person → donation)
 
