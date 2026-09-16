@@ -695,3 +695,11 @@ counted as "0 transient". They had the same shape as the transient refusals of e
 read 20–100 ms after the hold's commit that did not show it. The report tables printed `n/a`, but the
 TL;DR listed L2 among designs with invariant violations. When a class depends on a diagnostic, report
 "unclassified" wherever the diagnostic cannot run, in every place the number appears.
+
+### A digest over text files is not reproducible across checkouts
+
+A run's inputs digest is a SHA-256 over its result JSON. On Windows, git rewrites line endings on
+checkout, so the same results hashed to `a56ce92ce38b8204` where they were produced and to
+`b8913f899a9584ae` in a fresh worktree. Nothing had changed but the bytes git handed back. A digest
+that identifies data must be taken over bytes the version-control system promises not to touch:
+`.gitattributes` now marks `studies/*/results/**` and `studies/*/reports/**` as `-text`.
