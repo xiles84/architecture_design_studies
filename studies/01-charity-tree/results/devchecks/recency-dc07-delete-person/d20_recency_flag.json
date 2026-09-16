@@ -1,0 +1,784 @@
+{
+  "run_id": "recency-dc07-delete-person",
+  "started_at": "2026-09-16T08:51:56.948827237Z",
+  "finished_at": "2026-09-16T08:58:10.653258356Z",
+  "environment": "host-zenbook-ux5406sa",
+  "engine": "postgres",
+  "topology": "single",
+  "engine_version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "design_id": "d20_recency_flag",
+  "design_title": "recency-flag",
+  "design_summary": "D3 plus donation.is_last_donation, a partial index, and a trigger that locks the donor's person row before moving the flag.",
+  "scale": "tiny",
+  "dataset": {
+    "avg_donations_person": 17.998,
+    "charities": 10,
+    "donations": 8999,
+    "history_multiplier": 1,
+    "max_donations_person": 462,
+    "max_per_person_cap": 0,
+    "people": 500,
+    "people_per_charity": {
+      "1": 138,
+      "10": 12,
+      "2": 97,
+      "3": 84,
+      "4": 46,
+      "5": 43,
+      "6": 32,
+      "7": 22,
+      "8": 12,
+      "9": 14
+    },
+    "people_without_donation": 0,
+    "profile": "unbounded",
+    "scale": "tiny",
+    "seed": 42,
+    "total_donated_cents": 826626484
+  },
+  "options": {
+    "charities": 0,
+    "conns": 8,
+    "duration": "15s",
+    "isolation": "rc",
+    "load_conns": 4,
+    "max_ops": 0,
+    "max_per_person": 0,
+    "mix": "8:0,6:2,4:4",
+    "read_mix": "dashboard",
+    "seed": 42,
+    "statement_timeout_ms": 120000,
+    "strategy": "blind",
+    "trials": 1,
+    "warmup": "2s"
+  },
+  "load": {
+    "drop_ms": 0.963,
+    "schema_ms": 6.928,
+    "copy_ms": 29.599,
+    "rollup_ms": 0,
+    "index_ms": 17.775,
+    "trigger_ms": 4.295,
+    "analyze_ms": 12.132,
+    "total_ms": 71.696
+  },
+  "verify": {
+    "passed": 20,
+    "failed": 0,
+    "checks": [
+      {
+        "query": "q01_last_donation_global",
+        "ok": true,
+        "expect": "one of [8999] at 2026-08-31 23:55:20.197 +0000 UTC",
+        "got": "8999 at 2026-08-31 23:55:20.197 +0000 UTC"
+      },
+      {
+        "query": "q02_last_donation_charity",
+        "ok": true,
+        "expect": "one of [8992] at 2026-08-31 10:03:14.446 +0000 UTC",
+        "got": "8992 at 2026-08-31 10:03:14.446 +0000 UTC"
+      },
+      {
+        "query": "q03_top_donor_charity",
+        "ok": true,
+        "expect": "one of [380] with 18420166 cents",
+        "got": "380 with 18420166 cents"
+      },
+      {
+        "query": "q04_top_donors_leaderboard",
+        "ok": true,
+        "expect": "10 rows, leader at 18420166 cents",
+        "got": "10 rows, leader at 18420166 cents"
+      },
+      {
+        "query": "q05_last_donor_charity",
+        "ok": true,
+        "expect": "one of [299] at 2026-08-31 10:03:14.446 +0000 UTC",
+        "got": "299 at 2026-08-31 10:03:14.446 +0000 UTC"
+      },
+      {
+        "query": "q06_person_first_last",
+        "ok": true,
+        "expect": "2023-12-30 16:20:18.526 +0000 UTC .. 2026-08-30 02:02:24.411 +0000 UTC",
+        "got": "2023-12-30 16:20:18.526 +0000 UTC .. 2026-08-30 02:02:24.411 +0000 UTC"
+      },
+      {
+        "query": "q07_total_donated_global",
+        "ok": true,
+        "expect": "826626484",
+        "got": "826626484"
+      },
+      {
+        "query": "q08_total_donated_charity",
+        "ok": true,
+        "expect": "192493417",
+        "got": "192493417"
+      },
+      {
+        "query": "q09_person_recent_donations",
+        "ok": true,
+        "expect": "20 rows, newest 2026-08-30 02:02:24.411 +0000 UTC",
+        "got": "20 rows, newest 2026-08-30 02:02:24.411 +0000 UTC"
+      },
+      {
+        "query": "q10_donation_by_id",
+        "ok": true,
+        "expect": "id=4500 person=153 amount=4497",
+        "got": "id=4500 person=153 amount=4497"
+      },
+      {
+        "query": "q11_person_donation_count",
+        "ok": true,
+        "expect": "193",
+        "got": "193"
+      },
+      {
+        "query": "q12_charity_recent_feed",
+        "ok": true,
+        "expect": "50 rows, newest 2026-08-31 10:03:14.446 +0000 UTC",
+        "got": "50 rows, newest 2026-08-31 10:03:14.446 +0000 UTC"
+      },
+      {
+        "query": "q13_donors_last_gift_window@trailing",
+        "ok": true,
+        "expect": "65 rows, newest 2026-08-31 23:55:20.197 +0000 UTC",
+        "got": "65 rows, newest 2026-08-31 23:55:20.197 +0000 UTC"
+      },
+      {
+        "query": "q14_donors_last_gift_window_count@trailing",
+        "ok": true,
+        "expect": "65",
+        "got": "65"
+      },
+      {
+        "query": "q15_charity_donors_last_gift_window@trailing",
+        "ok": true,
+        "expect": "14 rows, newest 2026-08-31 10:03:14.446 +0000 UTC",
+        "got": "14 rows, newest 2026-08-31 10:03:14.446 +0000 UTC"
+      },
+      {
+        "query": "q16_lapsed_donors_count@trailing",
+        "ok": true,
+        "expect": "435",
+        "got": "435"
+      },
+      {
+        "query": "q13_donors_last_gift_window@historical",
+        "ok": true,
+        "expect": "7 rows, newest 2026-06-02 19:35:53.531 +0000 UTC",
+        "got": "7 rows, newest 2026-06-02 19:35:53.531 +0000 UTC"
+      },
+      {
+        "query": "q14_donors_last_gift_window_count@historical",
+        "ok": true,
+        "expect": "7",
+        "got": "7"
+      },
+      {
+        "query": "q15_charity_donors_last_gift_window@historical",
+        "ok": true,
+        "expect": "2 rows, newest 2026-06-02 17:10:07.849 +0000 UTC",
+        "got": "2 rows, newest 2026-06-02 17:10:07.849 +0000 UTC"
+      },
+      {
+        "query": "q16_lapsed_donors_count@historical",
+        "ok": true,
+        "expect": "213",
+        "got": "213"
+      }
+    ]
+  },
+  "stats": {
+    "row_counts": {
+      "charity": 10,
+      "donation": 8999,
+      "person": 500
+    },
+    "relations": [
+      {
+        "name": "charity_pkey",
+        "kind": "index",
+        "table": "charity",
+        "total_bytes": 16384,
+        "heap_bytes": 16384
+      },
+      {
+        "name": "donation_charity_amount_idx",
+        "kind": "index",
+        "table": "donation",
+        "total_bytes": 303104,
+        "heap_bytes": 303104
+      },
+      {
+        "name": "donation_charity_time_idx",
+        "kind": "index",
+        "table": "donation",
+        "total_bytes": 303104,
+        "heap_bytes": 303104
+      },
+      {
+        "name": "donation_last_flag_idx",
+        "kind": "index",
+        "table": "donation",
+        "total_bytes": 32768,
+        "heap_bytes": 32768
+      },
+      {
+        "name": "donation_person_time_idx",
+        "kind": "index",
+        "table": "donation",
+        "total_bytes": 303104,
+        "heap_bytes": 303104
+      },
+      {
+        "name": "donation_pkey",
+        "kind": "index",
+        "table": "donation",
+        "total_bytes": 344064,
+        "heap_bytes": 344064
+      },
+      {
+        "name": "donation_time_idx",
+        "kind": "index",
+        "table": "donation",
+        "total_bytes": 221184,
+        "heap_bytes": 221184
+      },
+      {
+        "name": "person_charity_idx",
+        "kind": "index",
+        "table": "person",
+        "total_bytes": 16384,
+        "heap_bytes": 16384
+      },
+      {
+        "name": "person_pkey",
+        "kind": "index",
+        "table": "person",
+        "total_bytes": 32768,
+        "heap_bytes": 32768
+      },
+      {
+        "name": "charity",
+        "kind": "table",
+        "total_bytes": 32768,
+        "heap_bytes": 8192,
+        "index_bytes": 16384
+      },
+      {
+        "name": "donation",
+        "kind": "table",
+        "total_bytes": 2523136,
+        "heap_bytes": 983040,
+        "index_bytes": 1507328
+      },
+      {
+        "name": "person",
+        "kind": "table",
+        "total_bytes": 131072,
+        "heap_bytes": 49152,
+        "index_bytes": 49152
+      }
+    ],
+    "total_bytes": 2686976
+  },
+  "reads": [
+    {
+      "query": "q01_last_donation_global",
+      "ops": 688185,
+      "errors": 0,
+      "duration_s": 15.01615338,
+      "ops_per_sec": 45829.646420407036,
+      "latency": {
+        "count": 688185,
+        "min_ms": 0.014116,
+        "mean_ms": 0.17415237503578251,
+        "p50_ms": 0.107297,
+        "p90_ms": 0.197935,
+        "p95_ms": 0.248533,
+        "p99_ms": 0.432888,
+        "p999_ms": 30.174571,
+        "p9999_ms": 33.470052,
+        "max_ms": 36.372382
+      },
+      "trials_ops_per_sec": [
+        45829.646420407036
+      ]
+    },
+    {
+      "query": "q02_last_donation_charity",
+      "ops": 649627,
+      "errors": 0,
+      "duration_s": 15.013748755,
+      "ops_per_sec": 43268.807184724996,
+      "latency": {
+        "count": 649627,
+        "min_ms": 0.014581,
+        "mean_ms": 0.184500232611945,
+        "p50_ms": 0.110838,
+        "p90_ms": 0.203032,
+        "p95_ms": 0.252878,
+        "p99_ms": 0.42749,
+        "p999_ms": 32.008307,
+        "p9999_ms": 34.82954,
+        "max_ms": 36.702688
+      },
+      "trials_ops_per_sec": [
+        43268.807184724996
+      ]
+    },
+    {
+      "query": "q03_top_donor_charity",
+      "ops": 112525,
+      "errors": 0,
+      "duration_s": 15.003163776,
+      "ops_per_sec": 7500.084760789057,
+      "latency": {
+        "count": 112525,
+        "min_ms": 0.054668,
+        "mean_ms": 1.0661434813241502,
+        "p50_ms": 0.319383,
+        "p90_ms": 0.677912,
+        "p95_ms": 0.867173,
+        "p99_ms": 62.948512,
+        "p999_ms": 67.541261,
+        "p9999_ms": 68.695527,
+        "max_ms": 69.836209
+      },
+      "trials_ops_per_sec": [
+        7500.084760789057
+      ]
+    },
+    {
+      "query": "q04_top_donors_leaderboard",
+      "ops": 104849,
+      "errors": 0,
+      "duration_s": 15.002135902,
+      "ops_per_sec": 6988.938154201238,
+      "latency": {
+        "count": 104849,
+        "min_ms": 0.062539,
+        "mean_ms": 1.1442333482818148,
+        "p50_ms": 0.332385,
+        "p90_ms": 0.712431,
+        "p95_ms": 0.933065,
+        "p99_ms": 64.675444,
+        "p999_ms": 68.282215,
+        "p9999_ms": 69.344049,
+        "max_ms": 69.918751
+      },
+      "trials_ops_per_sec": [
+        6988.938154201238
+      ]
+    },
+    {
+      "query": "q05_last_donor_charity",
+      "ops": 576406,
+      "errors": 0,
+      "duration_s": 15.009793528,
+      "ops_per_sec": 38401.993933144,
+      "latency": {
+        "count": 576406,
+        "min_ms": 0.016578,
+        "mean_ms": 0.20795166270822998,
+        "p50_ms": 0.116276,
+        "p90_ms": 0.216702,
+        "p95_ms": 0.27067,
+        "p99_ms": 0.470475,
+        "p999_ms": 36.418969,
+        "p9999_ms": 39.096451,
+        "max_ms": 41.268708
+      },
+      "trials_ops_per_sec": [
+        38401.993933144
+      ]
+    },
+    {
+      "query": "q06_person_first_last",
+      "ops": 579287,
+      "errors": 0,
+      "duration_s": 15.010233571,
+      "ops_per_sec": 38592.80385344511,
+      "latency": {
+        "count": 579287,
+        "min_ms": 0.015657,
+        "mean_ms": 0.2069068752034829,
+        "p50_ms": 0.118473,
+        "p90_ms": 0.219066,
+        "p95_ms": 0.274634,
+        "p99_ms": 0.486807,
+        "p999_ms": 35.21347,
+        "p9999_ms": 37.864728,
+        "max_ms": 39.929607
+      },
+      "trials_ops_per_sec": [
+        38592.80385344511
+      ]
+    },
+    {
+      "query": "q07_total_donated_global",
+      "ops": 47069,
+      "errors": 0,
+      "duration_s": 15.001721045,
+      "ops_per_sec": 3137.5733396727746,
+      "latency": {
+        "count": 47069,
+        "min_ms": 0.36023,
+        "mean_ms": 2.549148300325055,
+        "p50_ms": 0.594889,
+        "p90_ms": 1.357817,
+        "p95_ms": 2.034986,
+        "p99_ms": 72.585494,
+        "p999_ms": 75.573284,
+        "max_ms": 78.380292
+      },
+      "trials_ops_per_sec": [
+        3137.5733396727746
+      ]
+    },
+    {
+      "query": "q08_total_donated_charity",
+      "ops": 294099,
+      "errors": 0,
+      "duration_s": 15.006857293,
+      "ops_per_sec": 19597.640882290758,
+      "latency": {
+        "count": 294099,
+        "min_ms": 0.021152,
+        "mean_ms": 0.4077688086018654,
+        "p50_ms": 0.167829,
+        "p90_ms": 0.316957,
+        "p95_ms": 0.390822,
+        "p99_ms": 0.706251,
+        "p999_ms": 54.891056,
+        "p9999_ms": 56.568558,
+        "max_ms": 58.075381
+      },
+      "trials_ops_per_sec": [
+        19597.640882290758
+      ]
+    },
+    {
+      "query": "q09_person_recent_donations",
+      "ops": 313205,
+      "errors": 0,
+      "duration_s": 15.005867009,
+      "ops_per_sec": 20872.169519571944,
+      "latency": {
+        "count": 313205,
+        "min_ms": 0.032161,
+        "mean_ms": 0.3828520169888731,
+        "p50_ms": 0.169007,
+        "p90_ms": 0.319027,
+        "p95_ms": 0.396709,
+        "p99_ms": 0.70033,
+        "p999_ms": 50.800583,
+        "p9999_ms": 52.742555,
+        "max_ms": 54.035361
+      },
+      "trials_ops_per_sec": [
+        20872.169519571944
+      ]
+    },
+    {
+      "query": "q10_donation_by_id",
+      "ops": 595449,
+      "errors": 0,
+      "duration_s": 15.011444006,
+      "ops_per_sec": 39666.337213262224,
+      "latency": {
+        "count": 595449,
+        "min_ms": 0.016213,
+        "mean_ms": 0.20124896462669345,
+        "p50_ms": 0.124727,
+        "p90_ms": 0.223301,
+        "p95_ms": 0.280213,
+        "p99_ms": 0.499776,
+        "p999_ms": 30.175099,
+        "p9999_ms": 33.147259,
+        "max_ms": 36.192012
+      },
+      "trials_ops_per_sec": [
+        39666.337213262224
+      ]
+    },
+    {
+      "query": "q11_person_donation_count",
+      "ops": 555227,
+      "errors": 0,
+      "duration_s": 15.014198232,
+      "ops_per_sec": 36980.1298358134,
+      "latency": {
+        "count": 555227,
+        "min_ms": 0.016858,
+        "mean_ms": 0.21584180710232032,
+        "p50_ms": 0.12867,
+        "p90_ms": 0.2362,
+        "p95_ms": 0.300661,
+        "p99_ms": 0.555246,
+        "p999_ms": 33.02841,
+        "p9999_ms": 35.903509,
+        "max_ms": 38.352227
+      },
+      "trials_ops_per_sec": [
+        36980.1298358134
+      ]
+    },
+    {
+      "query": "q12_charity_recent_feed",
+      "ops": 278121,
+      "errors": 0,
+      "duration_s": 15.007316188,
+      "ops_per_sec": 18532.360917562884,
+      "latency": {
+        "count": 278121,
+        "min_ms": 0.044122,
+        "mean_ms": 0.4311892159240043,
+        "p50_ms": 0.179637,
+        "p90_ms": 0.328819,
+        "p95_ms": 0.409422,
+        "p99_ms": 0.749153,
+        "p999_ms": 54.244904,
+        "p9999_ms": 55.74046,
+        "max_ms": 57.407933
+      },
+      "trials_ops_per_sec": [
+        18532.360917562884
+      ]
+    },
+    {
+      "query": "q13_donors_last_gift_window@trailing",
+      "ops": 182715,
+      "errors": 0,
+      "duration_s": 15.005130013,
+      "ops_per_sec": 12176.83551170174,
+      "latency": {
+        "count": 182715,
+        "min_ms": 0.054902,
+        "mean_ms": 0.6564953368196371,
+        "p50_ms": 0.224816,
+        "p90_ms": 0.414572,
+        "p95_ms": 0.509981,
+        "p99_ms": 1.008699,
+        "p999_ms": 63.047877,
+        "p9999_ms": 64.510115,
+        "max_ms": 66.069822
+      },
+      "trials_ops_per_sec": [
+        12176.83551170174
+      ]
+    },
+    {
+      "query": "q13_donors_last_gift_window@historical",
+      "ops": 464952,
+      "errors": 0,
+      "duration_s": 15.044903762,
+      "ops_per_sec": 30904.28542151016,
+      "latency": {
+        "count": 464952,
+        "min_ms": 0.022584,
+        "mean_ms": 0.2581691071508457,
+        "p50_ms": 0.138201,
+        "p90_ms": 0.250932,
+        "p95_ms": 0.313843,
+        "p99_ms": 0.570354,
+        "p999_ms": 39.957963,
+        "p9999_ms": 42.664124,
+        "max_ms": 44.835545
+      },
+      "trials_ops_per_sec": [
+        30904.28542151016
+      ]
+    },
+    {
+      "query": "q14_donors_last_gift_window_count@trailing",
+      "ops": 494175,
+      "errors": 0,
+      "duration_s": 15.006836584,
+      "ops_per_sec": 32929.99142316775,
+      "latency": {
+        "count": 494175,
+        "min_ms": 0.020902,
+        "mean_ms": 0.2425627698730207,
+        "p50_ms": 0.133724,
+        "p90_ms": 0.239058,
+        "p95_ms": 0.296439,
+        "p99_ms": 0.507525,
+        "p999_ms": 38.754773,
+        "p9999_ms": 40.898854,
+        "max_ms": 42.547008
+      },
+      "trials_ops_per_sec": [
+        32929.99142316775
+      ]
+    },
+    {
+      "query": "q14_donors_last_gift_window_count@historical",
+      "ops": 571731,
+      "errors": 0,
+      "duration_s": 15.00806597,
+      "ops_per_sec": 38094.91517047216,
+      "latency": {
+        "count": 571731,
+        "min_ms": 0.017178,
+        "mean_ms": 0.20959833523107896,
+        "p50_ms": 0.126896,
+        "p90_ms": 0.228953,
+        "p95_ms": 0.28797,
+        "p99_ms": 0.510618,
+        "p999_ms": 31.873639,
+        "p9999_ms": 34.609161,
+        "max_ms": 36.913899
+      },
+      "trials_ops_per_sec": [
+        38094.91517047216
+      ]
+    },
+    {
+      "query": "q15_charity_donors_last_gift_window@trailing",
+      "ops": 387202,
+      "errors": 0,
+      "duration_s": 15.007152872,
+      "ops_per_sec": 25801.16317215856,
+      "latency": {
+        "count": 387202,
+        "min_ms": 0.025154,
+        "mean_ms": 0.3095984750698602,
+        "p50_ms": 0.154179,
+        "p90_ms": 0.280648,
+        "p95_ms": 0.3534,
+        "p99_ms": 0.679436,
+        "p999_ms": 43.937597,
+        "p9999_ms": 46.65218,
+        "max_ms": 59.954509
+      },
+      "trials_ops_per_sec": [
+        25801.16317215856
+      ]
+    },
+    {
+      "query": "q15_charity_donors_last_gift_window@historical",
+      "ops": 507668,
+      "errors": 0,
+      "duration_s": 15.00800499,
+      "ops_per_sec": 33826.481290369025,
+      "latency": {
+        "count": 507668,
+        "min_ms": 0.018295,
+        "mean_ms": 0.23610260536413563,
+        "p50_ms": 0.135534,
+        "p90_ms": 0.245477,
+        "p95_ms": 0.306102,
+        "p99_ms": 0.568503,
+        "p999_ms": 35.297066,
+        "p9999_ms": 37.869155,
+        "max_ms": 40.593017
+      },
+      "trials_ops_per_sec": [
+        33826.481290369025
+      ]
+    },
+    {
+      "query": "q16_lapsed_donors_count@trailing",
+      "ops": 418505,
+      "errors": 0,
+      "duration_s": 15.006200674,
+      "ops_per_sec": 27888.804707583906,
+      "latency": {
+        "count": 418505,
+        "min_ms": 0.033844,
+        "mean_ms": 0.2864758736717602,
+        "p50_ms": 0.146504,
+        "p90_ms": 0.248033,
+        "p95_ms": 0.295406,
+        "p99_ms": 0.446797,
+        "p999_ms": 44.932748,
+        "p9999_ms": 47.07117,
+        "max_ms": 49.134049
+      },
+      "trials_ops_per_sec": [
+        27888.804707583906
+      ]
+    },
+    {
+      "query": "q16_lapsed_donors_count@historical",
+      "ops": 509925,
+      "errors": 0,
+      "duration_s": 15.008569072,
+      "ops_per_sec": 33975.59071446168,
+      "latency": {
+        "count": 509925,
+        "min_ms": 0.024685,
+        "mean_ms": 0.23506679232240035,
+        "p50_ms": 0.131554,
+        "p90_ms": 0.222961,
+        "p95_ms": 0.266237,
+        "p99_ms": 0.400752,
+        "p999_ms": 39.518113,
+        "p9999_ms": 42.022574,
+        "max_ms": 43.250506
+      },
+      "trials_ops_per_sec": [
+        33975.59071446168
+      ]
+    }
+  ],
+  "writes": [
+    {
+      "query": "delete_person",
+      "ops": 132,
+      "errors": 0,
+      "duration_s": 0.020118615,
+      "ops_per_sec": 6561.087828361942,
+      "latency": {
+        "count": 132,
+        "min_ms": 0.782338,
+        "mean_ms": 1.1889269393939395,
+        "p50_ms": 1.179217,
+        "p90_ms": 1.345076,
+        "p95_ms": 1.440961,
+        "p99_ms": 1.519515,
+        "max_ms": 1.728917
+      },
+      "trials_ops_per_sec": [
+        6561.087828361942
+      ],
+      "op_budget": 125,
+      "op": "delete_person",
+      "retries": 0,
+      "recency_audit": {
+        "ran": true,
+        "flag_donors_checked": 236
+      }
+    }
+  ],
+  "recency_audit": {
+    "ran": true,
+    "flag_donors_checked": 236
+  },
+  "explain": {
+    "q01_last_donation_global": "Limit  (cost=0.29..0.32 rows=1 width=36) (actual time=0.007..0.007 rows=1 loops=1)\n  Output: donation_id, person_id, amount_cents, currency, donated_at\n  Buffers: shared hit=3\n  -\u003e  Index Scan using donation_time_idx on public.donation  (cost=0.29..296.02 rows=8999 width=36) (actual time=0.006..0.006 rows=1 loops=1)\n        Output: donation_id, person_id, amount_cents, currency, donated_at\n        Buffers: shared hit=3\nPlanning Time: 0.044 ms\nExecution Time: 0.013 ms",
+    "q02_last_donation_charity": "Limit  (cost=0.29..0.37 rows=1 width=36) (actual time=0.008..0.009 rows=1 loops=1)\n  Output: donation_id, person_id, amount_cents, currency, donated_at\n  Buffers: shared hit=3\n  -\u003e  Index Scan using donation_charity_time_idx on public.donation  (cost=0.29..175.08 rows=1994 width=36) (actual time=0.008..0.008 rows=1 loops=1)\n        Output: donation_id, person_id, amount_cents, currency, donated_at\n        Index Cond: (donation.charity_id = '1'::bigint)\n        Buffers: shared hit=3\nPlanning Time: 0.046 ms\nExecution Time: 0.014 ms",
+    "q03_top_donor_charity": "Nested Loop  (cost=189.45..191.69 rows=1 width=53) (actual time=0.392..0.392 rows=1 loops=1)\n  Output: p.person_id, p.full_name, (sum(donation.amount_cents))\n  Inner Unique: true\n  Buffers: shared hit=110\n  -\u003e  Limit  (cost=189.18..189.18 rows=1 width=40) (actual time=0.387..0.388 rows=1 loops=1)\n        Output: donation.person_id, (sum(donation.amount_cents))\n        Buffers: shared hit=107\n        -\u003e  Sort  (cost=189.18..190.41 rows=494 width=40) (actual time=0.387..0.387 rows=1 loops=1)\n              Output: donation.person_id, (sum(donation.amount_cents))\n              Sort Key: (sum(donation.amount_cents)) DESC\n              Sort Method: top-N heapsort  Memory: 25kB\n              Buffers: shared hit=107\n              -\u003e  HashAggregate  (cost=180.53..186.71 rows=494 width=40) (actual time=0.363..0.377 rows=138 loops=1)\n                    Output: donation.person_id, sum(donation.amount_cents)\n                    Group Key: donation.person_id\n                    Batches: 1  Memory Usage: 73kB\n                    Buffers: shared hit=107\n                    -\u003e  Bitmap Heap Scan on public.donation  (cost=25.64..170.56 rows=1994 width=16) (actual time=0.042..0.194 rows=1994 loops=1)\n                          Output: donation.donation_id, donation.person_id, donation.charity_id, donation.amount_cents, donation.currency, donation.donated_at, donation.note, donation.is_last_donation\n                          Recheck Cond: (donation.charity_id = '1'::bigint)\n                          Heap Blocks: exact=98\n                          Buffers: shared hit=107\n                          -\u003e  Bitmap Index Scan on donation_charity_amount_idx  (cost=0.00..25.14 rows=1994 width=0) (actual time=0.033..0.033 rows=1994 loops=1)\n                                Index Cond: (donation.charity_id = '1'::bigint)\n                                Buffers: shared hit=9\n  -\u003e  Index Scan using person_pkey on public.person p  (cost=0.27..2.49 rows=1 width=21) (actual time=0.003..0.003 rows=1 loops=1)\n        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at\n        Index Cond: (p.person_id = donation.person_id)\n        Buffers: shared hit=3\nPlanning Time: 0.060 ms\nExecution Time: 0.406 ms",
+    "q04_top_donors_leaderboard": "Nested Loop  (cost=197.66..211.41 rows=10 width=53) (actual time=0.358..0.365 rows=10 loops=1)\n  Output: p.person_id, p.full_name, (sum(donation.amount_cents))\n  Inner Unique: true\n  Buffers: shared hit=137\n  -\u003e  Limit  (cost=197.38..197.41 rows=10 width=40) (actual time=0.355..0.356 rows=10 loops=1)\n        Output: donation.person_id, (sum(donation.amount_cents))\n        Buffers: shared hit=107\n        -\u003e  Sort  (cost=197.38..198.62 rows=494 width=40) (actual time=0.355..0.356 rows=10 loops=1)\n              Output: donation.person_id, (sum(donation.amount_cents))\n              Sort Key: (sum(donation.amount_cents)) DESC\n              Sort Method: top-N heapsort  Memory: 25kB\n              Buffers: shared hit=107\n              -\u003e  HashAggregate  (cost=180.53..186.71 rows=494 width=40) (actual time=0.330..0.342 rows=138 loops=1)\n                    Output: donation.person_id, sum(donation.amount_cents)\n                    Group Key: donation.person_id\n                    Batches: 1  Memory Usage: 73kB\n                    Buffers: shared hit=107\n                    -\u003e  Bitmap Heap Scan on public.donation  (cost=25.64..170.56 rows=1994 width=16) (actual time=0.044..0.176 rows=1994 loops=1)\n                          Output: donation.donation_id, donation.person_id, donation.charity_id, donation.amount_cents, donation.currency, donation.donated_at, donation.note, donation.is_last_donation\n                          Recheck Cond: (donation.charity_id = '1'::bigint)\n                          Heap Blocks: exact=98\n                          Buffers: shared hit=107\n                          -\u003e  Bitmap Index Scan on donation_charity_amount_idx  (cost=0.00..25.14 rows=1994 width=0) (actual time=0.035..0.035 rows=1994 loops=1)\n                                Index Cond: (donation.charity_id = '1'::bigint)\n                                Buffers: shared hit=9\n  -\u003e  Index Scan using person_pkey on public.person p  (cost=0.27..1.39 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=10)\n        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at\n        Index Cond: (p.person_id = donation.person_id)\n        Buffers: shared hit=30\nPlanning Time: 0.068 ms\nExecution Time: 0.379 ms",
+    "q05_last_donor_charity": "Nested Loop  (cost=0.56..2.87 rows=1 width=29) (actual time=0.006..0.006 rows=1 loops=1)\n  Output: donation.person_id, p.full_name, donation.donated_at\n  Inner Unique: true\n  Buffers: shared hit=6\n  -\u003e  Limit  (cost=0.29..0.37 rows=1 width=16) (actual time=0.004..0.005 rows=1 loops=1)\n        Output: donation.person_id, donation.donated_at\n        Buffers: shared hit=3\n        -\u003e  Index Scan using donation_charity_time_idx on public.donation  (cost=0.29..175.08 rows=1994 width=16) (actual time=0.004..0.004 rows=1 loops=1)\n              Output: donation.person_id, donation.donated_at\n              Index Cond: (donation.charity_id = '1'::bigint)\n              Buffers: shared hit=3\n  -\u003e  Index Scan using person_pkey on public.person p  (cost=0.27..2.49 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=1)\n        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at\n        Index Cond: (p.person_id = donation.person_id)\n        Buffers: shared hit=3\nPlanning:\n  Buffers: shared hit=6\nPlanning Time: 0.075 ms\nExecution Time: 0.012 ms",
+    "q06_person_first_last": "Result  (cost=1.84..1.85 rows=1 width=16) (actual time=0.012..0.013 rows=1 loops=1)\n  Output: (InitPlan 1).col1, (InitPlan 2).col1\n  Buffers: shared hit=6\n  InitPlan 1\n    -\u003e  Limit  (cost=0.29..0.92 rows=1 width=8) (actual time=0.008..0.008 rows=1 loops=1)\n          Output: donation.donated_at\n          Buffers: shared hit=3\n          -\u003e  Index Only Scan Backward using donation_person_time_idx on public.donation  (cost=0.29..122.45 rows=193 width=8) (actual time=0.007..0.007 rows=1 loops=1)\n                Output: donation.donated_at\n                Index Cond: (donation.person_id = '380'::bigint)\n                Heap Fetches: 1\n                Buffers: shared hit=3\n  InitPlan 2\n    -\u003e  Limit  (cost=0.29..0.92 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=1)\n          Output: donation_1.donated_at\n          Buffers: shared hit=3\n          -\u003e  Index Only Scan using donation_person_time_idx on public.donation donation_1  (cost=0.29..122.45 rows=193 width=8) (actual time=0.003..0.003 rows=1 loops=1)\n                Output: donation_1.donated_at\n                Index Cond: (donation_1.person_id = '380'::bigint)\n                Heap Fetches: 1\n                Buffers: shared hit=3\nPlanning Time: 0.056 ms\nExecution Time: 0.021 ms",
+    "q07_total_donated_global": "Aggregate  (cost=232.49..232.50 rows=1 width=32) (actual time=0.612..0.612 rows=1 loops=1)\n  Output: COALESCE(sum(amount_cents), '0'::numeric)\n  Buffers: shared hit=120\n  -\u003e  Seq Scan on public.donation  (cost=0.00..209.99 rows=8999 width=8) (actual time=0.002..0.286 rows=8999 loops=1)\n        Output: donation_id, person_id, charity_id, amount_cents, currency, donated_at, note, is_last_donation\n        Buffers: shared hit=120\nPlanning Time: 0.027 ms\nExecution Time: 0.617 ms",
+    "q08_total_donated_charity": "Aggregate  (cost=175.55..175.56 rows=1 width=32) (actual time=0.262..0.262 rows=1 loops=1)\n  Output: COALESCE(sum(amount_cents), '0'::numeric)\n  Buffers: shared hit=107\n  -\u003e  Bitmap Heap Scan on public.donation  (cost=25.64..170.56 rows=1994 width=8) (actual time=0.045..0.185 rows=1994 loops=1)\n        Output: donation_id, person_id, charity_id, amount_cents, currency, donated_at, note, is_last_donation\n        Recheck Cond: (donation.charity_id = '1'::bigint)\n        Heap Blocks: exact=98\n        Buffers: shared hit=107\n        -\u003e  Bitmap Index Scan on donation_charity_amount_idx  (cost=0.00..25.14 rows=1994 width=0) (actual time=0.036..0.036 rows=1994 loops=1)\n              Index Cond: (donation.charity_id = '1'::bigint)\n              Buffers: shared hit=9\nPlanning Time: 0.023 ms\nExecution Time: 0.269 ms",
+    "q09_person_recent_donations": "Limit  (cost=0.29..12.94 rows=20 width=45) (actual time=0.006..0.011 rows=20 loops=1)\n  Output: donation_id, amount_cents, currency, donated_at, note\n  Buffers: shared hit=17\n  -\u003e  Index Scan using donation_person_time_idx on public.donation  (cost=0.29..122.45 rows=193 width=45) (actual time=0.005..0.010 rows=20 loops=1)\n        Output: donation_id, amount_cents, currency, donated_at, note\n        Index Cond: (donation.person_id = '380'::bigint)\n        Buffers: shared hit=17\nPlanning Time: 0.030 ms\nExecution Time: 0.026 ms",
+    "q10_donation_by_id": "Index Scan using donation_pkey on public.donation  (cost=0.29..2.50 rows=1 width=53) (actual time=0.004..0.005 rows=1 loops=1)\n  Output: donation_id, person_id, amount_cents, currency, donated_at, note\n  Index Cond: (donation.donation_id = '4459'::bigint)\n  Buffers: shared hit=3\nPlanning Time: 0.021 ms\nExecution Time: 0.009 ms",
+    "q11_person_donation_count": "Aggregate  (cost=113.37..113.38 rows=1 width=8) (actual time=0.042..0.042 rows=1 loops=1)\n  Output: count(*)\n  Buffers: shared hit=73\n  -\u003e  Bitmap Heap Scan on public.donation  (cost=2.88..112.89 rows=193 width=0) (actual time=0.011..0.036 rows=193 loops=1)\n        Recheck Cond: (donation.person_id = '380'::bigint)\n        Heap Blocks: exact=70\n        Buffers: shared hit=73\n        -\u003e  Bitmap Index Scan on donation_person_time_idx  (cost=0.00..2.83 rows=193 width=0) (actual time=0.006..0.006 rows=193 loops=1)\n              Index Cond: (donation.person_id = '380'::bigint)\n              Buffers: shared hit=3\nPlanning Time: 0.015 ms\nExecution Time: 0.046 ms",
+    "q12_charity_recent_feed": "Limit  (cost=0.57..9.86 rows=50 width=37) (actual time=0.009..0.048 rows=50 loops=1)\n  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name\n  Buffers: shared hit=92\n  -\u003e  Nested Loop  (cost=0.57..371.05 rows=1994 width=37) (actual time=0.009..0.045 rows=50 loops=1)\n        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name\n        Inner Unique: true\n        Buffers: shared hit=92\n        -\u003e  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.29..175.08 rows=1994 width=32) (actual time=0.004..0.008 rows=50 loops=1)\n              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note, d.is_last_donation\n              Index Cond: (d.charity_id = '1'::bigint)\n              Buffers: shared hit=5\n        -\u003e  Memoize  (cost=0.28..0.31 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=50)\n              Output: p.full_name, p.person_id\n              Cache Key: d.person_id\n              Cache Mode: logical\n              Hits: 21  Misses: 29  Evictions: 0  Overflows: 0  Memory Usage: 4kB\n              Buffers: shared hit=87\n              -\u003e  Index Scan using person_pkey on public.person p  (cost=0.27..0.30 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=29)\n                    Output: p.full_name, p.person_id\n                    Index Cond: (p.person_id = d.person_id)\n                    Buffers: shared hit=87\nPlanning:\n  Buffers: shared hit=12\nPlanning Time: 0.095 ms\nExecution Time: 0.057 ms",
+    "q13_donors_last_gift_window": "Limit  (cost=0.55..16.88 rows=5 width=29) (actual time=0.007..0.052 rows=65 loops=1)\n  Output: d.person_id, p.full_name, d.donated_at\n  Buffers: shared hit=199\n  -\u003e  Nested Loop  (cost=0.55..16.88 rows=5 width=29) (actual time=0.006..0.049 rows=65 loops=1)\n        Output: d.person_id, p.full_name, d.donated_at\n        Inner Unique: true\n        Buffers: shared hit=199\n        -\u003e  Index Scan using donation_last_flag_idx on public.donation d  (cost=0.27..6.62 rows=5 width=16) (actual time=0.004..0.009 rows=65 loops=1)\n              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note, d.is_last_donation\n              Index Cond: ((d.donated_at \u003e= '2026-08-25 00:00:00+00'::timestamp with time zone) AND (d.donated_at \u003c '2026-09-01 00:00:00+00'::timestamp with time zone))\n              Buffers: shared hit=4\n        -\u003e  Index Scan using person_pkey on public.person p  (cost=0.27..2.05 rows=1 width=21) (actual time=0.000..0.000 rows=1 loops=65)\n              Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at\n              Index Cond: (p.person_id = d.person_id)\n              Buffers: shared hit=195\nPlanning:\n  Buffers: shared hit=18\nPlanning Time: 0.157 ms\nExecution Time: 0.080 ms",
+    "q14_donors_last_gift_window_count": "Aggregate  (cost=6.63..6.64 rows=1 width=8) (actual time=0.012..0.013 rows=1 loops=1)\n  Output: count(*)\n  Buffers: shared hit=4\n  -\u003e  Index Only Scan using donation_last_flag_idx on public.donation d  (cost=0.27..6.62 rows=5 width=0) (actual time=0.003..0.009 rows=65 loops=1)\n        Output: donated_at\n        Index Cond: ((d.donated_at \u003e= '2026-08-25 00:00:00+00'::timestamp with time zone) AND (d.donated_at \u003c '2026-09-01 00:00:00+00'::timestamp with time zone))\n        Heap Fetches: 65\n        Buffers: shared hit=4\nPlanning:\n  Buffers: shared hit=6\nPlanning Time: 0.056 ms\nExecution Time: 0.019 ms",
+    "q15_charity_donors_last_gift_window": "Limit  (cost=0.55..9.13 rows=1 width=29) (actual time=0.006..0.021 rows=14 loops=1)\n  Output: d.person_id, p.full_name, d.donated_at\n  Buffers: shared hit=46\n  -\u003e  Nested Loop  (cost=0.55..9.13 rows=1 width=29) (actual time=0.006..0.019 rows=14 loops=1)\n        Output: d.person_id, p.full_name, d.donated_at\n        Inner Unique: true\n        Buffers: shared hit=46\n        -\u003e  Index Scan using donation_last_flag_idx on public.donation d  (cost=0.27..6.63 rows=1 width=16) (actual time=0.004..0.008 rows=14 loops=1)\n              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note, d.is_last_donation\n              Index Cond: ((d.donated_at \u003e= '2026-08-25 00:00:00+00'::timestamp with time zone) AND (d.donated_at \u003c '2026-09-01 00:00:00+00'::timestamp with time zone))\n              Filter: (d.charity_id = '1'::bigint)\n              Rows Removed by Filter: 51\n              Buffers: shared hit=4\n        -\u003e  Index Scan using person_pkey on public.person p  (cost=0.27..2.49 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=14)\n              Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at\n              Index Cond: (p.person_id = d.person_id)\n              Buffers: shared hit=42\nPlanning:\n  Buffers: shared hit=18\nPlanning Time: 0.120 ms\nExecution Time: 0.028 ms",
+    "q16_lapsed_donors_count": "Aggregate  (cost=136.62..136.63 rows=1 width=8) (actual time=0.074..0.074 rows=1 loops=1)\n  Output: count(*)\n  Buffers: shared hit=80\n  -\u003e  Index Only Scan using donation_last_flag_idx on public.donation d  (cost=0.27..135.38 rows=495 width=0) (actual time=0.007..0.059 rows=435 loops=1)\n        Output: donated_at\n        Index Cond: (d.donated_at \u003c '2026-08-25 00:00:00+00'::timestamp with time zone)\n        Heap Fetches: 435\n        Buffers: shared hit=80\nPlanning:\n  Buffers: shared hit=3\nPlanning Time: 0.037 ms\nExecution Time: 0.080 ms"
+  },
+  "provenance": {
+    "image_id": "",
+    "repo_commit": "",
+    "repo_describe": "",
+    "repo_dirty": "",
+    "run_tag": ""
+  }
+}
