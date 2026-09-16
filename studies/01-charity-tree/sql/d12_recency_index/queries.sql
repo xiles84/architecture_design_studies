@@ -109,3 +109,61 @@ SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
  WHERE p.charity_id = $1
  ORDER BY d.donated_at DESC
  LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md).
+--
+-- "Who made their LAST donation inside this window" -- a different shape from
+-- q01/q02/q05/q06: the answer is a SET defined by a per-donor aggregate, not a
+-- row selected by a key. Two window regimes are bound by the harness: TRAILING
+-- (until = end of history) and HISTORICAL (until well before it). They are not
+-- the same question -- in the trailing regime "donated in the window" and
+-- "last donated in the window" happen to coincide; in the historical regime
+-- they do not, and only the aggregate form is correct in both. See RECENCY.md
+-- section 2 for why a formulation that only works in one regime is a trap.
+--
+-- This design has no denormalised charity_id on donation, so q15 reaches the
+-- charity through person, exactly as q02/q05/q12 do in this design.
+-- ---------------------------------------------------------------------------
+
+-- name: q13_donors_last_gift_window
+-- params: since, until
+SELECT t.person_id, p.full_name, t.last_at
+  FROM (SELECT person_id, MAX(donated_at) AS last_at
+          FROM donation
+         GROUP BY person_id
+        HAVING MAX(donated_at) >= $1 AND MAX(donated_at) < $2
+         ORDER BY 2 DESC
+         LIMIT 100) t
+  JOIN person p ON p.person_id = t.person_id
+ ORDER BY t.last_at DESC;
+
+-- name: q14_donors_last_gift_window_count
+-- params: since, until
+SELECT COUNT(*) AS donor_count
+  FROM (SELECT person_id
+          FROM donation
+         GROUP BY person_id
+        HAVING MAX(donated_at) >= $1 AND MAX(donated_at) < $2) t;
+
+-- name: q15_charity_donors_last_gift_window
+-- params: charity_id, since, until
+SELECT t.person_id, p.full_name, t.last_at
+  FROM (SELECT d.person_id, MAX(d.donated_at) AS last_at
+          FROM donation d
+          JOIN person owner ON owner.person_id = d.person_id
+         WHERE owner.charity_id = $1
+         GROUP BY d.person_id
+        HAVING MAX(d.donated_at) >= $2 AND MAX(d.donated_at) < $3
+         ORDER BY 2 DESC
+         LIMIT 100) t
+  JOIN person p ON p.person_id = t.person_id
+ ORDER BY t.last_at DESC;
+
+-- name: q16_lapsed_donors_count
+-- params: since
+SELECT COUNT(*) AS donor_count
+  FROM (SELECT person_id
+          FROM donation
+         GROUP BY person_id
+        HAVING MAX(donated_at) < $1) t;

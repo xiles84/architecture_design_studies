@@ -1,8 +1,8 @@
--- Query catalogue for D7 (yb-child-colocated).
+-- Query catalogue for D3 (flattened-fk).
 --
--- Byte-identical to D3 except for this header: the design difference lives
--- entirely in the physical key layout, not in the SQL. Comparing D3 and D7 on
--- YugabyteDB therefore isolates data placement as a single variable.
+-- Every charity-scoped query that needed a join through person in D1/D2 now
+-- filters donation directly. The SQL gets shorter, which is itself part of the
+-- finding: denormalising the grandparent key removes a join from six queries.
 
 -- name: q01_last_donation_global
 -- params: none
@@ -105,52 +105,54 @@ SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
  LIMIT 50;
 
 -- ---------------------------------------------------------------------------
--- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
--- for the full explanation of the two window regimes and why a formulation
--- that only works in one is a trap.
+-- Recency-window questions (study 01 v4, RECENCY.md). See d3's queries.sql
+-- for the full explanation of the two window regimes.
 --
--- This design carries the denormalised charity_id on donation, so q15
--- filters donation directly -- the same one-decision difference already
--- measured in q02/q05/q12.
+-- D18 is D3's exact schema, indexes and write path -- the only change is this
+-- formulation: walk PERSON, and for each donor take one descent of the
+-- existing donation_person_time_idx to find their newest gift. This is a
+-- parent-driven probe, and its cost is proportional to the number of DONORS,
+-- not to how selective the window is -- unlike D19's window-first plan
+-- (d19_recency_window_sql/queries.sql), which costs what the window holds.
+-- Isolates SQL formulation alone: see d18 -> d19 in RECENCY.md section 4.
 -- ---------------------------------------------------------------------------
 
 -- name: q13_donors_last_gift_window
 -- params: since, until
-SELECT t.person_id, p.full_name, t.last_at
-  FROM (SELECT person_id, MAX(donated_at) AS last_at
-          FROM donation
-         GROUP BY person_id
-        HAVING MAX(donated_at) >= $1 AND MAX(donated_at) < $2
-         ORDER BY 2 DESC
-         LIMIT 100) t
-  JOIN person p ON p.person_id = t.person_id
- ORDER BY t.last_at DESC;
+SELECT p.person_id, p.full_name, l.last_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX(d.donated_at) AS last_at
+                       FROM donation d
+                      WHERE d.person_id = p.person_id) l
+ WHERE l.last_at >= $1 AND l.last_at < $2
+ ORDER BY l.last_at DESC
+ LIMIT 100;
 
 -- name: q14_donors_last_gift_window_count
 -- params: since, until
 SELECT COUNT(*) AS donor_count
-  FROM (SELECT person_id
-          FROM donation
-         GROUP BY person_id
-        HAVING MAX(donated_at) >= $1 AND MAX(donated_at) < $2) t;
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX(d.donated_at) AS last_at
+                       FROM donation d
+                      WHERE d.person_id = p.person_id) l
+ WHERE l.last_at >= $1 AND l.last_at < $2;
 
 -- name: q15_charity_donors_last_gift_window
 -- params: charity_id, since, until
-SELECT t.person_id, p.full_name, t.last_at
-  FROM (SELECT person_id, MAX(donated_at) AS last_at
-          FROM donation
-         WHERE charity_id = $1
-         GROUP BY person_id
-        HAVING MAX(donated_at) >= $2 AND MAX(donated_at) < $3
-         ORDER BY 2 DESC
-         LIMIT 100) t
-  JOIN person p ON p.person_id = t.person_id
- ORDER BY t.last_at DESC;
+SELECT p.person_id, p.full_name, l.last_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX(d.donated_at) AS last_at
+                       FROM donation d
+                      WHERE d.person_id = p.person_id) l
+ WHERE p.charity_id = $1 AND l.last_at >= $2 AND l.last_at < $3
+ ORDER BY l.last_at DESC
+ LIMIT 100;
 
 -- name: q16_lapsed_donors_count
 -- params: since
 SELECT COUNT(*) AS donor_count
-  FROM (SELECT person_id
-          FROM donation
-         GROUP BY person_id
-        HAVING MAX(donated_at) < $1) t;
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX(d.donated_at) AS last_at
+                       FROM donation d
+                      WHERE d.person_id = p.person_id) l
+ WHERE l.last_at < $1;

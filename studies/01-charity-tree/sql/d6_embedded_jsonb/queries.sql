@@ -147,3 +147,53 @@ SELECT (e ->> 'i')::BIGINT       AS donation_id,
  WHERE p.charity_id = $1
  ORDER BY (e ->> 't')::TIMESTAMPTZ DESC
  LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- D6 has no separate donation table to aggregate: the whole history lives in
+-- person.donations. Answering "who last gave in this window" means unnesting
+-- every donor's ENTIRE document to find its maximum timestamp -- this is the
+-- honest cost of taking embedding to its conclusion, and it is measured here
+-- rather than excused. There is no useful index for this: an expression index
+-- on the array's timestamp text is either impossible (a STABLE cast is
+-- rejected by PostgreSQL for an index) or unsound (indexing raw text makes
+-- correctness depend on JSON rendering). See RECENCY.md section 3.
+-- ---------------------------------------------------------------------------
+
+-- name: q13_donors_last_gift_window
+-- params: since, until
+SELECT p.person_id, p.full_name, l.last_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE l.last_at >= $1 AND l.last_at < $2
+ ORDER BY l.last_at DESC
+ LIMIT 100;
+
+-- name: q14_donors_last_gift_window_count
+-- params: since, until
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE l.last_at >= $1 AND l.last_at < $2;
+
+-- name: q15_charity_donors_last_gift_window
+-- params: charity_id, since, until
+SELECT p.person_id, p.full_name, l.last_at
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE p.charity_id = $1 AND l.last_at >= $2 AND l.last_at < $3
+ ORDER BY l.last_at DESC
+ LIMIT 100;
+
+-- name: q16_lapsed_donors_count
+-- params: since
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ CROSS JOIN LATERAL (SELECT MAX((e->>'donated_at')::timestamptz) AS last_at
+                       FROM jsonb_array_elements(p.donations) e) l
+ WHERE l.last_at < $1;

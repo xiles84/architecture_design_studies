@@ -1,8 +1,8 @@
--- Query catalogue for D7 (yb-child-colocated).
+-- Query catalogue for D3 (flattened-fk).
 --
--- Byte-identical to D3 except for this header: the design difference lives
--- entirely in the physical key layout, not in the SQL. Comparing D3 and D7 on
--- YugabyteDB therefore isolates data placement as a single variable.
+-- Every charity-scoped query that needed a join through person in D1/D2 now
+-- filters donation directly. The SQL gets shorter, which is itself part of the
+-- finding: denormalising the grandparent key removes a join from six queries.
 
 -- name: q01_last_donation_global
 -- params: none
@@ -105,52 +105,48 @@ SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
  LIMIT 50;
 
 -- ---------------------------------------------------------------------------
--- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
--- for the full explanation of the two window regimes and why a formulation
--- that only works in one is a trap.
+-- Recency-window questions (study 01 v4, RECENCY.md). See d3's queries.sql
+-- for the full explanation of the two window regimes.
 --
--- This design carries the denormalised charity_id on donation, so q15
--- filters donation directly -- the same one-decision difference already
--- measured in q02/q05/q12.
+-- The owner's proposal: donation.is_last_donation, maintained by a trigger
+-- (see triggers.sql) that locks the donor's person row before moving the
+-- flag. Exactly one flagged row per donor holds under concurrency because of
+-- that lock -- d21_recency_flag_unguarded is this same design with the lock
+-- removed, and is expected to fail the recency audit under contention
+-- (RECENCY.md section 5, the negative control).
 -- ---------------------------------------------------------------------------
 
 -- name: q13_donors_last_gift_window
 -- params: since, until
-SELECT t.person_id, p.full_name, t.last_at
-  FROM (SELECT person_id, MAX(donated_at) AS last_at
-          FROM donation
-         GROUP BY person_id
-        HAVING MAX(donated_at) >= $1 AND MAX(donated_at) < $2
-         ORDER BY 2 DESC
-         LIMIT 100) t
-  JOIN person p ON p.person_id = t.person_id
- ORDER BY t.last_at DESC;
+SELECT d.person_id, p.full_name, d.donated_at AS last_at
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.is_last_donation
+   AND d.donated_at >= $1 AND d.donated_at < $2
+ ORDER BY d.donated_at DESC
+ LIMIT 100;
 
 -- name: q14_donors_last_gift_window_count
 -- params: since, until
 SELECT COUNT(*) AS donor_count
-  FROM (SELECT person_id
-          FROM donation
-         GROUP BY person_id
-        HAVING MAX(donated_at) >= $1 AND MAX(donated_at) < $2) t;
+  FROM donation d
+ WHERE d.is_last_donation
+   AND d.donated_at >= $1 AND d.donated_at < $2;
 
 -- name: q15_charity_donors_last_gift_window
 -- params: charity_id, since, until
-SELECT t.person_id, p.full_name, t.last_at
-  FROM (SELECT person_id, MAX(donated_at) AS last_at
-          FROM donation
-         WHERE charity_id = $1
-         GROUP BY person_id
-        HAVING MAX(donated_at) >= $2 AND MAX(donated_at) < $3
-         ORDER BY 2 DESC
-         LIMIT 100) t
-  JOIN person p ON p.person_id = t.person_id
- ORDER BY t.last_at DESC;
+SELECT d.person_id, p.full_name, d.donated_at AS last_at
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.is_last_donation
+   AND d.charity_id = $1
+   AND d.donated_at >= $2 AND d.donated_at < $3
+ ORDER BY d.donated_at DESC
+ LIMIT 100;
 
 -- name: q16_lapsed_donors_count
 -- params: since
 SELECT COUNT(*) AS donor_count
-  FROM (SELECT person_id
-          FROM donation
-         GROUP BY person_id
-        HAVING MAX(donated_at) < $1) t;
+  FROM donation d
+ WHERE d.is_last_donation
+   AND d.donated_at < $1;

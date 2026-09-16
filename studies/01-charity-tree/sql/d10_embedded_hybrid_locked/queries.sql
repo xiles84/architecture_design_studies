@@ -112,3 +112,51 @@ SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
  WHERE d.charity_id = $1
  ORDER BY d.donated_at DESC
  LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d1's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- The bounded cache is maintained NEWEST FIRST, so element 0 IS the donor's
+-- latest gift -- when the cache is correct. This is where a corrupted cache
+-- (the bug D9's original trigger had, and D10 fixes) produces a wrong answer
+-- to a question nobody was asking it before: q09 only ever asked for the
+-- cache's own contents, never for donors ordered by their cache head. No new
+-- index: the cast from the array's stored text timestamp is STABLE, not
+-- IMMUTABLE, so PostgreSQL refuses an expression index on it (RECENCY.md
+-- section 3). That refusal is part of the finding, not a workaround target.
+-- ---------------------------------------------------------------------------
+
+-- name: q13_donors_last_gift_window
+-- params: since, until
+SELECT p.person_id, p.full_name,
+       (p.recent_donations->0->>'donated_at')::timestamptz AS last_at
+  FROM person p
+ WHERE (p.recent_donations->0->>'donated_at')::timestamptz >= $1
+   AND (p.recent_donations->0->>'donated_at')::timestamptz <  $2
+ ORDER BY last_at DESC
+ LIMIT 100;
+
+-- name: q14_donors_last_gift_window_count
+-- params: since, until
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ WHERE (p.recent_donations->0->>'donated_at')::timestamptz >= $1
+   AND (p.recent_donations->0->>'donated_at')::timestamptz <  $2;
+
+-- name: q15_charity_donors_last_gift_window
+-- params: charity_id, since, until
+SELECT p.person_id, p.full_name,
+       (p.recent_donations->0->>'donated_at')::timestamptz AS last_at
+  FROM person p
+ WHERE p.charity_id = $1
+   AND (p.recent_donations->0->>'donated_at')::timestamptz >= $2
+   AND (p.recent_donations->0->>'donated_at')::timestamptz <  $3
+ ORDER BY last_at DESC
+ LIMIT 100;
+
+-- name: q16_lapsed_donors_count
+-- params: since
+SELECT COUNT(*) AS donor_count
+  FROM person p
+ WHERE (p.recent_donations->0->>'donated_at')::timestamptz < $1;
