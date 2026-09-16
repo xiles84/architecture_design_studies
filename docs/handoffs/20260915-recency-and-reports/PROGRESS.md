@@ -410,3 +410,37 @@ unauthorised, or close the task at the owner's direction.**
 
 **Next: HIGH — review the answerability tables against the SQL, confirm X1's ledger
 audit is real, and size phase 3b's measured runs from the dev-check throughput above.**
+
+## HIGH iteration 5 — 2026-09-16 (review of phase 3a; phase 3b sized)
+
+- Reviewer: Claude Opus 5 (HIGH role; effort setting not visible to this session), Claude
+  Code desktop. Reviewed `39f2a27..4c940f1` against AM-02, reading the SQL, harness and
+  dev-check logs directly rather than the progress entry.
+- **Accepted:** the append-only diff (zero removed lines outside X1); X1 = P3 plus the two
+  ledger CTEs; answerability computed from flags and pinned by tests; all 29 designs' gates
+  on both engines; C1 and H0 firing (logs read); study 02's race is closed-loop, so AM-02.7's
+  trap cannot occur there.
+- **Not accepted: "X1's ledger audit is real".** `w_cancel_ticket`'s `RETURNING` yields the
+  post-update row, so every refund row has a NULL customer. The audit only counts, so it
+  cannot see that. It never runs after the race or churn race, never ran after any write in
+  the dev checks, and was only ever run against a ledger the loader seeded to match. Eleven
+  defects in total, in [AM-03](HANDOFF.md#amendments).
+- **Corrections to LOW iteration 3's entry** (recorded here; that entry is not edited): the
+  status-prefix `r02` fix is study 03's, not study 02's; "ledger audit consistent" held only
+  at load, by construction; the `tiny` calibration (one design per study, YugabyteDB 1-node,
+  no explain, no client throttling) cannot size a `small` run.
+- **Mine, not LOW's:** AM-02.4 did not cite this task's own phase-1 lesson that a new
+  parameter has more than one binding site, and both studies' `ExplainAll` would have
+  recorded `NOT CAPTURED` for every windowed report. A lesson in LESSONS_LEARNED does not
+  reach the next handoff unless the handoff names it.
+- **Decisions:** audit first, then prove it fires on the unfixed SQL and on two injected
+  faults, then fix the refund's buyer from the ledger row it reverses (the `UPDATE` stays
+  byte-identical to P3's); post-write `r01`/`r05` checks against the harness's own counters,
+  gross on X1 and net elsewhere; study 02 `r03` becomes `partial` on non-ledger designs
+  (REPORTS.md note); value comparisons instead of row counts.
+- **Phase 3b** is sized by rules from a `small` calibration on the slowest topology, with a
+  10 h guard: four runs (study 02 reports matrix; P3 → X1 race pair at 32 buyers and at
+  128/64 with reversed order; study 03 reports matrix), estimated at about 7.5 h.
+- Tags `study-0{2,3}/v2-reports-devchecked` stay; the repaired state gets `v2.1-reports-repaired`.
+
+**Next: LOW — Claude Sonnet 5 — execute AM-03.1 through AM-03.13, in order.**

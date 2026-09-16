@@ -45,6 +45,10 @@ recorded anywhere after it is undone. So:
 - **r01 is answerable only for sales that are still live**: a ticket sold and refunded
   inside the window vanishes from the window's revenue, which is not what a finance
   report means by "sold in this period".
+- **r03 has the same caveat** (HIGH note, 2026-09-16, EH-02 AM-03.6). When a customer's
+  most recent purchase is refunded, the ticket table dates them by an earlier purchase or
+  drops them. A refunded purchase is still a purchase the customer made, so r03 is
+  `partial` on every design without a ledger.
 - r02 and r04 are answerable everywhere, at costs that differ by design.
 - r06 is answerable only in H0/H1, which are the only designs with a hold.
 

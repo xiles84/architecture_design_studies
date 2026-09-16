@@ -607,3 +607,330 @@ cost this task a null result in phase 2 and must not cost it another.
 
 **Next after execution: HIGH — review the answerability tables against the SQL, confirm
 X1's ledger audit is real, and size phase 3b's measured runs from the dev-check numbers.**
+
+### AM-03 — phase 3a review: eleven repairs, then a `small` calibration, then phase 3b
+
+- Decided by: Claude Opus 5 (HIGH role; the effort setting is not visible to this session),
+  Claude Code desktop, 2026-09-16.
+- Reviews: `39f2a27..4c940f1` (LOW iteration 3, executed by Claude Sonnet 5).
+- Next setting: **LOW — Claude Sonnet 5** (the owner's LOW choice for this task).
+
+**AM-03.0 — what the review accepted, checked rather than taken from the progress log.**
+
+- **Append-only holds.** `git diff -U0 8c0f2a4 4c940f1` over both studies' `sql/`, X1
+  excluded, has zero removed lines. X1's `writes.sql` differs from P3's only in
+  `w_sell_seat`, `w_cancel_ticket` and their comments; its schema adds `sale_event` and its
+  indexes add four.
+- **Answerability is computed from design flags and pinned to the catalogue by tests** in
+  both studies, and study 03's `TestR06UnanswerableEverywhere` pins AM-02.0's finding.
+- **Every dev-check log says what the progress log says.** Study 02: 15/15 designs pass on
+  PostgreSQL and on YugabyteDB 1-node. Study 03: 13/13 on PostgreSQL, 14/14 on YugabyteDB.
+  C1 overbooked every race event and H0 overbooked at every holds tier (`am02-dc01-pg/logs`).
+- **Study 02's race cannot fall into AM-02.7's trap.** Buyers free-run (`RunRaces`); only the
+  organiser's editor is paced. The buyer count is a real demand variable here.
+- **Study 03's r01 binds `within` from the wall clock** (`time.Now().Add(holdsLookahead)`).
+  That is a deliberate exception to RECENCY.md §2 rather than a slip: holds live in real
+  time, and "what expires in the next ten minutes" has no historical regime. Accepted, and
+  it must say so in `reports.go` (AM-03.9).
+
+**The eleven defects.** The ones that matter most are 1–5: the review question was "is X1's
+ledger audit real?", and on the evidence the answer was *not yet shown*.
+
+1. **X1 records every refund without its buyer.** In `w_cancel_ticket`, `RETURNING` returns
+   the row *after* the update (PostgreSQL 17, and YSQL on PostgreSQL 15; `RETURNING OLD`
+   exists only from PostgreSQL 18), and the update has just set `customer_id = NULL`. Every
+   `cancelled` ledger row therefore has a NULL customer. A refund ledger that cannot say who
+   was refunded fails the purpose X1 was added for.
+2. **The reconciliation audit counts; it does not attribute.** `a_ledger_mismatches`
+   compares each seat's net count (sales minus cancellations) with its live status. It cannot
+   see defect 1, a wrong customer, a wrong timestamp or price, or events in an impossible
+   order.
+3. **The audit never runs after the race or the churn race.** REPORTS.md §4 says "after
+   every writing phase". `race.go` calls `RunAudit` per tier and never `RunLedgerAudit`, and
+   the race is X1's headline experiment.
+4. **The audit was never exercised after a write and never seen to fire.** X1 ran
+   `-cmd verify` only. At load the loader seeds the ledger from the same `ds.Sold` as the
+   tickets, so "consistent" there is guaranteed by construction and proves nothing.
+5. **X1's ledger-answered reports were verified only where they cannot differ from P3.**
+   At load no refund exists, so gross and net `r01` agree and `r05` is 0. A statement that
+   returned a constant 0 would pass.
+6. **Rendering.** The report prints only the load-time ledger audit, although write-phase
+   audits are stored. The correctness table (`auditsCell`) has no ledger column.
+   `LedgerAudit.String()` dereferences a nil receiver.
+7. **Study 02's `r03` is declared answerable on the fourteen non-ledger designs**, but it
+   suffers the same refund erasure as `r01`: when a customer's most recent purchase is
+   refunded, the ticket-table formulation dates them by an earlier purchase or drops them.
+   X1's `r03` comment explains the difference wrongly. Cancelling an *earlier* ticket
+   changes neither formulation; only a refunded *latest* purchase does.
+8. **Most report checks compare row counts, not values.** Study 02 `r02`, `r03`; study 03
+   `r01` (the far cutoff never tests the predicate), `r03`, `r04`, `r05`. Study 02's `r03`
+   truth is capped at 100, so both regimes probably check "100 rows". A statement that
+   ignored its window would pass several of these.
+9. **Plans for the new reports would not be captured.** Neither study's `ExplainAll` value
+   map has `since`/`until`, and study 03's also lacks `within`. The explain phase would
+   record `NOT CAPTURED: …` for `r01`/`r03`/`r05`, which breaks the EXPLAIN floor
+   (non-negotiable 6). The dev checks never ran `explain`. **This is the same defect as
+   LESSONS_LEARNED "A new query's parameter has more than one binding site", from this task's
+   own phase 1. AM-02.4 should have cited it, and that omission is mine.**
+10. **X1 skipped "Adding a design" steps 4–5.** There is no `p3_precreated_cas →
+    x1_cas_ledger` entry in `pairs` (the reporter's controlled-pair section), and neither
+    `diagrams/p_precreated.puml` nor the README's design table shows X1.
+11. **The records overstate.** The progress entry credits the status-prefix fix to study 02
+    (it is study 03's `r02`). CONTEXT.md says X1's ledger audit passes, which is true only at
+    load, by construction. The `tiny` calibration covers one design per study, on YugabyteDB
+    1-node only, with no explain and no client-throttling reading, so it cannot size a
+    `small` run. Tags `study-02/v2-reports-devchecked` and `study-03/v2-reports-devchecked`
+    therefore mark a state with these defects. They stay (tags never move), and the repaired
+    state gets new tags (AM-03.13).
+
+**AM-03.1 — strengthen the ledger audit first (X1 only; `sql/x1_cas_ledger/audit.sql`,
+`harness/audit.go`).** Append this statement, with its comments kept in the file:
+
+```sql
+-- name: a_ledger_attribution
+-- params: none
+-- Per seat, the ledger must read as a history: sold, cancelled, sold, ... Each refund
+-- names the buyer of the sale it reverses. The newest event of a seat that is sold
+-- now is that sale, with the ticket's own buyer, time and price. Ordered by `at`,
+-- then id: YSQL caches sequence values per connection, so BIGSERIAL order is not
+-- commit order there.
+WITH seq AS (
+    SELECT event_id, seat_no, kind, customer_id, at, price_cents,
+           LAG(kind)        OVER w AS prev_kind,
+           LAG(customer_id) OVER w AS prev_customer,
+           ROW_NUMBER() OVER (PARTITION BY event_id, seat_no
+                              ORDER BY at DESC, sale_event_id DESC) AS recency
+      FROM sale_event
+    WINDOW w AS (PARTITION BY event_id, seat_no ORDER BY at, sale_event_id)
+)
+SELECT event_id, seat_no, 'refund without a preceding sale' AS problem
+  FROM seq WHERE kind = 'cancelled' AND prev_kind IS DISTINCT FROM 'sold'
+UNION ALL
+SELECT event_id, seat_no, 'refund not attributed to the refunded buyer'
+  FROM seq WHERE kind = 'cancelled' AND prev_kind = 'sold'
+   AND (customer_id IS NULL OR customer_id <> prev_customer)
+UNION ALL
+SELECT event_id, seat_no, 'second sale with no refund between'
+  FROM seq WHERE kind = 'sold' AND prev_kind = 'sold'
+UNION ALL
+SELECT t.event_id, t.seat_no, 'live sale disagrees with its newest ledger row'
+  FROM ticket t
+  JOIN seq l ON l.event_id = t.event_id AND l.seat_no = t.seat_no AND l.recency = 1
+ WHERE t.status = 'sold'
+   AND (l.kind <> 'sold' OR l.customer_id IS DISTINCT FROM t.customer_id
+        OR l.at IS DISTINCT FROM t.sold_at OR l.price_cents <> t.price_cents);
+```
+
+`RunLedgerAudit` runs both statements. `LedgerAudit` gains `AttributionMismatches int64` and
+up to `auditExamples` examples `{event_id, seat_no, problem}`. The gate and every printed
+line use `Mismatches + AttributionMismatches`. `String()` becomes nil-safe and names both
+counts. A live seat with no ledger row at all is still caught by `a_ledger_mismatches`.
+**If the load-time audit reports attribution mismatches, first check that the loader writes
+`ticket.sold_at` and `sale_event.at` through the same encoding (both through `CopyFrom`).
+Fix the loader, never the audit.**
+
+**AM-03.2 — the audit runs after every writing phase (study 02 harness).** In `race.go`,
+after each tier's `RunAudit`, call `RunLedgerAudit` with phase `"<mode>@<tier>"`, store it
+in a new `RaceResult.LedgerAudit`, and print it the way `main.go` prints write-phase ones.
+Holds do not apply, because X1 has no holds. A post-write ledger inconsistency does not
+abort the cell. In this study post-write audits are results, which is how C1 is seen to
+fire. It is reported wherever a post-write audit violation is reported (AM-03.7).
+
+**AM-03.3 — prove the audit fires, in this order, before touching `w_cancel_ticket`.**
+Dev checks, `tiny`, `pg-single`, under the lock, into
+`studies/02-ticket-booking/results/devchecks/am03-dc01-ledger-controls/`:
+
+1. **Natural control, on the unfixed SQL:** X1 with `-cmd full -phases verify,write,churn
+   -write-ops cancel -race-trials 1`. **Expected:** attribution mismatches > 0 after
+   `cancel` and after every churn tier that refunded anything (defect 1). If it reports
+   consistent, **stop: Escalation Required**. Either the audit or this review is wrong,
+   and HIGH must know which.
+2. **Injected faults:** add a harness flag `-ledger-fault none|drop-sale|wrong-customer`
+   (default `none`). It is accepted only with `-cmd verify` on a `Ledger` design; anything
+   else exits with an error. After load and before the audits, `drop-sale` deletes the
+   `sold` row of the first sold seat of the busiest catalogue event, and `wrong-customer`
+   adds 1 to that row's `customer_id`. The fault SQL is a labelled Go constant in the fault
+   code, never in the design catalogue, so plans and the SQL-binding test never see it.
+   **Expected:** `drop-sale` gives exactly 1 net mismatch, `wrong-customer` exactly 1
+   attribution mismatch, and each run exits non-zero with the gate message. Also expected:
+   `grep -- -ledger-fault run-study.sh` finds nothing.
+3. Then AM-03.4, then repeat step 1. **Expected:** consistent after `cancel` and after
+   every churn tier, with at least one refund present in the ledger.
+
+**AM-03.4 — fix X1's refund attribution (`sql/x1_cas_ledger/writes.sql`).** The `UPDATE`
+stays byte-identical to P3's. The buyer comes from the ledger row of the sale being reversed:
+
+```sql
+WITH cancelled AS (
+    UPDATE ticket
+       SET status = 'available', customer_id = NULL, sold_at = NULL
+     WHERE ticket_id = $1
+       AND status = 'sold'
+    RETURNING event_id, seat_no, price_cents
+), logged AS (
+    INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
+    SELECT c.event_id, c.seat_no,
+           (SELECT s.customer_id
+              FROM sale_event s
+             WHERE s.event_id = c.event_id AND s.seat_no = c.seat_no AND s.kind = 'sold'
+             ORDER BY s.at DESC, s.sale_event_id DESC
+             LIMIT 1),
+           'cancelled', now(), c.price_cents
+      FROM cancelled c
+    RETURNING event_id, seat_no
+)
+SELECT event_id, seat_no FROM logged;
+```
+
+The design comment must say why this is correct. The sale's own `sold` row committed in the
+same statement as the sale, and a refund names a ticket its caller has seen sold: churn
+cancels the ticket that buyer's booking just committed, and `BenchmarkCancel` cancels loaded
+tickets whose rows the loader seeded. So that row is in the refund statement's snapshot.
+Rejected alternatives: `RETURNING OLD` does not exist on either engine version here; a
+`FOR UPDATE` CTE changes the cancel's locking; an extra column on `ticket` would make P3 → X1
+two decisions. Also correct the `r03` comment (defect 7).
+
+**AM-03.5 — post-write report checks (study 02 harness, all designs).** In `main.go`, after
+the `cancel` write op and after each churn trial (after `RunRaces` returns, on that trial's
+world), check these against the harness's own counters, with window
+`[loadEpoch, time.Now()+24h)`:
+
+- `r01` for the event with the most harness sales in that phase. Expected, where `r01` is
+  `answerable`: `InitialSold + booked` (gross). Where it is `partial`:
+  `InitialSold + booked − cancelled` (net).
+- `r05` (only where answerable): `Σ cancelled` over every event.
+- Tolerance `± Σ ambiguous`. Record them as `Check`s on the write/race result, print them,
+  and report them like audits (AM-03.7).
+
+A failure on X1 is a ledger correctness violation. **A failure on any other design is
+Escalation Required before phase 3b** — do not adjust the expectation.
+
+**AM-03.6 — declarations and verification strength (both studies).**
+
+- **Study 02 `r03`: `partial` on every non-ledger design**, note: *"a customer whose most
+  recent purchase was refunded is dated by an earlier purchase, or drops out, because
+  cancellation erases the sale"*. HIGH decides the definition: `r03`, like `r01`, counts a
+  purchase that was later refunded, because "when did this customer last buy" is a question
+  about the purchase. Update `reports_test.go` if it asserts statuses. REPORTS.md §2 carries
+  HIGH's dated note (added with this amendment).
+- **Compare values wherever the truth is deterministic.** Replace these row-count checks:
+  - study 02 `r02` and study 03 `r04`: compare the multiset of `sold_at` of the returned
+    rows with the truth's top 50. Ties do not change a multiset.
+  - study 02 `r03` and study 03 `r05`: per regime, compare the multiset of `last_at` with
+    the truth's top 100 by recency.
+  - study 03 `r03`: compare exact rows `(section_no, confirmed, revenue_cents)`. Check both
+    the whole-span window and the trailing regime's window.
+  - study 03 `r01`: keep the far-cutoff check and add `within = loadNow`. Truth: the number
+    of `stExpired` seats of that event, or 0 when `d.ExpiryOnSweeper`. The loader's expiry
+    margins keep this clear of clock skew.
+  - Compare timestamps at microsecond precision on both sides. Use whatever helper keeps
+    both sides in one format (permitted choice).
+- **Make the recency trap visible.** In the historical regime, also compute the truth for
+  the naive formulation (anyone who *purchased* in the window). If its top-100 multiset
+  equals the recency one, print `WARNING: dataset cannot distinguish last-purchase from
+  purchased-in-window at top-100` and record it on the check. This does not fail the gate,
+  but the gate's blind spot must be visible.
+
+**AM-03.7 — plans, rendering and design registration.**
+
+- `ExplainAll`, both studies: add `since`/`until` = `reportWindowFor("historical")`, and in
+  study 03 add `within` = `time.Now().Add(holdsLookahead)`. **Expected:** no `NOT CAPTURED`
+  for any `r0x` statement in any design's plans file.
+- Study 02 reporter: render every phase's ledger audit (write ops, race tiers, churn tiers).
+  Add ledger and post-write report-check violations to the correctness table beside the
+  existing audit cells, and wherever the TL;DR's fixed rules list audit violations.
+- `pairs`: add `{"p3_precreated_cas", "x1_cas_ledger", "What does an append-only sale ledger
+  in the selling statement cost, and what does it make answerable?"}`.
+- X1 in `diagrams/p_precreated.puml` (re-render SVG through the container renderer) and in
+  the README's design table and family list.
+
+**AM-03.8 — dev checks after repair, `tiny`, under the lock.** Into
+`results/devchecks/am03-dc02-{pg,yb}/` of each study:
+
+| Study | Topology | Designs | `-phases` (and flags) |
+|---|---|---|---|
+| 02 | pg-single | all 15 | `verify,explain,read,write,churn` `-write-ops cancel -race-trials 1` |
+| 02 | pg-single | C1 | `verify,race` (must overbook) |
+| 02 | pg-single | H0 | `verify,holds` (must overbook) |
+| 02 | yb-single | all 15 | `verify,explain` |
+| 02 | yb-single | P3, X1 | `verify,explain,read,write,race,churn` `-write-ops book,cancel -race-trials 1` |
+| 03 | pg-single | all 13 | `verify,explain` |
+| 03 | yb-single | all 14 | `verify,explain` |
+| 03 | both | S1 | `verify,explain,read` |
+
+**Pass:** every gate passes; no `NOT CAPTURED` in any plans file; X1's ledger audits are
+consistent after every writing phase on both engines; every post-write report check passes;
+C1 and H0 fire; both studies' unit tests pass (`go test -c`, run, delete). Generate one report
+per study from these directories and confirm the ledger lines and the P3 → X1 pair render.
+Any other outcome: fix what is mapped here, otherwise Escalation Required.
+
+**AM-03.9 — records.** Study 03 `reports.go`: a comment stating r01's wall-clock exception
+(AM-03.0). LOW writes its own progress entry and does not edit iteration 3's (the
+corrections are recorded in HIGH iteration 5). Update CONTEXT.md, and add LESSONS_LEARNED
+entries for any new failure met.
+
+**AM-03.10 — `small` calibration (dev checks, not measured runs).** Under the lock, into
+`studies/0N-*/results/devchecks/am03-cal-small/`, `-scale small -duration 5s -warmup 2s
+-conns 8`:
+
+| Study | Topology | Designs | `-phases` (and flags) | What it sizes |
+|---|---|---|---|---|
+| 02 | yb-cluster3 | P3, X1 | `verify,explain,read` | report sampling (P3 scans 289 500 ticket rows; X1 the ledger) |
+| 03 | yb-cluster3 | S1, L2 | `verify,explain,read` | report sampling (L2 unnests section documents) |
+| 02 | pg-single | P3, X1 | `verify,race -race-trials 1 -race-buyers 128` | generator capacity at the high buyer count |
+
+Record in a `SUMMARY.md`: each cell's wall time (timestamps around the `podman run`), load
+time, every report's ops/s and executions (ops/s × 5), client CPU throttling for the `read`,
+`reports` and `race#1` probes, and the race's error and attempts-per-sale columns.
+
+**AM-03.11 — sizing rules. Apply them mechanically, and write the chosen values into the
+progress log before any measured run.**
+
+- **R1 duration, per study:** `5s` (the published matrices' value, which keeps the
+  re-measured read questions comparable) if every report has ≥ 100 executions in the
+  calibration. Otherwise `10s` for that study's reports run. Never above 10 s. A report still
+  under 50 executions at 10 s is a result, not a blocker: the analysis names it under
+  weaknesses.
+- **R2 high buyer count B2:** `128` if the client was CPU-throttled in ≤ 5% of CFS periods
+  during `race#1` and the race logged no connection or pool errors. Otherwise re-run that
+  calibration at `64` with the same criterion, and B2 = `64`. If 64 fails too, **Escalation
+  Required**.
+- **R3 wall-time guard:** estimate every run below from the calibration's cell wall times.
+  My estimate before calibration, from the 2026-09-13 and 2026-09-15 matrices (study 02
+  averaged 9.7 min per full cell; YugabyteDB loads 21–33 s; a P3 race trial on YugabyteDB
+  about 3.5 min): 3b-1 ≈ 2.5 h, 3b-2 + 3b-3 ≈ 2.5 h, 3b-4 ≈ 2.5 h. **If the calibrated total
+  exceeds 10 h, Escalation Required** with the estimate. Do not drop designs, topologies or
+  trials to fit.
+
+**AM-03.12 — phase 3b: four measured runs, authorised once AM-03.8 passes and AM-03.11 is
+applied.** Each run is started from a committed tree with the runner's `--tag`, one at a time,
+announced in CONTEXT.md ("running — do not start databases"), followed by `-cmd report`, a
+commit of results and report, and nothing else. No analysis.
+
+| Run | Study | Command (runner flags) | Question |
+|---|---|---|---|
+| 3b-1 | 02 | `./run-study.sh --scale small --duration <R1> --phases verify,explain,read --tag` (all 15 designs, three topologies) | what each design's answerable reports cost, beside the five buyer reads re-measured in the same session |
+| 3b-2 | 02 | `--scale small --designs p3_precreated_cas,x1_cas_ledger --phases verify,write,race,churn --extra "-write-ops book,cancel -race-trials 3 -race-buyers 32" --tag` | the ledger's cost at the published buyer count |
+| 3b-3 | 02 | same, with `--designs x1_cas_ledger,p3_precreated_cas` and `-race-buyers <B2>` | the ledger's cost when contention is 4× (or 2×); the reversed design order lets the analysis see order effects |
+| 3b-4 | 03 | `./run-study.sh --scale small --duration <R1> --phases verify,explain,read --tag` (all 14 designs, three topologies) | what each layout's reports cost |
+
+Keep the runners' default topologies (`pg-single,yb-single,yb-cluster3`) and study 02's
+YugabyteDB harness flags. **Stop conditions:** a failed gate on P3 or X1, any ledger audit
+inconsistency, or any post-write report check failure in 3b-2/3b-3 means finish the run,
+commit it, **stop, Escalation Required**. Do not re-run anything. In 3b-1/3b-4, a failed cell
+is reported as the runners already do. C2's known YugabyteDB failure is in the race phases,
+which these runs do not include; if it appears anyway, report it and continue.
+
+**AM-03.13 — tags.** After AM-03.8: `study-02/v2.1-reports-repaired` and
+`study-03/v2.1-reports-repaired`. After each run: the runner's `run/…` tag. After 3b-4:
+`study-02/v2-measured` and `study-03/v2-measured` on the commit holding the last report.
+
+**AM-03.14 — what not to do.** Do not change P3 or any other existing design, schema, index
+or write statement (X1's cancel is the only write change). Do not change race, churn, holds
+or lifecycle mechanics. Audits and checks *after* a phase are instrumentation and are
+allowed. Do not add a hold-history design. Do not write analyses. Do not move tags. Do not
+re-run the published matrices.
+
+**Next after execution: HIGH — review AM-03.3's control evidence and the calibration, then
+write signed analyses for 3b-1 to 3b-4 (study 02: reports and the P3 → X1 ledger pair;
+study 03: reports).**

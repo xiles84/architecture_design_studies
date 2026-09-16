@@ -678,6 +678,35 @@ to every worktree, shell and agent) turns that rule from a convention into a ref
 tested for a second acquirer, a guarded `down`, nesting, normal exit and SIGTERM, which
 releases only after the current foreground command returns.
 
+### `RETURNING` shows what the update left, not what it erased
+
+X1 (study 02 v2) writes its refund ledger row from the `UPDATE` that cancels the ticket:
+`RETURNING …, customer_id`. That update has just set `customer_id = NULL`, and `RETURNING`
+yields the post-update row on PostgreSQL 17 and on YSQL (PostgreSQL 15); `RETURNING OLD`
+exists only from PostgreSQL 18. Every refund was logged without its buyer. Nothing errored,
+and the design passed its gate on both engines. When a side record describes a change, take
+the "before" values from something that still holds them. Here that is the ledger row of the
+sale being reversed.
+
+### An audit only ever run on state built to agree with it proves nothing
+
+X1's ledger reconciliation audit was reported "consistent" on both engines. It had run only
+at load, where the loader writes the ledger and the tickets from the same generated sales, so
+it could not have disagreed. It never ran after a write, never after the race it exists for,
+and it counted events per seat without checking whom they named, so the NULL-buyer bug above
+was invisible to it. Treat a new audit like a negative control. Show it firing, on a real
+defect or an injected one, and run it after the phases that can break the invariant, before
+any "consistent" counts as evidence (EH-02 AM-03).
+
+### A lesson has to be named in the next handoff to reach it
+
+"A new query's parameter has more than one binding site" was learned in study 01's phase 1 of
+this same task. Phase 3a's handoff (AM-02.4) did not cite it, and both studies' `ExplainAll`
+again lacked the new window parameters. The mistake would have surfaced only as
+`NOT CAPTURED` plans in a measured run. A planner writing a handoff should search
+LESSONS_LEARNED for the mechanisms it touches (parameters, plans, audits, loaders) and cite
+the entries by name.
+
 ---
 
 ## Building study 03 (reserved seating)

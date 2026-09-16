@@ -89,6 +89,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-01/v4.2-handoff-amendment-02` | EH-02 AM-02: phase 3a authorised (studies 02/03 operational reports, implementation and dev checks); two protocol claims verified across all 28 designs; measured runs still gated |
 | `study-02/v2-reports-devchecked` | study 02: r01-r06 and the new X1 design (append-only sale ledger) implemented, dev-checked correct on PostgreSQL and YugabyteDB `tiny`; phase 3b (measured runs) not yet authorised |
 | `study-03/v2-reports-devchecked` | study 03: r01-r06 implemented (r06 unanswerable everywhere, verified), dev-checked correct on PostgreSQL and YugabyteDB `tiny`, including L3; phase 3b not yet authorised |
+| `repo/recency-reports-handoff-am03` | EH-02 AM-03: phase 3a reviewed. Eleven defects found (X1 refunds lose their buyer; ledger audit unproven); repairs, `small` calibration and four phase-3b runs specified. The two `v2-reports-devchecked` tags above mark the unrepaired state |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -280,19 +281,25 @@ real operation asks for.
   pins it to the SQL with a unit test; adds exactly one new design (study 02's X1 = P3 plus
   an append-only sale ledger, with a reconciliation audit); and adds none to study 03.
   Phase 3b — the measured runs — stays gated until the dev-check numbers exist.
-- **Phase 3a implementation and dev checks complete (2026-09-16, LOW, Claude Sonnet 5).**
-  All of AM-02.1–.5 executed. **All 15 study-02 designs (14 + X1) and all 14 study-03
-  designs pass the correctness gate on both PostgreSQL and YugabyteDB** (`tiny`), including
-  the new report checks. Two real bugs were caught by the dev-check gate itself before any
-  measured run — a duplicated `CREATE TABLE` in X1's schema that only failed once another
-  design's tables were already present, and study 03's r01 truth missing lazy-expired
-  holds (fixed for every design except E1, whose sweeper the harness already runs to
-  completion first). Both negative controls (study 02's C1 and H0) were confirmed still
-  firing in their own experiments, unaffected by the reporting changes. One calibration
-  cell per study on `yb-single` shows every answerable report at hundreds to low
-  thousands of ops/s at `tiny` scale; unanswerable reports are correctly absent, never a
-  zero. **Phase 3b (the measured runs) is not yet authorised** — HIGH sizes it from this
-  throughput next, exactly as phase 1 gated phase 2. Nothing is running; lock released.
+- **Phase 3a implemented and dev-checked (2026-09-16, LOW, Claude Sonnet 5).** AM-02.1–.5
+  executed. All 15 study-02 designs (14 + X1) and all 14 study-03 designs pass the
+  correctness gate on PostgreSQL and YugabyteDB 1-node at `tiny`, and C1 and H0 still fire.
+  The dev checks caught two bugs: a duplicated `CREATE TABLE` in X1's schema, and study 03's
+  r01 truth missing lazy-expired holds.
+- **Phase 3a reviewed: not accepted as is; phase 3b sized (2026-09-16, HIGH, Claude
+  Opus 5, [AM-03](docs/handoffs/20260915-recency-and-reports/HANDOFF.md#amendments)).**
+  Eleven defects. The central one: **X1 records every refund with a NULL buyer**, because
+  `RETURNING` yields the post-update row. X1's ledger audit only counts, so it cannot see
+  that; it never runs after the race; and in the dev checks it was only ever run on the
+  ledger the loader seeded, where it is consistent by construction. Other defects:
+  count-only report checks; study 02's r03 wrongly declared answerable across refunds; the
+  explain phase lacking the window parameters (a repeat of this task's phase-1 lesson); and
+  X1 missing from `pairs`, the diagram and the README. AM-03 orders the audit, then two
+  proofs that it fires (on the unfixed SQL and on injected faults), then the fix, then a
+  `small` calibration. Four measured runs are sized by rules with a 10 h guard: study 02's
+  reports matrix, a P3 → X1 race pair at 32 and at 128/64 buyers, and study 03's reports
+  matrix. Tags `study-0{2,3}/v2-reports-devchecked` mark the unrepaired state. **Next: LOW
+  (Claude Sonnet 5) executes AM-03.** Nothing is running.
 
 ### Study 01 — tree structures (charity → person → donation)
 
