@@ -233,12 +233,16 @@ real operation asks for.
   was never exercised on the flag designs, where the delete trigger fires once per child
   row. Three of the five follow from EH-02's own under-specification of the reporting
   path, not from execution.
-- **Phase 2 (authorised after the AM-01 repairs):** the measured study-01 recency matrix,
-  sized at ~4 hours at three trials — `recency-reads` ~2.2 h, `recency-maintenance`
-  ~30 min, `recency-hot-donor` ~30 min, `recency-placement` ~45 min.
+- **Phase 2 — RUNNING (started 2026-09-16, LOW, Claude Sonnet 5).** All five AM-01
+  repairs are committed (`ff79475`, `2c6f515`) and `delete_person` was dev-checked clean
+  on D20/D21 (AM-01.5: 6,000+ ops/s, 0 errors, audits consistent, no escalation). The
+  measured recency matrix — `recency-reads`, `recency-maintenance`, `recency-hot-donor`,
+  `recency-placement`, 3 trials — is running via `run-study.sh --suite enhancements
+  --tag`, sized at ~4 hours. **Do not start another database while this runs; it holds
+  the benchmark lock.** Check `podman volume inspect ads-run-lock` for the holder.
 - **Phase 3 (still not authorised):** studies 02/03's report queries.
-- Nothing is running; every dev-check database was torn down and the benchmark lock
-  released.
+- The phase-2 matrix above is running and holds the lock; no other measurement should
+  start on this machine until it finishes and the lock is released.
 
 ### Study 01 — tree structures (charity → person → donation)
 
