@@ -46,6 +46,7 @@ type Design struct {
 	SeatPool       bool   // seat_slot rows for unsold seats
 	TicketCapacity bool   // ticket.event_capacity (C5's CHECK)
 	Holds          bool   // reservation table; ticket.reservation_id
+	Ledger         bool   // sale_event append-only table (X1, REPORTS.md v2)
 
 	// NegativeControl is non-empty for a design that is EXPECTED to violate the
 	// invariant. It stays in the study because an audit that has never caught a
@@ -130,6 +131,11 @@ var designs = []Design{
 		ID: "h1_hold_checked_confirm", Short: "H1 hold/checked", Title: "hold-checked-confirm", Family: "reservation with expiry",
 		Summary:  "H0 with the confirmation conditional on the hold still being held and unexpired, by the database clock.",
 		Strategy: Hold, Isolation: ports.ReadCommitted, CounterColumn: "seats_taken", Holds: true,
+	},
+	{
+		ID: "x1_cas_ledger", Short: "X1 CAS+ledger", Title: "cas-ledger", Family: "pre-created tickets",
+		Summary:  "P3 plus an append-only sale_event table, written in the same statement as the sale and the cancellation (REPORTS.md v2).",
+		Strategy: CAS, Isolation: ports.ReadCommitted, Precreated: true, Ledger: true,
 	},
 }
 

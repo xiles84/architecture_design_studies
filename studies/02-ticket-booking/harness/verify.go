@@ -189,6 +189,8 @@ func Verify(ctx context.Context, db ports.DB, d Design, ds *Dataset) (*VerifyRep
 		}
 		v.add(Check{Query: "q04_ticket_by_id", Key: fmt.Sprintf("ticket %d", t.ID), OK: err == nil && gotS == want, Expect: want, Got: gotS})
 	}
+
+	verifyReports(ctx, db, d, ds, q, k, v)
 	return v, nil
 }
 

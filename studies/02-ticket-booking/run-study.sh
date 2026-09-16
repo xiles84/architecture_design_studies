@@ -71,7 +71,7 @@ ENVIRONMENT="${BENCH_ENVIRONMENT:-host-zenbook-ux5406sa}"
 OUT="$STUDY_DIR/results/$RUN_ID"
 mkdir -p "$OUT"
 
-ALL_DESIGNS="p1_precreated_lock_first p2_precreated_skip_locked p3_precreated_cas p4_precreated_counter c1_count_naive c2_count_serializable c3_count_lock_event c4_counter_guard c5_seat_unique r1_inventory_row r2_inventory_buckets r3_seat_pool h0_hold_naive_confirm h1_hold_checked_confirm"
+ALL_DESIGNS="p1_precreated_lock_first p2_precreated_skip_locked p3_precreated_cas p4_precreated_counter c1_count_naive c2_count_serializable c3_count_lock_event c4_counter_guard c5_seat_unique r1_inventory_row r2_inventory_buckets r3_seat_pool h0_hold_naive_confirm h1_hold_checked_confirm x1_cas_ledger"
 
 # ---------------------------------------------------------------------------
 # Repository version. "Dirty" means uncommitted changes in the code that can

@@ -54,15 +54,18 @@ type Run struct {
 	Dataset map[string]any `json:"dataset"`
 	Options map[string]any `json:"options"`
 
-	Load      *LoadPhases        `json:"load,omitempty"`
-	Verify    *VerifyReport      `json:"verify,omitempty"`
-	LoadAudit *Audit             `json:"load_audit,omitempty"`
-	Stats     *DBStats           `json:"stats,omitempty"`
-	Reads     []ReadResult       `json:"reads,omitempty"`
-	Writes    []WriteResult      `json:"writes,omitempty"`
-	Races     []RaceResult       `json:"races,omitempty"`
-	Holds     []HoldResult       `json:"holds,omitempty"`
-	ReloadMS  map[string]float64 `json:"reload_ms,omitempty"`
+	Load        *LoadPhases             `json:"load,omitempty"`
+	Verify      *VerifyReport           `json:"verify,omitempty"`
+	LoadAudit   *Audit                  `json:"load_audit,omitempty"`
+	Stats       *DBStats                `json:"stats,omitempty"`
+	Reads       []ReadResult            `json:"reads,omitempty"`
+	Reports     []ReadResult            `json:"reports,omitempty"`
+	ReportCov   map[string]ReportStatus `json:"report_coverage,omitempty"`
+	LedgerAudit *LedgerAudit            `json:"ledger_audit,omitempty"`
+	Writes      []WriteResult           `json:"writes,omitempty"`
+	Races       []RaceResult            `json:"races,omitempty"`
+	Holds       []HoldResult            `json:"holds,omitempty"`
+	ReloadMS    map[string]float64      `json:"reload_ms,omitempty"`
 	// ClientCPU is the benchmark client's own CPU accounting per phase. Throttled
 	// periods mean the client, not the database, may have set the tail latency.
 	ClientCPU map[string]cgroup.CPUStat `json:"client_cpu,omitempty"`
@@ -291,7 +294,15 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 		}
 		run.LoadAudit = au
 		fmt.Printf("    %d/%d checks passed; audit on load: %s\n", vr.Passed, vr.Passed+vr.Failed, au)
-		if vr.Failed > 0 || au.Violations() > 0 {
+		la, err := RunLedgerAudit(ctx, db, d, "load")
+		if err != nil {
+			return err
+		}
+		if la != nil {
+			run.LedgerAudit = la
+			fmt.Printf("    ledger audit on load: %s\n", la)
+		}
+		if vr.Failed > 0 || au.Violations() > 0 || (la != nil && la.Mismatches > 0) {
 			return fmt.Errorf("design %s failed the correctness gate; refusing to report timings", d.ID)
 		}
 		if st, err := CollectStats(ctx, db, run.Engine); err == nil {
@@ -330,6 +341,16 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 			return err
 		}
 		run.Reads = rs
+
+		run.ReportCov = ReportCoverage(d)
+		fmt.Println("  operational reports:")
+		stop = probe(run, "reports")
+		reps, err := BenchmarkReports(ctx, db, d, ds, s)
+		stop()
+		if err != nil {
+			return err
+		}
+		run.Reports = reps
 	}
 
 	// Every isolated write op gets its own fresh load, audited on the state it
@@ -382,8 +403,16 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 				return err
 			}
 			fmt.Printf("      audit after %s: %s\n", op, au)
+			la, err := RunLedgerAudit(ctx, db, d, "write:"+op)
+			if err != nil {
+				return err
+			}
+			if la != nil {
+				fmt.Printf("      ledger audit after %s: %s\n", op, la)
+			}
 			for i := range results {
 				results[i].Audit = au
+				results[i].LedgerAudit = la
 			}
 			run.Writes = append(run.Writes, results...)
 		}

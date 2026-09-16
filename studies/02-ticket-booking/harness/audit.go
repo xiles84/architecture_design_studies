@@ -186,3 +186,73 @@ func eventSold(ctx context.Context, db ports.DB, auditSQL string, eventID int64)
 	err := db.QueryRow(ctx, auditSQL, eventID).Scan(&n)
 	return n, err
 }
+
+// ---------------------------------------------------------------------------
+// Ledger reconciliation audit (X1 only, REPORTS.md section 4 / AM-02.3).
+//
+// Reconciliation against what the harness saw commit is already covered by
+// RunAudit's existing ledger check (ticket.status='sold' counts against
+// world.expectedSold()); this audit ties sale_event to that SAME ticket
+// state, per seat, so the composition of the two covers both halves of the
+// requirement without duplicating the harness-observation machinery.
+// ---------------------------------------------------------------------------
+
+type LedgerMismatch struct {
+	EventID    int64 `json:"event_id"`
+	SeatNo     int64 `json:"seat_no"`
+	LedgerNet  int64 `json:"ledger_net"`
+	ActualSold int64 `json:"actual_sold"`
+}
+
+type LedgerAudit struct {
+	Phase            string           `json:"phase"`
+	SeatsChecked     int64            `json:"seats_checked"`
+	Mismatches       int64            `json:"mismatches"`
+	MismatchExamples []LedgerMismatch `json:"mismatch_examples,omitempty"`
+}
+
+func (a *LedgerAudit) String() string {
+	if a == nil || a.Mismatches == 0 {
+		return fmt.Sprintf("consistent (%d seats checked)", a.SeatsChecked)
+	}
+	return fmt.Sprintf("INCONSISTENT — %d of %d seats disagree with the ledger", a.Mismatches, a.SeatsChecked)
+}
+
+func RunLedgerAudit(ctx context.Context, db ports.DB, d Design, phase string) (*LedgerAudit, error) {
+	if !d.Ledger {
+		return nil, nil
+	}
+	stmts, err := mustStmts(d.ID, "audit.sql")
+	if err != nil {
+		return nil, err
+	}
+	q := catalog.Map(stmts)
+	a := &LedgerAudit{Phase: phase}
+
+	rows, err := db.Query(ctx, q["a_ledger_mismatches"].SQL)
+	if err != nil {
+		return nil, fmt.Errorf("a_ledger_mismatches: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m LedgerMismatch
+		var seat int32
+		if err := rows.Scan(&m.EventID, &seat, &m.LedgerNet, &m.ActualSold); err != nil {
+			return nil, err
+		}
+		m.SeatNo = int64(seat)
+		a.Mismatches++
+		if len(a.MismatchExamples) < auditExamples {
+			a.MismatchExamples = append(a.MismatchExamples, m)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// SeatsChecked: every ticket row (the reconciliation query's left side).
+	if err := db.QueryRow(ctx, "SELECT COUNT(*) FROM ticket").Scan(&a.SeatsChecked); err != nil {
+		return nil, fmt.Errorf("ticket count: %w", err)
+	}
+	return a, nil
+}

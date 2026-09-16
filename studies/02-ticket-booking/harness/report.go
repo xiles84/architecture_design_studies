@@ -199,6 +199,20 @@ func writeOf(r *Run, op string, tier int) *WriteResult {
 	return nil
 }
 
+// reportOf looks up an r01-r06 result by its full name, including the
+// "@regime" suffix where one applies (r01, r03, r05).
+func reportOf(r *Run, name string) *ReadResult {
+	if r == nil {
+		return nil
+	}
+	for i := range r.Reports {
+		if r.Reports[i].Query == name {
+			return &r.Reports[i]
+		}
+	}
+	return nil
+}
+
 func (rp *report) raceTiers(mode string) []int {
 	seen := map[int]bool{}
 	var out []int
@@ -281,6 +295,7 @@ func WriteReport(dir, outPath string) error {
 	rp.writeRace(&b, "churn")
 	rp.writePrecreation(&b)
 	rp.writeReads(&b)
+	rp.writeReports(&b)
 	rp.writeHolds(&b)
 	rp.writePairs(&b)
 	rp.writeHazards(&b)
@@ -909,6 +924,130 @@ func (rp *report) writeReads(b *strings.Builder) {
 		fmt.Fprintf(b, "### %s\n\n", topologyLabel[tp])
 		t.Write(b)
 	}
+}
+
+// writeReports is the operational reports (REPORTS.md v2, AM-02): the
+// answerability table first -- mechanical, from ReportCoverage, never a blank
+// or a zero for an unanswerable report -- then throughput for whatever each
+// design can actually answer, then X1's ledger reconciliation audit.
+func (rp *report) writeReports(b *strings.Builder) {
+	fmt.Fprintf(b, "\n## Operational reports (ops/s, higher is better)\n\n")
+	fmt.Fprintf(b, "The back office's questions (REPORTS.md), not the buyer's. Added to every design's\n")
+	fmt.Fprintf(b, "`queries.sql` with no change to any existing statement, schema, index or write path.\n")
+	fmt.Fprintf(b, "r03 and r05 are measured in both window regimes (`@trailing`, `@historical`) for the same\n")
+	fmt.Fprintf(b, "reason RECENCY.md section 2 gives: in the trailing regime the cheap wrong answer happens\n")
+	fmt.Fprintf(b, "to be right, and only the historical regime would catch a design that got it wrong.\n\n")
+
+	for _, tp := range rp.topos {
+		ids := rp.designsIn(tp)
+		fmt.Fprintf(b, "### %s\n\n", topologyLabel[tp])
+
+		fmt.Fprintf(b, "**Answerability** — ✅ answerable, ⚠️ partial (caveat below), ✗ unanswerable:\n\n")
+		cov := md.NewTable(append([]string{"Report"}, designShortAll(ids)...)...)
+		for _, rname := range allReports {
+			row := []string{reportName[rname]}
+			for _, id := range ids {
+				d, err := designByID(id)
+				if err != nil {
+					row = append(row, "—")
+					continue
+				}
+				st := ReportCoverage(d)[rname]
+				switch st.Status {
+				case "answerable":
+					row = append(row, "✅")
+				case "partial":
+					row = append(row, "⚠️")
+				default:
+					row = append(row, "✗")
+				}
+			}
+			cov.Row(row...)
+		}
+		cov.Write(b)
+		fmt.Fprintf(b, "\n")
+		for _, rname := range allReports {
+			notes := map[string]bool{}
+			for _, id := range ids {
+				d, err := designByID(id)
+				if err != nil {
+					continue
+				}
+				st := ReportCoverage(d)[rname]
+				if st.Note != "" && !notes[st.Note] {
+					notes[st.Note] = true
+					fmt.Fprintf(b, "- **%s** (%s): %s\n", reportName[rname], designShort(id), st.Note)
+				}
+			}
+		}
+		fmt.Fprintf(b, "\n")
+
+		t := md.NewTable(append([]string{"Report"}, designShortAll(ids)...)...)
+		for _, rname := range allReports {
+			regimes := []string{""}
+			if rname == "r01" || rname == "r03" || rname == "r05" {
+				regimes = []string{"@trailing", "@historical"}
+			}
+			for _, regime := range regimes {
+				label := reportName[rname]
+				if regime != "" {
+					label += " (" + strings.TrimPrefix(regime, "@") + ")"
+				}
+				row := []string{label}
+				found := false
+				for _, id := range ids {
+					rr := reportOf(rp.runs[tp][id], rname+"_"+reportStmtSuffix[rname]+regime)
+					if rr == nil {
+						row = append(row, "—")
+						continue
+					}
+					found = true
+					row = append(row, md.Ops(rr.OpsPerSec))
+				}
+				if found {
+					t.Row(row...)
+				}
+			}
+		}
+		t.Write(b)
+		fmt.Fprintf(b, "\n")
+
+		var ledgerLines []string
+		for _, id := range ids {
+			r := rp.runs[tp][id]
+			if r == nil || r.LedgerAudit == nil {
+				continue
+			}
+			ledgerLines = append(ledgerLines, fmt.Sprintf("- **%s** ledger audit: %s\n", designShort(id), r.LedgerAudit))
+		}
+		if len(ledgerLines) > 0 {
+			fmt.Fprintf(b, "**Ledger reconciliation** (X1 only):\n\n")
+			for _, l := range ledgerLines {
+				b.WriteString(l)
+			}
+			fmt.Fprintf(b, "\n")
+		}
+	}
+}
+
+// reportStmtSuffix maps r01-r06 to the statement name suffix used in
+// queries.sql, so writeReports can rebuild the full "-- name:" it needs to
+// look results up by.
+var reportStmtSuffix = map[string]string{
+	"r01": "event_sales_window",
+	"r02": "event_recent_buyers",
+	"r03": "customers_last_purchase_window",
+	"r04": "band_sellthrough",
+	"r05": "refunds_window",
+	"r06": "outstanding_holds",
+}
+
+func designShortAll(ids []string) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = designShort(id) + ">"
+	}
+	return out
 }
 
 func (rp *report) writeHolds(b *strings.Builder) {

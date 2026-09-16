@@ -118,6 +118,8 @@ type WriteResult struct {
 	Op    string `json:"op"`
 	Tier  int    `json:"tier,omitempty"`
 	Audit *Audit `json:"audit,omitempty"`
+	// LedgerAudit: X1 only (REPORTS.md section 4 / AM-02.3).
+	LedgerAudit *LedgerAudit `json:"ledger_audit,omitempty"`
 	// AttemptsPerSuccess = (successes + retries) / successes: how much work one
 	// sale took. 1.0 means no race was ever lost.
 	AttemptsPerSuccess float64 `json:"attempts_per_success,omitempty"`

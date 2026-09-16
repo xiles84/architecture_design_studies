@@ -44,7 +44,7 @@ type LoadPhases struct {
 
 func msSince(t time.Time) float64 { return float64(time.Since(t).Microseconds()) / 1000 }
 
-var studyTables = []string{"reservation", "seat_slot", "event_inventory_bucket", "event_inventory", "ticket", "event", "band"}
+var studyTables = []string{"sale_event", "reservation", "seat_slot", "event_inventory_bucket", "event_inventory", "ticket", "event", "band"}
 
 // Load brings the database from anything to benchmark-ready for design d:
 //
@@ -254,6 +254,24 @@ func copyAll(ctx context.Context, db ports.DB, d Design, ds *Dataset, streams in
 
 	if d.Holds {
 		rows["reservation"] = 0
+	}
+
+	if d.Ledger {
+		// Every ticket present at load was, logically, sold once. The ledger
+		// must agree from the first row, or the reconciliation audit (r01/r03
+		// would be short a history no sale ever recorded, not just from the
+		// benchmark's own writes) would fail on a design that has not written
+		// anything wrong yet.
+		n, err := parallelCopy(ctx, db, "sale_event",
+			[]string{"event_id", "seat_no", "customer_id", "kind", "at", "price_cents"},
+			len(ds.Sold), streams, func(i int) ([]any, error) {
+				t := ds.Sold[i]
+				return []any{t.EventID, int32(t.SeatNo), t.CustomerID, "sold", t.SoldAt, t.PriceCents}, nil
+			})
+		if err != nil {
+			return fmt.Errorf("sale_event: %w", err)
+		}
+		rows["sale_event"] = n
 	}
 	return nil
 }
