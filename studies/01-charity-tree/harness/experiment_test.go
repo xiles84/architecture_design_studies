@@ -276,6 +276,34 @@ func TestDiagnoseFlagMismatchClassifiesBySymptom(t *testing.T) {
 	}
 }
 
+// TestRecencyAuditSummaryNamesD21AsTheControl is AM-01.4's requirement that a
+// reader not have to know the study's design ids by heart to see whether the
+// negative control fired.
+func TestRecencyAuditSummaryNamesD21AsTheControl(t *testing.T) {
+	fired := &RecencyAudit{Ran: true, FlagDonorsChecked: 500, FlagMismatches: 3}
+	clean := &RecencyAudit{Ran: true, FlagDonorsChecked: 500}
+
+	got := recencyAuditSummary("d21_recency_flag_unguarded", fired)
+	if !strings.Contains(got, "D21") || !strings.Contains(got, "FIRED") {
+		t.Fatalf("D21 firing must be named explicitly: %q", got)
+	}
+
+	got = recencyAuditSummary("d21_recency_flag_unguarded", clean)
+	if !strings.Contains(got, "D21") || !strings.Contains(got, "did NOT fire") {
+		t.Fatalf("D21 not firing must say so, not just print a clean count: %q", got)
+	}
+
+	// A guarded design (D20) is not the control: a mismatch is a real
+	// problem, not an expected demonstration, and must not be worded as one.
+	got = recencyAuditSummary("d20_recency_flag", fired)
+	if strings.Contains(got, "D21") || strings.Contains(got, "control") {
+		t.Fatalf("a guarded design's mismatch must not be worded like the control: %q", got)
+	}
+	if !strings.Contains(got, "INCONSISTENT") {
+		t.Fatalf("a guarded design's mismatch must still be visible: %q", got)
+	}
+}
+
 func TestExperimentReportDoesNotPresentDocDBSizeAsZeroBytes(t *testing.T) {
 	dir := t.TempDir()
 	results := filepath.Join(dir, "results")

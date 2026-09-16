@@ -59,6 +59,14 @@ func experimentProblems(r *Run) string {
 	if r.Audit != nil && auditBad(r.Audit) > 0 {
 		p = append(p, fmt.Sprintf("post-write invariant: %d mismatches", auditBad(r.Audit)))
 	}
+	// AM-01.3: without this, a fired negative control (D21, RECENCY.md
+	// section 5) would be invisible in the generated report -- the report's
+	// own methodology 5a promise ("failed cells are excluded, and this is
+	// how you would know") would be broken for exactly the cell it matters
+	// most for.
+	if r.RecencyAudit != nil && recencyAuditBad(r.RecencyAudit) > 0 {
+		p = append(p, fmt.Sprintf("recency invariant: %d mismatches", recencyAuditBad(r.RecencyAudit)))
+	}
 	for _, q := range r.Reads {
 		if q.Errors > 0 || q.Ops == 0 {
 			p = append(p, fmt.Sprintf("%s: %d errors / %d operations", q.Query, q.Errors, q.Ops))
@@ -75,6 +83,9 @@ func experimentProblems(r *Run) string {
 		}
 		if a.WarmupAudit != nil && auditBad(a.WarmupAudit) > 0 {
 			p = append(p, fmt.Sprintf("warmup invariant: %d mismatches", auditBad(a.WarmupAudit)))
+		}
+		if a.WarmupRecencyAudit != nil && recencyAuditBad(a.WarmupRecencyAudit) > 0 {
+			p = append(p, fmt.Sprintf("warmup recency invariant: %d mismatches", recencyAuditBad(a.WarmupRecencyAudit)))
 		}
 		// Offered-load errors and rejections are outcomes, not successful capacity.
 		if a.Errors+a.WarmupErrors+a.ReadErrors > 0 {
@@ -233,9 +244,17 @@ func writeEnhancementReport(dir, outPath string) error {
 				if a.WarmupAudit != nil {
 					fmt.Fprintf(&b, "Warmup audit: %d mismatches (cache %d).\n", auditBad(a.WarmupAudit), a.WarmupAudit.CacheMismatches)
 				}
+				if a.WarmupRecencyAudit != nil {
+					fmt.Fprintf(&b, "Warmup recency audit: %s.\n", recencyAuditSummary(r.DesignID, a.WarmupRecencyAudit))
+				}
 			}
 			if r.Audit != nil && r.Audit.Ran {
 				fmt.Fprintf(&b, "\nTrial %d post-write audit: %d mismatches (person %d, charity %d, cache %d).\n", r.Experiment.Settings.Trial, auditBad(r.Audit), r.Audit.PersonMismatches, r.Audit.CharityMismatches, r.Audit.CacheMismatches)
+			}
+			if r.RecencyAudit != nil && r.RecencyAudit.Ran {
+				fmt.Fprintf(&b, "\nTrial %d recency audit (RECENCY.md): %s.\n", r.Experiment.Settings.Trial, recencyAuditSummary(r.DesignID, r.RecencyAudit))
+			} else if r.DesignID == "d20_recency_flag" || r.DesignID == "d21_recency_flag_unguarded" || r.DesignID == "d22_recency_rollup_idx" || r.DesignID == "d23_recency_rollup_app_idx" || r.DesignID == "d24_recency_flag_colocated" {
+				fmt.Fprintf(&b, "\nTrial %d recency audit: not measured (this cell did not run one; see manifest).\n", r.Experiment.Settings.Trial)
 			}
 			if len(r.Experiment.Growth) > 0 {
 				fmt.Fprintf(&b, "\nTrial %d growth (sequential mutations; q07/q08/q09 reads use concurrent workers after each phase, never overlap mutations):\n\n| Cycle | Operation | Count | Seconds | Ops/s | Relation bytes | Verification failures | q07 reads/s | q08 reads/s | q09 reads/s |\n|---|---|---:|---:|---:|---:|---:|---:|---:|---:|\n", r.Experiment.Settings.Trial)

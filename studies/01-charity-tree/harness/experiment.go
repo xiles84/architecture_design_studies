@@ -314,6 +314,19 @@ func executeExperiment(ctx context.Context, pool *pgxpool.Pool, run *Run, d Desi
 				run.Writes[0].Audit = run.Audit
 			}
 		}
+		// AM-01.2: this "writes" mode is what recency-maintenance runs
+		// through, and without this the group would record no recency
+		// audit at all -- the flag's whole invariant (RECENCY.md section 5)
+		// would go unchecked on every cell.
+		if d.LastFlag || d.RecencyRollupIdx {
+			run.RecencyAudit, err = AuditRecency(ctx, pool, d)
+			if err != nil {
+				return err
+			}
+			if len(run.Writes) > 0 {
+				run.Writes[0].RecencyAudit = run.RecencyAudit
+			}
+		}
 	case "arrival":
 		x.Arrival, err = benchmarkArrival(ctx, pool, d, ds, b, opts)
 		if err != nil {
@@ -321,6 +334,16 @@ func executeExperiment(ctx context.Context, pool *pgxpool.Pool, run *Run, d Desi
 		}
 		if d.Rollups || d.SumOnly || d.RecentCache {
 			run.Audit, err = AuditRollups(ctx, pool, d)
+			if err != nil {
+				return err
+			}
+		}
+		// AM-01.2: benchmarkArrival already audits once after warmup
+		// (x.Arrival.WarmupRecencyAudit); this mirrors the rollup audit's
+		// existing second point -- after the MEASURED phase, which is what
+		// the recency-hot-donor group actually cares about seeing.
+		if d.LastFlag || d.RecencyRollupIdx {
+			run.RecencyAudit, err = AuditRecency(ctx, pool, d)
 			if err != nil {
 				return err
 			}

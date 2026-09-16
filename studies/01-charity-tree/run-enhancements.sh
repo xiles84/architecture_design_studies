@@ -178,13 +178,23 @@ for ((t=1;t<=TRIALS;t++)); do
 
   if enabled recency-maintenance; then
     # Isolated writes on fresh loads: the ordinary insert, the backdated
-    # insert (flag must not move), delete (promotes the next-newest) and
-    # amount correction (flag must not move either). Every design here
-    # carries either LastFlag or RecencyRollupIdx, so main.go's write loop
-    # attaches AuditRecency after each op automatically.
+    # insert (flag must not move), delete (promotes the next-newest),
+    # amount correction (flag must not move either) and delete_person
+    # (AM-01.5: the cascade that fires D20's delete trigger once per child
+    # row -- untested until now, so it gets its own cell rather than being
+    # folded silently into the others).
+    #
+    # ONE OP PER CELL (AM-01.1): experiment.go's "writes" mode refuses a
+    # cell naming more than one operation ("each experiment write cell must
+    # specify exactly one operation") -- the same reason the "exceptions"
+    # group above loops "for op in update delete". AuditRecency runs after
+    # each op automatically (AM-01.2, harness/experiment.go).
     order=0
     for d in $(ordered "$t" d20_recency_flag d21_recency_flag_unguarded d22_recency_rollup_idx d23_recency_rollup_app_idx); do
-      order=$((order+1)); cell pg-single standard recency-maintenance "$d" writes small "$t" "$order" "-write-ops insert,insert_backdated,delete,update -duration 15s"
+      order=$((order+1))
+      for op in insert insert_backdated delete update delete_person; do
+        cell pg-single standard recency-maintenance "$d" writes small "$t" "$order" "-write-ops $op -duration 15s"
+      done
     done
   fi
 

@@ -458,6 +458,27 @@ func recencyAuditBad(ra *RecencyAudit) int64 {
 	return ra.FlagMismatches + ra.RollupIdxMismatches
 }
 
+// recencyAuditSummary renders a RecencyAudit for a report, naming D21 as the
+// negative control explicitly (AM-01.4): a reader must not have to know the
+// study's design ids by heart to see whether the control fired.
+func recencyAuditSummary(designID string, ra *RecencyAudit) string {
+	bad := recencyAuditBad(ra)
+	checked := ra.FlagDonorsChecked + ra.RollupIdxRows
+	verdict := "consistent"
+	if bad > 0 {
+		verdict = fmt.Sprintf("INCONSISTENT — %d of %d donors wrong", bad, checked)
+	} else {
+		verdict = fmt.Sprintf("consistent (%d donors checked)", checked)
+	}
+	if designID == "d21_recency_flag_unguarded" {
+		if bad > 0 {
+			return fmt.Sprintf("negative control (D21) FIRED as expected: %s", verdict)
+		}
+		return fmt.Sprintf("negative control (D21) did NOT fire this cell: %s -- absence here does not confirm the guarded designs are safe, only that this cell's contention did not expose the race", verdict)
+	}
+	return verdict
+}
+
 // parseSplit reads a "readers:writers" worker split, e.g. "6:2".
 func parseSplit(s string) (int, int, error) {
 	var r, w int
