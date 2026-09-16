@@ -144,6 +144,21 @@ it actually caught was two bugs in the measurement apparatus:
 Both would have been invisible in a timing-only benchmark: the queries ran, returned
 rows, and were fast. **A benchmark with no correctness gate does not fail — it lies.**
 
+### A negative control needs the RIGHT kind of contention, not just SOME contention
+
+D21's unguarded flag-race control (RECENCY.md, v4) fired reliably under 8 ordinary
+connections spreading inserts across 500 donors at maximum closed-loop throughput — but
+did not fire in the paced, open-loop "arrival" experiment at 8 hot-donor writers, even
+though every insert targeted the SAME single donor. Raising that experiment's writers to
+16 made it fire. The scheduled arrival rate (500/s across 8 workers ≈ one request every
+16ms per worker) gave each transaction more room to commit before the next one started,
+narrowing the window the race needs; a tight retry loop with no pacing does not. A
+negative control that fails to fire under one load shape is not evidence the design is
+safe — it may only mean that load shape does not create the overlap the control depends
+on. Where the handoff maps a fallback (here: more writers), try it before concluding
+anything; where none is mapped, the right question is what property of the load actually
+matters, not just how much of it there was.
+
 ### Comparing designs requires identical data, from a fixed seed
 
 Obvious in principle, easy to lose in practice. Every cell regenerates the dataset from
@@ -363,6 +378,28 @@ Two mitigations, in order of preference:
 2. If an editor must touch the file, prefer tools that write a new file and rename over the
    old one (`sed -i` does this): the running shell keeps its open file descriptor on the
    original inode and finishes reading the version it started with.
+
+### A new query's parameter has more than one binding site
+
+Study 01's `readVals` binds the values every read query draws from, but it is not the
+only fixed-values map in the harness: `ExplainAll` (plan capture) builds its own, and it
+had no `since`/`until` when q13-q16 (RECENCY.md, v4) were added. Every design's `-cmd
+full` run failed at "capturing plans" with "no value bound for parameter \"since\""
+until this second binding site was found and given the same window. Adding a query
+parameter means finding every place a fixed-vals map exists for that catalogue, not just
+the one the read benchmark uses — grep for the sibling parameter names already in scope
+(`charity_id`, `person_id`, `donation_id`) rather than trusting one call site.
+
+### An embedded document's field names are a second source of truth
+
+D6/D9/D10 store donations as JSONB with single-character keys (`t` for `donated_at`,
+`i` for the id — see `load.go`'s `jsonDonation`), because a million elements' worth of
+verbose keys is real bytes. New SQL against that document has to use the actual on-disk
+key, not the column name it stands for. q13-q16 (RECENCY.md, v4) were first written with
+`e->>'donated_at'`, which returns SQL `NULL` for every row rather than erroring, so
+every check silently reported zero matching donors until the correctness gate caught it
+(exactly what the gate is for). The existing queries in the same file already used
+`e->>'t'` correctly; checking them first would have caught this before running anything.
 
 ### Heredocs are a poor way to write source files
 

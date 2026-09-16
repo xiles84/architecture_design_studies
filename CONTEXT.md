@@ -81,6 +81,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-03/v1.1-repairs` | study 03: AM-03 harness, both repair runs, regenerated reports, and results/reports pinned to LF |
 | `study-03/v1-analysis` | study 03: signed analysis of the small matrix, report index, README and context complete |
 | `repo/recency-reports-handoff-v1` | HIGH planning checkpoint: study 01's recency protocol, studies 02/03 reporting protocols and EH-02, before any code |
+| `study-01/v4-harness` | study 01: D18–D24, catalogue/harness/runner/diagram changes for the recency question, dev-checked on `tiny` (PostgreSQL and YugabyteDB, single and 3-node) and calibrated on `small`; no reported run yet |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -202,14 +203,30 @@ real operation asks for.
   [EH-02](docs/handoffs/20260915-recency-and-reports/HANDOFF.md) with its
   [progress](docs/handoffs/20260915-recency-and-reports/PROGRESS.md) and
   [escalation log](docs/handoffs/20260915-recency-and-reports/ESCALATIONS.md).
-- **Phase 1 (authorised, LOW):** study 01 implementation — four new statements appended to
-  every existing catalogue, seven new designs (D18–D24), loader/verifier/audit/report/
-  runner changes, dev checks on `tiny` across all three topologies, and a `small`
-  calibration. It ends at a checkpoint tag `study-01/v4-harness`; it does **not** merge to
-  `main` and produces no reported run.
+- **Phase 1 complete (LOW, Claude Sonnet 5, 2026-09-15/16):** four new statements
+  appended to every existing catalogue (D1–D17, byte-identical schema/indexes/writes),
+  seven new designs (D18–D24), loader/verifier/audit/report/runner changes, dev checks
+  on `tiny` across all three topologies, and a `small` calibration cell. Three real bugs
+  were found and fixed by the dev-check gate itself: the embedded designs (D6/D9/D10)
+  read the wrong JSON key for the new questions; `ExplainAll`'s plan-capture path had a
+  second, separate fixed-parameter map that never got `since`/`until`; the "arrival"
+  experiment's audit point never called the new `AuditRecency`. All three are fixed,
+  committed and re-verified. **D21 (the negative control) was seen to fail twice**: under
+  ordinary 8-connection spread demand (3/500 donors) and, after the paced hot-donor
+  experiment needed 16 writers instead of 8 to reproduce it, there too (1/500, with D20
+  staying consistent under the identical contention) — see `LESSONS_LEARNED.md` for why
+  the paced experiment needed more writers. All 22 PostgreSQL and 24 YugabyteDB-capable
+  designs pass the correctness gate (20/20 checks: the original twelve plus q13–q16 in
+  both window regimes) on all three topologies. The partial index in D20 was accepted by
+  YugabyteDB without the mapped fallback. Calibration: D3's four recency questions run at
+  160–450 ops/s at `small` scale (no supporting index, as expected), client CPU ~4% of
+  its budget (not the bottleneck). Full [progress log](docs/handoffs/20260915-recency-and-reports/PROGRESS.md).
+  Checkpoint tag: `study-01/v4-harness`. Not merged to `main`; no reported run yet.
 - **Phases 2 and 3 (not authorised yet):** the measured study-01 recency matrix, and
-  studies 02/03's report queries. HIGH sizes them from phase 1's calibration.
-- Nothing is running; no benchmark lock was taken by this task.
+  studies 02/03's report queries. HIGH sizes them from phase 1's calibration and reviews
+  the dev-check evidence above.
+- Nothing is running; every dev-check database was torn down and the benchmark lock
+  released.
 
 ### Study 01 — tree structures (charity → person → donation)
 

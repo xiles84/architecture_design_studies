@@ -53,3 +53,103 @@ its execution log. Nobody edits another iteration's entry.
   `main` is untouched.
 
 **Next: LOW — Claude Opus 5, setting `high` — execute EH-02 phase 1, steps 1–21.**
+
+## LOW iteration 1 — 2026-09-15/16
+
+- Executor: Claude Sonnet 5, Claude Code desktop app, model set to `claude-sonnet-5`
+  (the owner's "lower model" for this session).
+- Preflight (steps 1–3): confirmed clean checkout on `repo/recency-and-reports` at
+  `4c6b607`; no other worktree running a benchmark; no lock held; read RECENCY.md in
+  full before touching code.
+- **Step 4** — appended q13–q16 to all seventeen existing `queries.sql` files, in the
+  formulation the handoff mapped for each (A/B by whether `charity_id` is on `donation`,
+  C for the rollup designs, D for D6's whole document, E for D9/D10's bounded cache).
+  Verified by diff: 864 insertions, zero deletions, across exactly those 17 files.
+- **Step 5** — created D18–D24 by copying the mapped parent directory and making exactly
+  the one change; every `diff -r` check the handoff specifies passed. (D4↔D22's
+  `queries.sql` is byte-identical, not merely "differs only in indexes.sql and
+  queries.sql" as the handoff's check line literally said — D4 is itself one of the
+  formulation-C designs, so D22 shares its query text by construction. Noted here as a
+  clerical imprecision in the handoff's own check wording, not an escalation: the actual
+  required SQL content, from D-2's canonical statements, was unambiguous.)
+- **Step 6** — wrote D20's `triggers.sql` (person-row lock, insert and delete
+  maintenance) and D21's as D20's with exactly the lock statement removed; `diff` shows
+  only that one hunk.
+- **Steps 7–11** — harness changes: `designs.go` (seven new `Design` entries, `LastFlag`,
+  `RecencyRollupIdx`), `load.go` (bulk-loads the flag from `DonationsByPerson`'s own
+  order), `bench.go` (window regimes, `insert_backdated`, both regimes measured for
+  every recency query), `verify.go` (eight new checks against truth computed
+  independently, with the same boundary-tie rule the existing gate uses; pure
+  `recencyMatches`/`recencyExpectedMatches`/`recencyExpectedLapsedCount` extracted for
+  unit testing), `audit.go` (`AuditRecency`, `diagnoseFlagMismatch`), `main.go`
+  (wiring, `coreQueries` fixing the legacy geomean to exactly the original twelve),
+  `report.go` (a separate "Recency" section, design order/labels, nine new pairs).
+- **Step 12** — added `TestLegacyReadScoreExcludesRecencyQueries`,
+  `TestRecencyWindowRegimesDeriveFromTheDataset`,
+  `TestRecencyExpectedMatchesAgainstHandBuiltDataset`,
+  `TestDiagnoseFlagMismatchClassifiesBySymptom`; updated
+  `TestMechanismControlsKeepUnchangedQueriesIdentical` for the sixteen-statement
+  catalogue (q15 joins the "changed" set at the D12→D13 transition, for the same reason
+  q02/q05/q12 already do). `go test ./...` required building a `-c` binary and running
+  it directly — this machine's Application Control policy blocks executables `go test`
+  builds into `%TEMP%`. All nine tests pass.
+- **Step 13** — `go vet` clean. `gofmt -l` initially flagged every file in the module;
+  confirmed this is the repo's pre-existing Windows CRLF checkout, not a real issue
+  (LF-normalized copies of every harness file gofmt clean), except two genuine
+  misalignments in `audit.go`/`main.go` from my own edits, fixed with `gofmt -w`.
+- **Step 14** — `bash -n` clean on both modified runners.
+- **Step 15** — `d20_recency_flag.puml` and `d22_recency_rollup_idx.puml` written and
+  rendered (`diagrams/render.sh svg`, 20 diagrams total, only the two new SVGs changed);
+  README's questions and designs tables extended.
+- **Step 16** — committed in two groups (SQL catalogue; harness+runner+diagrams+README),
+  each ending with the required attribution trailer.
+- **Step 17** — dev checks, `pg-single`, `tiny`, under the benchmark lock:
+  - `-cmd verify` on all 22 PostgreSQL-capable designs: 22/22 passed, 20/20 checks each,
+    **after** finding and fixing a real bug — D6/D9/D10 initially returned zero rows for
+    every recency question because the embedded document's on-disk timestamp key is `t`,
+    not `donated_at` (see `LESSONS_LEARNED.md`). Fixed, rebuilt, reverified: all three
+    pass.
+  - `-cmd full -write-ops insert,insert_backdated,delete,update` for D20–D23: all
+    completed; D20/D22/D23 stayed consistent through every op; **D21 (the negative
+    control) failed already here**, under ordinary 8-connection spread demand — 3 of
+    500 donors with more than one flagged donation, examples recorded. D23's
+    delete/update were correctly skipped (D5's existing rule).
+  - Hot-donor contention (the "arrival" experiment, 8 then 16 writers, all targeting one
+    donor): found a second gap — the arrival experiment's post-warmup audit point ran
+    `AuditRollups` but never `AuditRecency`, so `warmup_recency_audit` was simply absent
+    from every result. Wired it in (`arrival.go`). At 8 writers D21 did not fail (see
+    `LESSONS_LEARNED.md` on why a paced open-loop arrival experiment is a gentler test
+    than a closed-loop one); at 16 writers, the handoff's mapped fallback, it did —
+    1 mismatch, example recorded — while D20 stayed consistent under the identical
+    contention. Acceptance criterion 4 ("D21 was seen to fail... with examples") is
+    satisfied twice over, by different mechanisms.
+  - A third gap, found while running D20–D23 with `-cmd full`: `ExplainAll` (plan
+    capture) has its own fixed parameter map, separate from the read benchmark's, and it
+    never had `since`/`until`. Fixed (bound to the trailing regime, since EXPLAIN is
+    about the access path, not which regime is correct).
+- **Step 18** — repeated on `yb-single` then `yb-cluster3` (torn down between): all 24
+  designs (including D7 and D24, YugabyteDB-only), 20/20 checks each, both topologies.
+  D20's **partial** index (`WHERE is_last_donation`) was accepted by YugabyteDB without
+  needing the mapped fallback to a plain composite index.
+- **Step 19** — calibration: one `small` cell, `pg-single`, D3, the four recency
+  questions restricted via `-queries`, both regimes, 3 trials. q13/q14/q16 measured
+  160–200 ops/s, q15 (charity-scoped) 400–450 ops/s — an order of magnitude below the
+  study's typical indexed reads, expected since D3 has no supporting index for this
+  question. Client CPU sampled via `podman stats` at ~4% of its 2-CPU budget (not the
+  bottleneck). Wall-clock ~90s for the whole cell (8 statements × 3 trials × (3s+1s));
+  reads are time-boxed by duration regardless of throughput, so no cell-duration
+  blowup is expected from the full recency-reads matrix (~24 cells × ~90s ≈ 36 min,
+  well under the 12-hour ER trigger).
+  - All three fixes found during steps 17–19 (the `t` key, `ExplainAll`'s missing
+    params, `arrival.go`'s missing audit wiring) were committed together with the
+    dev-check evidence they were found by.
+- Every database container was torn down between topologies and at the end; the
+  benchmark lock was released; only a pre-existing, unrelated `pg-scratch` container
+  (not created by this session) remains on the host.
+- No escalations were raised. The one instance of the handoff's own check wording not
+  quite matching its intent (step 5, D4↔D22) is recorded above as a clerical note, not
+  an escalation, since the required SQL content was unambiguous from D-2.
+
+**Next: HIGH — review this evidence, size the study-01 recency matrix (phase 2) and the
+studies 02/03 report queries (phase 3) from the calibration above, and publish an
+amendment authorising them.**
