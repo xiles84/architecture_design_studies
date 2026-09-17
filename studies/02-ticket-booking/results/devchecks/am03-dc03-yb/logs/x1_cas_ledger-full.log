@@ -1,0 +1,62 @@
+  engine: PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+  effective isolation for READ COMMITTED requests: read committed
+  dataset: 10 bands, 90 events, 26100 seats, 6880 sold at load
+  loading x1_cas_ledger ...
+  loaded in 8.5s (copy 0.5s, index 5.9s)
+  verifying answers against ground truth ...
+    46/46 checks passed; audit on load: consistent (90 events, 6880 seats sold)
+    ledger audit on load: consistent (26100 seats checked)
+  capturing plans ...
+  read benchmark:
+    q01_event_availability@10              4372.0 ops/s  p50=  0.594ms p99=  64.864ms  errors=0
+    q01_event_availability@100             4283.9 ops/s  p50=  0.604ms p99=  65.503ms  errors=0
+    q01_event_availability@1000            3105.8 ops/s  p50=  0.789ms p99=  68.102ms  errors=0
+    q01_event_availability@10000           1338.0 ops/s  p50=  1.658ms p99=  74.040ms  errors=0
+    q02_band_events                         527.4 ops/s  p50=  4.031ms p99=  86.646ms  errors=0
+    q03_customer_tickets                   2691.5 ops/s  p50=  0.944ms p99=  67.811ms  errors=0
+    q04_ticket_by_id                       4748.4 ops/s  p50=  0.559ms p99=  64.735ms  errors=0
+    q05_band_tickets_sold                   217.8 ops/s  p50=  4.694ms p99= 200.644ms  errors=0
+  operational reports:
+    r01_event_sales_window@trailing              2968.4 ops/s  p50=  0.821ms p99=  67.476ms  errors=0
+    r01_event_sales_window@historical            3024.2 ops/s  p50=  0.817ms p99=  67.531ms  errors=0
+    r02_event_recent_buyers                      1100.3 ops/s  p50=  1.356ms p99= 100.826ms  errors=0
+    r03_customers_last_purchase_window@trailing      320.3 ops/s  p50=  7.061ms p99=  86.557ms  errors=0
+    r03_customers_last_purchase_window@historical      317.4 ops/s  p50=  6.979ms p99=  86.949ms  errors=0
+    r04_band_sellthrough                          161.5 ops/s  p50=  4.983ms p99= 278.328ms  errors=0
+    r05_refunds_window@trailing                  4383.2 ops/s  p50=  0.592ms p99=  65.239ms  errors=0
+    r05_refunds_window@historical                4209.5 ops/s  p50=  0.625ms p99=  64.760ms  errors=0
+  write benchmark (fresh load per op):
+    book                                    180.5 ops/s  p50= 14.110ms p99= 208.517ms  rejected=0 retries=432 errors=0
+      audit after book: consistent (90 events, 8124 seats sold)
+      ledger audit after book: consistent (26100 seats checked)
+    cancel                                  223.1 ops/s  p50= 11.856ms p99=  90.639ms  rejected=0 retries=0 errors=0
+      audit after cancel: consistent (90 events, 5310 seats sold)
+      ledger audit after cancel: consistent (26100 seats checked)
+      report check r01_event_sales_window@write:cancel event 51 (booked=0, cancelled=1345): ok
+      report check r05_refunds_window@write:cancel every event (harness cancelled=1570, tolerance=0): ok
+  race trial 1/1 (32 buyers per event, fresh load):
+    race       10 seats x20        37.6 sold/s  p50= 69.883ms p99= 812.609ms  attempts/sale=5.66 errors=0  editor p99=201.73ms  ok
+      audit: consistent (90 events, 7080 seats sold)
+      ledger audit: consistent (26100 seats checked)
+    race      100 seats x4        136.2 sold/s  p50=105.784ms p99= 494.730ms  attempts/sale=2.04 errors=0  editor p99=393.20ms  ok
+      audit: consistent (90 events, 7480 seats sold)
+      ledger audit: consistent (26100 seats checked)
+    race     1000 seats x1        162.0 sold/s  p50=118.750ms p99= 795.944ms  attempts/sale=1.34 errors=0  editor p99=176.49ms  ok
+      audit: consistent (90 events, 8480 seats sold)
+      ledger audit: consistent (26100 seats checked)
+    race    10000 seats x1        183.2 sold/s  p50=115.224ms p99= 592.964ms  attempts/sale=1.14 errors=0  editor p99=306.17ms  ok
+      audit: consistent (90 events, 18480 seats sold)
+      ledger audit: consistent (26100 seats checked)
+  churn trial 1/1 (32 buyers per event, fresh load):
+    churn      10 seats x10        29.6 sold/s  p50= 61.452ms p99= 826.435ms  attempts/sale=6.28 errors=0  editor p99=164.11ms  ok
+      audit: consistent (90 events, 6980 seats sold)
+      ledger audit: consistent (26100 seats checked)
+    churn     100 seats x2         85.1 sold/s  p50=111.961ms p99= 502.571ms  attempts/sale=2.34 errors=0  editor p99=186.51ms  ok
+      audit: consistent (90 events, 7180 seats sold)
+      ledger audit: consistent (26100 seats checked)
+    churn    1000 seats x1        137.0 sold/s  p50=111.663ms p99= 641.449ms  attempts/sale=1.29 errors=0  editor p99=192.01ms  ok
+      audit: consistent (90 events, 8180 seats sold)
+      ledger audit: consistent (26100 seats checked)
+      report check r01_event_sales_window@churn#1 event 90 (booked=1128, cancelled=128): ok
+      report check r05_refunds_window@churn#1     every event (harness cancelled=166, tolerance=0): ok
+  wrote /results/x1_cas_ledger-full.json

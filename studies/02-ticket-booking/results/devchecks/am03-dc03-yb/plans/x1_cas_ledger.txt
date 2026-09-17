@@ -1,0 +1,602 @@
+# Query plans — study 02-ticket-booking
+
+run_id:      am03-dc03-yb
+repo:         (dirty=false)
+environment: host-zenbook-ux5406sa
+engine:      yugabyte (yb-single)
+version:     PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+design:      x1_cas_ledger (cas-ledger)
+captured:    EXPLAIN (ANALYZE, DIST, COSTS OFF, TIMING OFF)
+keys:        the largest partially sold catalogue event, its busiest customer and one of its sold
+             tickets. Write statements run inside transactions that are rolled back.
+
+==============================================================================
+## q01_event_availability
+==============================================================================
+
+# How many seats are left for this event.
+
+SELECT COUNT(*)::BIGINT AS seats_left
+  FROM ticket
+ WHERE event_id = $1
+   AND status = 'available'
+
+Finalize Aggregate (actual rows=1 loops=1)
+  ->  Index Only Scan using ticket_available_idx on ticket (actual rows=1 loops=1)
+        Index Cond: (event_id = '51'::bigint)
+        Heap Fetches: 0
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 4113
+        Partial Aggregate: true
+Planning Time: 0.074 ms
+Execution Time: 0.842 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 4113
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 65 kB
+
+==============================================================================
+## q02_band_events
+==============================================================================
+
+# A band's event list with live availability: one count per event.
+
+SELECT e.event_id,
+       e.capacity,
+       (SELECT COUNT(*) FROM ticket t
+         WHERE t.event_id = e.event_id AND t.status = 'available')::BIGINT AS seats_left
+  FROM event e
+ WHERE e.band_id = $1
+ ORDER BY e.starts_at, e.event_id
+
+Sort (actual rows=8 loops=1)
+  Sort Key: e.starts_at, e.event_id
+  Sort Method: quicksort  Memory: 25kB
+  ->  Seq Scan on event e (actual rows=8 loops=1)
+        Storage Filter: (band_id = '5'::bigint)
+        SubPlan 1
+          ->  Finalize Aggregate (actual rows=1 loops=8)
+                ->  Index Only Scan using ticket_available_idx on ticket t (actual rows=1 loops=8)
+                      Index Cond: (event_id = e.event_id)
+                      Heap Fetches: 0
+                      Storage Table Read Requests: 0
+                      Storage Table Read Ops: 0
+                      Storage Table Rows Scanned: 11
+                      Storage Index Read Requests: 1
+                      Storage Index Read Ops: 1
+                      Storage Index Rows Scanned: 545
+                      Partial Aggregate: true
+Planning Time: 0.148 ms
+Execution Time: 2.829 ms
+Storage Read Requests: 9
+Storage Read Ops: 9
+Storage Rows Scanned: 4451
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 157 kB
+
+==============================================================================
+## q03_customer_tickets
+==============================================================================
+
+# "My tickets".
+
+SELECT ticket_id, event_id, seat_no
+  FROM ticket
+ WHERE customer_id = $1
+   AND status = 'sold'
+ ORDER BY ticket_id
+
+Sort (actual rows=300 loops=1)
+  Sort Key: ticket_id
+  Sort Method: quicksort  Memory: 43kB
+  ->  Index Scan using ticket_customer_idx on ticket (actual rows=300 loops=1)
+        Index Cond: (customer_id = '1'::bigint)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 300
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 300
+Planning Time: 0.163 ms
+Execution Time: 1.119 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 600
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 291 kB
+
+==============================================================================
+## q04_ticket_by_id
+==============================================================================
+
+# Point lookup: the control.
+
+SELECT ticket_id, event_id, seat_no, customer_id
+  FROM ticket
+ WHERE ticket_id = $1
+
+Index Scan using ticket_pkey on ticket (actual rows=1 loops=1)
+  Index Cond: (ticket_id = '3201'::bigint)
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.039 ms
+Execution Time: 0.390 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## q05_band_tickets_sold
+==============================================================================
+
+# Tickets sold across all of a band's events: aggregate up the whole tree.
+
+SELECT COUNT(*)::BIGINT AS sold
+  FROM ticket t
+  JOIN event e ON e.event_id = t.event_id
+ WHERE e.band_id = $1
+   AND t.status = 'sold';
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 02 v2, REPORTS.md). r02 and r04 are P3's own
+-- formulation, unchanged (the ticket table is unchanged). r01, r03 and r05 are
+-- what the ledger buys: answered from sale_event instead of from a ticket row
+-- that a cancellation would otherwise have erased.
+-- ---------------------------------------------------------------------------
+
+Aggregate (actual rows=1 loops=1)
+  ->  YB Batched Nested Loop Join (actual rows=5889 loops=1)
+        Join Filter: (t.event_id = e.event_id)
+        ->  Seq Scan on event e (actual rows=8 loops=1)
+              Storage Filter: (band_id = '5'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 90
+        ->  Index Scan using ticket_event_seat_uq on ticket t (actual rows=5889 loops=1)
+              Index Cond: (event_id = ANY (ARRAY[e.event_id, $1, $2, ..., $1023]))
+              Storage Filter: (status = 'sold'::text)
+              Storage Table Read Requests: 11
+              Storage Table Read Ops: 11
+              Storage Table Rows Scanned: 10250
+              Storage Index Read Requests: 11
+              Storage Index Read Ops: 11
+              Storage Index Rows Scanned: 10250
+Planning Time: 0.339 ms
+Execution Time: 21.595 ms
+Storage Read Requests: 23
+Storage Read Ops: 23
+Storage Rows Scanned: 20590
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 524 kB
+
+==============================================================================
+## r01_event_sales_window
+==============================================================================
+
+# How the drop went, CORRECTLY across refunds: a sale that happened in this
+# window and was later cancelled still counts as having happened then -- what
+# a finance report means by "sold in this period", and what P3 (see
+# p3_precreated_cas) cannot say.
+
+SELECT COUNT(*) AS tickets_sold, COALESCE(SUM(price_cents), 0) AS revenue_cents
+  FROM sale_event
+ WHERE event_id = $1 AND kind = 'sold' AND at >= $2 AND at < $3
+
+Aggregate (actual rows=1 loops=1)
+  ->  Index Scan using sale_event_event_time_idx on sale_event (actual rows=500 loops=1)
+        Index Cond: ((event_id = '51'::bigint) AND (at >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (at < '2026-07-31 00:00:00+00'::timestamp with time zone))
+        Storage Filter: (kind = 'sold'::text)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 500
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 500
+Planning Time: 0.187 ms
+Execution Time: 1.568 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 1000
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 65 kB
+
+==============================================================================
+## r02_event_recent_buyers
+==============================================================================
+
+
+SELECT ticket_id, customer_id, sold_at
+  FROM ticket
+ WHERE event_id = $1 AND status = 'sold'
+ ORDER BY sold_at DESC
+ LIMIT 50
+
+Limit (actual rows=50 loops=1)
+  ->  Sort (actual rows=50 loops=1)
+        Sort Key: sold_at DESC
+        Sort Method: top-N heapsort  Memory: 31kB
+        ->  Seq Scan on ticket (actual rows=5887 loops=1)
+              Storage Filter: ((event_id = '51'::bigint) AND (status = 'sold'::text))
+              Storage Table Read Requests: 6
+              Storage Table Read Ops: 6
+              Storage Table Rows Scanned: 26100
+Planning Time: 0.104 ms
+Execution Time: 8.898 ms
+Storage Read Requests: 6
+Storage Read Ops: 6
+Storage Rows Scanned: 26100
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 144 kB
+
+==============================================================================
+## r03_customers_last_purchase_window
+==============================================================================
+
+# Answered from the ledger's 'sold' events, not the live ticket table
+# (EH-02 AM-03.6 corrects an earlier version of this comment: cancelling a
+# DIFFERENT, earlier ticket changes nothing on either formulation, since
+# neither one's last-purchase date depended on that ticket). What the ledger
+# buys is the case where the customer's MOST RECENT purchase is the one that
+# gets refunded: the ticket table then dates them by an earlier purchase, or
+# drops them if that was their only one, while the ledger still shows the
+# true last purchase -- which is why every non-ledger design's r03 is
+# `partial`, with exactly this caveat (REPORTS.md section 2).
+
+SELECT customer_id, MAX(at) AS last_at
+  FROM sale_event
+ WHERE kind = 'sold'
+ GROUP BY customer_id
+HAVING MAX(at) >= $1 AND MAX(at) < $2
+ ORDER BY 2 DESC
+ LIMIT 100
+
+Limit (actual rows=100 loops=1)
+  ->  Sort (actual rows=100 loops=1)
+        Sort Key: (max(at)) DESC
+        Sort Method: quicksort  Memory: 29kB
+        ->  HashAggregate (actual rows=104 loops=1)
+              Group Key: customer_id
+              Filter: ((max(at) >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (max(at) < '2026-07-31 00:00:00+00'::timestamp with time zone))
+              Batches: 1  Memory Usage: 193kB
+              Rows Removed by Filter: 1181
+              ->  Seq Scan on sale_event (actual rows=6880 loops=1)
+                    Storage Filter: (kind = 'sold'::text)
+                    Storage Table Read Requests: 7
+                    Storage Table Read Ops: 7
+                    Storage Table Rows Scanned: 6880
+Planning Time: 0.095 ms
+Execution Time: 14.190 ms
+Storage Read Requests: 7
+Storage Read Ops: 7
+Storage Rows Scanned: 6880
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 376 kB
+
+==============================================================================
+## r04_band_sellthrough
+==============================================================================
+
+
+SELECT e.event_id, e.capacity,
+       COUNT(t.ticket_id) FILTER (WHERE t.status = 'sold') AS sold_count,
+       ROUND(100.0 * COUNT(t.ticket_id) FILTER (WHERE t.status = 'sold') / e.capacity, 1) AS sold_pct
+  FROM event e
+  LEFT JOIN ticket t ON t.event_id = e.event_id
+ WHERE e.band_id = $1
+ GROUP BY e.event_id, e.capacity
+ ORDER BY e.event_id
+
+Sort (actual rows=8 loops=1)
+  Sort Key: e.event_id
+  Sort Method: quicksort  Memory: 25kB
+  ->  HashAggregate (actual rows=8 loops=1)
+        Group Key: e.event_id
+        Batches: 1  Memory Usage: 24kB
+        ->  YB Batched Nested Loop Left Join (actual rows=10250 loops=1)
+              Join Filter: (t.event_id = e.event_id)
+              ->  Seq Scan on event e (actual rows=8 loops=1)
+                    Storage Filter: (band_id = '5'::bigint)
+                    Storage Table Read Requests: 1
+                    Storage Table Read Ops: 1
+                    Storage Table Rows Scanned: 90
+              ->  Index Scan using ticket_event_seat_uq on ticket t (actual rows=10250 loops=1)
+                    Index Cond: (event_id = ANY (ARRAY[e.event_id, $1, $2, ..., $1023]))
+                    Storage Table Read Requests: 11
+                    Storage Table Read Ops: 11
+                    Storage Table Rows Scanned: 10250
+                    Storage Index Read Requests: 11
+                    Storage Index Read Ops: 11
+                    Storage Index Rows Scanned: 10250
+Planning Time: 0.339 ms
+Execution Time: 21.687 ms
+Storage Read Requests: 23
+Storage Read Ops: 23
+Storage Rows Scanned: 20590
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 560 kB
+
+==============================================================================
+## r05_refunds_window
+==============================================================================
+
+# What the ledger buys that no other design in this study can answer at all:
+# cancellations and the money returned, inside a window.
+
+SELECT COUNT(*) AS refunds, COALESCE(SUM(price_cents), 0) AS refunded_cents
+  FROM sale_event
+ WHERE kind = 'cancelled' AND at >= $1 AND at < $2
+
+Aggregate (actual rows=1 loops=1)
+  ->  Index Scan using sale_event_kind_time_idx on sale_event (actual rows=0 loops=1)
+        Index Cond: ((kind = 'cancelled'::text) AND (at >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (at < '2026-07-31 00:00:00+00'::timestamp with time zone))
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+Planning Time: 0.076 ms
+Execution Time: 0.231 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 0
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 65 kB
+
+==============================================================================
+## w_candidate_from
+==============================================================================
+
+
+SELECT ticket_id
+  FROM ticket
+ WHERE event_id = $1
+   AND status = 'available'
+   AND seat_no >= $2
+ ORDER BY seat_no
+ LIMIT 1
+
+Limit (actual rows=1 loops=1)
+  ->  Index Scan using ticket_available_idx on ticket (actual rows=1 loops=1)
+        Index Cond: ((event_id = '51'::bigint) AND (seat_no >= 5000))
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+        Storage Index Read Requests: 1
+        Storage Index Read Ops: 1
+        Storage Index Rows Scanned: 1
+Planning Time: 0.109 ms
+Execution Time: 0.603 ms
+Storage Read Requests: 2
+Storage Read Ops: 2
+Storage Rows Scanned: 2
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## w_sell_seat
+==============================================================================
+
+
+WITH sold AS (
+    UPDATE ticket
+       SET status = 'sold', customer_id = $1, sold_at = now()
+     WHERE ticket_id = $2
+       AND status = 'available'
+    RETURNING event_id, seat_no, sold_at, price_cents
+)
+INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
+SELECT event_id, seat_no, $1, 'sold', sold_at, price_cents FROM sold
+
+Insert on sale_event (actual rows=0 loops=1)
+  CTE sold
+    ->  Update on ticket (actual rows=0 loops=1)
+          ->  Index Scan using ticket_pkey on ticket (actual rows=0 loops=1)
+                Index Cond: (ticket_id = '3201'::bigint)
+                Storage Filter: (status = 'available'::text)
+                Storage Table Read Requests: 1
+                Storage Table Read Ops: 1
+                Storage Table Rows Scanned: 1
+  ->  CTE Scan on sold (actual rows=0 loops=1)
+Planning Time: 0.118 ms
+Execution Time: 0.383 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 164 kB
+
+==============================================================================
+## w_cancel_ticket
+==============================================================================
+
+
+WITH cancelled AS (
+    UPDATE ticket
+       SET status = 'available', customer_id = NULL, sold_at = NULL
+     WHERE ticket_id = $1
+       AND status = 'sold'
+    RETURNING event_id, seat_no, price_cents
+), logged AS (
+    INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
+    SELECT c.event_id, c.seat_no,
+           (SELECT s.customer_id
+              FROM sale_event s
+             WHERE s.event_id = c.event_id AND s.seat_no = c.seat_no AND s.kind = 'sold'
+             ORDER BY s.at DESC, s.sale_event_id DESC
+             LIMIT 1),
+           'cancelled', now(), c.price_cents
+      FROM cancelled c
+    RETURNING event_id, seat_no
+)
+SELECT event_id, seat_no FROM logged
+
+CTE Scan on logged (actual rows=1 loops=1)
+  CTE cancelled
+    ->  Update on ticket (actual rows=1 loops=1)
+          Storage Table Write Requests: 1
+          Storage Index Write Requests: 2
+          ->  Index Scan using ticket_pkey on ticket (actual rows=1 loops=1)
+                Index Cond: (ticket_id = '3201'::bigint)
+                Storage Filter: (status = 'sold'::text)
+                Storage Table Read Requests: 1
+                Storage Table Read Ops: 1
+                Storage Table Rows Scanned: 1
+  CTE logged
+    ->  Insert on sale_event (actual rows=1 loops=1)
+          Storage Table Write Requests: 1
+          Storage Index Write Requests: 4
+          ->  CTE Scan on cancelled c (actual rows=1 loops=1)
+                SubPlan 2
+                  ->  Limit (actual rows=1 loops=1)
+                        ->  Sort (actual rows=1 loops=1)
+                              Sort Key: s.at DESC, s.sale_event_id DESC
+                              Sort Method: quicksort  Memory: 25kB
+                              ->  Index Scan using sale_event_seat_idx on sale_event s (actual rows=1 loops=1)
+                                    Index Cond: ((event_id = c.event_id) AND (seat_no = c.seat_no))
+                                    Storage Filter: (kind = 'sold'::text)
+                                    Storage Table Read Requests: 1
+                                    Storage Table Read Ops: 1
+                                    Storage Table Rows Scanned: 1
+                                    Storage Index Read Requests: 1
+                                    Storage Index Read Ops: 1
+                                    Storage Index Rows Scanned: 1
+                                    Storage Flush Requests: 1
+Planning Time: 0.223 ms
+Trigger for constraint sale_event_event_id_fkey on sale_event: calls=1
+Execution Time: 2.741 ms
+Storage Read Requests: 4
+Storage Read Ops: 4
+Storage Rows Scanned: 4
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 8
+Storage Flush Requests: 1
+Peak Memory Usage: 488 kB
+
+==============================================================================
+## w_edit_event
+==============================================================================
+
+
+UPDATE event SET description = $1 WHERE event_id = $2
+
+Update on event (actual rows=0 loops=1)
+  ->  Index Scan using event_pkey on event (actual rows=1 loops=1)
+        Index Cond: (event_id = '51'::bigint)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+        Storage Table Write Requests: 1
+Planning Time: 0.110 ms
+Execution Time: 0.838 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 1
+Storage Flush Requests: 1
+Peak Memory Usage: 92 kB
+
+==============================================================================
+## w_publish_event
+==============================================================================
+
+
+INSERT INTO event (event_id, band_id, name, venue, starts_at, capacity, price_cents, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+
+Insert on event (actual rows=0 loops=1)
+  ->  Result *RESULT* (actual rows=1 loops=1)
+        Storage Table Write Requests: 1
+        Storage Index Write Requests: 1
+        Storage Flush Requests: 1
+Planning Time: 0.032 ms
+Trigger for constraint event_band_id_fkey: calls=1
+Execution Time: 10.032 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 7
+Catalog Read Ops: 7
+Catalog Write Requests: 0
+Storage Write Requests: 2
+Storage Flush Requests: 1
+Peak Memory Usage: 197 kB
+
+==============================================================================
+## w_publish_tickets
+==============================================================================
+
+
+INSERT INTO ticket (ticket_id, event_id, seat_no, status, price_cents)
+SELECT $1::BIGINT + g - 1, $2::BIGINT, g, 'available', $4::BIGINT
+  FROM generate_series(1, $3::INT) AS g
+
+Insert on ticket (actual rows=0 loops=1)
+  ->  Function Scan on generate_series g (actual rows=10000 loops=1)
+Planning Time: 0.047 ms
+Trigger for constraint ticket_event_id_fkey: calls=10000
+Execution Time: 276.412 ms
+Storage Read Requests: 0
+Storage Read Ops: 0
+Storage Rows Scanned: 0
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 30000
+Storage Flush Requests: 10
+Peak Memory Usage: 38310 kB
+

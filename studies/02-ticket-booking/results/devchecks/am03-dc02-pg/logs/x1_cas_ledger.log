@@ -1,0 +1,45 @@
+  engine: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+  dataset: 10 bands, 90 events, 26100 seats, 6880 sold at load
+  loading x1_cas_ledger ...
+  loaded in 0.1s (copy 0.1s, index 0.0s)
+  verifying answers against ground truth ...
+    46/46 checks passed; audit on load: consistent (90 events, 6880 seats sold)
+    ledger audit on load: consistent (26100 seats checked)
+  capturing plans ...
+  read benchmark:
+    q01_event_availability@10             21266.1 ops/s  p50=  0.170ms p99=   0.666ms  errors=0
+    q01_event_availability@100            20950.1 ops/s  p50=  0.171ms p99=   0.650ms  errors=0
+    q01_event_availability@1000           14894.4 ops/s  p50=  0.207ms p99=   0.788ms  errors=0
+    q01_event_availability@10000           5884.6 ops/s  p50=  0.396ms p99=  66.252ms  errors=0
+    q02_band_events                        9063.6 ops/s  p50=  0.220ms p99=   2.799ms  errors=0
+    q03_customer_tickets                  32957.3 ops/s  p50=  0.141ms p99=   0.579ms  errors=0
+    q04_ticket_by_id                      38828.0 ops/s  p50=  0.129ms p99=   0.455ms  errors=0
+    q05_band_tickets_sold                  6150.0 ops/s  p50=  0.209ms p99=  65.341ms  errors=0
+  operational reports:
+    r01_event_sales_window@trailing             31713.9 ops/s  p50=  0.141ms p99=   0.516ms  errors=0
+    r01_event_sales_window@historical           31630.5 ops/s  p50=  0.140ms p99=   0.532ms  errors=0
+    r02_event_recent_buyers                     13080.0 ops/s  p50=  0.216ms p99=   1.231ms  errors=0
+    r03_customers_last_purchase_window@trailing     1626.7 ops/s  p50=  1.114ms p99=  76.771ms  errors=0
+    r03_customers_last_purchase_window@historical     1687.6 ops/s  p50=  1.150ms p99=  75.018ms  errors=0
+    r04_band_sellthrough                         4707.3 ops/s  p50=  0.243ms p99=  68.548ms  errors=0
+    r05_refunds_window@trailing                 32916.8 ops/s  p50=  0.142ms p99=   0.542ms  errors=0
+    r05_refunds_window@historical               30229.3 ops/s  p50=  0.149ms p99=   0.812ms  errors=0
+  write benchmark (fresh load per op):
+    cancel                                 3091.3 ops/s  p50=  2.161ms p99=  14.987ms  rejected=0 retries=0 errors=0  WARNING: pool exhausted
+      audit after cancel: consistent (90 events, 0 seats sold)
+      ledger audit after cancel: consistent (26100 seats checked)
+      report check r01_event_sales_window@write:cancel event 51 (booked=0, cancelled=5887): ok
+      report check r05_refunds_window@write:cancel every event (harness cancelled=6880, tolerance=0): ok
+  churn trial 1/1 (32 buyers per event, fresh load):
+    churn      10 seats x10       621.7 sold/s  p50=  3.331ms p99=  50.163ms  attempts/sale=4.20 errors=0  editor p99=9.67ms  ok
+      audit: consistent (90 events, 6980 seats sold)
+      ledger audit: consistent (26100 seats checked)
+    churn     100 seats x2       3117.7 sold/s  p50=  3.795ms p99=  15.807ms  attempts/sale=2.00 errors=0  editor p99=4.02ms  ok
+      audit: consistent (90 events, 7180 seats sold)
+      ledger audit: consistent (26100 seats checked)
+    churn    1000 seats x1       2587.8 sold/s  p50=  3.992ms p99=  65.863ms  attempts/sale=1.25 errors=0  editor p99=55.41ms  ok
+      audit: consistent (90 events, 8180 seats sold)
+      ledger audit: INCONSISTENT — 0 net mismatches, 6 attribution problems (of 26100 seats checked)
+      report check r01_event_sales_window@churn#1 event 90 (booked=1110, cancelled=110): ok
+      report check r05_refunds_window@churn#1     every event (harness cancelled=134, tolerance=0): ok
+  wrote /results/x1_cas_ledger.json
