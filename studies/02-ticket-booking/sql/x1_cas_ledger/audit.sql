@@ -60,3 +60,36 @@ SELECT t.event_id, t.seat_no,
          GROUP BY event_id, seat_no
   ) l ON l.event_id = t.event_id AND l.seat_no = t.seat_no
  WHERE COALESCE(l.net, 0) <> (t.status = 'sold')::INT;
+
+-- name: a_ledger_attribution
+-- params: none
+-- Per seat, the ledger must read as a history: sold, cancelled, sold, ... Each refund
+-- names the buyer of the sale it reverses. The newest event of a seat that is sold
+-- now is that sale, with the ticket's own buyer, time and price. Ordered by `at`,
+-- then id: YSQL caches sequence values per connection, so BIGSERIAL order is not
+-- commit order there.
+WITH seq AS (
+    SELECT event_id, seat_no, kind, customer_id, at, price_cents,
+           LAG(kind)        OVER w AS prev_kind,
+           LAG(customer_id) OVER w AS prev_customer,
+           ROW_NUMBER() OVER (PARTITION BY event_id, seat_no
+                              ORDER BY at DESC, sale_event_id DESC) AS recency
+      FROM sale_event
+    WINDOW w AS (PARTITION BY event_id, seat_no ORDER BY at, sale_event_id)
+)
+SELECT event_id, seat_no, 'refund without a preceding sale' AS problem
+  FROM seq WHERE kind = 'cancelled' AND prev_kind IS DISTINCT FROM 'sold'
+UNION ALL
+SELECT event_id, seat_no, 'refund not attributed to the refunded buyer'
+  FROM seq WHERE kind = 'cancelled' AND prev_kind = 'sold'
+   AND (customer_id IS NULL OR customer_id <> prev_customer)
+UNION ALL
+SELECT event_id, seat_no, 'second sale with no refund between'
+  FROM seq WHERE kind = 'sold' AND prev_kind = 'sold'
+UNION ALL
+SELECT t.event_id, t.seat_no, 'live sale disagrees with its newest ledger row'
+  FROM ticket t
+  JOIN seq l ON l.event_id = t.event_id AND l.seat_no = t.seat_no AND l.recency = 1
+ WHERE t.status = 'sold'
+   AND (l.kind <> 'sold' OR l.customer_id IS DISTINCT FROM t.customer_id
+        OR l.at IS DISTINCT FROM t.sold_at OR l.price_cents <> t.price_cents);

@@ -55,6 +55,7 @@ var pairs = []pair{
 	{"r1_inventory_row", "r2_inventory_buckets", "What does sharding the counter into buckets buy?"},
 	{"p2_precreated_skip_locked", "r3_seat_pool", "SKIP LOCKED on a wide pre-created ticket, or on a narrow slot plus a ticket insert?"},
 	{"h0_hold_naive_confirm", "h1_hold_checked_confirm", "What does validating the hold at confirmation cost?"},
+	{"p3_precreated_cas", "x1_cas_ledger", "What does an append-only sale ledger in the selling statement cost, and what does it make answerable?"},
 }
 
 type report struct {

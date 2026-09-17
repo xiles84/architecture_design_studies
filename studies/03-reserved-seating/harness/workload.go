@@ -385,12 +385,21 @@ func ExplainAll(ctx context.Context, db ports.DB, d Design, ds *Dataset, w *Worl
 	if hold != nil {
 		holdID, seats, sec = hold.ID, hold.Seats, hold.Section
 	}
+	// EH-02 AM-03.7 (repairing AM-02.4's own omission -- LESSONS_LEARNED "A new
+	// query's parameter has more than one binding site"): since/until/within
+	// are a second fixed-vals map this study keeps besides BenchmarkReads' own,
+	// and this one had none of the operational reports' window parameters.
+	// Without them, r01/r03/r05's plans came back "NOT CAPTURED: no value
+	// bound for parameter ..." instead of a real EXPLAIN.
+	since, until := reportWindowFor("historical")
+	within := time.Now().Add(holdsLookahead)
 	vals := map[string]any{
 		"event_id": ev.ID, "section_no": sec, "seat_ids": seats, "hold_id": holdID, "hold_ids": []int64{holdID},
 		"customer_id": int64(1), "hold_ms": float64(40 * 60 * 1000), "payment_window_ms": float64(10 * 60 * 1000),
 		"ticket_ids": make([]int64, len(seats)), "price_cents": ev.PriceCents, "batch": 100, "app_now": time.Now(),
 		"venue_id": ev.VenueID, "band_id": ev.BandID, "name": "explain show", "starts_at": showEpoch,
 		"description": "Explained.", "seat_id": seats[0], "claims": "{}", "next_expiry": nil, "version": int64(0),
+		"since": since, "until": until, "within": within,
 	}
 	if ticket != nil {
 		vals["ticket_id"] = ticket.ID

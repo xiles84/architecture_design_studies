@@ -85,6 +85,11 @@ type RaceResult struct {
 	UnderbookedSeats int64            `json:"underbooked_seats"`
 	Examples         []EventViolation `json:"examples,omitempty"`
 	Audit            *Audit           `json:"audit,omitempty"`
+	LedgerAudit      *LedgerAudit     `json:"ledger_audit,omitempty"`
+	// ReportChecks: r01/r05 against the harness's own counters, set once per
+	// churn trial (on the last tier's result) after every tier has run on
+	// that trial's world -- never for plain "race" (EH-02 AM-03.5).
+	ReportChecks []Check `json:"report_checks,omitempty"`
 
 	// Filled only when a report combines several trials: per-trial sold/s and
 	// their spread. Never written by the harness.
@@ -199,6 +204,16 @@ func RunRaces(ctx context.Context, db ports.DB, bk *Booker, d Design, ds *Datase
 		}
 		res.Audit = au
 
+		// EH-02 AM-03.2: the ledger reconciliation audit runs after every
+		// writing phase, and the sell-out race is X1's headline experiment --
+		// the one place its extra insert is meant to be felt. A no-op for
+		// every design without a ledger (RunLedgerAudit checks d.Ledger).
+		la, err := RunLedgerAudit(ctx, db, d, fmt.Sprintf("%s@%d", mode, tier))
+		if err != nil {
+			return nil, err
+		}
+		res.LedgerAudit = la
+
 		status := "ok"
 		if res.Overbooked > 0 {
 			status = fmt.Sprintf("OVERBOOKED %d events (+%d seats)", res.Overbooked, res.OverbookedSeats)
@@ -212,6 +227,9 @@ func RunRaces(ctx context.Context, db ports.DB, bk *Booker, d Design, ds *Datase
 			mode, tier, res.Events, res.SoldPerSec, res.Latency.P50MS, res.Latency.P99MS, res.AttemptsPerSuccess,
 			res.Errors, res.EditorLatency.P99MS, status)
 		fmt.Printf("      audit: %s\n", au)
+		if la != nil {
+			fmt.Printf("      ledger audit: %s\n", la)
+		}
 		if res.FirstError != "" {
 			fmt.Printf("      first error: %s\n", res.FirstError)
 		}

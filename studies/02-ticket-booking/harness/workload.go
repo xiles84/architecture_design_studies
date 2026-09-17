@@ -120,6 +120,9 @@ type WriteResult struct {
 	Audit *Audit `json:"audit,omitempty"`
 	// LedgerAudit: X1 only (REPORTS.md section 4 / AM-02.3).
 	LedgerAudit *LedgerAudit `json:"ledger_audit,omitempty"`
+	// ReportChecks: r01/r05 against the harness's own counters, after "cancel"
+	// only (EH-02 AM-03.5).
+	ReportChecks []Check `json:"report_checks,omitempty"`
 	// AttemptsPerSuccess = (successes + retries) / successes: how much work one
 	// sale took. 1.0 means no race was ever lost.
 	AttemptsPerSuccess float64 `json:"attempts_per_success,omitempty"`
@@ -226,6 +229,13 @@ func ExplainAll(ctx context.Context, db ports.DB, d Design, ds *Dataset, world *
 		return nil, fmt.Errorf("dataset has no sold catalogue event to explain with")
 	}
 	ev := k.busyEvent
+	// EH-02 AM-03.7 (repairing AM-02.4's own omission -- LESSONS_LEARNED "A new
+	// query's parameter has more than one binding site"): the operational
+	// reports' since/until are a second fixed-vals map this study keeps
+	// besides BenchmarkReads' own, and this one had no window until now.
+	// Without it, r01/r03/r05's plans came back "NOT CAPTURED: no value bound
+	// for parameter \"since\"" instead of a real EXPLAIN.
+	since, until := reportWindowFor("historical")
 	vals := map[string]any{
 		"event_id": ev.ID, "band_id": ev.BandID, "customer_id": k.customer,
 		"ticket_id": k.soldTicket.ID, "start_seat": ev.Capacity / 2, "seat_no": ev.InitialSold + 1,
@@ -233,6 +243,7 @@ func ExplainAll(ctx context.Context, db ports.DB, d Design, ds *Dataset, world *
 		"description": "Explained.", "name": "explain show", "venue": "stadium",
 		"starts_at": showEpoch, "capacity": ev.Capacity, "price_cents": ev.PriceCents,
 		"first_ticket_id": world.nextTicket.Load() + 10_000_000,
+		"since":           since, "until": until,
 	}
 	out := map[string]string{}
 	reads, err := mustStmts(d.ID, "queries.sql")

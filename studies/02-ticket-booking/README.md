@@ -96,6 +96,7 @@ is [study 03](../03-reserved-seating/README.md). This note was added after run
 | **R3** | seat-pool | pre-created narrow `seat_slot` rows; delete one, insert the ticket | [R](diagrams/rendered/r_extra_tables.svg) |
 | **H0** ✗ | hold-naive-confirm | reservation with expiry; confirm trusts the pre-payment check — **negative control** | [H](diagrams/rendered/h_holds.svg) |
 | **H1** | hold-checked-confirm | confirm only `WHERE status='held' AND expires_at > now()` | [H](diagrams/rendered/h_holds.svg) |
+| **X1** | cas-ledger | P3 + an append-only `sale_event` table, written in the same statement as the sale and the cancellation (`REPORTS.md`) | [P](diagrams/rendered/p_precreated.svg) |
 
 The SQL for each is in [`sql/<design>/`](sql/) — `schema.sql`, `indexes.sql`, `queries.sql`,
 `writes.sql`, `audit.sql` — compiled into the benchmark binary. The comments in those files

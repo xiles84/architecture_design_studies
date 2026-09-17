@@ -9,6 +9,24 @@
 -- the CAS loop needs no changes either. w_cancel_ticket's final SELECT
 -- returns exactly the (event_id, seat_no) shape Booker.Cancel already scans.
 --
+-- w_cancel_ticket's refund names the buyer from the ledger row of the sale it
+-- reverses, not from the UPDATE's own RETURNING (EH-02 AM-03.4). RETURNING
+-- yields the row AFTER the update, and the update has just set customer_id =
+-- NULL; PostgreSQL's RETURNING OLD does not exist before version 18, and
+-- neither engine version pinned here has it. Every refund was logged with a
+-- NULL customer -- which sale_event.customer_id NOT NULL turned into an
+-- outright failure of every cancellation, not just a silent data-quality
+-- bug (confirmed by AM-03.3's dev check: every cancel attempt errored, zero
+-- ever committed). The sale's own row committed in the same statement as the
+-- sale, and a refund always names a ticket its caller has seen sold -- churn
+-- cancels a booking that same buyer's transaction just committed, and
+-- BenchmarkCancel cancels loaded tickets the loader seeded -- so that row is
+-- always in the refund statement's own snapshot. Rejected alternatives:
+-- RETURNING OLD (not available on either engine version here); locking the
+-- cancelled row FOR UPDATE (changes the cancel's locking, which P3 does not
+-- have); an extra column on ticket carrying the last buyer (makes P3 -> X1
+-- two decisions instead of one).
+--
 -- Booking:
 --   w_candidate_from(start_seat)  -> first available seat at or after a random seat
 --   w_candidate_from(1)           -> only if nothing was found after start_seat (wrap around)
@@ -44,10 +62,17 @@ WITH cancelled AS (
        SET status = 'available', customer_id = NULL, sold_at = NULL
      WHERE ticket_id = $1
        AND status = 'sold'
-    RETURNING event_id, seat_no, customer_id, price_cents
+    RETURNING event_id, seat_no, price_cents
 ), logged AS (
     INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
-    SELECT event_id, seat_no, customer_id, 'cancelled', now(), price_cents FROM cancelled
+    SELECT c.event_id, c.seat_no,
+           (SELECT s.customer_id
+              FROM sale_event s
+             WHERE s.event_id = c.event_id AND s.seat_no = c.seat_no AND s.kind = 'sold'
+             ORDER BY s.at DESC, s.sale_event_id DESC
+             LIMIT 1),
+           'cancelled', now(), c.price_cents
+      FROM cancelled c
     RETURNING event_id, seat_no
 )
 SELECT event_id, seat_no FROM logged;

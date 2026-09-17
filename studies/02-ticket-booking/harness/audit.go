@@ -204,18 +204,43 @@ type LedgerMismatch struct {
 	ActualSold int64 `json:"actual_sold"`
 }
 
+// LedgerAttributionIssue is one row of a_ledger_attribution: a seat whose
+// ledger history does not read as sold/cancelled/sold/... with each refund
+// naming the buyer it reverses (EH-02 AM-03.1 -- the net-count check above
+// cannot see a wrong customer, a missing predecessor, or two sales in a row).
+type LedgerAttributionIssue struct {
+	EventID int64  `json:"event_id"`
+	SeatNo  int64  `json:"seat_no"`
+	Problem string `json:"problem"`
+}
+
 type LedgerAudit struct {
-	Phase            string           `json:"phase"`
-	SeatsChecked     int64            `json:"seats_checked"`
-	Mismatches       int64            `json:"mismatches"`
-	MismatchExamples []LedgerMismatch `json:"mismatch_examples,omitempty"`
+	Phase                 string                   `json:"phase"`
+	SeatsChecked          int64                    `json:"seats_checked"`
+	Mismatches            int64                    `json:"mismatches"`
+	MismatchExamples      []LedgerMismatch         `json:"mismatch_examples,omitempty"`
+	AttributionMismatches int64                    `json:"attribution_mismatches"`
+	AttributionExamples   []LedgerAttributionIssue `json:"attribution_examples,omitempty"`
+}
+
+// Violations is the count that gates correctness: both the net-count check
+// and the attribution check must be zero for the ledger to be trusted.
+func (a *LedgerAudit) Violations() int64 {
+	if a == nil {
+		return 0
+	}
+	return a.Mismatches + a.AttributionMismatches
 }
 
 func (a *LedgerAudit) String() string {
-	if a == nil || a.Mismatches == 0 {
+	if a == nil {
+		return "consistent (0 seats checked)"
+	}
+	if a.Violations() == 0 {
 		return fmt.Sprintf("consistent (%d seats checked)", a.SeatsChecked)
 	}
-	return fmt.Sprintf("INCONSISTENT — %d of %d seats disagree with the ledger", a.Mismatches, a.SeatsChecked)
+	return fmt.Sprintf("INCONSISTENT — %d net mismatches, %d attribution problems (of %d seats checked)",
+		a.Mismatches, a.AttributionMismatches, a.SeatsChecked)
 }
 
 func RunLedgerAudit(ctx context.Context, db ports.DB, d Design, phase string) (*LedgerAudit, error) {
@@ -233,11 +258,11 @@ func RunLedgerAudit(ctx context.Context, db ports.DB, d Design, phase string) (*
 	if err != nil {
 		return nil, fmt.Errorf("a_ledger_mismatches: %w", err)
 	}
-	defer rows.Close()
 	for rows.Next() {
 		var m LedgerMismatch
 		var seat int32
 		if err := rows.Scan(&m.EventID, &seat, &m.LedgerNet, &m.ActualSold); err != nil {
+			rows.Close()
 			return nil, err
 		}
 		m.SeatNo = int64(seat)
@@ -247,12 +272,87 @@ func RunLedgerAudit(ctx context.Context, db ports.DB, d Design, phase string) (*
 		}
 	}
 	if err := rows.Err(); err != nil {
+		rows.Close()
 		return nil, err
 	}
+	rows.Close()
+
+	attrRows, err := db.Query(ctx, q["a_ledger_attribution"].SQL)
+	if err != nil {
+		return nil, fmt.Errorf("a_ledger_attribution: %w", err)
+	}
+	for attrRows.Next() {
+		var iss LedgerAttributionIssue
+		var seat int32
+		if err := attrRows.Scan(&iss.EventID, &seat, &iss.Problem); err != nil {
+			attrRows.Close()
+			return nil, err
+		}
+		iss.SeatNo = int64(seat)
+		a.AttributionMismatches++
+		if len(a.AttributionExamples) < auditExamples {
+			a.AttributionExamples = append(a.AttributionExamples, iss)
+		}
+	}
+	if err := attrRows.Err(); err != nil {
+		attrRows.Close()
+		return nil, err
+	}
+	attrRows.Close()
 
 	// SeatsChecked: every ticket row (the reconciliation query's left side).
 	if err := db.QueryRow(ctx, "SELECT COUNT(*) FROM ticket").Scan(&a.SeatsChecked); err != nil {
 		return nil, fmt.Errorf("ticket count: %w", err)
 	}
 	return a, nil
+}
+
+// ---------------------------------------------------------------------------
+// Ledger fault injection -- TESTING ONLY (EH-02 AM-03.3). Proves the audit
+// above actually fires, by corrupting a real ledger row directly in the
+// database rather than through any design statement. The fault SQL lives
+// here, never in a design's own catalogue, so it is invisible to the
+// SQL-binding test and to EXPLAIN. Callers validate that this only runs with
+// -cmd verify on a Ledger design (main.go); RunLedgerAudit itself already
+// no-ops for a non-Ledger design.
+// ---------------------------------------------------------------------------
+
+// injectLedgerFault corrupts the ledger row for the first sold seat of the
+// dataset's busiest catalogue event (chooseKeys' own choice of key, so the
+// fault lands on a seat the correctness gate already exercises).
+//
+//   - "drop-sale" deletes that seat's sold ledger row: the seat is still
+//     sold, but the ledger no longer says so -- a_ledger_mismatches must
+//     report exactly one net mismatch.
+//   - "wrong-customer" changes that row's customer_id: the seat's sale is
+//     still recorded, but to the wrong buyer -- a_ledger_attribution must
+//     report exactly one "live sale disagrees with its newest ledger row".
+func injectLedgerFault(ctx context.Context, db ports.DB, ds *Dataset, fault string) error {
+	k := chooseKeys(ds)
+	if k.soldTicket == nil {
+		return fmt.Errorf("dataset has no sold ticket to corrupt")
+	}
+	switch fault {
+	case "drop-sale":
+		n, err := db.Exec(ctx, "DELETE FROM sale_event WHERE event_id = $1 AND seat_no = $2 AND kind = 'sold'",
+			k.soldTicket.EventID, k.soldTicket.SeatNo)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return fmt.Errorf("no sold ledger row for event %d seat %d", k.soldTicket.EventID, k.soldTicket.SeatNo)
+		}
+	case "wrong-customer":
+		n, err := db.Exec(ctx, "UPDATE sale_event SET customer_id = customer_id + 1 WHERE event_id = $1 AND seat_no = $2 AND kind = 'sold'",
+			k.soldTicket.EventID, k.soldTicket.SeatNo)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return fmt.Errorf("no sold ledger row for event %d seat %d", k.soldTicket.EventID, k.soldTicket.SeatNo)
+		}
+	default:
+		return fmt.Errorf("unknown ledger fault %q", fault)
+	}
+	return nil
 }

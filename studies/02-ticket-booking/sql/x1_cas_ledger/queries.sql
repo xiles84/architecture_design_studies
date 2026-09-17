@@ -75,9 +75,15 @@ SELECT ticket_id, customer_id, sold_at
 
 -- name: r03_customers_last_purchase_window
 -- params: since, until
--- Answered from the ledger's 'sold' events, not the live ticket table: a
--- customer's last purchase does not stop being their last purchase because
--- they later cancelled a DIFFERENT, earlier ticket.
+-- Answered from the ledger's 'sold' events, not the live ticket table
+-- (EH-02 AM-03.6 corrects an earlier version of this comment: cancelling a
+-- DIFFERENT, earlier ticket changes nothing on either formulation, since
+-- neither one's last-purchase date depended on that ticket). What the ledger
+-- buys is the case where the customer's MOST RECENT purchase is the one that
+-- gets refunded: the ticket table then dates them by an earlier purchase, or
+-- drops them if that was their only one, while the ledger still shows the
+-- true last purchase -- which is why every non-ledger design's r03 is
+-- `partial`, with exactly this caveat (REPORTS.md section 2).
 SELECT customer_id, MAX(at) AS last_at
   FROM sale_event
  WHERE kind = 'sold'

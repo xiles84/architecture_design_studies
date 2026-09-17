@@ -41,6 +41,13 @@ const partialRefundNote = "a ticket sold in the window and later refunded is not
 const unanswerableRefundNote = "cancellation deletes or resets the sale; nothing records that it happened"
 const unanswerableHoldsNote = "no reservation table in this design"
 
+// partialLastPurchaseNote (EH-02 AM-03.6): r03 has the same caveat as r01,
+// not the clean pass it was originally declared with. When a customer's most
+// recent purchase is the one refunded, the ticket table dates them by an
+// earlier purchase or drops them, because cancellation erases the sale that
+// was their last one -- the same erasure r01 already accounts for.
+const partialLastPurchaseNote = "a customer whose most recent purchase was refunded is dated by an earlier purchase, or drops out, because cancellation erases the sale"
+
 // ReportCoverage states, per report, whether design d can answer it -- computed
 // from the same flags that shape its schema, so the declaration cannot drift
 // from what the design actually is without also changing what it does.
@@ -55,7 +62,7 @@ func ReportCoverage(d Design) map[string]ReportStatus {
 		m["r05"] = ReportStatus{Status: "answerable"}
 	} else {
 		m["r01"] = ReportStatus{Status: "partial", Note: partialRefundNote}
-		m["r03"] = ReportStatus{Status: "answerable"}
+		m["r03"] = ReportStatus{Status: "partial", Note: partialLastPurchaseNote}
 		m["r05"] = ReportStatus{Status: "unanswerable", Note: unanswerableRefundNote}
 	}
 	if d.Holds {

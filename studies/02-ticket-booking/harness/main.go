@@ -118,6 +118,7 @@ func main() {
 		cmd         = flag.String("cmd", "full", "full | verify | list | report | digest")
 		resultsDir  = flag.String("results", "", "report/digest: results directory of one run")
 		reportOut   = flag.String("report-out", "", "report: markdown file to write")
+		ledgerFault = flag.String("ledger-fault", "none", "TESTING ONLY (EH-02 AM-03.3): none | drop-sale | wrong-customer -- corrupts a ledger row after load, to prove the ledger audit fires. Never set in a runner.")
 	)
 	flag.Parse()
 
@@ -151,6 +152,9 @@ func main() {
 	d, err := designByID(*designID)
 	if err != nil {
 		fatal(err)
+	}
+	if *ledgerFault != "none" && (*cmd != "verify" || !d.Ledger) {
+		fatal(fmt.Errorf("-ledger-fault=%s is for proving the ledger audit fires: only valid with -cmd verify on a design with a ledger", *ledgerFault))
 	}
 	// One factor scales every hold timing together. The late-payment probability
 	// depends only on their ratios, so scaling keeps the experiment the same
@@ -203,7 +207,7 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := execute(ctx, run, db, d, *cmd, *seed, splitList(*phases), s, *explainOut); err != nil {
+	if err := execute(ctx, run, db, d, *cmd, *seed, splitList(*phases), s, *explainOut, *ledgerFault); err != nil {
 		run.Error = err.Error()
 		fmt.Fprintln(os.Stderr, "ERROR:", err)
 	}
@@ -224,7 +228,7 @@ func main() {
 	}
 }
 
-func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, seed int64, phases []string, s Settings, explainOut string) error {
+func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, seed int64, phases []string, s Settings, explainOut string, ledgerFault string) error {
 	if err := waitReady(ctx, db, 120*time.Second); err != nil {
 		return err
 	}
@@ -275,6 +279,13 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 	}
 	fmt.Printf("  loaded in %.1fs (copy %.1fs, index %.1fs)\n", run.Load.TotalMS/1000, run.Load.CopyMS/1000, run.Load.IndexMS/1000)
 
+	if ledgerFault != "none" {
+		if err := injectLedgerFault(ctx, db, ds, ledgerFault); err != nil {
+			return fmt.Errorf("ledger fault %q: %w", ledgerFault, err)
+		}
+		fmt.Printf("  INJECTED FAULT for audit proof (EH-02 AM-03.3): %s\n", ledgerFault)
+	}
+
 	// Correctness before speed.
 	if has("verify") {
 		fmt.Println("  verifying answers against ground truth ...")
@@ -286,6 +297,9 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 		for _, c := range vr.Checks {
 			if !c.OK {
 				fmt.Printf("    FAIL %-26s %s: expected %s, got %s\n", c.Query, c.Key, c.Expect, c.Got)
+			}
+			if c.Warning != "" {
+				fmt.Printf("    WARNING %-23s %s: %s\n", c.Query, c.Key, c.Warning)
 			}
 		}
 		au, err := RunAudit(ctx, db, d, world, "load")
@@ -302,7 +316,7 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 			run.LedgerAudit = la
 			fmt.Printf("    ledger audit on load: %s\n", la)
 		}
-		if vr.Failed > 0 || au.Violations() > 0 || (la != nil && la.Mismatches > 0) {
+		if vr.Failed > 0 || au.Violations() > 0 || la.Violations() > 0 {
 			return fmt.Errorf("design %s failed the correctness gate; refusing to report timings", d.ID)
 		}
 		if st, err := CollectStats(ctx, db, run.Engine); err == nil {
@@ -410,9 +424,27 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 			if la != nil {
 				fmt.Printf("      ledger audit after %s: %s\n", op, la)
 			}
+			// EH-02 AM-03.5: after "cancel", check r01/r05 against the
+			// harness's own booked/cancelled counters. A violation is
+			// reported like an audit, not aborted on.
+			var rc []Check
+			if op == "cancel" {
+				rc, err = postWriteReportChecks(ctx, db, d, world, "write:"+op)
+				if err != nil {
+					return err
+				}
+				for _, c := range rc {
+					status := "ok"
+					if !c.OK {
+						status = fmt.Sprintf("FAIL expected %s, got %s", c.Expect, c.Got)
+					}
+					fmt.Printf("      report check %-30s %s: %s\n", c.Query, c.Key, status)
+				}
+			}
 			for i := range results {
 				results[i].Audit = au
 				results[i].LedgerAudit = la
+				results[i].ReportChecks = rc
 			}
 			run.Writes = append(run.Writes, results...)
 		}
@@ -437,6 +469,24 @@ func execute(ctx context.Context, run *Run, db ports.DB, d Design, cmd string, s
 			}
 			for i := range rr {
 				rr[i].Trial = trial
+			}
+			// EH-02 AM-03.5: after a churn trial (every tier has now run on
+			// this trial's world), check r01/r05 against the harness's own
+			// counters. Recorded on the trial's last tier result, since all
+			// tiers of one trial share the same world.
+			if mode == "churn" && len(rr) > 0 {
+				rc, err := postWriteReportChecks(ctx, db, d, world, fmt.Sprintf("churn#%d", trial))
+				if err != nil {
+					return err
+				}
+				for _, c := range rc {
+					status := "ok"
+					if !c.OK {
+						status = fmt.Sprintf("FAIL expected %s, got %s", c.Expect, c.Got)
+					}
+					fmt.Printf("      report check %-30s %s: %s\n", c.Query, c.Key, status)
+				}
+				rr[len(rr)-1].ReportChecks = rc
 			}
 			run.Races = append(run.Races, rr...)
 		}

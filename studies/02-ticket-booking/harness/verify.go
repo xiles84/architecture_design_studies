@@ -32,6 +32,10 @@ type Check struct {
 	OK     bool   `json:"ok"`
 	Expect string `json:"expect,omitempty"`
 	Got    string `json:"got,omitempty"`
+	// Warning does not affect OK or the pass/fail count (EH-02 AM-03.6): it
+	// flags a dataset that cannot actually distinguish what the check is
+	// meant to prove, which is a gap in the gate's own power, not a failure.
+	Warning string `json:"warning,omitempty"`
 }
 
 type VerifyReport struct {
@@ -47,8 +51,10 @@ func (v *VerifyReport) add(c Check) {
 		v.Failed++
 	}
 	// Passing checks are kept only as a count beyond the first few, so a result
-	// file stays readable; every failure is kept.
-	if !c.OK || len(v.Checks) < 40 {
+	// file stays readable; every failure is kept, and so is every warning (a
+	// dataset that cannot exercise what a check means to prove is itself
+	// worth keeping, not just the checks that outright failed).
+	if !c.OK || c.Warning != "" || len(v.Checks) < 40 {
 		v.Checks = append(v.Checks, c)
 	}
 }

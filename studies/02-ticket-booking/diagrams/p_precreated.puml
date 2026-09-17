@@ -24,6 +24,18 @@ entity "ticket  (capacity rows per event)" as t {
 }
 e ||--|{ t
 
+entity "sale_event  (X1 only, append-only)" as se {
+  * sale_event_id : BIGSERIAL <<PK>>
+  --
+  * event_id : BIGINT <<FK>>
+  * seat_no : INT
+  * customer_id : BIGINT
+  * kind : 'sold' | 'cancelled'
+  * at : TIMESTAMPTZ
+  * price_cents : BIGINT
+}
+t ..> se : X1 only\n(same statement as the UPDATE)
+
 note right of t
   **P1 lock-first** (READ COMMITTED)
   SELECT … ORDER BY seat_no LIMIT 1 **FOR UPDATE**
@@ -43,6 +55,15 @@ note right of t
   **P4 skip+counter**
   P2, then UPDATE event SET seats_sold+1
   — every buyer queues on the event row again
+
+  **X1 CAS+ledger** (P3, plus one thing)
+  P3's UPDATE, as a data-modifying CTE that also
+  INSERTs into sale_event -- same statement, so
+  "sold" and "cancelled" are provably never split
+  from the ticket row's own state change. Buys
+  r01/r03/r05 (REPORTS.md); r01 becomes correct
+  across refunds. Costs one extra insert per sale
+  and per cancellation.
 end note
 
 note bottom of t
