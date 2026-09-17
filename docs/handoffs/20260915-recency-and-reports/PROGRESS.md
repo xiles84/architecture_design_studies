@@ -444,3 +444,70 @@ audit is real, and size phase 3b's measured runs from the dev-check throughput a
 - Tags `study-0{2,3}/v2-reports-devchecked` stay; the repaired state gets `v2.1-reports-repaired`.
 
 **Next: LOW — Claude Sonnet 5 — execute AM-03.1 through AM-03.13, in order.**
+
+## LOW iteration 4 — 2026-09-16/17 (AM-03.1–.9 executed; RR-ER-01 raised, blocking .10–.13)
+
+- Executor: Claude Sonnet 5, Claude Code desktop app.
+- **AM-03.1** — `a_ledger_attribution` appended to X1's `audit.sql` exactly as specified;
+  `RunLedgerAudit` runs both statements; `LedgerAudit` gains `AttributionMismatches`,
+  `.Violations()` (both checks combined) and a nil-safe `.String()`. A testing-only
+  `-ledger-fault none|drop-sale|wrong-customer` flag was added (validated to `-cmd verify`
+  on a `Ledger` design only, never usable from a runner) to prove the audit can fire on
+  demand, per AM-03.3 step 2.
+- **AM-03.2** — the ledger audit now runs after every race/churn tier in `race.go`, not
+  only after load and isolated writes, printed and stored on `RaceResult`.
+- **AM-03.3's dev check found defect 1 worse than described.** `sale_event.customer_id`
+  is `NOT NULL`, so the unfixed `w_cancel_ticket`'s post-update `RETURNING` didn't just
+  log a NULL buyer — inserting NULL into a `NOT NULL` column made **every cancellation on
+  X1 fail outright**. Confirmed with `-churn-pct 100`: 100/100 cancel attempts errored,
+  zero ever committed (`results/devchecks/am03-dc01-ledger-controls/step1d.log`). A direct
+  `psql` check confirmed the `RETURNING` value is NULL after the update, as AM-03.1
+  predicted.
+- **AM-03.4** — fixed by naming the refund's buyer from the ledger row of the sale it
+  reverses (a correlated subquery on `sale_event`), leaving the `UPDATE` byte-identical to
+  P3's. Re-running the same dev check: cancellations now succeed (`errors=0`).
+- **RR-ER-01 raised** (`ESCALATIONS.md`): after the fix, `a_ledger_attribution` still
+  reports false positives under real PostgreSQL concurrency. Direct inspection of a
+  flagged seat showed `sale_event_id` order (6968 < 6978 < 6980) giving the only order
+  consistent with the CAS invariant, while `at`-order inverted a cancel and the resale
+  that could only have followed it. Cause: `now()` is fixed at transaction *start* in
+  PostgreSQL, and under the CAS retry loop's concurrent goroutines a later-starting
+  transaction can commit first. Re-ordering the check by `sale_event_id` alone (tested as
+  a diagnostic, not committed) eliminated the false positives on this data — but AM-03.1
+  named a YugabyteDB sequence-caching concern as the reason `at` was chosen primary, which
+  I have not tested and am not confident is mine to resolve unilaterally. Blocked:
+  AM-03.3 step 3's full "consistent" proof; AM-03.8's cells that exercise X1's ledger
+  audit under concurrent writes; AM-03.12's race pair (3b-2, 3b-3). Not blocked, and
+  completed: everything else below.
+- **AM-03.5** — `postWriteReportChecks` (r01/r05 against `EventRef.booked/cancelled/
+  ambiguous`, the same counters the overbooking audit already trusts) runs after the
+  isolated `cancel` op and after every churn trial. Both passed in every dev check run,
+  including on the seat/tier where the ledger's *ordering* check gave a false positive —
+  confirming the underlying data (counts, attribution) is correct and only the audit's
+  internal ordering is at fault.
+- **AM-03.6** — study 02's `r03` is now `partial` on every non-ledger design (documented
+  in `REPORTS.md` with a dated HIGH note); `r02`/`r03` are checked by value (a microsecond-
+  precision multiset of `sold_at`/`last_at`, not a row count), with a `Check.Warning` field
+  added for the recency-trap cross-check (never fired in these dev checks — the `tiny`
+  dataset has enough refund activity to distinguish the naive and correct formulations).
+- **AM-03.7** — both studies' `ExplainAll` now bind `since`/`until` (study 03 also
+  `within`); confirmed by generating full plans for X1, H0, S1, E2 and L2 with zero
+  `NOT CAPTURED` beyond a pre-existing, unrelated loader-only marker. `pairs` gained
+  `p3_precreated_cas → x1_cas_ledger`; the `p_precreated.puml` diagram and README design
+  table both gained X1 (diagram re-rendered through the container renderer).
+- **AM-03.8** — dev checks run to the extent RR-ER-01 allows: study 02 all 15 designs on
+  `pg-single` (`verify,explain,read,write,churn`) and on `yb-single`
+  (`verify,explain`), P3/X1 with the fuller phase set on `yb-single`, C1's dedicated race
+  control and H0's dedicated holds control (both fire); study 03 all 13/14 designs
+  `verify,explain` on both engines, S1 with `read` on `pg-single`. Every gate passes, every
+  plan captures, both negative controls fire, every post-write report check passes. X1's
+  churn-phase ledger *ordering* check is the one criterion left unmet, tracked as RR-ER-01.
+- Not executed, correctly gated on RR-ER-01: **AM-03.10 (calibration), AM-03.11 (sizing),
+  AM-03.12 (phase 3b measured runs), AM-03.13 (tags)**. Running a calibration or a measured
+  run while the ledger audit's own correctness is in question would produce numbers whose
+  correctness gate cannot yet be trusted — exactly what this task's process exists to
+  prevent.
+- Every database torn down, lock released, verified before and after each cell.
+
+**Next: HIGH — decide RR-ER-01 (the `a_ledger_attribution` ordering key), then authorise
+resuming at AM-03.10.**

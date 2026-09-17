@@ -707,6 +707,22 @@ again lacked the new window parameters. The mistake would have surfaced only as
 LESSONS_LEARNED for the mechanisms it touches (parameters, plans, audits, loaders) and cite
 the entries by name.
 
+### A NOT NULL column downstream of a NULL-producing bug turns silent corruption into an outright failure
+
+X1's original `w_cancel_ticket` logged the refund's buyer from the cancelling `UPDATE`'s own
+`RETURNING`, which yields the row *after* the update -- already NULLed. On its own, that
+would have been a silent data-quality bug: a refund row nobody could attribute. But
+`sale_event.customer_id` is declared `NOT NULL`, so every one of those inserts violated the
+constraint and the whole cancelling transaction rolled back -- meaning X1 could not
+successfully cancel a single ticket, a functional break far more visible than the bug that
+caused it. Neither AM-02's dev checks nor its unit tests caught this, because none of them
+exercised a cancellation on X1 (the isolated `write:cancel` op's default warmup exhausted its
+finite pool before the measured window even started, so `0.0 ops/s` with `errors=0` looked
+clean). A schema constraint can convert a data-correctness bug into a load-bearing failure
+faster than any test written to check the data directly -- which is a reason to keep such
+constraints, and a reason a "0 ops, 0 errors" write-benchmark line deserves a second look
+before being read as "nothing happened here."
+
 ---
 
 ## Building study 03 (reserved seating)

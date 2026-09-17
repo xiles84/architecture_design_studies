@@ -300,6 +300,27 @@ real operation asks for.
   reports matrix, a P3 → X1 race pair at 32 and at 128/64 buyers, and study 03's reports
   matrix. Tags `study-0{2,3}/v2-reports-devchecked` mark the unrepaired state. **Next: LOW
   (Claude Sonnet 5) executes AM-03.** Nothing is running.
+- **AM-03.1–.9 executed; RR-ER-01 open, blocking .10–.13 (2026-09-16/17, LOW, Claude
+  Sonnet 5).** X1's refund attribution fixed — the buyer now comes from the ledger row of
+  the sale being reversed, not the post-update `RETURNING` (which was NULL, and since
+  `sale_event.customer_id` is `NOT NULL`, every cancellation on X1 was failing outright
+  before this fix, confirmed by a dev check). The new `a_ledger_attribution` audit that
+  proves this still has a false-positive gap: it orders each seat's history by `at`
+  (PostgreSQL's `now()`, fixed at transaction *start*), which does not track commit order
+  under the CAS retry loop's concurrent writers — confirmed by direct inspection
+  (`sale_event_id` gives the only order consistent with the CAS invariant; `at` does not).
+  **[RR-ER-01](docs/handoffs/20260915-recency-and-reports/ESCALATIONS.md) is open**:
+  reordering the check was specified by HIGH for a stated YugabyteDB reason not yet tested,
+  so LOW did not reorder it unilaterally. Everything else in AM-03 passed dev-checked:
+  study 02's r03 declared `partial` on non-ledger designs; r02/r03 checked by value; both
+  studies' `ExplainAll` fixed (repeating this task's own phase-1 lesson); X1 registered in
+  `pairs`, the diagram and the README; all 29 designs' correctness gates pass on both
+  engines with the repaired SQL; both negative controls still fire; every post-write report
+  check (using the harness's own booked/cancelled counters, unaffected by the ordering bug)
+  passes. **Calibration and the four measured runs are not started, correctly gated on
+  RR-ER-01** — running them while the audit's own correctness is in question would produce
+  numbers the correctness gate cannot yet vouch for. **Next: HIGH decides RR-ER-01.**
+  Nothing is running; lock released.
 
 ### Study 01 — tree structures (charity → person → donation)
 
