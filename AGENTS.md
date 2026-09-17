@@ -82,40 +82,89 @@ protocol before running; existing published results are not retroactively relabe
 List measured pairs, justified non-applicability and outstanding gaps in each protocol
 and final analysis. Methodology sections 4 and 6a explain the sizing and control details.
 
-## Model roles: Execution Handoff and Escalation Required
+## Model roles: cost-efficient Execution Handoff, Decision Log and Escalation
 
-**Owner workflow, 2026-09-14:** HIGH and LOW are roles chosen through the user's
-model/effort settings. Record the actual model/tool and selected effort when known;
-never infer an unavailable setting or switch models silently.
+**Owner workflow, 2026-09-14, revised 2026-09-17 for cost efficiency:** HIGH and LOW are
+roles chosen through the user's model/effort settings. Record the actual model/tool and
+selected effort when known; never infer an unavailable setting or switch models silently.
 
-1. **HIGH plans.** Resolve the reasoning-intensive choices, scope, design, dependencies,
-   validation criteria and allowed implementation decisions. Publish a versioned
-   **Execution Handoff** before handing implementation to LOW. Use
-   `docs/templates/EXECUTION_HANDOFF.md`; identify exact paths, commands, expected
-   outcomes, stop conditions and the next required model level.
-2. **LOW executes the mapped work.** Follow the handoff, run the specified checks and
-   collect evidence. Routine observations and explicitly permitted decisions belong
-   in its progress log. LOW does not change the scientific question, design, acceptance
-   criteria or signed conclusions to make a run pass.
-3. **Unmapped decisions are Escalation Required.** Record an item in the task's escalation
-   log using `docs/templates/ESCALATION_REQUIRED.md`, with evidence, blocked steps,
-   options and the decision needed. Stop the dependent work; continue independent mapped
-   work where useful. HIGH resolves the item and publishes an attributable handoff
-   amendment. Keep the original decision and evidence visible.
-4. **HIGH validates and analyses.** LOW may execute predefined validation commands;
-   HIGH judges their adequacy, reviews implementation/results, and writes the signed
-   analysis. A disagreement starts another handoff/escalation iteration. Final mechanical
-   integration can be assigned to LOW only with HIGH's explicit acceptance conditions.
-5. **Every iteration states the next setting.** End with `Next: LOW — <mapped work>` or
-   `Next: HIGH — <planning, escalation decision, validation or analysis>`, including a
-   concrete model/effort when the task has agreed one. If no work remains, say so.
+**The objective is to reserve HIGH for work that genuinely benefits from deeper
+reasoning, and let LOW execute as much as possible autonomously.** The preferred pattern
+is **HIGH planning → one long LOW execution → HIGH validation**, not frequent switching.
+Minimize unnecessary HIGH usage, unnecessary model switches, repeated context, premature
+escalation, and re-litigating decisions HIGH already made.
+
+1. **HIGH plans.** Understand the objective, identify constraints, make the
+   architectural/strategic/high-impact decisions, resolve significant ambiguities,
+   define acceptance criteria, and divide the work into tasks LOW can safely execute.
+   Do not perform routine implementation here when it can be delegated. Publish a
+   compact **Execution Handoff** (self-contained, not a repeat of the full reasoning
+   history): goal, current state where relevant, decisions already made, tasks to
+   execute, constraints, acceptance criteria, known risks/assumptions, and the specific
+   conditions that would genuinely need immediate escalation. `docs/templates/
+   EXECUTION_HANDOFF.md` is the template when its structure fits; a shorter handoff that
+   still contains those elements is fine. End with `NEXT MODEL: LOW`.
+2. **LOW executes with substantial autonomy.** Default behavior is **Decide → Log →
+   Continue**, not "encounter ambiguity → escalate." LOW does not reconsider a decision
+   HIGH already made unless execution proves an assumption wrong or impossible to
+   follow — that itself is reported (Decision Log or escalation, by its cost), not
+   silently overridden. LOW may decide, without escalating, whenever a choice is local
+   to the implementation, has a conventional or sensible answer, is reasonably
+   reversible, does not change the intended architecture, does not materially change
+   the requirements, and is unlikely to invalidate substantial downstream work. LOW does
+   not change the scientific question, design, published acceptance criteria or signed
+   conclusions to make a run pass — that is never a "local, reversible" decision.
+3. **The Decision Log records meaningful decisions, not every choice.** Log a decision
+   only when it could plausibly affect correctness, architecture, performance,
+   maintainability, security, behavior, compatibility, acceptance criteria, or the final
+   result — in the task's `PROGRESS.md` or a dedicated log, whichever the task already
+   uses. Each entry: the decision, a short reason, confidence (High/Medium/Low), the
+   alternative considered (when relevant), and which tasks it potentially affects. Keep
+   entries short; this log is what HIGH reviews at validation instead of re-deriving
+   everything LOW touched.
+4. **Escalate only when continuing alone costs more than invoking HIGH now.** Use
+   `ESCALATION REQUIRED` (`docs/templates/ESCALATION_REQUIRED.md`, logged in the task's
+   `ESCALATIONS.md`) when a decision could invalidate substantial downstream work,
+   would significantly alter the architecture, would materially change the
+   requirements, carries significant security/correctness/data-loss risk, is difficult
+   or expensive to reverse, contradicts a critical HIGH assumption, or genuinely cannot
+   be resolved from the existing instructions. **Do not escalate merely because**
+   several reasonable options exist, confidence is imperfect, a minor detail was not
+   explicitly specified, LOW would simply prefer HIGH decide, or the choice can easily
+   be reviewed later — decide, log, and continue instead. An escalation states: the
+   decision needed, why it cannot safely be deferred, the relevant facts found, the
+   options (and a recommendation if LOW has one), what work is affected, and what work
+   can safely continue in the meantime — then `NEXT MODEL: HIGH`. Continue unrelated
+   mapped work rather than stopping the whole task.
+5. **HIGH resolves an escalation narrowly.** Review only as much context as the specific
+   decision needs, not the whole project. Reply with a small **Execution Handoff
+   Update**: the decision, changed instructions, affected tasks, any new constraint or
+   acceptance criterion — not a restatement of what did not change. End with
+   `NEXT MODEL: LOW`. LOW resumes from the original handoff plus this update plus its
+   existing Decision Log, redoing only what the decision actually invalidated.
+6. **HIGH validates by reviewing the Decision Log first, then the result.** For each
+   logged LOW decision, judge only whether it is acceptable, negligible, needs
+   adjustment, or materially degraded the result — do not order rework merely to
+   substitute HIGH's preferred but equivalent style for an acceptable LOW choice.
+   Trigger rework only for a decision or defect that materially affects correctness,
+   requirements, architecture, important performance characteristics, security,
+   maintainability, acceptance criteria or overall quality. A real problem gets a
+   **targeted** corrective handoff (what's wrong, which tasks are affected, what must
+   change, what stays untouched) — never a restart of the whole task. End with
+   `NEXT MODEL: LOW` for the correction, or, when nothing meaningful remains, close with
+   a brief conclusion (what was completed, important decisions, LOW decisions reviewed
+   and accepted, outcome, known limitations, relevant future work) and `TASK COMPLETE`.
+7. **Every response ends with exactly one routing line:** `NEXT MODEL: HIGH`,
+   `NEXT MODEL: LOW`, or `TASK COMPLETE` — plus the concrete model/effort when the task
+   has agreed one. If the user states which model/effort is currently active, say
+   explicitly whether they need to switch before continuing.
 
 A model-switch handoff is a checkpoint in the same unfinished task. Commit and tag that
 checkpoint, update context/lessons, and state what remains; do not claim the task is
 complete or the changes merged merely because the planning iteration ended. The normal
 task-completion merge rule still applies once the task's acceptance conditions are met.
-An expected wait for a benchmark lock stays with LOW; waiting alone is not an unmapped
-design decision and does not require a model escalation.
+An expected wait for a benchmark lock stays with LOW; waiting alone is not a decision
+that needs logging or escalation.
 
 ## Hard rule: commit and tag, never push
 

@@ -30,17 +30,32 @@ non-goals. Specify measurements, environment, invariants and negative controls i
 <Include path-safe, shell-specific commands and idempotency/restart behavior. Identify
 locks, resource limits, runtime bounds and which external writes are authorized.>
 
+## Decision Log
+
+<LOW appends one short entry per meaningful decision here or in PROGRESS.md, whichever
+the task already uses: decision, short reason, confidence (High/Medium/Low), alternative
+considered, tasks potentially affected. Log only what could plausibly affect correctness,
+architecture, performance, maintainability, security, behavior, compatibility, acceptance
+criteria or overall quality -- not every implementation choice. This is what HIGH reviews
+at validation instead of re-deriving everything LOW touched.>
+
 ## Escalation Required
 
-<Concrete triggers and what work must stop. Continue independent mapped steps only.
-Specify the task escalation log; the executor does not rewrite this handoff.>
+<Concrete triggers -- decisions that could invalidate substantial downstream work,
+significantly alter the architecture, materially change requirements, carry real
+security/correctness/data-loss risk, are expensive to reverse, contradict a critical
+HIGH assumption, or genuinely cannot be resolved from this handoff. Several reasonable
+options, imperfect confidence, or an unspecified minor detail are NOT triggers -- LOW
+decides, logs, and continues instead. What work must stop; continue independent mapped
+steps. Specify the task escalation log; the executor does not rewrite this handoff.>
 
 ## Acceptance, integration and next role
 
 <Required evidence, HIGH review gate, explicit-path commits, immutable run/milestone
 tags, local-main integration procedure and context/lessons updates. No push or pull.>
 
-**Next after execution: HIGH — review validation and results.**
+**Next after execution: HIGH — review the Decision Log first, then validate the
+result.**
 
 ## Amendments
 
