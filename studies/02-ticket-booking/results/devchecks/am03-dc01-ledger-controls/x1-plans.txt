@@ -1,0 +1,481 @@
+# Query plans — study 02-ticket-booking
+
+run_id:      am03-dc01-ledger-controls
+repo:         (dirty=false)
+environment: host-zenbook-ux5406sa
+engine:      postgres (pg-single)
+version:     PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+design:      x1_cas_ledger (cas-ledger)
+captured:    EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS ON)
+keys:        the largest partially sold catalogue event, its busiest customer and one of its sold
+             tickets. Write statements run inside transactions that are rolled back.
+
+==============================================================================
+## q01_event_availability
+==============================================================================
+
+# How many seats are left for this event.
+
+SELECT COUNT(*)::BIGINT AS seats_left
+  FROM ticket
+ WHERE event_id = $1
+   AND status = 'available'
+
+Aggregate  (cost=485.20..485.21 rows=1 width=8) (actual time=0.652..0.652 rows=1 loops=1)
+  Output: count(*)
+  Buffers: shared hit=58
+  ->  Index Only Scan using ticket_available_idx on public.ticket  (cost=0.29..466.79 rows=7364 width=0) (actual time=0.023..0.489 rows=4113 loops=1)
+        Output: event_id, seat_no
+        Index Cond: (ticket.event_id = '51'::bigint)
+        Heap Fetches: 4113
+        Buffers: shared hit=58
+Planning Time: 0.174 ms
+Execution Time: 0.676 ms
+
+==============================================================================
+## q02_band_events
+==============================================================================
+
+# A band's event list with live availability: one count per event.
+
+SELECT e.event_id,
+       e.capacity,
+       (SELECT COUNT(*) FROM ticket t
+         WHERE t.event_id = e.event_id AND t.status = 'available')::BIGINT AS seats_left
+  FROM event e
+ WHERE e.band_id = $1
+ ORDER BY e.starts_at, e.event_id
+
+Incremental Sort  (cost=167.38..1338.30 rows=8 width=28) (actual time=0.446..0.447 rows=8 loops=1)
+  Output: e.event_id, e.capacity, ((SubPlan 1)), e.starts_at
+  Sort Key: e.starts_at, e.event_id
+  Presorted Key: e.starts_at
+  Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 25kB  Peak Memory: 25kB
+  Buffers: shared hit=88
+  ->  Index Scan using event_band_idx on public.event e  (cost=0.14..1337.94 rows=8 width=28) (actual time=0.025..0.441 rows=8 loops=1)
+        Output: e.event_id, e.capacity, (SubPlan 1), e.starts_at
+        Index Cond: (e.band_id = '5'::bigint)
+        Buffers: shared hit=88
+        SubPlan 1
+          ->  Aggregate  (cost=166.79..166.80 rows=1 width=8) (actual time=0.053..0.053 rows=1 loops=8)
+                Output: count(*)
+                Buffers: shared hit=83
+                ->  Bitmap Heap Scan on public.ticket t  (cost=3.05..166.25 rows=214 width=0) (actual time=0.012..0.037 rows=545 loops=8)
+                      Recheck Cond: ((t.event_id = e.event_id) AND (t.status = 'available'::text))
+                      Heap Blocks: exact=49
+                      Buffers: shared hit=83
+                      ->  Bitmap Index Scan on ticket_available_idx  (cost=0.00..2.99 rows=214 width=0) (actual time=0.010..0.010 rows=545 loops=8)
+                            Index Cond: (t.event_id = e.event_id)
+                            Buffers: shared hit=34
+Planning Time: 0.114 ms
+Execution Time: 0.464 ms
+
+==============================================================================
+## q03_customer_tickets
+==============================================================================
+
+# "My tickets".
+
+SELECT ticket_id, event_id, seat_no
+  FROM ticket
+ WHERE customer_id = $1
+   AND status = 'sold'
+ ORDER BY ticket_id
+
+Sort  (cost=79.18..79.38 rows=79 width=20) (actual time=0.077..0.084 rows=300 loops=1)
+  Output: ticket_id, event_id, seat_no
+  Sort Key: ticket.ticket_id
+  Sort Method: quicksort  Memory: 36kB
+  Buffers: shared hit=80
+  ->  Bitmap Heap Scan on public.ticket  (cost=1.99..76.69 rows=79 width=20) (actual time=0.015..0.056 rows=300 loops=1)
+        Output: ticket_id, event_id, seat_no
+        Recheck Cond: ((ticket.customer_id = '1'::bigint) AND (ticket.status = 'sold'::text))
+        Heap Blocks: exact=78
+        Buffers: shared hit=80
+        ->  Bitmap Index Scan on ticket_customer_idx  (cost=0.00..1.98 rows=79 width=0) (actual time=0.008..0.008 rows=300 loops=1)
+              Index Cond: (ticket.customer_id = '1'::bigint)
+              Buffers: shared hit=2
+Planning Time: 0.038 ms
+Execution Time: 0.097 ms
+
+==============================================================================
+## q04_ticket_by_id
+==============================================================================
+
+# Point lookup: the control.
+
+SELECT ticket_id, event_id, seat_no, customer_id
+  FROM ticket
+ WHERE ticket_id = $1
+
+Index Scan using ticket_pkey on public.ticket  (cost=0.29..2.51 rows=1 width=28) (actual time=0.005..0.006 rows=1 loops=1)
+  Output: ticket_id, event_id, seat_no, customer_id
+  Index Cond: (ticket.ticket_id = '3201'::bigint)
+  Buffers: shared hit=3
+Planning Time: 0.025 ms
+Execution Time: 0.011 ms
+
+==============================================================================
+## q05_band_tickets_sold
+==============================================================================
+
+# Tickets sold across all of a band's events: aggregate up the whole tree.
+
+SELECT COUNT(*)::BIGINT AS sold
+  FROM ticket t
+  JOIN event e ON e.event_id = t.event_id
+ WHERE e.band_id = $1
+   AND t.status = 'sold';
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 02 v2, REPORTS.md). r02 and r04 are P3's own
+-- formulation, unchanged (the ticket table is unchanged). r01, r03 and r05 are
+-- what the ledger buys: answered from sale_event instead of from a ticket row
+-- that a cancellation would otherwise have erased.
+-- ---------------------------------------------------------------------------
+
+Aggregate  (cost=379.46..379.47 rows=1 width=8) (actual time=1.135..1.135 rows=1 loops=1)
+  Output: count(*)
+  Buffers: shared hit=167
+  ->  Nested Loop  (cost=0.29..377.93 rows=612 width=0) (actual time=0.008..0.958 rows=5889 loops=1)
+        Buffers: shared hit=167
+        ->  Seq Scan on public.event e  (cost=0.00..3.12 rows=8 width=8) (actual time=0.004..0.007 rows=8 loops=1)
+              Output: e.event_id, e.band_id, e.name, e.venue, e.starts_at, e.capacity, e.price_cents, e.description
+              Filter: (e.band_id = '5'::bigint)
+              Rows Removed by Filter: 82
+              Buffers: shared hit=2
+        ->  Index Scan using ticket_event_seat_uq on public.ticket t  (cost=0.29..46.09 rows=76 width=8) (actual time=0.003..0.086 rows=736 loops=8)
+              Output: t.ticket_id, t.event_id, t.seat_no, t.status, t.customer_id, t.sold_at, t.price_cents
+              Index Cond: (t.event_id = e.event_id)
+              Filter: (t.status = 'sold'::text)
+              Rows Removed by Filter: 545
+              Buffers: shared hit=165
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.087 ms
+Execution Time: 1.145 ms
+
+==============================================================================
+## r01_event_sales_window
+==============================================================================
+
+# How the drop went, CORRECTLY across refunds: a sale that happened in this
+# window and was later cancelled still counts as having happened then -- what
+# a finance report means by "sold in this period", and what P3 (see
+# p3_precreated_cas) cannot say.
+
+SELECT COUNT(*) AS tickets_sold, COALESCE(SUM(price_cents), 0) AS revenue_cents
+  FROM sale_event
+ WHERE event_id = $1 AND kind = 'sold' AND at >= $2 AND at < $3
+
+Aggregate  (cost=56.76..56.77 rows=1 width=40) (actual time=0.116..0.116 rows=1 loops=1)
+  Output: count(*), COALESCE(sum(price_cents), '0'::numeric)
+  Buffers: shared hit=495
+  ->  Index Scan using sale_event_event_time_idx on public.sale_event  (cost=0.28..54.32 rows=487 width=8) (actual time=0.010..0.095 rows=500 loops=1)
+        Output: sale_event_id, event_id, seat_no, customer_id, kind, at, price_cents
+        Index Cond: ((sale_event.event_id = '51'::bigint) AND (sale_event.at >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (sale_event.at < '2026-07-31 00:00:00+00'::timestamp with time zone))
+        Filter: (sale_event.kind = 'sold'::text)
+        Buffers: shared hit=495
+Planning Time: 0.057 ms
+Execution Time: 0.124 ms
+
+==============================================================================
+## r02_event_recent_buyers
+==============================================================================
+
+
+SELECT ticket_id, customer_id, sold_at
+  FROM ticket
+ WHERE event_id = $1 AND status = 'sold'
+ ORDER BY sold_at DESC
+ LIMIT 50
+
+Limit  (cost=520.21..520.33 rows=50 width=24) (actual time=0.834..0.837 rows=50 loops=1)
+  Output: ticket_id, customer_id, sold_at
+  Buffers: shared hit=91
+  ->  Sort  (cost=520.21..526.80 rows=2636 width=24) (actual time=0.833..0.835 rows=50 loops=1)
+        Output: ticket_id, customer_id, sold_at
+        Sort Key: ticket.sold_at DESC
+        Sort Method: top-N heapsort  Memory: 30kB
+        Buffers: shared hit=91
+        ->  Bitmap Heap Scan on public.ticket  (cost=47.44..432.64 rows=2636 width=24) (actual time=0.103..0.499 rows=5887 loops=1)
+              Output: ticket_id, customer_id, sold_at
+              Recheck Cond: (ticket.status = 'sold'::text)
+              Filter: (ticket.event_id = '51'::bigint)
+              Rows Removed by Filter: 993
+              Heap Blocks: exact=81
+              Buffers: shared hit=91
+              ->  Bitmap Index Scan on ticket_customer_idx  (cost=0.00..46.78 rows=6880 width=0) (actual time=0.094..0.094 rows=6880 loops=1)
+                    Buffers: shared hit=10
+Planning Time: 0.041 ms
+Execution Time: 0.845 ms
+
+==============================================================================
+## r03_customers_last_purchase_window
+==============================================================================
+
+# Answered from the ledger's 'sold' events, not the live ticket table
+# (EH-02 AM-03.6 corrects an earlier version of this comment: cancelling a
+# DIFFERENT, earlier ticket changes nothing on either formulation, since
+# neither one's last-purchase date depended on that ticket). What the ledger
+# buys is the case where the customer's MOST RECENT purchase is the one that
+# gets refunded: the ticket table then dates them by an earlier purchase, or
+# drops them if that was their only one, while the ledger still shows the
+# true last purchase -- which is why every non-ledger design's r03 is
+# `partial`, with exactly this caveat (REPORTS.md section 2).
+
+SELECT customer_id, MAX(at) AS last_at
+  FROM sale_event
+ WHERE kind = 'sold'
+ GROUP BY customer_id
+HAVING MAX(at) >= $1 AND MAX(at) < $2
+ ORDER BY 2 DESC
+ LIMIT 100
+
+Limit  (cost=212.75..212.77 rows=6 width=16) (actual time=0.943..0.950 rows=100 loops=1)
+  Output: customer_id, (max(at))
+  Buffers: shared hit=73
+  ->  Sort  (cost=212.75..212.77 rows=6 width=16) (actual time=0.943..0.945 rows=100 loops=1)
+        Output: customer_id, (max(at))
+        Sort Key: (max(sale_event.at)) DESC
+        Sort Method: quicksort  Memory: 29kB
+        Buffers: shared hit=73
+        ->  HashAggregate  (cost=193.40..212.67 rows=6 width=16) (actual time=0.884..0.931 rows=104 loops=1)
+              Output: customer_id, max(at)
+              Group Key: sale_event.customer_id
+              Filter: ((max(sale_event.at) >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (max(sale_event.at) < '2026-07-31 00:00:00+00'::timestamp with time zone))
+              Batches: 1  Memory Usage: 193kB
+              Rows Removed by Filter: 1181
+              Buffers: shared hit=73
+              ->  Seq Scan on public.sale_event  (cost=0.00..159.00 rows=6880 width=16) (actual time=0.005..0.368 rows=6880 loops=1)
+                    Output: sale_event_id, event_id, seat_no, customer_id, kind, at, price_cents
+                    Filter: (sale_event.kind = 'sold'::text)
+                    Buffers: shared hit=73
+Planning Time: 0.049 ms
+Execution Time: 0.963 ms
+
+==============================================================================
+## r04_band_sellthrough
+==============================================================================
+
+
+SELECT e.event_id, e.capacity,
+       COUNT(t.ticket_id) FILTER (WHERE t.status = 'sold') AS sold_count,
+       ROUND(100.0 * COUNT(t.ticket_id) FILTER (WHERE t.status = 'sold') / e.capacity, 1) AS sold_pct
+  FROM event e
+  LEFT JOIN ticket t ON t.event_id = e.event_id
+ WHERE e.band_id = $1
+ GROUP BY e.event_id, e.capacity
+ ORDER BY e.event_id
+
+GroupAggregate  (cost=0.43..409.72 rows=8 width=52) (actual time=0.019..1.586 rows=8 loops=1)
+  Output: e.event_id, e.capacity, count(t.ticket_id) FILTER (WHERE (t.status = 'sold'::text)), round(((100.0 * (count(t.ticket_id) FILTER (WHERE (t.status = 'sold'::text)))::numeric) / (e.capacity)::numeric), 1)
+  Group Key: e.event_id
+  Buffers: shared hit=168
+  ->  Nested Loop Left Join  (cost=0.43..392.14 rows=2320 width=28) (actual time=0.008..1.164 rows=10250 loops=1)
+        Output: e.event_id, e.capacity, t.ticket_id, t.status
+        Buffers: shared hit=168
+        ->  Index Scan using event_pkey on public.event e  (cost=0.14..6.02 rows=8 width=12) (actual time=0.004..0.008 rows=8 loops=1)
+              Output: e.event_id, e.band_id, e.name, e.venue, e.starts_at, e.capacity, e.price_cents, e.description
+              Filter: (e.band_id = '5'::bigint)
+              Rows Removed by Filter: 82
+              Buffers: shared hit=3
+        ->  Index Scan using ticket_event_seat_uq on public.ticket t  (cost=0.29..45.37 rows=290 width=24) (actual time=0.002..0.077 rows=1281 loops=8)
+              Output: t.ticket_id, t.event_id, t.seat_no, t.status, t.customer_id, t.sold_at, t.price_cents
+              Index Cond: (t.event_id = e.event_id)
+              Buffers: shared hit=165
+Planning:
+  Buffers: shared hit=7
+Planning Time: 0.119 ms
+Execution Time: 1.601 ms
+
+==============================================================================
+## r05_refunds_window
+==============================================================================
+
+# What the ledger buys that no other design in this study can answer at all:
+# cancellations and the money returned, inside a window.
+
+SELECT COUNT(*) AS refunds, COALESCE(SUM(price_cents), 0) AS refunded_cents
+  FROM sale_event
+ WHERE kind = 'cancelled' AND at >= $1 AND at < $2
+
+Aggregate  (cost=1.89..1.90 rows=1 width=40) (actual time=0.006..0.007 rows=1 loops=1)
+  Output: count(*), COALESCE(sum(price_cents), '0'::numeric)
+  Buffers: shared hit=2
+  ->  Index Scan using sale_event_kind_time_idx on public.sale_event  (cost=0.28..1.89 rows=1 width=8) (actual time=0.005..0.005 rows=0 loops=1)
+        Output: sale_event_id, event_id, seat_no, customer_id, kind, at, price_cents
+        Index Cond: ((sale_event.kind = 'cancelled'::text) AND (sale_event.at >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (sale_event.at < '2026-07-31 00:00:00+00'::timestamp with time zone))
+        Buffers: shared hit=2
+Planning Time: 0.042 ms
+Execution Time: 0.015 ms
+
+==============================================================================
+## w_candidate_from
+==============================================================================
+
+
+SELECT ticket_id
+  FROM ticket
+ WHERE event_id = $1
+   AND status = 'available'
+   AND seat_no >= $2
+ ORDER BY seat_no
+ LIMIT 1
+
+Limit  (cost=0.29..0.42 rows=1 width=12) (actual time=0.008..0.009 rows=1 loops=1)
+  Output: ticket_id, seat_no
+  Buffers: shared hit=3
+  ->  Index Scan using ticket_available_idx on public.ticket  (cost=0.29..416.60 rows=3152 width=12) (actual time=0.008..0.008 rows=1 loops=1)
+        Output: ticket_id, seat_no
+        Index Cond: ((ticket.event_id = '51'::bigint) AND (ticket.seat_no >= 5000))
+        Buffers: shared hit=3
+Planning Time: 0.062 ms
+Execution Time: 0.015 ms
+
+==============================================================================
+## w_sell_seat
+==============================================================================
+
+
+WITH sold AS (
+    UPDATE ticket
+       SET status = 'sold', customer_id = $1, sold_at = now()
+     WHERE ticket_id = $2
+       AND status = 'available'
+    RETURNING event_id, seat_no, sold_at, price_cents
+)
+INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
+SELECT event_id, seat_no, $1, 'sold', sold_at, price_cents FROM sold
+
+Insert on public.sale_event  (cost=2.51..2.53 rows=0 width=0) (actual time=0.008..0.008 rows=0 loops=1)
+  Buffers: shared hit=3
+  CTE sold
+    ->  Update on public.ticket  (cost=0.29..2.51 rows=1 width=54) (actual time=0.007..0.007 rows=0 loops=1)
+          Output: ticket.event_id, ticket.seat_no, ticket.sold_at, ticket.price_cents
+          Buffers: shared hit=3
+          ->  Index Scan using ticket_pkey on public.ticket  (cost=0.29..2.51 rows=1 width=54) (actual time=0.007..0.007 rows=0 loops=1)
+                Output: 'sold'::text, '1'::bigint, now(), ticket.ctid
+                Index Cond: (ticket.ticket_id = '3201'::bigint)
+                Filter: (ticket.status = 'available'::text)
+                Rows Removed by Filter: 1
+                Buffers: shared hit=3
+  ->  CTE Scan on sold  (cost=0.00..0.02 rows=1 width=76) (actual time=0.007..0.007 rows=0 loops=1)
+        Output: nextval('sale_event_sale_event_id_seq'::regclass), sold.event_id, sold.seat_no, '1'::bigint, 'sold'::text, sold.sold_at, sold.price_cents
+        Buffers: shared hit=3
+Planning Time: 0.046 ms
+Execution Time: 0.017 ms
+
+==============================================================================
+## w_cancel_ticket
+==============================================================================
+
+
+WITH cancelled AS (
+    UPDATE ticket
+       SET status = 'available', customer_id = NULL, sold_at = NULL
+     WHERE ticket_id = $1
+       AND status = 'sold'
+    RETURNING event_id, seat_no, price_cents
+), logged AS (
+    INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
+    SELECT c.event_id, c.seat_no,
+           (SELECT s.customer_id
+              FROM sale_event s
+             WHERE s.event_id = c.event_id AND s.seat_no = c.seat_no AND s.kind = 'sold'
+             ORDER BY s.at DESC, s.sale_event_id DESC
+             LIMIT 1),
+           'cancelled', now(), c.price_cents
+      FROM cancelled c
+    RETURNING event_id, seat_no
+)
+SELECT event_id, seat_no FROM logged
+
+CTE Scan on logged  (cost=5.05..5.07 rows=1 width=12) (actual time=0.079..0.081 rows=1 loops=1)
+  Output: logged.event_id, logged.seat_no
+  Buffers: shared hit=36
+  CTE cancelled
+    ->  Update on public.ticket  (cost=0.29..2.51 rows=1 width=54) (actual time=0.055..0.056 rows=1 loops=1)
+          Output: ticket.event_id, ticket.seat_no, ticket.price_cents
+          Buffers: shared hit=19
+          ->  Index Scan using ticket_pkey on public.ticket  (cost=0.29..2.51 rows=1 width=54) (actual time=0.009..0.010 rows=1 loops=1)
+                Output: 'available'::text, NULL::bigint, NULL::timestamp with time zone, ticket.ctid
+                Index Cond: (ticket.ticket_id = '3201'::bigint)
+                Filter: (ticket.status = 'sold'::text)
+                Buffers: shared hit=5
+  CTE logged
+    ->  Insert on public.sale_event  (cost=0.00..2.54 rows=1 width=76) (actual time=0.079..0.080 rows=1 loops=1)
+          Output: sale_event.event_id, sale_event.seat_no
+          Buffers: shared hit=36
+          ->  CTE Scan on cancelled c  (cost=0.00..2.54 rows=1 width=76) (actual time=0.066..0.067 rows=1 loops=1)
+                Output: nextval('sale_event_sale_event_id_seq'::regclass), c.event_id, c.seat_no, (SubPlan 2), 'cancelled'::text, now(), c.price_cents
+                Buffers: shared hit=25
+                SubPlan 2
+                  ->  Limit  (cost=2.51..2.52 rows=1 width=24) (actual time=0.007..0.007 rows=1 loops=1)
+                        Output: s.customer_id, s.at, s.sale_event_id
+                        Buffers: shared hit=5
+                        ->  Sort  (cost=2.51..2.52 rows=1 width=24) (actual time=0.007..0.007 rows=1 loops=1)
+                              Output: s.customer_id, s.at, s.sale_event_id
+                              Sort Key: s.at DESC, s.sale_event_id DESC
+                              Sort Method: quicksort  Memory: 25kB
+                              Buffers: shared hit=5
+                              ->  Index Scan using sale_event_seat_idx on public.sale_event s  (cost=0.28..2.50 rows=1 width=24) (actual time=0.003..0.005 rows=1 loops=1)
+                                    Output: s.customer_id, s.at, s.sale_event_id
+                                    Index Cond: ((s.event_id = c.event_id) AND (s.seat_no = c.seat_no))
+                                    Filter: (s.kind = 'sold'::text)
+                                    Buffers: shared hit=5
+Planning Time: 0.098 ms
+Trigger RI_ConstraintTrigger_c_16953 for constraint sale_event_event_id_fkey on sale_event: time=0.024 calls=1
+Execution Time: 0.119 ms
+
+==============================================================================
+## w_edit_event
+==============================================================================
+
+
+UPDATE event SET description = $1 WHERE event_id = $2
+
+Update on public.event  (cost=0.14..2.36 rows=0 width=0) (actual time=0.025..0.026 rows=0 loops=1)
+  Buffers: shared hit=12
+  ->  Index Scan using event_pkey on public.event  (cost=0.14..2.36 rows=1 width=38) (actual time=0.005..0.005 rows=1 loops=1)
+        Output: 'Explained.'::text, ctid
+        Index Cond: (event.event_id = '51'::bigint)
+        Buffers: shared hit=4
+Planning Time: 0.017 ms
+Execution Time: 0.031 ms
+
+==============================================================================
+## w_publish_event
+==============================================================================
+
+
+INSERT INTO event (event_id, band_id, name, venue, starts_at, capacity, price_cents, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+
+Insert on public.event  (cost=0.00..0.01 rows=0 width=0) (actual time=0.057..0.057 rows=0 loops=1)
+  Buffers: shared hit=7 dirtied=1
+  ->  Result  (cost=0.00..0.01 rows=1 width=132) (actual time=0.001..0.001 rows=1 loops=1)
+        Output: '1000090'::bigint, '5'::bigint, 'explain show'::text, 'stadium'::text, '2026-10-01 20:00:00+00'::timestamp with time zone, 10000, '8000'::bigint, 'Explained.'::text
+Planning Time: 0.010 ms
+Trigger RI_ConstraintTrigger_c_16924 for constraint event_band_id_fkey: time=0.151 calls=1
+Execution Time: 0.217 ms
+
+==============================================================================
+## w_publish_tickets
+==============================================================================
+
+
+INSERT INTO ticket (ticket_id, event_id, seat_no, status, price_cents)
+SELECT $1::BIGINT + g - 1, $2::BIGINT, g, 'available', $4::BIGINT
+  FROM generate_series(1, $3::INT) AS g
+
+Insert on public.ticket  (cost=0.00..150.00 rows=0 width=0) (actual time=19.938..19.939 rows=0 loops=1)
+  Buffers: shared hit=70283 dirtied=192 written=138
+  I/O Timings: shared write=0.656
+  ->  Function Scan on pg_catalog.generate_series g  (cost=0.00..150.00 rows=10000 width=76) (actual time=0.188..0.776 rows=10000 loops=1)
+        Output: (('1010026101'::bigint + g.g) - 1), '1000090'::bigint, g.g, 'available'::text, NULL::bigint, NULL::timestamp with time zone, '8000'::bigint
+        Function Call: generate_series(1, 10000)
+Planning Time: 0.023 ms
+Trigger RI_ConstraintTrigger_c_16938 for constraint ticket_event_id_fkey: time=19.854 calls=10000
+Execution Time: 40.123 ms
+
