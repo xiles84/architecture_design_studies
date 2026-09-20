@@ -110,3 +110,30 @@ or a temporary missing lock is insufficient. Its checkpoint is
   integration remains a mapped LOW wait; no container, lock or other worktree was changed.
 
 **Next: LOW model / low effort — resume EH-02 when the live benchmark and main update checks are clear.**
+
+### LOW iteration 3 — 2026-09-20
+
+- Executor: GPT-5 via Codex desktop, LOW role; exact effort not exposed.
+- The concurrent dev check completed before final integration. At 2026-09-20 23:00 UTC,
+  `ads-run-lock` was absent, `podman ps` was empty, local `main` was clean at
+  `7123da62dc33fe9de351a01281555d306855446e`, and the separate recency worktree was
+  clean at `6566c67`. No path, ref, container or unpublished result in that worktree was
+  changed or adopted.
+- Committed the conflict-free main integration and reconciliation as
+  `0e7c05fa0b112ab33023b07af032500dab4aae8c`, with parents `fe0450c` and `7123da6`.
+  The task worktree was clean afterwards; current main is its ancestor. Incoming
+  Study 02/03 equal `7123da6`, and accepted Study 01, infrastructure and platform source
+  equal `db77fe6`. Relevant local links and explicit-path whitespace checks passed.
+- Rechecked every accepted milestone and producing-run tag recorded by EH-02. The
+  existing tags still resolve to their immutable reviewed targets, and
+  `study-01/v3-reviewed` did not already exist.
+- Acquired the mapped short reservation as `Study 01 HIGH review final integration` from
+  this task worktree at `2026-09-20T22:59:58Z`. The lock labels matched the branch,
+  worktree and holder; no containers were running. Immediately before the update, the
+  task candidate was clean at `0e7c05f` and main remained clean at `7123da6`.
+- Fast-forwarded local `main` from `7123da6` to `0e7c05f` with `--ff-only`. This closeout
+  commit records completion in context and progress; LOW will fast-forward main to this
+  exact commit, create annotated tag `study-01/v3-reviewed` there, verify containment and
+  cleanliness, then release only the owned reservation.
+
+**Next: none — EH-02 is complete after the mapped final fast-forward, tag and lock release.**

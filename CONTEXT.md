@@ -69,8 +69,9 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/study-comparison-minimums` | future-study requirements for calculated sizing, information placement, data colocation and concurrency strategies |
 | `repo/worktree-to-main-workflow` | integrated task workflow: every task uses an isolated worktree and merges completed changes into local main |
 | `study-01/v3-integrated` | integrated Study 01 v3 local enhancements, final analysis and discussion companions |
-| `study-01/v3-high-review` | HIGH acceptance of the integrated v3 evidence; review documentation awaits the safe final merge under EH-02 |
-| `study-01/v3-high-review-r2` | amended HIGH checkpoint preserves the peer's main-checkout reservation through Study 03 step 11 |
+| `study-01/v3-high-review` | HIGH acceptance checkpoint for the integrated v3 evidence and EH-02 revision 1 |
+| `study-01/v3-high-review-r2` | amended HIGH checkpoint that preserved the peer's main-checkout reservation through Study 03 step 11 |
+| `study-01/v3-reviewed` | final integrated Study 01 v3 state: accepted HIGH review, reconciled project context and LOW completion receipt |
 | `repo/study01-integration-handoff-v1` | HIGH planning checkpoint for the LOW integration steps and subsequent HIGH review |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
@@ -115,8 +116,8 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**Study 01 v3 HIGH review accepted; final documentation integration in progress,
-2026-09-20 — next LOW:** EH-01's final local integration is
+**Study 01 v3 HIGH review accepted and integrated, 2026-09-20 — complete:**
+EH-01's final local integration is
 verified at `db77fe60b5bfe78b29ec04db9150f33cc1a0bb49`. Both annotated tags,
 `repo/worktree-to-main-workflow` and `study-01/v3-integrated`, resolve to that commit,
 which is an ancestor of current local `main`. The 261 saved cells retain their producing
@@ -124,23 +125,22 @@ commits, images, environment and four report digests. The six expected D9 failur
 excluded from performance conclusions. HIGH accepts the existing local enhancements,
 concise final analysis, signed discussions and prospective study requirements.
 
-The task worktree now incorporates committed main through `7123da6`, including the
-completed and signed Study 03 v1 analysis and the repository-wide concurrent-agent
-reconciliation rule. Its former main-checkout reservation ended with Study 03 step 11.
-Another AI is currently active in `.worktrees/recency-reports`; its branch, dirty files,
-containers and findings remain untouched. The final main update waits for its live
-benchmark to release the shared runtime lock, then follows
-[EH-02](docs/handoffs/20260914-study01-integration/FINALIZATION_HANDOFF.md), preserving
-any newer committed main and tagging `study-01/v3-reviewed`. No further HIGH pass is
-required if the handoff's acceptance conditions pass. Source changes or conflicting
-decisions require escalation. The
+The task branch incorporated committed main through `7123da6`, including the completed
+and signed Study 03 v1 analysis and the repository-wide concurrent-agent reconciliation
+rule. Its former main-checkout reservation ended with Study 03 step 11. LOW reconciled
+the living documents without changing attributed artifacts, committed merge checkpoint
+`0e7c05fa0b112ab33023b07af032500dab4aae8c`, and fast-forwarded local `main` to it under
+the owned integration lock after the concurrent dev check released the runtime. The
+separate `.worktrees/recency-reports` branch, files, commits and containers were not
+changed or adopted. This completion receipt is the final mapped EH-02 update and is
+tagged `study-01/v3-reviewed`; no further HIGH pass or model switch is required. The
 [Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md),
 [progress](docs/handoffs/20260914-study01-integration/PROGRESS.md),
 [execution receipt](docs/handoffs/20260914-study01-integration/EXECUTION_RESULT.md) and
 [escalation log](docs/handoffs/20260914-study01-integration/ESCALATIONS.md) preserve the
 iteration; the [HIGH review](docs/handoffs/20260914-study01-integration/HIGH_REVIEW.md)
-records the acceptance evidence. Study 03's current decisions and running state remain
-in its own section and logs.
+records the acceptance evidence. Study 03's completed state and decisions remain in its
+own section and logs.
 
 ## Model roles for every study
 
@@ -152,9 +152,9 @@ waiting remains LOW work. No automatic model change is implied.
 
 Current task: HIGH planning/review = GPT-6 via Codex (exact selected effort not exposed);
 EH-01's executor recorded GPT-5 via Codex desktop under the user-selected LOW role
-(exact effort not exposed). HIGH has accepted EH-01. GPT-5 is executing EH-02's
-reconciliation and safe documentation merge in the LOW role. Next remains LOW while the
-other AI owns the benchmark lock; an unmapped conflict returns to HIGH.
+(exact effort not exposed). HIGH accepted EH-01, and GPT-5 completed EH-02's mapped
+reconciliation, safe local-main integration and final tag in the LOW role. This task has
+no remaining model iteration.
 Study 03's existing model/effort mapping below remains specific to that study.
 
 ## What this project is
@@ -225,7 +225,8 @@ creates a run tag, pins the image ID, takes the shared benchmark lock and keeps 
 fresh-load trial. Containerized catalogue/control, scheduler overload and grouping tests
 pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 checks per cell).
 The implementation is already integrated into local `main` at `study-01/v3-integrated`;
-only the subsequent HIGH review documentation awaits EH-02's final merge.
+the subsequent HIGH review and LOW completion receipt are integrated at
+`study-01/v3-reviewed`.
 
 **Completed:** `20260913T124917Z-v3`, 14 successful verification cells
 (seven new variants on PostgreSQL and YugabyteDB single-node), run tag
