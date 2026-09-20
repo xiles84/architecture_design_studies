@@ -338,6 +338,7 @@ real operation asks for.
   rather than dropping the claim. LOW re-checks X1 only (both engines, including the
   high-contention setting that exposed the bug), then runs calibration and the four
   measured runs straight through. **Next: LOW (Claude Sonnet 5) at AM-04.1.**
+- **PHASE 3B RUNNING — do not start databases (from 2026-09-20, LOW, Claude Sonnet 5).** AM-04 passed (`5e3a3f8`, tag `study-02/v2.2-ledger-attribution`); calibration done (`am03-cal-small/SUMMARY.md`): study 02 reports at 10 s, study 03 at 5 s, race B2 = 128, estimate ~8 h. Runs go one at a time: 3b-1 (study 02 reports matrix), 3b-2 and 3b-3 (P3 → X1 race pair at 32 and 128 buyers), 3b-4 (study 03 reports matrix). Each holds the benchmark lock while it runs.
 
 ### Study 01 — tree structures (charity → person → donation)
 
