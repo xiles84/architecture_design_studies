@@ -9,23 +9,33 @@
 -- the CAS loop needs no changes either. w_cancel_ticket's final SELECT
 -- returns exactly the (event_id, seat_no) shape Booker.Cancel already scans.
 --
--- w_cancel_ticket's refund names the buyer from the ledger row of the sale it
--- reverses, not from the UPDATE's own RETURNING (EH-02 AM-03.4). RETURNING
--- yields the row AFTER the update, and the update has just set customer_id =
--- NULL; PostgreSQL's RETURNING OLD does not exist before version 18, and
--- neither engine version pinned here has it. Every refund was logged with a
--- NULL customer -- which sale_event.customer_id NOT NULL turned into an
--- outright failure of every cancellation, not just a silent data-quality
--- bug (confirmed by AM-03.3's dev check: every cancel attempt errored, zero
--- ever committed). The sale's own row committed in the same statement as the
--- sale, and a refund always names a ticket its caller has seen sold -- churn
--- cancels a booking that same buyer's transaction just committed, and
--- BenchmarkCancel cancels loaded tickets the loader seeded -- so that row is
--- always in the refund statement's own snapshot. Rejected alternatives:
--- RETURNING OLD (not available on either engine version here); locking the
--- cancelled row FOR UPDATE (changes the cancel's locking, which P3 does not
--- have); an extra column on ticket carrying the last buyer (makes P3 -> X1
--- two decisions instead of one).
+-- w_cancel_ticket's refund names its buyer by reading the ticket row it is
+-- about to clear, under FOR UPDATE, in the same statement (EH-02 AM-04.1,
+-- deciding RR-ER-01). Why not the obvious alternatives:
+--   * the UPDATE's own RETURNING yields the row AFTER the update, i.e. an
+--     already-NULLed customer_id, and sale_event.customer_id is NOT NULL, so
+--     every cancellation failed outright (AM-03.3's dev check);
+--   * RETURNING OLD does not exist before PostgreSQL 18 (YSQL is 15);
+--   * looking the buyer up in the LEDGER ("the newest sold row of this seat")
+--     needs an order, and no column gives one on both engines: `at` is now(),
+--     fixed at transaction START, so a later-starting sale can carry an earlier
+--     timestamp; sale_event_id is fine on PostgreSQL but YSQL hands out
+--     sequence blocks per connection (Cache 100, and ALTER SEQUENCE ... CACHE 1
+--     has no effect there). Either way a refund could name a stale buyer
+--     (RR-ER-01, results/devchecks/am03-dc04-rrer01/).
+-- The ticket row is the only authoritative record of who holds the seat, and
+-- sales/cancels of one seat already serialize on it. FOR UPDATE re-checks
+-- status='sold' against the latest row version under READ COMMITTED, so the
+-- customer_id it returns is exactly the buyer being refunded -- no timestamp,
+-- no sequence, nothing to reorder. Cost, stated plainly: the cancelling UPDATE
+-- takes the same exclusive lock on the same row moments later anyway, so the
+-- lock held is unchanged; what is added is one extra lookup and lock
+-- acquisition (a real round trip on YugabyteDB). That is the ledger's own
+-- cost -- a ledger that records who was refunded has to read who was refunded
+-- -- not a second decision. P3 -> X1, write axis: the sell path is P3's plus
+-- one ledger insert in the same statement; the refund path is P3's plus one
+-- ledger insert and the locking read that insert needs. The sell-out race (the
+-- headline experiment) exercises only the first.
 --
 -- Booking:
 --   w_candidate_from(start_seat)  -> first available seat at or after a random seat
@@ -57,22 +67,20 @@ SELECT event_id, seat_no, $1, 'sold', sold_at, price_cents FROM sold;
 
 -- name: w_cancel_ticket
 -- params: ticket_id
-WITH cancelled AS (
-    UPDATE ticket
+WITH old AS (
+    SELECT ticket_id, customer_id
+      FROM ticket
+     WHERE ticket_id = $1 AND status = 'sold'
+       FOR UPDATE
+), cancelled AS (
+    UPDATE ticket t
        SET status = 'available', customer_id = NULL, sold_at = NULL
-     WHERE ticket_id = $1
-       AND status = 'sold'
-    RETURNING event_id, seat_no, price_cents
+      FROM old
+     WHERE t.ticket_id = old.ticket_id
+    RETURNING t.event_id, t.seat_no, old.customer_id, t.price_cents
 ), logged AS (
     INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
-    SELECT c.event_id, c.seat_no,
-           (SELECT s.customer_id
-              FROM sale_event s
-             WHERE s.event_id = c.event_id AND s.seat_no = c.seat_no AND s.kind = 'sold'
-             ORDER BY s.at DESC, s.sale_event_id DESC
-             LIMIT 1),
-           'cancelled', now(), c.price_cents
-      FROM cancelled c
+    SELECT event_id, seat_no, customer_id, 'cancelled', now(), price_cents FROM cancelled
     RETURNING event_id, seat_no
 )
 SELECT event_id, seat_no FROM logged;
