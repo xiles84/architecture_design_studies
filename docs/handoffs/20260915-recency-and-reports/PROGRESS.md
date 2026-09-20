@@ -511,3 +511,25 @@ audit is real, and size phase 3b's measured runs from the dev-check throughput a
 
 **Next: HIGH — decide RR-ER-01 (the `a_ledger_attribution` ordering key), then authorise
 resuming at AM-03.10.**
+
+## LOW iteration 5 — 2026-09-20 (AM-04 executed; calibration; phase 3b starting)
+
+- Executor: Claude Sonnet 5. Podman VM had stopped after the gap and was restarted; the lock
+  volume did not survive and was re-acquired. Nothing else lost.
+- **AM-04.1/.3 done, AM-04.4 passed** (`5e3a3f8`, tag `study-02/v2.2-ledger-attribution`): X1's
+  cancel reads the buyer from the ticket row under `FOR UPDATE` (CTE form worked on both
+  engines, no fallback used); the attribution audit is order-free. Gate 46/46; every ledger
+  audit consistent on both engines including 3 repeats each at 64 buyers / 50% churn (the
+  setting that gave 246 problems on YugabyteDB before); post-write report checks pass; both
+  fault controls fire.
+- **Decision Log.**
+  - **D1** (order by `sale_event_id`) and **D2** (`CACHE 1`) — tried under the new autonomy
+    rules, reverted, superseded by HIGH's AM-04. Confidence was Medium/High that they were
+    wrong for YugabyteDB; evidence in `am03-dc04-rrer01/`.
+  - **D3** — the rewritten audit reports a defect from two of its checks (drop-sale: 1 net + 2
+    attribution rows; wrong-customer: 2 attribution rows) where AM-03.3 expected exactly 1.
+    Same defect, counted twice; the gate only needs > 0. Confidence High; not worth narrowing.
+  - **D4** — calibration chose R1 = 10 s for study 02 reports (P3 `r03`: 35 executions at 5 s),
+    5 s for study 03; B2 = 128; estimated total ~8 h (< 10 h). See `am03-cal-small/SUMMARY.md`.
+    Confidence High (rules applied mechanically).
+- Phase 3b runs 3b-1 → 3b-4 follow, one at a time, from committed trees, each with `--tag`.

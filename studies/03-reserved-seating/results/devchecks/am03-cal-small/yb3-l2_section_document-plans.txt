@@ -1,0 +1,665 @@
+# Query plans — study 03-reserved-seating
+
+run_id:      am03-cal-small
+repo:         (dirty=false)
+environment: host-zenbook-ux5406sa
+engine:      yugabyte (yb-cluster3)
+version:     PostgreSQL 15.12-YB-2025.2.6.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 19.1.0 (https://github.com/yugabyte/llvm-project.git a2a6b655e14e7fa1fcf1011a6cb29cb8575249c0), 64-bit
+design:      l2_section_document (section-document)
+captured:    EXPLAIN (ANALYZE, DIST, COSTS OFF, TIMING OFF)
+keys:        the largest catalogue event, one of its live holds (or its section with the most
+             sold seats), a sold ticket. Write statements run inside transactions that are rolled back.
+
+==============================================================================
+## q01_section_map
+==============================================================================
+
+# The dynamic half of a seat map, from ONE row: non-available seats.
+
+SELECT (c.key)::INT AS seat_id,
+       ((c.value->>0)::INT)::SMALLINT AS state
+  FROM event_section s
+ CROSS JOIN LATERAL jsonb_each(s.claims) AS c
+ WHERE s.event_id = $1
+   AND s.section_no = $2
+   AND ((c.value->>0)::INT = 2
+        OR (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT)
+ ORDER BY 1
+
+Sort (actual rows=41 loops=1)
+  Sort Key: ((c.key)::integer)
+  Sort Method: quicksort  Memory: 26kB
+  ->  Nested Loop (actual rows=41 loops=1)
+        ->  Index Scan using event_section_pkey on event_section s (actual rows=1 loops=1)
+              Index Cond: ((event_id = '500'::bigint) AND (section_no = 68))
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 1
+        ->  Function Scan on jsonb_each c (actual rows=41 loops=1)
+              Filter: ((((value ->> 0))::integer = 2) OR (((value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+              Rows Removed by Filter: 14
+Planning Time: 0.123 ms
+Execution Time: 0.623 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 215 kB
+
+==============================================================================
+## q02_event_sections
+==============================================================================
+
+# Seats available per section: capacity minus valid claims, one document each.
+
+SELECT s.section_no,
+       (s.capacity - (SELECT COUNT(*)
+                        FROM jsonb_each(s.claims) AS c
+                       WHERE (c.value->>0)::INT = 2
+                          OR (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT))::BIGINT AS available
+  FROM event_section s
+ WHERE s.event_id = $1
+ ORDER BY s.section_no
+
+Index Scan using event_section_pkey on event_section s (actual rows=100 loops=1)
+  Index Cond: (event_id = '500'::bigint)
+  SubPlan 1
+    ->  Aggregate (actual rows=1 loops=100)
+          ->  Function Scan on jsonb_each c (actual rows=393 loops=100)
+                Filter: ((((value ->> 0))::integer = 2) OR (((value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+                Rows Removed by Filter: 6
+Planning Time: 0.128 ms
+Execution Time: 13.326 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 100
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 2972 kB
+
+==============================================================================
+## q03_event_available
+==============================================================================
+
+# Seats available for the whole event: every section document of the event.
+
+SELECT COALESCE(SUM(s.capacity - (SELECT COUNT(*)
+                                    FROM jsonb_each(s.claims) AS c
+                                   WHERE (c.value->>0)::INT = 2
+                                      OR (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT)), 0)::BIGINT AS available
+  FROM event_section s
+ WHERE s.event_id = $1
+
+Aggregate (actual rows=1 loops=1)
+  ->  Index Scan using event_section_pkey on event_section s (actual rows=100 loops=1)
+        Index Cond: (event_id = '500'::bigint)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 100
+  SubPlan 1
+    ->  Aggregate (actual rows=1 loops=100)
+          ->  Function Scan on jsonb_each c (actual rows=393 loops=100)
+                Filter: ((((value ->> 0))::integer = 2) OR (((value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+                Rows Removed by Filter: 6
+Planning Time: 0.148 ms
+Execution Time: 13.360 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 100
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 3199 kB
+
+==============================================================================
+## q04_hold_seats
+==============================================================================
+
+# The basket page: the seats of a hold that is still valid, and when it ends.
+
+SELECT (c.key)::INT AS seat_id,
+       to_timestamp((c.value->>3)::BIGINT / 1000.0) AS expires_at
+  FROM event_section s
+ CROSS JOIN LATERAL jsonb_each(s.claims) AS c
+ WHERE s.event_id = $1
+   AND s.section_no = $2
+   AND (c.value->>0)::INT = 1
+   AND (c.value->>1)::BIGINT = $3
+   AND (c.value->>3)::BIGINT > (EXTRACT(EPOCH FROM now()) * 1000)::BIGINT
+ ORDER BY 1
+
+Sort (actual rows=1 loops=1)
+  Sort Key: ((c.key)::integer)
+  Sort Method: quicksort  Memory: 25kB
+  ->  Nested Loop (actual rows=1 loops=1)
+        ->  Index Scan using event_section_pkey on event_section s (actual rows=1 loops=1)
+              Index Cond: ((event_id = '500'::bigint) AND (section_no = 68))
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 1
+        ->  Function Scan on jsonb_each c (actual rows=1 loops=1)
+              Filter: ((((value ->> 0))::integer = 1) AND (((value ->> 1))::bigint = '813'::bigint) AND (((value ->> 3))::bigint > ((EXTRACT(epoch FROM now()) * '1000'::numeric))::bigint))
+              Rows Removed by Filter: 54
+Planning Time: 0.128 ms
+Execution Time: 0.771 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 215 kB
+
+==============================================================================
+## q05_customer_tickets
+==============================================================================
+
+# "My tickets". Byte-identical in every design with the same ticket table: the
+# noise calibration set.
+
+SELECT ticket_id, event_id, seat_id
+  FROM ticket
+ WHERE customer_id = $1
+ ORDER BY ticket_id
+
+Sort (actual rows=1937 loops=1)
+  Sort Key: ticket_id
+  Sort Method: quicksort  Memory: 170kB
+  ->  Index Scan using ticket_customer_idx on ticket (actual rows=1937 loops=1)
+        Index Cond: (customer_id = '1'::bigint)
+        Storage Table Read Requests: 2
+        Storage Table Read Ops: 2
+        Storage Table Rows Scanned: 1937
+        Storage Index Read Requests: 2
+        Storage Index Read Ops: 2
+        Storage Index Rows Scanned: 1937
+Planning Time: 0.082 ms
+Execution Time: 6.894 ms
+Storage Read Requests: 4
+Storage Read Ops: 4
+Storage Rows Scanned: 3874
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 870 kB
+
+==============================================================================
+## q06_ticket_by_id
+==============================================================================
+
+# Point lookup: the control.
+
+SELECT ticket_id, event_id, seat_id, customer_id
+  FROM ticket
+ WHERE ticket_id = $1;
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md). r03-r05 use the `ticket`
+-- table, which is byte-identical across every design in this study (the
+-- confirmed-sale record); this SQL is therefore the same for all of them.
+-- ---------------------------------------------------------------------------
+
+Index Scan using ticket_pkey on ticket (actual rows=1 loops=1)
+  Index Cond: (ticket_id = '19301'::bigint)
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.060 ms
+Execution Time: 0.458 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## r03_section_sales_window
+==============================================================================
+
+# Confirmed sales per section inside a window -- selling pace, section by
+# section.
+
+SELECT section_no, COUNT(*) AS confirmed, COALESCE(SUM(price_cents), 0) AS revenue_cents
+  FROM ticket
+ WHERE event_id = $1 AND sold_at >= $2 AND sold_at < $3
+ GROUP BY section_no
+ ORDER BY section_no
+
+Sort (actual rows=52 loops=1)
+  Sort Key: section_no
+  Sort Method: quicksort  Memory: 28kB
+  ->  HashAggregate (actual rows=52 loops=1)
+        Group Key: section_no
+        Batches: 1  Memory Usage: 32kB
+        ->  Seq Scan on ticket (actual rows=2886 loops=1)
+              Storage Filter: ((sold_at >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (sold_at < '2026-07-31 00:00:00+00'::timestamp with time zone) AND (event_id = '500'::bigint))
+              Storage Table Read Requests: 3
+              Storage Table Read Ops: 3
+              Storage Table Rows Scanned: 56103
+Planning Time: 0.129 ms
+Execution Time: 19.552 ms
+Storage Read Requests: 3
+Storage Read Ops: 3
+Storage Rows Scanned: 56103
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 140 kB
+
+==============================================================================
+## r04_event_recent_confirmations
+==============================================================================
+
+# The operations feed: the last 50 confirmed sales, newest first.
+
+SELECT ticket_id, seat_id, customer_id, sold_at
+  FROM ticket
+ WHERE event_id = $1
+ ORDER BY sold_at DESC
+ LIMIT 50
+
+Limit (actual rows=50 loops=1)
+  ->  Sort (actual rows=50 loops=1)
+        Sort Key: sold_at DESC
+        Sort Method: top-N heapsort  Memory: 31kB
+        ->  Seq Scan on ticket (actual rows=36803 loops=1)
+              Storage Filter: (event_id = '500'::bigint)
+              Storage Table Read Requests: 36
+              Storage Table Read Ops: 36
+              Storage Table Rows Scanned: 56103
+Planning Time: 0.097 ms
+Execution Time: 35.452 ms
+Storage Read Requests: 36
+Storage Read Ops: 36
+Storage Rows Scanned: 56103
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 156 kB
+
+==============================================================================
+## r05_customers_last_purchase_window
+==============================================================================
+
+# Customers whose LAST purchase falls in the window -- the recency question
+# RECENCY.md section 2 asks of donors, in this domain. Same trap: in the
+# trailing regime "bought in the window" and "last bought in the window"
+# coincide (nothing is newer); the historical regime is where a design that
+# only checked the former would be wrong.
+
+SELECT customer_id, MAX(sold_at) AS last_at
+  FROM ticket
+ GROUP BY customer_id
+HAVING MAX(sold_at) >= $1 AND MAX(sold_at) < $2
+ ORDER BY 2 DESC
+ LIMIT 100;
+
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md), r01-r02: this design has no
+-- per-seat row at all -- claims live inside event_section.claims, one JSONB
+-- document per section: {"<seat_id>": [state, hold_id, customer_id,
+-- expires_ms], ...}, state 1 = held, 2 = sold. Both reports unnest it.
+-- ---------------------------------------------------------------------------
+
+Limit (actual rows=100 loops=1)
+  ->  Sort (actual rows=100 loops=1)
+        Sort Key: (max(sold_at)) DESC
+        Sort Method: top-N heapsort  Memory: 33kB
+        ->  HashAggregate (actual rows=700 loops=1)
+              Group Key: customer_id
+              Filter: ((max(sold_at) >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (max(sold_at) < '2026-07-31 00:00:00+00'::timestamp with time zone))
+              Batches: 1  Memory Usage: 1169kB
+              Rows Removed by Filter: 8572
+              ->  Seq Scan on ticket (actual rows=56103 loops=1)
+                    Storage Table Read Requests: 55
+                    Storage Table Read Ops: 55
+                    Storage Table Rows Scanned: 56103
+Planning Time: 0.083 ms
+Execution Time: 36.693 ms
+Storage Read Requests: 55
+Storage Read Ops: 55
+Storage Rows Scanned: 56103
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 1592 kB
+
+==============================================================================
+## r01_holds_expiring_soon
+==============================================================================
+
+# `within` is bound as an absolute cutoff instant (see event_seat's own copy
+# of this comment for why).
+
+SELECT (kv.key)::INT AS seat_id,
+       (kv.value ->> 1)::BIGINT AS hold_id,
+       (kv.value ->> 2)::BIGINT AS customer_id,
+       to_timestamp((kv.value ->> 3)::BIGINT / 1000.0) AS hold_expires_at
+  FROM event_section es,
+       LATERAL jsonb_each(es.claims) AS kv
+ WHERE es.event_id = $1
+   AND (kv.value ->> 0)::INT = 1
+   AND to_timestamp((kv.value ->> 3)::BIGINT / 1000.0) <= $2
+ ORDER BY 4
+
+Sort (actual rows=643 loops=1)
+  Sort Key: (to_timestamp((((((kv.value ->> 3))::bigint)::numeric / 1000.0))::double precision))
+  Sort Method: quicksort  Memory: 70kB
+  ->  Nested Loop (actual rows=643 loops=1)
+        ->  Index Scan using event_section_pkey on event_section es (actual rows=100 loops=1)
+              Index Cond: (event_id = '500'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 100
+        ->  Memoize (actual rows=6 loops=100)
+              Cache Key: es.claims
+              Cache Mode: binary
+              Hits: 0  Misses: 100  Evictions: 0  Overflows: 0  Memory Usage: 2628kB
+              ->  Function Scan on jsonb_each kv (actual rows=6 loops=100)
+                    Filter: ((((value ->> 0))::integer = 1) AND (to_timestamp((((((value ->> 3))::bigint)::numeric / 1000.0))::double precision) <= '2026-09-20 23:55:45.06184+00'::timestamp with time zone))
+                    Rows Removed by Filter: 393
+Planning Time: 0.137 ms
+Execution Time: 12.318 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 100
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 6239 kB
+
+==============================================================================
+## r02_seat_status_lookup
+==============================================================================
+
+# Zero rows means the seat is available -- the claims document has no key
+# for it. Reaches the seat's section through venue_seat, since a claim is
+# addressed by (event, section, seat-key) and this report is only given the
+# seat. `at` is NULL once sold: the document does not keep a sale timestamp,
+# only the (now stale) hold expiry -- an honest limitation of this design,
+# not a bug in the query.
+
+SELECT CASE WHEN (es.claims -> ($2::text) ->> 0)::INT = 2 THEN 'sold' ELSE 'held' END AS status,
+       (es.claims -> ($2::text) ->> 1)::BIGINT AS hold_id,
+       (es.claims -> ($2::text) ->> 2)::BIGINT AS customer_id,
+       CASE WHEN (es.claims -> ($2::text) ->> 0)::INT = 1
+            THEN to_timestamp((es.claims -> ($2::text) ->> 3)::BIGINT / 1000.0)
+       END AS at
+  FROM event_section es
+  JOIN event e ON e.event_id = es.event_id
+  JOIN venue_seat vs ON vs.venue_id = e.venue_id AND vs.seat_id = $2
+ WHERE es.event_id = $1
+   AND es.section_no = vs.section_no
+   AND es.claims ? ($2::text)
+
+YB Batched Nested Loop Join (actual rows=1 loops=1)
+  Join Filter: ((e.venue_id = vs.venue_id) AND (es.section_no = vs.section_no))
+  ->  Nested Loop (actual rows=1 loops=1)
+        ->  Index Scan using event_section_pkey on event_section es (actual rows=1 loops=1)
+              Index Cond: (event_id = '500'::bigint)
+              Storage Filter: (claims ? '67766'::text)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 100
+        ->  Index Scan using event_pkey on event e (actual rows=1 loops=1)
+              Index Cond: (event_id = '500'::bigint)
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 1
+  ->  Index Scan using venue_seat_pkey on venue_seat vs (actual rows=1 loops=1)
+        Index Cond: ((venue_id = ANY (ARRAY[e.venue_id, $1, $2, ..., $1023])) AND (seat_id = 67766))
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+Planning Time: 0.633 ms
+Execution Time: 2.521 ms
+Storage Read Requests: 3
+Storage Read Ops: 3
+Storage Rows Scanned: 102
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 556 kB
+
+==============================================================================
+## w_read_section
+==============================================================================
+
+# The document as text, parsed in Go, with the version to write against and the
+# database clock every expiry decision is made with.
+
+SELECT version, claims::TEXT AS claims, now() AS db_now, clock_timestamp() AS db_clock
+  FROM event_section
+ WHERE event_id = $1
+   AND section_no = $2
+
+Index Scan using event_section_pkey on event_section (actual rows=1 loops=1)
+  Index Cond: ((event_id = '500'::bigint) AND (section_no = 68))
+  Storage Table Read Requests: 1
+  Storage Table Read Ops: 1
+  Storage Table Rows Scanned: 1
+Planning Time: 0.060 ms
+Execution Time: 0.556 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 119 kB
+
+==============================================================================
+## w_write_section
+==============================================================================
+
+# Compare-and-set on the whole document.
+
+UPDATE event_section
+   SET claims = $1::JSONB,
+       next_expiry = $2::TIMESTAMPTZ,
+       version = version + 1
+ WHERE event_id = $3
+   AND section_no = $4
+   AND version = $5
+RETURNING now() AS db_now, clock_timestamp() AS db_clock
+
+Update on event_section (actual rows=1 loops=1)
+  Storage Table Write Requests: 1
+  Storage Index Write Requests: 2
+  ->  Index Scan using event_section_pkey on event_section (actual rows=1 loops=1)
+        Index Cond: ((event_id = '500'::bigint) AND (section_no = 68))
+        Storage Filter: (version = '0'::bigint)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+Planning Time: 0.242 ms
+Execution Time: 2.048 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 3
+Storage Flush Requests: 1
+Peak Memory Usage: 124 kB
+
+==============================================================================
+## w_insert_tickets
+==============================================================================
+
+# One ticket per seat; ticket_ids and seat_ids are parallel arrays.
+
+INSERT INTO ticket (ticket_id, event_id, section_no, seat_id, customer_id, hold_id, sold_at, price_cents)
+SELECT t.ticket_id, $2::BIGINT, $3::INT, t.seat_id, $5::BIGINT, $6::BIGINT, now(), $7::BIGINT
+  FROM unnest($1::BIGINT[], $4::INT[]) AS t (ticket_id, seat_id)
+
+Insert on ticket (actual rows=0 loops=1)
+  ->  Function Scan on t (actual rows=1 loops=1)
+Planning Time: 0.156 ms
+Trigger for constraint ticket_event_id_fkey: calls=1
+Execution Time: 1.869 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 3
+Storage Flush Requests: 0
+Peak Memory Usage: 225 kB
+
+==============================================================================
+## w_expired_sections
+==============================================================================
+
+# Sections holding at least one expired claim, locked for the sweeper and skipped
+# if a buyer is writing them.
+
+SELECT event_id, section_no
+  FROM event_section
+ WHERE next_expiry <= now()
+ ORDER BY next_expiry
+ LIMIT $1
+   FOR UPDATE SKIP LOCKED
+
+Limit (actual rows=100 loops=1)
+  ->  LockRows (actual rows=100 loops=1)
+        ->  Index Scan using event_section_next_expiry_idx on event_section (actual rows=100 loops=1)
+              Index Cond: (next_expiry <= now())
+              Storage Table Read Requests: 1
+              Storage Table Read Ops: 1
+              Storage Table Rows Scanned: 100
+              Storage Index Read Requests: 1
+              Storage Index Read Ops: 1
+              Storage Index Rows Scanned: 100
+Planning Time: 0.085 ms
+Execution Time: 119.785 ms
+Storage Read Requests: 102
+Storage Read Ops: 102
+Storage Rows Scanned: 300
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 0
+Storage Flush Requests: 0
+Peak Memory Usage: 64 kB
+
+==============================================================================
+## w_cancel_ticket
+==============================================================================
+
+# A refund. No row means the ticket was already refunded.
+
+DELETE FROM ticket
+ WHERE ticket_id = $1
+RETURNING event_id, section_no, seat_id, now() AS db_now, clock_timestamp() AS db_clock
+
+Delete on ticket (actual rows=1 loops=1)
+  Storage Table Write Requests: 1
+  Storage Index Write Requests: 2
+  ->  Index Scan using ticket_pkey on ticket (actual rows=1 loops=1)
+        Index Cond: (ticket_id = '19301'::bigint)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 1
+Planning Time: 0.117 ms
+Execution Time: 3.002 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 1
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 3
+Storage Flush Requests: 1
+Peak Memory Usage: 76 kB
+
+==============================================================================
+## w_publish_event
+==============================================================================
+
+
+INSERT INTO event (event_id, band_id, venue_id, name, starts_at, price_cents, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+
+Insert on event (actual rows=0 loops=1)
+  ->  Result *RESULT* (actual rows=1 loops=1)
+        Storage Table Write Requests: 1
+        Storage Flush Requests: 1
+Planning Time: 0.023 ms
+Trigger for constraint event_band_id_fkey: calls=1
+Trigger for constraint event_venue_id_fkey: calls=1
+Execution Time: 13.791 ms
+Storage Read Requests: 1
+Storage Read Ops: 2
+Storage Rows Scanned: 2
+Catalog Read Requests: 11
+Catalog Read Ops: 11
+Catalog Write Requests: 0
+Storage Write Requests: 1
+Storage Flush Requests: 1
+Peak Memory Usage: 205 kB
+
+==============================================================================
+## w_publish_sections
+==============================================================================
+
+# One empty document per section of the venue.
+
+INSERT INTO event_section (event_id, section_no, capacity, version, claims, next_expiry)
+SELECT $1::BIGINT, section_no, capacity, 0, '{}'::JSONB, NULL
+  FROM venue_section
+ WHERE venue_id = $2::BIGINT
+
+Insert on event_section (actual rows=0 loops=1)
+  ->  Index Scan using venue_section_pkey on venue_section (actual rows=100 loops=1)
+        Index Cond: (venue_id = '5'::bigint)
+        Storage Table Read Requests: 1
+        Storage Table Read Ops: 1
+        Storage Table Rows Scanned: 100
+        Storage Table Write Requests: 100
+        Storage Index Write Requests: 100
+Planning Time: 0.091 ms
+Trigger for constraint event_section_event_id_fkey: calls=100
+Execution Time: 7.127 ms
+Storage Read Requests: 1
+Storage Read Ops: 1
+Storage Rows Scanned: 100
+Catalog Read Requests: 0
+Catalog Read Ops: 0
+Catalog Write Requests: 0
+Storage Write Requests: 200
+Storage Flush Requests: 1
+Peak Memory Usage: 1013 kB
+
