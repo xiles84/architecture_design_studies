@@ -125,3 +125,47 @@ AM-03.9's records.
 
 <pending>
 
+
+### LOW addendum, 2026-09-20 — tried to resolve it under the revised autonomy rules; evidence says it cannot be resolved locally
+
+Under the 2026-09-17 rule ("decide, log, continue") I tried to close RR-ER-01 myself instead
+of waiting. Evidence, all in `studies/02-ticket-booking/results/devchecks/am03-dc04-rrer01/`:
+
+1. **`w_cancel_ticket`'s own buyer lookup has the same `at` bug as the audit** — not only the
+   audit. On PostgreSQL a seat's history was `sold(604) → cancelled(604) → sold(538, earlier
+   `at`) → cancelled(**604**)`: the second refund named the *stale* buyer because the subquery
+   ordered by `at DESC`. So X1's real write path can attribute a refund to the wrong customer
+   under concurrent resale. Counts stay right (r01/r05 checks pass); attribution does not.
+2. **Ordering by `sale_event_id` alone (in both the subquery and the audit) fixed PostgreSQL**:
+   8/8 high-contention runs (64 buyers, 30–50% churn) plus a standard-parameter run
+   (46/46 gate, 15 ledger audits, all report checks) were fully consistent.
+3. **It is worse on YugabyteDB**: 53–75 (tier 10) and 234–246 (tier 100) attribution problems,
+   *identical across runs* (deterministic, not timing noise). Pinning `ALTER SEQUENCE … CACHE 1`
+   had no effect: YSQL still reports `Cache 100`. The original `at, id` ordering had looked
+   consistent on YB only because those runs were low-contention.
+4. So no single ordering key is correct on both engines, and the PostgreSQL fix regresses
+   YugabyteDB. I reverted the three SQL files to the committed (at-ordered) state so the tree
+   is not worse on either engine than before; the experiments are kept as evidence only.
+
+**Escalation Required (revised bar: this is real correctness risk in a measured design, on
+one engine, with no local fix).**
+
+- Decision needed: how X1 attributes a refund correctly on both engines.
+- Why it cannot be deferred: phase 3b would measure X1 with wrong refund attribution.
+- Options: (a) **Order-free attribution [LOW's recommendation]**: read the buyer from the ticket
+  row itself before the cancelling UPDATE, `WITH old AS (SELECT customer_id FROM ticket WHERE
+  ticket_id = $1 AND status='sold' FOR UPDATE), cancelled AS (UPDATE …)`. Sales/cancels of a seat
+  already serialize on that row, so no sequence or timestamp is involved. Cost: `FOR UPDATE`
+  moves the row lock a statement earlier (the UPDATE takes it anyway), which HIGH's AM-03.4
+  rejected as "changes the cancel's locking"; I think that rejection should be revisited given
+  this evidence. The audit then needs an order-free formulation too (e.g. each refund's buyer
+  must equal a buyer of some earlier sale of that seat, plus the existing net/live checks).
+  (b) Restrict X1 to PostgreSQL and report YugabyteDB as an explicit coverage gap.
+  (c) Keep PostgreSQL's `sale_event_id` ordering, document YugabyteDB attribution as unproven.
+- Work affected: AM-03.10–.13 (calibration and the four measured runs) for X1.
+- Work that can safely continue: study 03 entirely (no ledger); study 02's non-X1 designs; the
+  study 02 reports matrix (3b-1) if X1 is excluded or clearly flagged.
+- Decision Log: D1 (order by `sale_event_id`, PostgreSQL-only) — Medium confidence, **reverted**;
+  D2 (`CACHE 1`) — no effect, reverted.
+
+NEXT MODEL: HIGH
