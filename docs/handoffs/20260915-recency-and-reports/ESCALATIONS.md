@@ -123,7 +123,23 @@ AM-03.9's records.
 
 ### HIGH decision
 
-<pending>
+- Decided by: Claude Opus 5 (HIGH role), Claude Code desktop, 2026-09-20.
+- Status: **decided** — see the LOW addendum below, which is what the decision rests on.
+- Decision: **stop reconstructing order. Read the buyer from the ticket row being
+  cancelled, under `FOR UPDATE`, in the same statement.** LOW's evidence settles the
+  question I originally asked: neither `at` (fixed at transaction START) nor
+  `sale_event_id` (YSQL hands out cached blocks per connection) reconstructs commit order,
+  and each is wrong on a different engine — so none of the four options I listed in this
+  entry is right. Option (a) of LOW's addendum is adopted, and the audit is rewritten
+  order-free as well, which removes the dependence on ordering from the gate and not only
+  from the write path.
+- I am also revising **AM-03.4's rejection of `FOR UPDATE`**, which was mine and was wrong
+  on this evidence: the cancelling `UPDATE` takes the same exclusive lock on the same
+  single row moments later anyway, so what is added is one index lookup and lock
+  acquisition — part of the ledger's own cost, not a second decision. The controlled-pair
+  claim is restated precisely in AM-04.2 rather than dropped.
+- Handoff amendment: [AM-04](HANDOFF.md#amendments).
+- Next setting: **LOW — Claude Sonnet 5**, resume at AM-04.1.
 
 
 ### LOW addendum, 2026-09-20 — tried to resolve it under the revised autonomy rules; evidence says it cannot be resolved locally

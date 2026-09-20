@@ -934,3 +934,107 @@ re-run the published matrices.
 **Next after execution: HIGH — review AM-03.3's control evidence and the calibration, then
 write signed analyses for 3b-1 to 3b-4 (study 02: reports and the P3 → X1 ledger pair;
 study 03: reports).**
+
+### AM-04 — Execution Handoff Update: RR-ER-01 decided (order-free attribution)
+
+- Decided by: Claude Opus 5 (HIGH), Claude Code desktop, 2026-09-20. Next setting: **LOW — Claude Sonnet 5.**
+- Delta only. Everything in AM-03 not named here stands unchanged.
+
+**The decision: stop reconstructing order. Read the buyer from the row being cancelled.**
+LOW's evidence settles it — `at` is transaction-start time, `sale_event_id` is YSQL-cached,
+and neither reconstructs commit order on both engines. Both are the wrong tool: the refund
+already holds the only authoritative record of who is being refunded, which is the ticket
+row it is about to clear. LOW's recommended option (a) is adopted.
+
+**AM-04.1 — `w_cancel_ticket` (X1 only) becomes order-free.** Replace the correlated
+subquery with a locking read of the ticket row in the same statement:
+
+```sql
+WITH old AS (
+    SELECT ticket_id, customer_id
+      FROM ticket
+     WHERE ticket_id = $1 AND status = 'sold'
+     FOR UPDATE
+), cancelled AS (
+    UPDATE ticket t
+       SET status = 'available', customer_id = NULL, sold_at = NULL
+      FROM old
+     WHERE t.ticket_id = old.ticket_id
+    RETURNING t.event_id, t.seat_no, old.customer_id, t.price_cents
+), logged AS (
+    INSERT INTO sale_event (event_id, seat_no, customer_id, kind, at, price_cents)
+    SELECT event_id, seat_no, customer_id, 'cancelled', now(), price_cents FROM cancelled
+    RETURNING event_id, seat_no
+)
+SELECT event_id, seat_no FROM logged;
+```
+
+`FOR UPDATE` re-checks `status='sold'` against the latest row version under READ COMMITTED
+and returns that version's buyer, so `old.customer_id` is exactly the buyer being refunded —
+no timestamp, no sequence, nothing to reorder. **Fallback if YugabyteDB rejects a locking
+read inside a CTE:** do the locking read as a separate statement (`w_cancel_lookup_buyer`)
+inside `Booker.Cancel`'s existing explicit transaction, behind `if d.Ledger`. Record which
+form you used as a Decision Log entry; both are acceptable, the CTE is preferred.
+
+**AM-04.2 — I am revising AM-03.4's rejection of `FOR UPDATE`, and the controlled-pair
+claim with it.** I rejected it as "changes the cancel's locking"; that was wrong on the
+evidence. The `UPDATE` takes the same exclusive lock on the same single row microseconds
+later anyway, so the lock held, its duration and its ordering are unchanged — what is added
+is one extra index lookup and lock acquisition, which on YugabyteDB is a real round trip.
+That cost **is part of the ledger's cost**, not a second decision: an append-only ledger
+that records who was refunded has to read who was refunded. State the pair precisely
+wherever it is described (X1's own comments, `REPORTS.md` §3, and any later analysis):
+
+> **P3 → X1, write axis:** the sell path is P3's, plus one ledger insert in the same
+> statement. The refund path is P3's, plus one ledger insert and the locking read that
+> insert needs to name the refunded buyer. The sell-out race — the headline experiment —
+> exercises only the first.
+
+**AM-04.3 — `a_ledger_attribution` becomes order-free too.** Replace it entirely (no
+`LAG`, no `ROW_NUMBER`, no ordering). Keep `a_ledger_mismatches` exactly as it is. The
+replacement checks, per seat:
+
+- **B — no buyer is refunded more than they bought:** for each `(event_id, seat_no,
+  customer_id)`, `count(kind='cancelled') <= count(kind='sold')`. This is what catches a
+  refund named to the wrong buyer: LOW's own bad trace had buyer 604 with one sale and two
+  refunds of seat 87/10.
+- **C — the live sale is recorded verbatim:** for every ticket with `status='sold'`, a
+  `'sold'` row must exist for that seat with `customer_id`, `at` and `price_cents` equal to
+  the ticket's `customer_id`, `sold_at` and `price_cents`; and for that buyer and seat,
+  `count(cancelled) < count(sold)` (a buyer holding the seat cannot have refunded every
+  sale they made of it).
+
+Drop "second sale with no refund between": one row per seat plus the CAS predicate makes
+a double sale structurally impossible, and `a_duplicate_seats` already checks it. Keep the
+`problem` text column and the existing `LedgerAttributionIssue` plumbing.
+
+**AM-04.4 — what to re-check, and nothing more.** Only X1's SQL changed. On `pg-single`
+then `yb-single`, `tiny`: X1 with `-phases verify,explain,read,write,race,churn
+-write-ops book,cancel -race-trials 2`, plus **three** high-contention repeats per engine
+(`-phases verify,churn -churn-pct 50 -race-buyers 64`) — the setting that exposed the bug.
+Into `results/devchecks/am04-dc01-{pg,yb}/`. **Pass:** gate passes, every ledger audit
+consistent including at high contention on *both* engines, post-write report checks pass,
+no `NOT CAPTURED`. Also re-run the `-ledger-fault drop-sale` and `wrong-customer` controls
+once on `pg-single` and confirm the rewritten audit still fires on each. Do **not** re-run
+the other 14 designs or study 03 — they are untouched and already dev-checked (`6b1926b`).
+
+**AM-04.5 — then continue straight through AM-03.10 → .13 without returning to HIGH.**
+Calibration, the sizing rules, the four measured runs, the tags. Under the 2026-09-17
+rules: decide, log, continue. Escalate only on a stop condition below. Add
+`study-02/v2.2-ledger-attribution` to AM-03.13's tag list, on the commit that passes
+AM-04.4.
+
+**AM-04.6 — stop conditions (unchanged in spirit, restated).** Stop and escalate only if:
+X1's ledger audit is still inconsistent after AM-04.1+.3 on either engine; a post-write
+report check fails on any design; the calibration projects over 10 h total; or a measured
+run fails a correctness gate on P3 or X1. A slow report, an imperfect-confidence
+implementation choice, or a YugabyteDB cell failing the way C2 already does are **not**
+stop conditions — log and continue.
+
+**The lesson worth keeping** (LOW to add to `LESSONS_LEARNED.md` in its own words): neither
+a transaction-start timestamp nor a sequence value reconstructs commit order under
+concurrency — `now()` is fixed at BEGIN, and YSQL hands out sequence blocks per connection.
+An audit that needs to know "which record came first" should be rewritten so it does not
+need to know.
+
+**NEXT MODEL: LOW**

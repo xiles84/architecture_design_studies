@@ -321,6 +321,23 @@ real operation asks for.
   RR-ER-01** — running them while the audit's own correctness is in question would produce
   numbers the correctness gate cannot yet vouch for. **Next: HIGH decides RR-ER-01.**
   Nothing is running; lock released.
+- **RR-ER-01 decided; phase 3b unblocked (2026-09-20, HIGH, Claude Opus 5,
+  [AM-04](docs/handoffs/20260915-recency-and-reports/HANDOFF.md#amendments)).** LOW's
+  experiments proved the question was wrong, not just the answer: `at` is fixed at
+  transaction START and `sale_event_id` is handed out in per-connection cached blocks by
+  YSQL, so **neither reconstructs commit order**, each failing on a different engine
+  (PostgreSQL clean but YugabyteDB deterministically wrong, 246 attribution problems;
+  `ALTER SEQUENCE … CACHE 1` had no effect). LOW also found the same `at` bug in
+  `w_cancel_ticket` itself, not only in the audit — X1's real write path could name a stale
+  buyer on a refund. **Decision: stop reconstructing order.** The refund reads its buyer
+  from the ticket row it is clearing, under `FOR UPDATE`, in the same statement; the
+  attribution audit is rewritten order-free (per-buyer refunds bounded by sales, plus the
+  live sale recorded verbatim). This revises AM-03.4's rejection of `FOR UPDATE`, which was
+  mine: the cancelling `UPDATE` takes that same row lock moments later anyway, so the extra
+  lookup is part of the ledger's cost, and AM-04.2 restates the P3 → X1 pair precisely
+  rather than dropping the claim. LOW re-checks X1 only (both engines, including the
+  high-contention setting that exposed the bug), then runs calibration and the four
+  measured runs straight through. **Next: LOW (Claude Sonnet 5) at AM-04.1.**
 
 ### Study 01 — tree structures (charity → person → donation)
 
