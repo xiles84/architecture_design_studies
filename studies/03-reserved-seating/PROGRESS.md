@@ -18,10 +18,11 @@ mapped decisions were taken and why. Interpretation belongs to the analysis phas
 | 7 | Diagrams | done — five diagrams rendered | `8b6d8f9` |
 | 8 | Dev checks and calibration | dc1–dc11 done; ER-01 raised, decided (AM-01) | `0a9b2da`; ER-01 decision `e70c842`, `study-03/v0.1-handoff-amendment-01` |
 | 8a | AM-01: transient-refusal class, refusal diagnostics, S1r, report; dev checks dc12–dc14 | done — §10.3 as amended by AM-01.5 holds (19 unit tests pass in the build) | `e10dc6c`, `7ab4b67`, `f43fc0f`, `03d7e8a`; tag `study-03/v1-harness` |
-| 8b | AM-02 calibration (dc15, S1 `small`, 3 topologies) | done — passes; rule 1 applies, projection ≈ 15.7 h (rule 2) | see below |
-| 9 | Main matrix (`small`) | running | |
-| 10 | Repeated race trials | pending | |
-| 11 | Context, lessons, README; ready for analysis | pending | |
+| 8b | AM-02 calibration (dc15, S1 `small`, 3 topologies) | done — passes; rule 1 applies, projection ≈ 15.7 h (rule 2) | `3d7aa89` |
+| 9 | Main matrix (`small`) | done — 41 cells, 4 failed (diagnosed; ER-03); ER-04 raised | `3e36cfb`; run tag `run/03-reserved-seating/20260915T002411Z` |
+| 10 | Repeated race trials | done — 27 cells, 0 failed, 3 h 33 min (from worktree `.worktrees/study03-measurement`) | `3d1d1b0`; run tag `run/03-reserved-seating/20260915T173255Z` |
+| 11 | Context, lessons, README; ready for analysis | done | tag `study-03/v1-measured` |
+| 12 | AM-03: tolerant instrumentation, L2 diagnostic, repair runs (ER-03, ER-04) | done — 6 cells, 0 failed; reports regenerated; digest provenance fixed | `6d17f3f`, `4044dd5`, `0c88156`, `1d4ee1e` |
 
 ## Mapped decisions (handoff §11)
 
@@ -129,3 +130,93 @@ rejections on YugabyteDB all transient (yb-single 4, yb-cluster3 43); deferred c
 - Repeated race (step 10, tiers 1 000 and 10 000, 3 trials), with verify taken as 2.5 min per cell:
   pg-single ≈ (0.1 + 2.5 + 3 × 0.62) × 13 ≈ 1.0 h; yb-cluster3 ≈ (0.5 + 2.5 + 3 × (0.53 + 2.69)) × 14 ×
   1.15 ≈ 3.4 h; total ≈ **4.4 h** ≤ 12 h → 3 trials.
+
+## Main matrix (step 9) — facts
+
+Run `20260915T002411Z`: commit `7dbdd11`, tag `run/03-reserved-seating/20260915T002411Z`, inputs digest
+`a56ce92ce38b8204`, report `reports/20260915T002411Z.md`. 2026-09-15 00:24 → 17:30 UTC (17 h 6 min;
+projection 15.7 h).
+
+- **Topology times** (from `topology.yaml` and result-file times): pg-single ≈ 1 h 55 min (13 cells);
+  yb-single ≈ 7 h 40 min (14 cells, ≈ 33 min/cell); yb-cluster3 ≈ 7 h 30 min (14 cells, including
+  cluster start).
+- **Gates:** 58/58 in every cell.
+- **Negative controls:** 15 of 15 fired, per the report's controls table.
+- **Failed cells (4), each with a DIAGNOSIS.md beside its logs:**
+  - S4 on yb-single: lifecycle monitor timeout, SERIALIZABLE deadlock storm.
+  - S4 on yb-cluster3: the reload before the lifecycle timed out, same storm.
+  - E2 on yb-single and on yb-cluster3: lifecycle monitor timeout, node saturation.
+  - All four completed verify, reads, writes and the race without a violation; ER-03 asks whether
+    to re-run them.
+- **PostgreSQL:** no violation in any correct design, and no early rejection.
+- **YugabyteDB early rejections in correct designs (report TL;DR):**
+  - yb-single: S3 2, E1 1, K1 2, L1 1, all transient; L2 4, unclassified (ER-04).
+  - yb-cluster3: S1 41, S2 27, S3 46, E1 37, E2 7, K1 28, L1 35, L3 1, all transient; L2 13,
+    unclassified (ER-04).
+- **S1r, 0 early rejections on every topology.** Race retries after a short match: yb-cluster3 35,
+  all 35 sold; yb-single 0; pg-single 0. Lifecycle retries (expired holds) never sold: pg 54,
+  yb-single 4, yb-cluster3 2.
+- **E1 sweeper-outage probe (the control condition):** pg-single 59/59, yb-single 8/8, yb-cluster3
+  11/11 seats unavailable after expiry; 0 in every other design.
+- **Throttling:** the yb-single database container was throttled in 63–96% of CPU periods per cell
+  (S4 30%), from the per-cell `cpu.stat` snapshots; yb-cluster3 nodes less (S4 7–15%, E2 32–56%).
+
+## Environment and coordination notes (continued)
+
+- 2026-09-15: the owner stated that another AI agent (OpenAI Codex) works on the repository
+  concurrently. AGENTS.md hard rule "assume a concurrent agent" was added (tag
+  `repo/concurrent-agents-reconciliation`). Study 03 worked directly in the checkout of `main` until
+  the matrix ended. Step 10 onwards runs in `.worktrees/study03-measurement` (branch
+  `study-03/measurement`), which merges into `main` at step 11.
+
+## Repeated race (step 10) — facts
+
+Run `20260915T173255Z`: commit `52a9975`, tag `run/03-reserved-seating/20260915T173255Z`, inputs digest
+`29296b1fe8dea2e3`, report `reports/20260915T173255Z.md`. 2026-09-15 17:33 → 21:06 UTC (3 h 33 min;
+projection 4.4 h). `verify,race`, 3 fresh-load trials, 1 000- and 10 000-seat tiers, pg-single and
+yb-cluster3.
+
+- **Cells:** 27, 0 failed. Gates 58/58. Both S0 controls fired.
+- **pg-single:** no violation and no early rejection in any correct design. Race spread across trials
+  3–21% (report race table).
+- **yb-cluster3 early rejections in correct designs:**
+  - transient: S1 85, S2 89, S3 96, E1 95, E2 9, K1 108, L1 127, L3 10;
+  - unclassified (ER-04): L2 41.
+- **S1r on yb-cluster3:** 0 early rejections; 105 short confirmations retried, all 105 sold.
+- The session was interrupted by a client logout at ≈ 20:30 UTC. The runner process and containers
+  kept running and the run completed normally.
+
+## AM-03 repair runs (ER-03 and ER-04)
+
+Harness `6d17f3f`, dev check `devchecks/dc16-am03` (`4044dd5`, yb-single, tiny: gates 51/51, no
+violation, E2 completed both lifecycle tiers, new counters present).
+
+| Run | Tag | What | Result | Inputs digest |
+|---|---|---|---|---|
+| `20260915T232736Z` | `run/03-reserved-seating/20260915T232736Z` | E2 and S4, `verify,lifecycle`, yb-single + yb-cluster3 | 4 cells, 0 failed, 40 min; no violation in any of them | `2ccece48793fe693` |
+| `20260916T000706Z` | `run/03-reserved-seating/20260916T000706Z` | L2, `verify,race`, yb-single + yb-cluster3 | 2 cells, 0 failed, 11 min | `903de88de503ded2` |
+
+Facts:
+
+- **The lifecycle the matrix lost now exists.** E2 completed both tiers on both topologies with no
+  violation (yb-single 0.2 and 1.7 confirmed seats/s; yb-cluster3 0.2 and 1.3). S4 completed both
+  tiers at 0.0–0.1 confirmed seats/s with 9–33 late refusals and no early ones — its collapse
+  measured rather than missing.
+- **No monitor retry was needed** in any repair cell (`monitor retries / events ended early` 0/0
+  everywhere), so these cells did not depend on the new tolerance; it removes the failure mode for
+  future runs.
+- **ER-04 answered: L2's refusals are transient.** On yb-cluster3, 17 early rejections, all 17
+  classified transient by the new diagnostic — the section document re-read shows the hold valid.
+  yb-single recorded none this time (the matrix recorded 4 there, unclassified).
+- Reports of all four runs were regenerated with AM-03.3's rule, which prints "transient: not
+  recorded" for runs whose harness could not classify (K0 always; L2 before this change).
+
+## Provenance fix found while regenerating (mapped: harness/infra bug)
+
+Regenerating the matrix report in this worktree produced a different inputs digest
+(`b8913f899a9584ae`) from the run's own (`a56ce92ce38b8204`) with no result file changed. Cause:
+Windows line-ending conversion on checkout rewrote the result JSON bytes the digest hashes. The
+repository root now pins `studies/02-*` and `studies/03-*` results and reports to `text eol=lf`,
+matching the policy study 01 had already adopted for its v3 runs; after re-checkout every run's
+report reproduces its original digest. Recorded in LESSONS_LEARNED.md, merged into study 01's
+existing entry.

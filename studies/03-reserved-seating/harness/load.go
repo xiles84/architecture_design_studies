@@ -42,6 +42,8 @@ type LoadPhases struct {
 	CopyMS    float64          `json:"copy_ms"`
 	IndexMS   float64          `json:"index_ms"`
 	AnalyzeMS float64          `json:"analyze_ms"`
+	// AnalyzeRetries counts ANALYZE statements the engine did not answer at once (AM-03.1).
+	AnalyzeRetries int `json:"analyze_retries,omitempty"`
 	TotalMS   float64          `json:"total_ms"`
 	Rows      map[string]int64 `json:"rows_loaded"`
 	// LoadNow is the database clock every loaded hold's times derive from.
@@ -129,8 +131,22 @@ func load(ctx context.Context, db ports.DB, d Design, ds *Dataset, streams int) 
 		if _, ok := ph.Rows[tb]; !ok {
 			continue
 		}
-		if _, err := db.Exec(ctx, "ANALYZE "+tb); err != nil {
-			return nil, fmt.Errorf("analyze %s: %w", tb, err)
+		// AM-03.1: a saturated engine can time out an ANALYZE the way it times out
+		// any other statement, and that ended a cell in the small matrix. ANALYZE is
+		// idempotent, so it is retried; every other load failure stays fatal, because
+		// a load that cannot create or fill the schema is not a result.
+		var err error
+		for attempt := 0; attempt < 4; attempt++ {
+			if attempt > 0 {
+				ph.AnalyzeRetries++
+				time.Sleep(time.Duration(attempt) * time.Second)
+			}
+			if _, err = db.Exec(ctx, "ANALYZE "+tb); err == nil {
+				break
+			}
+		}
+		if err != nil {
+			return nil, fmt.Errorf("analyze %s (after %d retries): %w", tb, ph.AnalyzeRetries, err)
 		}
 	}
 	ph.AnalyzeMS = msSince(t)

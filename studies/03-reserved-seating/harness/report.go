@@ -213,12 +213,15 @@ func lifecycleOf(r *Run, tier int) *LifecycleResult {
 	agg.RejectedLate, agg.RejectedBoundary, agg.RejectedEarly, agg.RejectedEarlyTransient = 0, 0, 0, 0
 	agg.ConfirmRetries, agg.ConfirmRetrySuccesses = 0, 0
 	agg.OutageProbed, agg.OutageUnavailable, agg.Leaked, agg.Errors = 0, 0, 0, 0
+	agg.MonitorRetries, agg.MonitorTimeouts = 0, 0
 	for _, t := range trials {
 		agg.RejectedLate += t.RejectedLate
 		agg.RejectedBoundary += t.RejectedBoundary
 		agg.RejectedEarly += t.RejectedEarly
 		agg.RejectedEarlyTransient += t.RejectedEarlyTransient
 		agg.ConfirmRetries += t.ConfirmRetries
+		agg.MonitorRetries += t.MonitorRetries
+		agg.MonitorTimeouts += t.MonitorTimeouts
 		agg.ConfirmRetrySuccesses += t.ConfirmRetrySuccesses
 		agg.OutageProbed += t.OutageProbed
 		agg.OutageUnavailable += t.OutageUnavailable
@@ -289,7 +292,7 @@ func tierLabel(t int) string {
 }
 
 // violationMarks lists every invariant an audit found broken.
-func violationMarks(a *Audit) []string {
+func violationMarks(id string, a *Audit) []string {
 	if a == nil {
 		return nil
 	}
@@ -305,7 +308,8 @@ func violationMarks(a *Audit) []string {
 	add(a.Ledger.SalesWithoutHold, "sales without the hold")
 	add(a.Ledger.LateSales, "late sales")
 	if a.Ledger.RejectedEarly > 0 {
-		m = append(m, fmt.Sprintf("%d early rejections (%d transient)", a.Ledger.RejectedEarly, a.Ledger.RejectedEarlyTransient))
+		m = append(m, fmt.Sprintf("%d early rejections (transient: %s)",
+			a.Ledger.RejectedEarly, transientCell(id, a, a.Ledger.RejectedEarlyTransient)))
 	}
 	add(a.DuplicateSeats, "seats with 2+ tickets")
 	add(a.InventoryDrift, "inventory drift")
@@ -320,19 +324,37 @@ func earlyCell(id string, a *Audit) string {
 	if a == nil {
 		return "—"
 	}
-	return fmt.Sprintf("%d (%s)", a.Ledger.RejectedEarly, transientCell(id, a.Ledger.RejectedEarlyTransient))
+	return fmt.Sprintf("%d (%s)", a.Ledger.RejectedEarly, transientCell(id, a, a.Ledger.RejectedEarlyTransient))
 }
 
 // transientCell is the transient part of early rejections, or n/a for designs whose
 // refusal is not a guarded statement (K0 has no guard; L2 checks in the application).
-func transientCell(id string, n int64) string {
-	if id == "k0_naive_confirm" || id == "l2_section_document" {
+// transientCell reports the transient part of a design's early rejections, or says the
+// class was not recorded. A class exists only where a diagnostic looked at the refusal
+// (AM-03.3):
+//
+//   - K0 has no guarded statement to re-issue and never records one;
+//   - L2 records one only from AM-03.2 onwards, so its refusals in earlier runs are
+//     unclassified — visible as early rejections with nothing classified;
+//   - every other design has re-issued its refusing statement since AM-01.2, so its
+//     count is real, including a genuine zero.
+//
+// Keying only on the post-AM-03 "classified" counter would relabel every earlier run's
+// recorded class as unknown, which is why the design decides.
+func transientCell(id string, a *Audit, n int64) string {
+	if a == nil {
+		return "—"
+	}
+	if id == "k0_naive_confirm" {
 		return "n/a"
+	}
+	if id == "l2_section_document" && a.Ledger.RejectedEarly > 0 && a.Ledger.RejectedEarlyClassified == 0 {
+		return "not recorded"
 	}
 	return fmt.Sprint(n)
 }
 
-func raceCell(rr *RaceResult) string {
+func raceCell(id string, rr *RaceResult) string {
 	if rr == nil {
 		return "—"
 	}
@@ -341,7 +363,7 @@ func raceCell(rr *RaceResult) string {
 		v += fmt.Sprintf(" (%d trials, spread %.0f%%)", len(rr.TrialsSeatsPerSec), rr.SpreadPct)
 	}
 	var marks []string
-	if vm := violationMarks(rr.Audit); len(vm) > 0 {
+	if vm := violationMarks(id, rr.Audit); len(vm) > 0 {
 		marks = append(marks, "❌ "+strings.Join(vm, ", "))
 	}
 	if rr.DeferredRefused > 0 {
@@ -438,7 +460,7 @@ func (rp *report) controlFired(tp, id, experiment string) (fired, ok bool, detai
 			}
 		}
 	}
-	vm := violationMarks(&agg)
+	vm := violationMarks(id, &agg)
 	return len(vm) > 0, ok, detail + strings.Join(vm, ", ")
 }
 
@@ -535,7 +557,7 @@ func (rp *report) writeTLDR(b *strings.Builder) {
 					mergeAudit(&agg, x.Audit)
 				}
 			}
-			if vm := violationMarks(&agg); len(vm) > 0 {
+			if vm := violationMarks(id, &agg); len(vm) > 0 {
 				broken = append(broken, fmt.Sprintf("%s on %s (%s)", designShort(id), topologyLabel[tp], strings.Join(vm, ", ")))
 			}
 		}
@@ -843,7 +865,7 @@ func (rp *report) writeGuarantee(b *strings.Builder) {
 	fmt.Fprintf(b, "Release lag is in human minutes.\n\n")
 	for _, tp := range rp.topos {
 		t := md.NewTable("Design", "Tier", "Confirmed seats/s>", "Holds>", "Abandoned>", "Expired at check>", "Refused late / boundary / early (transient)>",
-			"Outage: unavailable / probed>", "Leaked>", "Release lag p50/p99 (min)>", "Idle held seat-min>", "Violations")
+			"Outage: unavailable / probed>", "Leaked>", "Release lag p50/p99 (min)>", "Idle held seat-min>", "Monitor retries / events ended early>", "Violations")
 		for _, id := range rp.designsIn(tp) {
 			for _, tier := range tiers {
 				x := lifecycleOf(rp.runs[tp][id], tier)
@@ -851,7 +873,7 @@ func (rp *report) writeGuarantee(b *strings.Builder) {
 					continue
 				}
 				viol := "none"
-				if vm := violationMarks(x.Audit); len(vm) > 0 {
+				if vm := violationMarks(id, x.Audit); len(vm) > 0 {
 					viol = "❌ " + strings.Join(vm, ", ")
 				}
 				rate := md.Ops(x.ConfirmedSeatsPerSec)
@@ -868,9 +890,10 @@ func (rp *report) writeGuarantee(b *strings.Builder) {
 				}
 				t.Row(designShort(id), tierLabel(tier), rate, fmt.Sprint(x.HoldsGranted),
 					fmt.Sprintf("%d+%d", x.AbandonedSilent, x.AbandonedExplicit), expCheck,
-					fmt.Sprintf("%d / %d / %d (%s)", x.RejectedLate, x.RejectedBoundary, x.RejectedEarly, transientCell(id, x.RejectedEarlyTransient)), outage,
+					fmt.Sprintf("%d / %d / %d (%s)", x.RejectedLate, x.RejectedBoundary, x.RejectedEarly, transientCell(id, x.Audit, x.RejectedEarlyTransient)), outage,
 					fmt.Sprint(x.Leaked), fmt.Sprintf("%.1f / %.1f", x.ReleaseLagHumanMin.P50MS, x.ReleaseLagHumanMin.P99MS),
-					fmt.Sprintf("%.0f", x.IdleHeldSeatHumanMin), viol)
+					fmt.Sprintf("%.0f", x.IdleHeldSeatHumanMin),
+					fmt.Sprintf("%d / %d", x.MonitorRetries, x.MonitorTimeouts), viol)
 			}
 		}
 		if t.Len() > 0 {
@@ -899,7 +922,7 @@ func (rp *report) writeRace(b *strings.Builder) {
 			row := []string{designShort(id)}
 			for _, tier := range tiers {
 				rr := raceOf(rp.runs[tp][id], tier)
-				row = append(row, raceCell(rr))
+				row = append(row, raceCell(id, rr))
 				if rr != nil {
 					d.Row(designShort(id), tierLabel(tier), fmt.Sprintf("%.2f", rr.ConflictsPerHold), fmt.Sprintf("%.2f", rr.MapReadsPerHold),
 						fmt.Sprint(rr.EngineRetries), fmt.Sprint(rr.GaveUp), md.MS(rr.HoldLatency.P50MS)+" / "+md.MS(rr.HoldLatency.P99MS),
@@ -1009,7 +1032,7 @@ func (rp *report) writeWrites(b *strings.Builder) {
 			var marks []string
 			for _, w := range r.Writes {
 				if w.Audit != nil {
-					marks = append(marks, violationMarks(w.Audit)...)
+					marks = append(marks, violationMarks(id, w.Audit)...)
 				}
 			}
 			audit := "consistent"
@@ -1074,7 +1097,7 @@ func (rp *report) writePairs(b *strings.Builder) {
 				if xa.Audit.Violations() > 0 || xb.Audit.Violations() > 0 {
 					change += " — ❌ a design with violations has no valid speed"
 				}
-				t.Row(topologyLabel[tp], "race, "+tierLabel(tier)+" — seats/s", raceCell(xa), raceCell(xb), change)
+				t.Row(topologyLabel[tp], "race, "+tierLabel(tier)+" — seats/s", raceCell(p.a, xa), raceCell(p.b, xb), change)
 			}
 			for _, tier := range rp.tiers("lifecycle") {
 				xa, xb := lifecycleOf(ra, tier), lifecycleOf(rb, tier)

@@ -138,3 +138,10 @@ its checkout explicitly until Study 03 step 11 is committed. The task worktree r
 that incoming entry. EH-02 revision 2 also requires that reservation to end; a brief
 idle gap between matrix runs does not permit a main update. The initial review remains
 at `study-01/v3-high-review`; the amended checkpoint is `study-01/v3-high-review-r2`.
+
+**Subsequent execution state, 2026-09-20:** Study 03 completed and released that
+reservation; main reached `7123da6` with its signed analysis. LOW incorporated that
+committed state without changing Study 01 evidence. The owner then made concurrent-agent
+isolation and later-merger reconciliation a permanent hard rule, already tagged
+`repo/concurrent-agents-reconciliation`. These later facts do not change this review's
+acceptance. They govern the remaining mechanical integration under EH-02.

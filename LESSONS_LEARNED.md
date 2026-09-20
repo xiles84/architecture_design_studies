@@ -46,6 +46,19 @@ despite the standing isolation rule. Keep working in the owned worktree, leave t
 active run in place, and wait for a safe shared-main update; do not assume another
 agent has already isolated its work merely because the rule exists.
 
+### Worktree isolation prevents collisions; reconciliation prevents a patchwork
+
+Separate worktrees let agents edit independently, but they do not make two completed
+branches read like one project. The agent merging later owns that integration: bring
+current `main` into the task branch, reduce living documents to one current status,
+combine duplicate lessons without losing either session's evidence, and keep rules,
+terminology, READMEs and indexes consistent. Preserve attributed analyses, discussions,
+handoffs, progress logs, escalations, reports, results, manifests, tags and history.
+A real disagreement gets a separate signed response; it is not smoothed away during
+reconciliation. This Study 01 closeout encountered Study 03 first as a running matrix
+and later as a completed signed study; retaining both as current status would have made
+the repository read like stitched session notes. The canonical hard rule is in AGENTS.md.
+
 ### A study-specific finding is not automatically a future-study requirement
 
 Study 01's v3 context and discussions recorded resource, placement and concurrency
@@ -99,6 +112,15 @@ on a later checkout. Study 01 now pins v3 result JSON to `text eol=lf`; otherwis
 unchanged Git revision can produce a different raw-byte input digest on another
 checkout. The attribute is scoped to new v3 runs so historical bytes are not silently
 rewritten. Verify `git ls-files --eol` and `git check-attr` when adding new run formats.
+
+Study 03 then met the same thing from the other side, which shows what it costs when the
+attribute is missing: its `small` matrix hashed to `a56ce92ce38b8204` in the checkout that
+produced it and to `b8913f899a9584ae` in a fresh worktree, with every measurement identical
+and no result file changed in git. A report regenerated there would have published a digest
+no reader could reproduce. Studies 02 and 03 are now pinned in the repository-root
+`.gitattributes`, and regenerating the four study 03 reports restored each run's original
+digest. When a digest changes, check the bytes before the data: the same measurements must
+not hash two ways.
 
 ### Database preparation can change during a short read experiment
 
@@ -691,3 +713,23 @@ release the dataset's holds that were loaded already expired, and their "lag" wa
 load. The numbers looked absurd only because the time was compressed; at real speed the same
 bug would have reported a plausible half hour. Lag now counts only holds granted during the
 phase. Any metric measured from a timestamp should say which rows may contribute to it.
+
+### Instrumentation must not be able to delete a design's results
+
+Study 03's `small` matrix lost the lifecycle phase of four YugabyteDB cells. In three of them no design
+statement had failed. The harness's own sold-seat monitor query timed out while the node was saturated,
+and the harness treated the first monitor error as fatal. In the fourth, a harness reload's `ANALYZE` did
+the same. The designs' own statements, which timed out at the same moments, were retried and counted as
+errors. An observer query should have the same tolerance as the workload it
+observes (retry, count, move on). Otherwise a busy engine produces missing numbers, and a report shows
+"failed" where it should show "slow".
+
+### A classification that needs a diagnostic is silent where the diagnostic does not run
+
+AM-01 split early rejections into transient and persistent by re-issuing the refused statement. L2
+(a section document checked in the application) has no statement to re-issue, so its refusals were
+counted as "0 transient". They had the same shape as the transient refusals of every other design: a
+read 20–100 ms after the hold's commit that did not show it. The report tables printed `n/a`, but the
+TL;DR listed L2 among designs with invariant violations. When a class depends on a diagnostic, report
+"unclassified" wherever the diagnostic cannot run, in every place the number appears.
+

@@ -62,6 +62,16 @@ no containers and a clean checkout. The projected time is not a release conditio
 While this known reservation remains, keep waiting in LOW; do not merge during an idle
 gap or ask HIGH to waive it. If the release/ownership becomes ambiguous, escalate.
 
+**Owner rule and LOW observation, 2026-09-20:** the reservation above ended; Study 03 v1
+is complete on main at `7123da6`. The owner has made concurrent work the permanent
+assumption, now canonical under `repo/concurrent-agents-reconciliation`. Another AI is
+active in `.worktrees/recency-reports`. Preserve that worktree and integrate only its
+committed contributions after they reach main. A live dev check still owns the shared
+runtime, so the final integration continues as the mapped wait in section 2. The later
+merger must reconcile shared living documents into one current project view while
+leaving attributed artifacts untouched. This direct owner rule narrows no scientific
+acceptance condition and does not require a new HIGH analysis.
+
 ## 3. Incorporate and preserve later main work
 
 Once main is clean and the runtime is idle, record its full SHA as `$incomingMain`.

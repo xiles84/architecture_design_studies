@@ -151,7 +151,7 @@ func TestRejectionClasses(t *testing.T) {
 		{exp.Add(-2 * time.Minute), RejEarly},
 	}
 	for _, c := range cases {
-		if got := el.Reject(1, c.txn, "", false); got != c.want {
+		if got := el.Reject(1, c.txn, "", false, true); got != c.want {
 			t.Errorf("margin %s: class %s, want %s", exp.Sub(c.txn), got, c.want)
 		}
 	}
@@ -213,10 +213,10 @@ func TestTransientEarlyRejectionCountsInBothTotals(t *testing.T) {
 	el := newTestLedger()
 	grant(el, 1, 3, at(0), at(0), at(40*time.Minute))
 	exp := at(40 * time.Minute)
-	if got := el.Reject(1, exp.Add(-10*time.Minute), "", true); got != RejEarly {
+	if got := el.Reject(1, exp.Add(-10*time.Minute), "", true, true); got != RejEarly {
 		t.Fatalf("class %s, want %s", got, RejEarly)
 	}
-	el.Reject(1, exp.Add(-10*time.Minute), "", false)
+	el.Reject(1, exp.Add(-10*time.Minute), "", false, true)
 	v, _ := el.Evaluate()
 	if v.RejectedEarly != 2 || v.RejectedEarlyTransient != 1 || v.Count() != 2 {
 		t.Fatalf("tallies %+v", v)
@@ -227,8 +227,8 @@ func TestTransientFlagIgnoredForLateAndBoundary(t *testing.T) {
 	el := newTestLedger()
 	grant(el, 1, 3, at(0), at(0), at(40*time.Minute))
 	exp := at(40 * time.Minute)
-	el.Reject(1, exp.Add(time.Second), "", true)
-	el.Reject(1, exp.Add(-time.Second), "", true)
+	el.Reject(1, exp.Add(time.Second), "", true, true)
+	el.Reject(1, exp.Add(-time.Second), "", true, true)
 	v, _ := el.Evaluate()
 	if v.RejectedLate != 1 || v.RejectedBoundary != 1 || v.RejectedEarly != 0 || v.RejectedEarlyTransient != 0 || v.Count() != 0 {
 		t.Fatalf("tallies %+v", v)

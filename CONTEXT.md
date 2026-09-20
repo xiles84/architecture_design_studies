@@ -4,7 +4,7 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-15
+**Last updated:** 2026-09-20
 
 ---
 
@@ -38,6 +38,12 @@ OpenAI and others) work in this repository, sometimes at the same time.
   default on 2026-09-14. Resolve conflicts and validate in the task worktree, preserve
   all sessions' work, then integrate into `main` and tag the result. No extra routine
   merge approval is required; pushing and pulling remain the owner's responsibility.
+- **Always assume another AI is active:** work only in the task's own worktree, never
+  disturb another task's branch, files, containers or run, and inspect the shared lock
+  before measurement. The agent merging later reconciles current status, lessons, rules,
+  indexes and terminology so `main` reads as one project while attributed artifacts and
+  disagreements remain intact. The canonical rule is in
+  [AGENTS.md](AGENTS.md#hard-rule-assume-a-concurrent-agent-the-later-merger-reconciles).
 - **One measurement at a time on this machine.** Code and analyses in parallel; dev checks
   and matrices never. Runners take the **benchmark lock** (`run_lock_acquire` in
   `infra/lib.sh`, a podman volume named `ads-run-lock`); a second runner from any worktree
@@ -73,6 +79,15 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-03/v0.1-handoff-amendment-01` | study 03: ER-01 decided (transient refusals on YugabyteDB); AM-01 adds design S1r, refusal diagnostics and amended dev-check criteria |
 | `study-03/v1-harness` | study 03: 14 designs (13 + S1r), harness and SQL as dev-checked on tiny (dc1–dc14) |
 | `study-03/v0.2-handoff-amendment-02` | study 03: ER-02 decided; AM-02 adds the `small` calibration run and duration rules for steps 9–10 |
+| `repo/concurrent-agents-reconciliation` | AGENTS.md hard rule: always assume a concurrent agent; the agent that merges later reconciles shared documents into one coherent project |
+| `run/03-reserved-seating/20260915T002411Z` | commit that produced study 03's `small` main matrix (`7dbdd11`) |
+| `run/03-reserved-seating/20260915T173255Z` | commit that produced study 03's repeated race (`52a9975`) |
+| `study-03/v1-measured` | study 03 measured: main matrix, repeated race, diagnoses, generated reports, documents; ready for analysis (ER-03, ER-04 open) |
+| `study-03/v0.3-handoff-amendment-03` | study 03: ER-03 and ER-04 decided; AM-03 adds tolerant instrumentation, an L2 refusal diagnostic and a repair run |
+| `run/03-reserved-seating/20260915T232736Z` | commit that produced study 03's ER-03 repair run (`4044dd5`) |
+| `run/03-reserved-seating/20260916T000706Z` | commit that produced study 03's ER-04 repair run (`4044dd5`) |
+| `study-03/v1.1-repairs` | study 03: AM-03 harness, both repair runs, regenerated reports, and results/reports pinned to LF |
+| `study-03/v1-analysis` | study 03: signed analysis of the small matrix, report index, README and context complete |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -100,7 +115,8 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**HIGH review accepted, 2026-09-15 — next LOW:** EH-01's final local integration is
+**Study 01 v3 HIGH review accepted; final documentation integration in progress,
+2026-09-20 — next LOW:** EH-01's final local integration is
 verified at `db77fe60b5bfe78b29ec04db9150f33cc1a0bb49`. Both annotated tags,
 `repo/worktree-to-main-workflow` and `study-01/v3-integrated`, resolve to that commit,
 which is an ancestor of current local `main`. The 261 saved cells retain their producing
@@ -108,13 +124,15 @@ commits, images, environment and four report digests. The six expected D9 failur
 excluded from performance conclusions. HIGH accepts the existing local enhancements,
 concise final analysis, signed discussions and prospective study requirements.
 
-This review incorporates committed main through `7a9aea2` in the task worktree only.
-Study 03's matrix is running from main with unfinished result files, so the new review
-documentation has not been merged. [EH-02](docs/handoffs/20260914-study01-integration/FINALIZATION_HANDOFF.md)
-maps the remaining LOW work: wait for Study 03's explicit checkout reservation to end,
-a free lock and clean main checkout, preserve later
-Study 03 work, merge the review documents and tag `study-01/v3-reviewed`. No further HIGH
-pass is required if its acceptance conditions pass. Source changes or conflicting
+The task worktree now incorporates committed main through `7123da6`, including the
+completed and signed Study 03 v1 analysis and the repository-wide concurrent-agent
+reconciliation rule. Its former main-checkout reservation ended with Study 03 step 11.
+Another AI is currently active in `.worktrees/recency-reports`; its branch, dirty files,
+containers and findings remain untouched. The final main update waits for its live
+benchmark to release the shared runtime lock, then follows
+[EH-02](docs/handoffs/20260914-study01-integration/FINALIZATION_HANDOFF.md), preserving
+any newer committed main and tagging `study-01/v3-reviewed`. No further HIGH pass is
+required if the handoff's acceptance conditions pass. Source changes or conflicting
 decisions require escalation. The
 [Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md),
 [progress](docs/handoffs/20260914-study01-integration/PROGRESS.md),
@@ -134,9 +152,9 @@ waiting remains LOW work. No automatic model change is implied.
 
 Current task: HIGH planning/review = GPT-6 via Codex (exact selected effort not exposed);
 EH-01's executor recorded GPT-5 via Codex desktop under the user-selected LOW role
-(exact effort not exposed). HIGH has accepted EH-01. Next: LOW model / low effort for
-EH-02's safe documentation merge; record the actual executor model rather than assuming
-the preceding executor's identity.
+(exact effort not exposed). HIGH has accepted EH-01. GPT-5 is executing EH-02's
+reconciliation and safe documentation merge in the LOW role. Next remains LOW while the
+other AI owns the benchmark lock; an unmapped conflict returns to HIGH.
 Study 03's existing model/effort mapping below remains specific to that study.
 
 ## What this project is
@@ -174,7 +192,7 @@ platform/                 shared Go module (adsplatform): core / ports / adapter
 studies/
   01-charity-tree/        study 01 (see below) — own harness, predates platform/
   02-ticket-booking/      study 02 (see below) — built on platform/
-  03-reserved-seating/    study 03 (see below) — built on platform/; v1-harness tagged; AM-02 (calibration, then matrix) to execute
+  03-reserved-seating/    study 03 (see below) — built on platform/; measured and analysed (v1-analysis)
 ```
 
 Everything belonging to one study (SQL, harness, runner, image name, results, reports,
@@ -200,7 +218,7 @@ GPT-6's "What I would measure next". The protocol is in
 growth/churn, fixed-reader contention, YB exceptions and deployment controls were
 measured without migrating the original harness. Real network separation needs other hosts.
 
-Implementation is isolated in `.worktrees/study01-v3`, branch
+The implementation was developed in `.worktrees/study01-v3`, branch
 `study-01/measurement-enhancements` (GPT-6 through Codex). D11–D17 and the separate
 `-cmd experiment` / `-cmd report-enhancements` path are implemented. The v3 runner
 creates a run tag, pins the image ID, takes the shared benchmark lock and keeps every
@@ -252,8 +270,8 @@ at 3 GiB they were D3 25,222.57/s and D6 15,415.07/s. The same dataset now
 supports a memory-configuration-dependent reversal; it does not isolate the container
 ceiling from PostgreSQL memory settings. This run removed its database and released
 its lock. During the 2026-09-14 continuation, Study 03's historical
-`devchecks/dc11-yb3-subset` held the machine lock. Check Study 03's current entry and
-the live lock for today's running workload; do not resume that historical wait.
+`devchecks/dc11-yb3-subset` held the machine lock; that wait ended and Study 03 v1 later
+completed. Current runtime ownership always comes from the live lock and current context.
 
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
@@ -517,17 +535,65 @@ study 03's handoff.
 
 ### Study 03 — reserved seating: choose seats, keep them 40 minutes (venue → event → seat)
 
-**Status (2026-09-14, 20:40 UTC):** harness tagged `study-03/v1-harness` (14 designs, AM-01 dev
-checks dc12–dc14 pass). **ER-02 decided (AM-02, tag `study-03/v0.2-handoff-amendment-02`):**
-calibrate with one `small` S1 cell per topology (dc15), then run the matrix under fixed duration rules
-(hard ceiling 30 h). Calibration dc15 passed (63 min); rule 1 applied (no 100 000-seat race tier on
-YugabyteDB); projection ≈ 15.7 h. **Running from 2026-09-15 00:25 UTC — do not start databases:**
-the `small` main matrix (step 9, all 3 topologies, 14 designs, `--tag`). It holds the benchmark lock;
-revised end ≈ 2026-09-15 19:00 UTC. The repeated race (step 10, ≈ 4.4 h) follows, so the lock is
-busy until ≈ 2026-09-16 00:00 UTC. **The main folder (`main` checked out) holds that run's
-uncommitted results:** other sessions must not check out, merge into or fast-forward `main` in that
-folder until study 03's step 11 is committed (≈ 00:30 UTC). Work in worktrees is unaffected.
-yb-single S4 and E2 failed in the lifecycle (diagnosed; ER-03, non-blocking). The
+**Status (2026-09-16, 01:30 UTC): complete — measured, analysed and signed** (tag
+`study-03/v1-analysis`). Every escalation is decided and executed: ER-01 (AM-01), ER-02 (AM-02),
+ER-03 and ER-04 (AM-03). The signed analysis is
+[`20260915T002411Z--claude-opus-5--2026-09-16`](studies/03-reserved-seating/reports/analyses/20260915T002411Z--claude-opus-5--2026-09-16.md).
+Nothing is running; the benchmark lock is free.
+
+**What study 03 concluded** (details in the analysis):
+
+- On YugabyteDB every correct design refused holds that were valid, and every such refusal was
+  transient — the same statement moments later matched all the seats. PostgreSQL showed none.
+- S1r, which retries a short confirmation once, recorded zero refusals; all 140 retries sold, at
+  a cost inside the trial spread. It is the recommended defence on YugabyteDB.
+- Publishing, not selling, separates the layouts: a 100 000-seat event costs 541 ms (PostgreSQL)
+  and 3 216 ms (YugabyteDB) with per-seat rows against 0.89 ms and 1.56 ms for claim-on-hold.
+- Avoid a JSONB section document for hot selling (28 976–33 712 compare-and-set retries per race
+  tier on the cluster), and SERIALIZABLE on YugabyteDB (0.0–0.1 seats/s, every event timed out).
+
+**Open for a future session:** a second analyst's view is invited, especially on L3, whose 4–8×
+slowdown under contention this analysis reports without explaining. The analysis lists five next
+experiments.
+
+| Run | What | Result | Inputs digest |
+|---|---|---|---|
+| `20260915T002411Z` ([report](studies/03-reserved-seating/reports/20260915T002411Z.md)) | `small` main matrix, 3 topologies, 14 designs, 17 h 6 min | 41 cells, 4 failed (S4 and E2 on both YugabyteDB topologies, each diagnosed beside its logs); 15/15 controls fired | `a56ce92ce38b8204` |
+| `20260915T173255Z` ([report](studies/03-reserved-seating/reports/20260915T173255Z.md)) | repeated race, 3 trials, 1 000- and 10 000-seat tiers, pg-single + yb-cluster3, 3 h 33 min | 27 cells, 0 failed; both controls fired | `29296b1fe8dea2e3` |
+| `20260915T232736Z` ([report](studies/03-reserved-seating/reports/20260915T232736Z.md)) | repair (ER-03): E2 and S4 lifecycle on both YugabyteDB topologies, 40 min | 4 cells, 0 failed, no violation | `2ccece48793fe693` |
+| `20260916T000706Z` ([report](studies/03-reserved-seating/reports/20260916T000706Z.md)) | repair (ER-04): L2 race on both YugabyteDB topologies, 11 min | 2 cells, 0 failed | `903de88de503ded2` |
+
+The two repair runs come from a later commit than the matrix (AM-03's harness); the analysis states
+which numbers come from which run.
+
+Facts for the analysis:
+- **PostgreSQL:** no invariant violation and no early rejection in any correct design.
+- **YugabyteDB, transient refusals:** every correct design with a guarded statement recorded
+  transient refusals, most on three nodes.
+- **S1r:** 0 early rejections anywhere. Every confirmation it retried after a short match sold:
+  35 in the matrix, 105 in the repeated race.
+- **ER-03 (decided and executed):** the four failed cells had lost their **whole** lifecycle phase to
+  an instrumentation query or a reload `ANALYZE` timing out, not to a design statement. AM-03 made
+  both tolerant and re-ran those cells: all four completed, E2 with no violation on either topology,
+  S4 collapsing at 0.0–0.1 confirmed seats/s — measured instead of missing.
+- **ER-04 (decided and executed):** L2's YugabyteDB early rejections could not be classified, and the
+  report read them as design failures. AM-03 gave L2 its own diagnostic — re-read the section
+  document once on a refusal — and re-ran its race. On yb-cluster3 **all 17 early rejections were
+  transient**: the document re-read showed the hold valid. So the ER-01 behaviour is not limited to
+  statements filtering on columns the hold just wrote; a plain read of a recently committed row can
+  miss it too. Reports now print "transient: not recorded" where no diagnostic ran (K0 always, L2
+  before this change) instead of an unmeasured zero.
+- **Provenance fix:** a run's inputs digest is a hash over its result bytes, and Windows line-ending
+  conversion on checkout changed them (the matrix hashed two ways with identical measurements).
+  Studies 02 and 03 are now pinned to `text eol=lf`, matching study 01's policy; every report
+  reproduces its run's original digest.
+
+How the plan got here: ER-02 was decided by AM-02 (tag `study-03/v0.2-handoff-amendment-02`). A
+`small` calibration (dc15) replaced the duration extrapolation, and rule 1 dropped the 100 000-seat
+race tier on YugabyteDB, because it sold 2–3% before timing out. The repeated race ran from study 03's
+own worktree (`.worktrees/study03-measurement`, branch `study-03/measurement`), merged into `main` at
+step 11. *Deviation, stated plainly:* between the task-worktree rule (`b290958`) and the end of the
+main matrix, study 03 worked directly in the checkout of `main`. The
 specification is the [Execution Handoff](studies/03-reserved-seating/HANDOFF.md) (tag `study-03/v0-handoff`); step-by-step
 state, commits and mapped decisions are in [`PROGRESS.md`](studies/03-reserved-seating/PROGRESS.md);
 unmapped decisions in [`ESCALATIONS.md`](studies/03-reserved-seating/ESCALATIONS.md).

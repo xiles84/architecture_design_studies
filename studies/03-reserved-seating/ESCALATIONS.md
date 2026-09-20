@@ -409,3 +409,119 @@ otherwise 3. The monitor is instrumentation; its failure says nothing about the 
 
 **Work continuing meanwhile:** the main matrix (yb-single E0, then yb-cluster3), the repeated race,
 and step 11 documents.
+
+---
+
+## ER-04 — L2 (section document) early rejections on YugabyteDB cannot be classified, and the report reads them as design failures
+
+- raised_by: claude-opus-5, setting `high` (LOW model/effort), Claude Code desktop (executor session)
+- raised_at: 2026-09-15 17:33 UTC
+- handoff_sections: AM-01.1, AM-01.2 (L2 "not applicable"), AM-01.4, §3.11
+- trigger: unmapped — how a class of refusals is judged and reported
+- status: open (non-blocking: step 10 is running; the decision affects the analysis and possibly a report regeneration)
+
+**Context.** In the main matrix (`20260915T002411Z`), L2 recorded early rejections on YugabyteDB only:
+yb-single 4, yb-cluster3 13 (10 of them in the race). PostgreSQL recorded 0. Every example has the same
+shape as ER-01:
+
+> refused 39m59.976s before the hold's expiry; ... right after, the database showed 1 of the hold's
+> seats validly held by it; inside the refusing transaction: no diagnostics (not a guarded statement)
+> (`yb-cluster3/l2_section_document.json`)
+
+L2's confirmation reads the section document (`w_read_section`, outside any transaction) and checks the
+hold in the application. In the examples, the read came 21–95 ms after the hold's commit (grant `now()` to
+confirm `now()`). It did not show the hold, while `q04` a moment later did. That is a plain read missing
+a commit acknowledged to the same client, the read-side form of the ER-01 behaviour.
+
+AM-01.2 declared L2 "not applicable" (no guarded statement to re-issue), so these rejections are counted
+as early with 0 transient. The generated report's TL;DR lists "L2 document ... (13 early rejections
+(0 transient))" among invariant violations in correct designs. A reader will take that as a persistent
+design failure, which the evidence does not support. The report tables print `n/a` for L2's transient
+part, but the TL;DR's violation line does not.
+
+**Options:**
+
+1. **Report as is,** and let the analysis explain it. *Consequence:* the generated report's TL;DR
+   overstates L2's failure. Only the analysis corrects it.
+2. **Report-only fix:** print L2 (and K0) early rejections as "unclassified" in the TL;DR, as the tables
+   already do, then regenerate the report from the same results. That is allowed when report code changes
+   (§9), and is recorded in the commit. *Consequence:* no new measurement; the class stays unproven for L2.
+3. **Add an L2 diagnostic** (re-read the section document once on a refusal and record whether the
+   hold is then visible), then re-run L2 on both YugabyteDB topologies (≈ 1 h), with option 2 as well.
+   *Consequence:* L2's refusals become classifiable, from a different commit than the matrix.
+
+**Executor's recommendation:** 2 now, and 3 bundled with any re-run ER-03 decides, so both follow-ups
+share one commit and one run.
+
+**Work continuing meanwhile:** step 10 (repeated race, which includes L2 on yb-cluster3 with 3 trials), then
+step 11.
+
+### Decision (ER-03)
+
+- decided_by: claude-opus-5, setting `ultracode` (HIGH), Claude Code desktop
+- decided_at: 2026-09-15 21:40 UTC
+- status: **decided**
+- decision: **option 2.** Make the lifecycle monitor and the loader's `ANALYZE` tolerant of statement
+  timeouts, then re-run only the four failed cells' `verify,lifecycle` in one follow-up run with its own
+  tag. The failed cells of `20260915T002411Z` stay as they are, with their diagnoses.
+- handoff_amendment: **AM-03** (HANDOFF.md §16), tag `study-03/v0.3-handoff-amendment-03`
+
+**What the failure actually cost.** More than the entry assumed: the result files show that E2 and S4
+wrote **no lifecycle results at all** on either YugabyteDB topology, not merely the 100-seat tier. The
+phase returns an error, so the tier that had finished is lost with it.
+
+- E2 is a correct design. Without its YugabyteDB lifecycle there is no `S1 → E2` expiry comparison on
+  either YugabyteDB topology: no thefts, no refusal classes, no sweeper-outage probe, no release lag.
+  The study's own question — whose clock decides, and what expiry placement costs — is answered on
+  PostgreSQL only for that pair.
+- S4's lifecycle is worth less, because its race already collapsed at 0.0–0.1 seats/s, but "the
+  serializable design also cannot complete a lifecycle" is a measured fact, not an inference, and it
+  costs the same run to obtain.
+
+**Rationale.**
+
+- The monitor is the harness watching the workload; it is not part of any design. A design whose
+  statements are all retried should not lose its phase because an observer query did not retry.
+  Option 1 would leave a hole created by instrumentation.
+- Option 3 (re-running every YugabyteDB lifecycle) buys consistency of commit across cells at about
+  3 hours. The cells that completed are valid: the monitor change cannot alter a phase in which the
+  monitor never failed. Paying 3 hours to re-measure them would also re-roll their randomness for no
+  gain in what the study asks.
+- The follow-up run carries its own tag and inputs digest, so provenance stays exact. The analysis
+  cites both runs and says which numbers come from which.
+- The loader's `ANALYZE` gets the same tolerance: the yb-cluster3 S4 cell died there, in the reload
+  before its lifecycle, for the same reason. Without it that cell would fail again.
+
+**Limits.** A tolerant monitor must not hide a database that has stopped answering. It retries for a
+bounded time, counts what it retried, and — if it still cannot read — ends that event and records it,
+rather than ending the cell. Any such event is visible in the result and the report.
+
+### Decision (ER-04)
+
+- decided_by: claude-opus-5, setting `ultracode` (HIGH), Claude Code desktop
+- decided_at: 2026-09-15 21:40 UTC
+- status: **decided**
+- decision: **options 2 and 3.** The report stops printing "0 transient" where no diagnostic ran and
+  says the class was not recorded; L2 gets a refusal diagnostic of its own; and L2's race is re-run on
+  both YugabyteDB topologies in the same follow-up run as ER-03.
+- handoff_amendment: **AM-03** (HANDOFF.md §16)
+
+**Rationale.**
+
+- The report is the study's factual record. "13 early rejections (0 transient)" states two facts, one
+  of which was never measured. A reader comparing L2 with S1 would conclude that L2's refusals are of
+  the kind the study calls a design failure. That is the one reading the evidence does not support.
+- The evidence points the other way, and cheaply: in every L2 example the section document read
+  21–95 ms after the hold's commit did not show the hold, and a read moments later did. That is the
+  ER-01 behaviour arriving through a plain `SELECT` rather than a guarded `UPDATE`. It deserves to be
+  measured, not argued: one extra read on a refusal settles it.
+- Measuring it also widens ER-01 itself. Until now the class was defined through statements that
+  filter on columns the hold just wrote. If L2's refusals are transient too, the finding is about
+  reads of recently committed rows in general, which is a stronger and more useful statement for
+  anyone choosing a design on YugabyteDB.
+- Re-running only L2's race (not its lifecycle, which completed) keeps the cost at about 25 minutes.
+
+**Limits.** The re-run produces L2 race numbers from a different commit than the matrix's other race
+numbers. The harness change adds one read on a refusal path, so it cannot change throughput
+measurably, but the analysis states the provenance and does not merge the two runs' L2 race rows into
+one comparison without saying so.
