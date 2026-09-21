@@ -360,6 +360,25 @@ func (r *redisStore) Close(_ context.Context) error {
 	}
 }
 
+// Ping proves the cache under test answers. A scenario that needs a cache must fail
+// loudly when there is none: the first dev check of this study ran every redis
+// scenario against a cache that was never started, and because a cache outage
+// degrades to authoritative reads, every cell "passed" its phases while measuring
+// nothing but the database. A cache that is absent must never look like a cache that
+// is merely cold.
+func (r *redisStore) Ping(ctx context.Context) error {
+	return r.withConn(func(rc *respConn) error {
+		v, err := rc.do("PING")
+		if err != nil {
+			return err
+		}
+		if s, _ := v.(string); s != "PONG" {
+			return fmt.Errorf("redis: unexpected PING reply %v", v)
+		}
+		return nil
+	})
+}
+
 // SetAvailable turns the store on or off for the fault-injection phases.
 func (r *redisStore) SetAvailable(on bool) { r.closed.Store(!on) }
 

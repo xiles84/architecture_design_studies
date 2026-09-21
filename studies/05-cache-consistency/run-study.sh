@@ -315,7 +315,7 @@ for topo in ${TOPOLOGIES//,/ }; do
   case "$topo" in
     pg-single)
       bash "$REPO/infra/pg-single.sh" up || { warn "pg-single failed to start"; FAILED+=("pg-single/*"); continue; }
-      need_redis && { bash "$REPO/infra/redis.sh" up || { warn "redis failed to start"; FAILED+=("*/*"); bash "$REPO/infra/pg-single.sh" down; continue; }; REDIS_UP="yes"; }
+      needs_redis && { bash "$REPO/infra/redis.sh" up || { warn "redis failed to start"; FAILED+=("*/*"); bash "$REPO/infra/pg-single.sh" down; continue; }; REDIS_UP="yes"; }
       record_topology "$OUT/pg-single/topology.yaml" pg-single ads-redis
       for d in $ORDER; do
         run_cell pg-single postgres "postgres://bench:bench@pg-single:5432/bench?sslmode=disable" "$d"
@@ -325,7 +325,7 @@ for topo in ${TOPOLOGIES//,/ }; do
       ;;
     yb-single)
       bash "$REPO/infra/yb-single.sh" up || { warn "yb-single failed to start"; FAILED+=("yb-single/*"); continue; }
-      need_redis && { bash "$REPO/infra/redis.sh" up || { warn "redis failed to start"; FAILED+=("*/*"); bash "$REPO/infra/yb-single.sh" down; continue; }; REDIS_UP="yes"; }
+      needs_redis && { bash "$REPO/infra/redis.sh" up || { warn "redis failed to start"; FAILED+=("*/*"); bash "$REPO/infra/yb-single.sh" down; continue; }; REDIS_UP="yes"; }
       record_topology "$OUT/yb-single/topology.yaml" yb-single ads-redis
       for d in $ORDER; do
         run_cell yb-single yugabyte "postgres://yugabyte@yb-single:5433/yugabyte?sslmode=disable" "$d"
@@ -335,7 +335,7 @@ for topo in ${TOPOLOGIES//,/ }; do
       ;;
     yb-cluster3)
       bash "$REPO/infra/yb-cluster3.sh" up || { warn "yb-cluster3 failed to start"; FAILED+=("yb-cluster3/*"); continue; }
-      need_redis && { bash "$REPO/infra/redis.sh" up || { warn "redis failed to start"; FAILED+=("*/*"); bash "$REPO/infra/yb-cluster3.sh" down; continue; }; REDIS_UP="yes"; }
+      needs_redis && { bash "$REPO/infra/redis.sh" up || { warn "redis failed to start"; FAILED+=("*/*"); bash "$REPO/infra/yb-cluster3.sh" down; continue; }; REDIS_UP="yes"; }
       record_topology "$OUT/yb-cluster3/topology.yaml" yb-n1 yb-n2 yb-n3 ads-redis
       # Connections are spread over ALL query endpoints, and the endpoint
       # distribution is recorded, so a single-endpoint bottleneck cannot be read as

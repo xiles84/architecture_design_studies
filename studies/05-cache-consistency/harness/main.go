@@ -246,6 +246,19 @@ func runCell(ctx context.Context, res *CellResult, d Design, dsn, explainPath st
 			_ = in.Store.Close(ctx)
 		}
 	}()
+	// A scenario that needs a cache must not run against a cache that is not there.
+	// A cache outage degrades to authoritative reads by design, so without this check
+	// an unreachable broker would look like a scenario that simply never hit.
+	if d.Backend == BackendRedis {
+		if p, ok := insts[0].Store.(interface{ Ping(context.Context) error }); ok {
+			if err := p.Ping(ctx); err != nil {
+				return fmt.Errorf("the cache under test does not answer: %w", err)
+			}
+		} else {
+			return fmt.Errorf("the redis backend does not implement Ping; refusing to measure against an unverified cache")
+		}
+	}
+
 	log := newReadLog()
 	ad := newAdapter(d, cat, db, ds, orc, res.Options, insts, log)
 	c := &cell{d: d, cat: cat, db: db, ds: ds, orc: orc, ad: ad, res: res, opts: res.Options}

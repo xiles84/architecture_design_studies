@@ -136,6 +136,7 @@ func (c *cell) faultCacheFailureAfterCommit(ctx context.Context) FaultResult {
 		return fr
 	}
 	c.ad.faultPublishFail.Store(false)
+	c.ad.faultSkipNextInvalidation.Store(false)
 
 	after, err := c.ad.ReadKey(ctx, 0, p.ID, r)
 	if err != nil {

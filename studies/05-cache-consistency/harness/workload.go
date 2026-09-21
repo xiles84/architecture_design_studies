@@ -608,6 +608,13 @@ func (c *cell) runInstances(ctx context.Context) error {
 	}
 	capBytes := int64(c.opts.CapacityKB) * 1024
 	base := c.ad
+	// The instances phase measures a DIFFERENT deployment: its writes go through its
+	// own instances, which cannot invalidate the base adapter's stores. Starting and
+	// ending cold keeps a leftover entry from being read as a strict violation of the
+	// deployment that produced it.
+	for _, in := range base.inst {
+		_ = in.Store.Flush(ctx)
+	}
 	for _, n := range []int{1, 3} {
 		insts, err := buildInstances(c.d.Backend, n, capBytes, c.opts.RedisAddr, c.opts.Workers+8)
 		if err != nil {
@@ -654,5 +661,8 @@ func (c *cell) runInstances(ctx context.Context) error {
 		}
 	}
 	c.ad = base
+	for _, in := range base.inst {
+		_ = in.Store.Flush(ctx)
+	}
 	return nil
 }
