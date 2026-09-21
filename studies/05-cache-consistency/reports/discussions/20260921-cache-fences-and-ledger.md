@@ -12,6 +12,13 @@ written_at: 2026-09-21T15:35:00Z
 
 # Study 05 — the fence, the ledger and the failures: mechanisms behind the numbers
 
+> **Partially superseded, 2026-09-21.** Sections 1–3 (the fence, the acknowledgement
+> boundary, the pending-state race) remain the study's mechanism record and are still true.
+> Sections 2, 4, 5 and 6 described *residual failures* and *what the harness did not claim*;
+> those residual failures turned out to be four harness defects, now fixed, and the final run
+> `20260921T-survey3` has all 27 cells green. The current conclusions are in
+> [`analyses/20260921-cache-consistency-allgreen.md`](../analyses/20260921-cache-consistency-allgreen.md).
+
 This is the companion to
 [`analyses/20260921-cache-consistency-survey.md`](../analyses/20260921-cache-consistency-survey.md).
 It records the mechanisms, the race timelines and the harness decisions that the

@@ -433,6 +433,42 @@ One more, from the same repair: when a mutation becomes *relative* in the ledger
 delta), it must become relative in **every** SQL catalogue that pairs with it. Three reference
 schemas still used an absolute `SET amount_cents = $2` and silently wrote the delta as the amount.
 
+### A ledger that disagrees with the database manufactures correctness findings
+
+Study 05's most expensive lesson, because it cost four rounds of investigation and briefly made the study's
+headline a harness artifact. The ledger's history must be appended in the **database's commit order**. Two
+concurrent writers on one key can commit in one order and reach the handler in the other, after which a
+legitimate read looks "one state behind" and a correct design is failed.
+
+Two diagnostics are worth their weight, and both were what finally settled it:
+
+* **A design with NO cache showing the cache's symptom proves the harness is at fault.** The violation
+  reproduced in a plain database-only reference cell, which no cache mechanism can explain.
+* **Separate the sequential case from the concurrent one.** The acknowledgement checker writes and then
+  verifies from a SECOND database session; with one writer it reported zero violations in 150 attempts
+  before and after the fix, which killed "the ack is early" and left "the bookkeeping is out of order".
+  A writer verifying through its own pool can see its own commit and turn a real defect into a clean result.
+
+The fix is small: serialise writes that touch one key (sharded mutexes, never across keys), which leaves
+inter-key parallelism — the thing contention phases measure — untouched.
+
+### The checker can have the bug it is looking for
+
+Study 05's acknowledgement checker captured the freshness requirement *after* its verification read. A
+concurrent writer could therefore move the requirement between the read and the capture, and the checker
+manufactured a violation — repeatedly, and plausibly enough to be believed. The rule it violated is the
+study's own central rule: **capture the requirement at the start of the read, before any I/O**. When you
+write a checker, re-derive its invariants from first principles rather than trusting that it is immune to
+the mistake it detects.
+
+### A negative control is judged by its fault, never by the invariant it breaks
+
+Two defects in one: the unsafe-write control had to lose a *counter* as well as break the version invariant,
+so a run where the invariant visibly broke had the harness refusing to license the guarded designs; and the
+controls were being subjected to the ledger and acknowledgement assertions, which they exist to violate.
+A control's verdict is "did its own fault fire", with the evidence recorded; every other gate must skip it,
+and the skip belongs in the report rather than in a silent branch.
+
 ## Hardware and containers
 
 ### Heterogeneous CPUs make core pinning a trap

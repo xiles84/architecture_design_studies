@@ -830,7 +830,33 @@ pinned down: record `(key, ack seq, commit time)` per mutation, compare a stale 
 time with the acknowledgement time, and add "a fresh connection must already see the state the
 requirement moved to, immediately after each ack" as an assertion.
 
-**Status: measured, analysed and integrated into `main`; not finished.** The nine failed cells, the
+**Resolution (run `20260921T-survey3`, digest `03fac739d0835768`, clean commit `48fe1e3`, tag
+`run/05-cache-consistency/20260921T-survey3`).** The remaining "correctness failures" were four defects in
+the harness, three of which were *manufacturing* findings rather than detecting them: a mutation applied by
+id only (fixed with owner-guarded statements and a distinct no-op outcome), the ledger's history order not
+following the database's commit order (proved by a **no-cache** design showing it, fixed by serialising
+writes that touch one key), the acknowledgement checker capturing its requirement *after* its read, and a
+control judged by the wrong evidence. With all four fixed the full matrix is green: **27 of 27 cells pass
+every gate**, both controls fire, 6 ledger assertions per cell with zero mismatches, 310 acknowledgement
+verifications per cell with zero violations, zero impossible values, zero stale-after-ack reads.
+
+**Final measured results (single run, `small`).** Caching buys 2.2×–3.5× in warm cacheable throughput and
+an order of magnitude in p99 (15.8–27.1 ms → 0.8–2.0 ms). **Strict freshness cost nothing measurable in read
+throughput** in any of the eight controlled pairs (all differences inside the ~20 % noise floor). Every
+single-instance relaxed cell recorded **zero** wrong reads across ~1.2 million measured reads; the only
+wrong reads in the whole matrix are the **three-instance shared-Redis through** cells at **87.2 % and
+87.8 %**, confirmed in two runs and in both database models. The lease gives exactly one database load per
+key under a 16-reader stampede (8 loads, 0 duplicate fills). Under 20 % external writers the legacy cache's
+value collapses to the no-cache baseline (7 664 vs 7 794), and its strict sibling only reaches 8 269 by
+reading authoritatively.
+
+**Coverage gaps, unchanged and explicit:** no sustained-churn phase (the 300 s TTL was never crossed in a
+measured run), no equal-total framing, no `medium` scale, no repeated trials, no YugabyteDB cell, no
+three-node cluster, no colocation evidence, no open-loop SLO work.
+
+**Status: measured, analysed and integrated into `main`.** Findings, coverage gaps and the five leads for a
+second analyst are in `reports/analyses/20260921-cache-consistency-allgreen.md`, which supersedes the
+survey analysis (now in `reports/outdated/`). The nine failed cells, the
 rollup reference drift, the unrun churn/equal-total/topology arms and the three-instance confirmation are
 open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run
 this matrix unchanged.
