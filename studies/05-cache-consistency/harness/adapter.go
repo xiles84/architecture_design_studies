@@ -487,16 +487,26 @@ func (a *adapter) finish(ctx context.Context, keyID int64, content PortalContent
 	h := content.ContentHash()
 	out.ReturnedHash = h
 	kind, rseq, behind, at := a.orc.Classify(keyID, h, reqHash, reqSeq)
-	if kind == KindImpossible {
-		// An UNRECORDED state is not an impossible one. The oracle learns about a
-		// committed state after the commit returns, so a reader racing that commit can
-		// hold a state the ledger has not recorded yet. One conditional read settles
-		// it, and it runs only when a hash is otherwise unknown -- never on a hit, so
-		// it cannot distort the measurement it protects.
-		if db, _, derr := readPortalSQL(ctx, a.db, a.cat, a.d.usesVersion(), keyID); derr == nil && db.ContentHash() == h {
-			kind = KindAhead
-			a.unrecordedConfirmed.Add(1)
-		}
+	if kind == KindImpossible && !out.CacheHit {
+		// A value that arrived from a DATABASE READ is a committed state BY
+		// CONSTRUCTION: the read runs in one repeatable-read transaction, so what it
+		// returned is a state the database held. The only reason the ledger may not know
+		// it is that the ledger records a state just after the commit returns, so a
+		// reader racing that commit legitimately holds it first.
+		//
+		// A value that arrived from a cache HIT is a different matter: nothing
+		// guarantees that a hit describes a committed state, and that is exactly the
+		// case this detector exists to catch. A hit with an unknown hash stays
+		// impossible.
+		//
+		// Re-reading the database and comparing the two hashes instead -- which this
+		// code did first -- is WRONG: a further write landing between the read and the
+		// check makes a genuinely committed state look impossible. That is how a
+		// reference design whose stored rollup drifts came to report 114 impossible
+		// values from plain database reads, when the honest verdict is an audit
+		// mismatch against the ledger.
+		kind = KindAhead
+		a.unrecordedConfirmed.Add(1)
 	}
 	out.Kind = kind
 	out.ReturnedSeq = rseq

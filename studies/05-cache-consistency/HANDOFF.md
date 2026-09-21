@@ -541,6 +541,23 @@ real — 7 to 32 stale reads with every ledger assertion passing and the fence r
 publications per cell — so the next iteration should treat them as a cache-design question in the
 through path, not as an accounting one.
 
+**AM-03 — outcome, 2026-09-21 (same session).** Two further results, both binding.
+
+1. The strict-aside cell this study leaned on as proof the fence closed the race is
+   NOT reliably clean: re-run, the legacy in-process aside cell recorded 10
+   stale-after-ack reads per ~53 000 hits in the mixed phase (ledger assertions all
+   passing, zero impossible values). The fence is doing real work (61–625 refused
+   publications per cell) and the accounting is clean, but **strict freshness as
+   implemented here is not achieved reliably in any strict arm**. That is now the
+   study's single open scientific question.
+2. The rollup reference's 114 "impossible" values were a harness artifact of the
+   weaker impossible-value rule (a conditional database re-read that a further write
+   defeats). With the source-based rule restored the cell fails for the right reason:
+   `a_rollup_drift` reports 3 mismatches and the stored total is 2 173 cents above the
+   ledger, so a trigger-maintained rollup is NOT covered by this reference as it
+   stands. The dirty-cache-write audit keeps its teeth: a HIT with an unknown hash is
+   still impossible.
+
 #### 4. Decision: the ledger cannot model concurrently conflicting writes of one key
 
 Recorded as a **known limitation, not fixed**: two concurrent mutations of the same key

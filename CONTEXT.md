@@ -810,6 +810,19 @@ cell had passed with 11 hidden stale reads. With both fixed, two reference cells
 is now a genuine cache-design finding (7–32 stale reads, every assertion passing, 260–625 refused
 publications per cell) rather than an ambiguity. Evidence: `results/verify-ledger/`.
 
+**Corrections after the repair (runs `verify-ledger`, `verify-rollup`).** Two results changed the study's
+reading, and both are in the analysis (§6c/§6d) and AM-03. First, the legacy in-process *aside* strict
+cell — the one the first analysis leaned on as proof that the fence closed the refill race — is **not
+reliably clean**: re-run it recorded 10 stale-after-ack reads per ~53 000 hits in the mixed phase, with
+every ledger assertion passing and zero impossible values. So strict freshness as implemented is **not
+achieved reliably in any strict arm** (aside or through, memory or Redis, legacy or owned); that is now
+the study's single open scientific question. Second, `ref-rollup-trigger`'s 114 "impossible" values were
+a harness artifact of the weaker impossible-value rule; with the source-based rule restored the cell
+fails for the right reason — its own `a_rollup_drift` audit reports 3 mismatches and the stored total is
+2 173 cents above the ledger — so the trigger-maintained rollup is **not covered** by that reference as
+it stands. The two green reference cells (`ref-normalized-indexed`, `ref-embedded-locked`) and both
+controls still behave.
+
 **Status: measured, analysed and integrated into `main`; not finished.** The nine failed cells, the
 rollup reference drift, the unrun churn/equal-total/topology arms and the three-instance confirmation are
 open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run

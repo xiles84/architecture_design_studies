@@ -371,10 +371,49 @@ that closed, the post-fix verdicts are honest:
 | `legacy-na-redis-through-strict-coord` | (see report) | all pass | 0 |
 | `ref-normalized-indexed`, `ref-embedded-locked` | — | all pass | 0, **cells now green** |
 
-So the strict `through` residual is **a genuine cache-side race in the through
-strategy, in both models and both backends**, with the fence demonstrably working
-(260–625 refused publications per cell) and the accounting demonstrably clean. That
-is the finding to hand over, and it is a stronger one than the earlier ambiguity.
+### 6c. A correction to this analysis: the strict `aside` arms are NOT reliably clean
+
+Run `verify-rollup` re-ran `legacy-na-memory-aside-strict-coord` — the cell this
+analysis leaned on as the evidence that the fence "closed" the race — with the same
+harness and the same scale. It recorded **10 stale-after-ack reads in the mixed
+phase** (source `hit`), out of roughly 53 000 warm hits in that phase, with every
+ledger assertion passing, zero impossible values and zero refused writes.
+
+So the claim in section 1 and section 2 must be weakened, and this analysis says so
+rather than leaving the stronger version standing:
+
+> **Strict freshness as implemented here is not reliably achieved in any of the four
+> strict arms.** One run of the legacy in-process aside cell recorded zero
+> stale-after-ack reads; another recorded 10 per ~53 000 hits. The strict `through`
+> arms record 7–32 per cell in every run. The fence is doing real work
+> (`publishes_refused_by_fence` 61–625 per cell) and the accounting is clean
+> (0 ledger mismatches, 0 impossible values), but the residual is a genuine,
+> load-dependent cache race that this implementation does not fully close.
+
+That is the study's most important open result, and it is now unambiguous: the
+question is *which* residual mechanism survives the fence, not whether the harness or
+the ledger is to blame.
+
+### 6d. The rollup reference's impossible values were a harness artifact; its real defect is a drifting rollup
+
+`ref-rollup-trigger` reported 114 "impossible" values, all from **database** reads —
+which the harness's own rule should classify as `ahead`, not impossible. The cause was
+the weaker version of that rule (one conditional database re-read, which a further
+write landing in between defeats). With the source-based rule restored the cell fails
+for the reason it should:
+
+| Check | Result |
+|---|---|
+| `impossible_cache_values` | **0** |
+| `a_rollup_drift` (the design's own audit) | **3 mismatches** |
+| ledger replay | **FAILED** — donor 1's stored total is 2 173 cents above the ledger |
+
+So the trigger-maintained rollup genuinely drifts under this workload, and the rollup
+requirement is **not** covered by this reference as it stands. `ref-normalized-indexed`
+and `ref-embedded-locked` remain green, and the stale-read negative control and the
+dirty-cache-write audit both still fire (the control's two faults reproduce, and the
+audit still rejects an injected record because a *hit* with an unknown hash stays
+impossible).
 
 `ref-rollup-trigger` remains failing, and its diagnosis narrowed usefully: all 114
 impossible values come from **database** reads, which the harness's own rule
@@ -391,11 +430,11 @@ from speculation to evidenced fact, with a concrete test for the next iteration:
 assert that `Required()` is never ahead of the content the database currently
 holds, and fail the cell if it is, before judging any strict cell at all.
 
-**What survives unchanged:** the strict **aside** cells (memory and Redis, both
-models) recorded zero stale-after-ack reads and zero impossible values, and the
-fence result in section 2 is measured by refused publications (61–85 per cell),
-not by the strict counters. The single-instance relaxed wrong-read rates in
-section 1 are also unaffected: they come from cells that passed every gate.
+**What survives unchanged:** the fence result in section 2 is measured by refused
+publications (61–625 per cell), not by the strict counters, and the single-instance
+relaxed wrong-read rates in section 1 come from cells that passed every gate. What
+does NOT survive is the claim that any strict arm is reliably clean — see section 6c,
+added after this analysis was first committed.
 
 ## 7. What a second analyst should check first
 
