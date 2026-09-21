@@ -302,8 +302,54 @@ both models and both backends. That asymmetry is a real lead for whoever
 continues this study: it points at the post-commit republish path sharing a store
 with concurrent fillers rather than at the fence itself.
 
+### 6a. Diagnosis added after the analysis: at least part of this is the LEDGER, not the design
+
+A follow-up instrumented run (`results/diag-strict/`, run id `diag-strict`, the
+three strict `through` cells, `small` scale, phases `verify,calibrate,warm,mixed,hotspot,instances,faults`)
+recorded the first few stale reads **in full** — source, cause, entry fence,
+current fence, entry publication sequence, adapter publication sequence, versions
+behind, and whether a write overlapped the read. The sampling and its JSON are
+part of the committed harness; the numbers below are from that run, so they are
+**not** the survey's.
+
+What the samples show, and it changes the interpretation:
+
+1. **No stale read overlapped a write.** `overlapped: false` on every sample. The
+   "concurrent/ambiguous" bucket is empty for these cells; the failures are
+   genuine "a read that began after an acknowledgement was served an older value".
+2. **Two different paths produce them, and one of them cannot be a cache fault.**
+   Samples with `source: bypass` show an **authoritative database read** returning
+   a state **1 and 2 versions behind the requirement**. A bypass read executes the
+   portal statements in one repeatable-read transaction and consults no cache at
+   all, so no cache mechanism can produce this: it means the ledger's freshness
+   requirement was **ahead of the database's own state** at that moment. Those
+   samples come from the three-instance arm (11 014 bypass reads), i.e. exactly
+   the arm whose strict policy reads the database.
+3. Samples with `source: hit` and `source: fill` show a value exactly one state
+   behind, and their recorded entry fence, current fence, entry sequence and
+   adapter sequence all read as zero — which is itself the next thing to test, and
+   is recorded here rather than explained away.
+
+**Consequence for this analysis, stated plainly: the strict `through` failures
+cannot yet be attributed to the cache design, because at least one of their
+causes is a defect in the harness's own accounting.** The earlier "weakness 7"
+(an incomplete model of concurrently conflicting writes) is therefore upgraded
+from speculation to evidenced fact, with a concrete test for the next iteration:
+assert that `Required()` is never ahead of the content the database currently
+holds, and fail the cell if it is, before judging any strict cell at all.
+
+**What survives unchanged:** the strict **aside** cells (memory and Redis, both
+models) recorded zero stale-after-ack reads and zero impossible values, and the
+fence result in section 2 is measured by refused publications (61–85 per cell),
+not by the strict counters. The single-instance relaxed wrong-read rates in
+section 1 are also unaffected: they come from cells that passed every gate.
+
 ## 7. What a second analyst should check first
 
+0. **First**: implement the ledger-side assertion from section 6a — `Required()` must
+   never be ahead of the database's current content — and re-run the three strict
+   `through` cells. Until that passes, every strict number in this study is
+   provisional, because the harness's requirement can be wrong.
 1. Reproduce the three-instance 85 % wrong-read rate on a second machine and with
    repeated trials. If it survives, it is the study's most valuable result and it
    contradicts the assumption behind every "shared cache" deployment in the

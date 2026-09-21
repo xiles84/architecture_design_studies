@@ -512,6 +512,19 @@ bridge and no new engine were created** (creating one would have violated the
 "install nothing on the host" rule and risked a second, unrunnable engine).
 Escalation: `05-ER-01`, decided.
 
+#### 3a. Finding after the amendment: the ledger's requirement can be AHEAD of the database
+
+A follow-up instrumented run (`results/diag-strict/`) recorded the first few stale reads of the
+three strict `through` cells in full. Two things are now evidenced rather than suspected: no stale
+read overlapped a write, and some of them came from **authoritative database reads** returning a
+state 1–2 versions behind the requirement. A bypass read consults no cache, so it cannot be a cache
+fault: the ledger's freshness requirement was ahead of the database's own state.
+
+**Binding consequence for the next iteration:** before any strict cell is judged, assert that
+`Required()` is never ahead of the content the database currently holds, and fail the cell if it is.
+The strict `away` results and the single-instance relaxed rates are unaffected (aside cells are
+clean; the relaxed rates come from cells that passed every gate).
+
 #### 4. Decision: the ledger cannot model concurrently conflicting writes of one key
 
 Recorded as a **known limitation, not fixed**: two concurrent mutations of the same key

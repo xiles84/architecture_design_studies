@@ -339,7 +339,19 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 				out.AgeMS = age
 				out.ClaimedVersion = e.Version
 				out.Source = SrcHit
-				return a.finish(ctx, keyID, e.Content, out, reqHash, reqSeq), nil
+				res := a.finish(ctx, keyID, e.Content, out, reqHash, reqSeq)
+				if res.Kind == KindStale {
+					// Diagnose the surviving entry: was it published at the fence that
+					// is current now, or did a fence that should have removed it fail
+					// to? One extra store read, only on a violation.
+					if cf, ferr := store.FenceOf(ctx, key); ferr == nil {
+						res.EntryFence = e.Fence
+						res.CurrentFence = cf
+						res.EntrySeq = e.Seq
+						res.CurrentSeq = a.seqGen.Load()
+					}
+				}
+				return res, nil
 			}
 		} else {
 			out.ExpiredBy = expiredBy

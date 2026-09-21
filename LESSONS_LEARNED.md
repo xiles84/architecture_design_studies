@@ -395,6 +395,22 @@ Study 05's cache snapshot happens once, at the end of a cell, after the fault ph
 whole cell. Both are worth reporting, but a reader who takes the gauge for steady state is misled. Read
 gauges at the moment they mean something, or say in the report which moment that is.
 
+### A bypass read cannot be stale — if one is, the accounting is wrong, not the design
+
+Study 05's strict failures were first read as a cache-design problem. Instrumenting the first few
+stale reads in full showed that some of them came from an **authoritative database read** returning
+a state one and two versions behind the requirement. A bypass read consults no cache and runs in one
+repeatable-read transaction, so no cache mechanism can produce that: the *ledger's* freshness
+requirement was ahead of the database's own state, i.e. the harness was manufacturing violations.
+
+The lesson generalises past caches: **each wrong-read bucket must name a mechanism that could
+physically produce it, and a bucket whose mechanism does not exist in that path is a harness bug.**
+Practically: keep the first few failing observations in full — source, both fences, both sequences,
+versions behind, whether a write overlapped — in the result file. A count tells you a rule failed;
+only the observation tells you which rule, and the source field is what separates "the design is
+wrong" from "the accounting is wrong". Add the assertion that makes the impossible case fail loudly
+(`Required()` must never be ahead of the database) before drawing any conclusion from the counter.
+
 ## Hardware and containers
 
 ### Heterogeneous CPUs make core pinning a trap

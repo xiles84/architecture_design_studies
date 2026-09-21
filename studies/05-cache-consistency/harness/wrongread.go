@@ -53,6 +53,14 @@ type ReadOutcome struct {
 	AgeMS          int64
 	Overlapped     bool
 	ClaimedVersion int64
+	// The next four are diagnostic and are filled only on a stale cache HIT: they say
+	// whether the surviving entry was published at the fence that is current now (a
+	// publication-ordering bug) or outlived a fence that should have removed it (a
+	// deletion or store-identity bug).
+	EntryFence   int64
+	CurrentFence int64
+	EntrySeq     int64
+	CurrentSeq   int64
 	// Cause names the evidenced cause when this read was wrong. The adapter sets
 	// it from the phase it is in and from what failed; the log only groups it.
 	Cause    string
@@ -63,6 +71,10 @@ type ReadOutcome struct {
 	// ExpiredBy is "hard", "probabilistic" or "" for a hit that was refreshed.
 	ExpiredBy string
 }
+
+// staleSampleLimit bounds the diagnostic sample so a badly wrong cell cannot write a
+// huge result file.
+const staleSampleLimit = 12
 
 type readLog struct {
 	mu sync.Mutex
@@ -79,6 +91,7 @@ type readLog struct {
 	maxStreak                                          int64
 	pendingAck                                         map[int64]float64
 	ttfMS                                              []float64
+	staleSamples                                       []ReadOutcome
 	leaseWaitMS                                        []float64
 	// maxStaleSamples bounds the detail retained. Counts are exact regardless;
 	// only the distribution is bounded, and the bound is large enough that no run
@@ -107,6 +120,9 @@ func (l *readLog) NoteAck(keyID int64) {
 }
 
 func (l *readLog) Record(o ReadOutcome) {
+	if o.Kind == KindStale && len(l.staleSamples) < staleSampleLimit {
+		l.staleSamples = append(l.staleSamples, o)
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.total++
@@ -187,7 +203,11 @@ type WrongReadSummary struct {
 	ExpiredProbabilistic int64            `json:"expired_probabilistic"`
 	BySource             map[string]int64 `json:"reads_by_source"`
 	ByCause              map[string]int64 `json:"wrong_reads_by_cause"`
-	LeaseWait            msStat           `json:"lease_wait_ms"`
+	// StaleSamples keeps the first few stale reads in full, with the surviving
+	// entry's fence and sequence beside the current ones. The count says a rule
+	// failed; only these say which rule.
+	StaleSamples []ReadOutcome `json:"stale_read_samples,omitempty"`
+	LeaseWait    msStat        `json:"lease_wait_ms"`
 }
 
 func (l *readLog) Summary() WrongReadSummary {
@@ -208,6 +228,7 @@ func (l *readLog) Summary() WrongReadSummary {
 		ExpiredProbabilistic: l.expiredProb,
 		BySource:             copyCounts(l.bySource),
 		ByCause:              copyCounts(l.byCause),
+		StaleSamples:         append([]ReadOutcome(nil), l.staleSamples...),
 		StaleDuration:        statFromSamples(l.staleMS),
 		TimeToFreshness:      statFromSamples(l.ttfMS),
 		LeaseWait:            statFromSamples(l.leaseWaitMS),
