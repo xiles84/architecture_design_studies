@@ -307,9 +307,10 @@ func (c *cell) blendedOp(readPercent int) measure.Op {
 // reads PER PHASE: a design that is stale only while writes are in flight is a
 // different finding from one that is stale during warm reads, and a cumulative
 // number would hide which.
-func (c *cell) resetWrong() {
+func (c *cell) resetWrong(phase string) {
 	if c.ad != nil {
 		c.ad.log = newReadLog()
+		c.ad.phaseName = phase
 	}
 }
 

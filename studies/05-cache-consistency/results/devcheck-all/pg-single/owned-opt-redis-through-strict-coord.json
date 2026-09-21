@@ -1,0 +1,915 @@
+{
+  "study": "05-cache-consistency",
+  "scenario": "owned-opt-redis-through-strict-coord",
+  "scenario_short": "o:opt:red:wth:str",
+  "group": "owned",
+  "title": "owned, redis, through, strict",
+  "summary": "A shared Redis with a recorded maxmemory and allkeys-lru policy (approximate LRU, and the report says so). Write-through: the new value is never published before the database commit; the writer tombstones, commits, then republishes only the committed representation. A read that begins after a write to that key was acknowledged must not return an older value; a violation fails the cell. The owned model supplies a monotonic cache_version to fence and validate against.",
+  "risk": "MUST record zero stale-after-ack reads and zero impossible cache values; a single wrong read invalidates the cell for performance conclusions",
+  "dim_model": "owned",
+  "dim_version": "opt",
+  "dim_backend": "redis",
+  "dim_strategy": "through",
+  "dim_freshness": "strict",
+  "dim_writers": "coord",
+  "strict_freshness_policy": "invalidation-only",
+  "topology": "pg-single",
+  "engine": "postgres",
+  "run_id": "devcheck-all",
+  "environment": "host-zenbook-ux5406sa",
+  "repo_commit": "c41ae2559afe579d49191502b485815d96e822cb",
+  "repo_describe": "study-05/v1-harness-6-gc41ae25",
+  "repo_dirty": false,
+  "bench_image": "localhost/cachebench:1",
+  "bench_image_id": "164d447843a0f43c032",
+  "started_at": "2026-09-21T14:21:36Z",
+  "finished_at": "2026-09-21T14:21:44Z",
+  "options": {
+    "scale": "tiny",
+    "seed": 42,
+    "fault_seed": 4242,
+    "workers": 8,
+    "writer_workers": 2,
+    "duration_per_measurement": 400000000,
+    "warmup": 100000000,
+    "trials": 1,
+    "bounded_retries": 8,
+    "phases": "verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,faults,audit",
+    "logical_instances": 1,
+    "churn_duration": 0,
+    "stampede_readers": 16,
+    "stampede_keys": 8,
+    "hot_keys": 4,
+    "cache_capacity_kib": 48,
+    "cache_capacity_fits_working_set": false,
+    "redis_addr": "ads-redis:6379",
+    "redis_maxmemory_mb": 32,
+    "resource_framing": "db-only",
+    "external_write_fraction_pct": 0
+  },
+  "engine_info": {
+    "version": "postgres",
+    "server_version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+    "effective_isolation": "read committed"
+  },
+  "dataset": {
+    "seed": 42,
+    "charities": 4,
+    "people": 40,
+    "donations": 331,
+    "serialized_bytes": 4124,
+    "logical_working_set_bytes": 100000,
+    "mean_payload_bytes": 2500
+  },
+  "load": {
+    "charities": 4,
+    "people": 40,
+    "staged_donations": 331,
+    "loaded_donations": 331,
+    "schema_ms": 11,
+    "bulk_copy_ms": 6,
+    "load_statement_ms": 3,
+    "post_load_ms": 9,
+    "has_triggers": false
+  },
+  "gate": {
+    "passed": true,
+    "checks": 14,
+    "statements": [
+      "r_portal_person",
+      "r_portal_recent",
+      "r_charity_recent",
+      "a_outbox_orphans"
+    ]
+  },
+  "cache": {
+    "backend": "redis",
+    "capacity_bytes": 49152,
+    "resident_bytes": 0,
+    "items": 0,
+    "evictions": 0,
+    "evicted_keys_reported_by_backend": 0,
+    "fills": 556,
+    "fill_errors": 0,
+    "publishes": 506,
+    "publishes_refused_by_fence": 50,
+    "publish_failures": 2,
+    "invalidations": 0,
+    "tombstones_installed_pre_commit": 735,
+    "authoritative_version_validations": 0,
+    "cache_bypass_reads": 20,
+    "lease_fallback_reads": 5,
+    "external_writes_bypassing_adapter": 0,
+    "ambiguous_writes_invalidated": 1,
+    "suppressed_invalidations": 0,
+    "unrecorded_committed_states_confirmed": 0,
+    "backend_stats": {
+      "corrupt_values": 0,
+      "deletes": 1,
+      "errors": 0,
+      "flushes": 6,
+      "hits": 29228,
+      "lease_acquired": 261,
+      "lease_contended": 75,
+      "lease_expired_stolen": 0,
+      "misses": 467,
+      "put_fenced": 50,
+      "puts": 557
+    },
+    "logical_payload_bytes": 0,
+    "metadata_bytes": 0
+  },
+  "redis_info": {
+    "evicted_keys": "0",
+    "expired_keys": "10",
+    "instantaneous_ops_per_sec": "6639",
+    "keyspace_hits": "310641",
+    "keyspace_misses": "14282",
+    "maxmemory": "33554432",
+    "maxmemory_policy": "allkeys-lru",
+    "mem_fragmentation_ratio": "6.23",
+    "redis_version": "7.4.11",
+    "total_commands_processed": "363042",
+    "total_net_input_bytes": "25217416",
+    "total_net_output_bytes": "476614507",
+    "used_cpu_sys": "10.234988",
+    "used_cpu_user": "4.858146",
+    "used_memory": "1582560",
+    "used_memory_peak": "2488064"
+  },
+  "storage_bytes": {
+    "cache_outbox": 24576,
+    "charity": 32768,
+    "donation": 180224,
+    "load_donation": 65536,
+    "person": 49152
+  },
+  "warm_reads": [
+    {
+      "name": "warm_read_only",
+      "ops": 9097,
+      "errors": 0,
+      "duration_s": 0.415892053,
+      "ops_per_sec": 21873.46436263835,
+      "latency": {
+        "count": 9097,
+        "min_ms": 0.024229,
+        "mean_ms": 0.36485706584588323,
+        "p50_ms": 0.224072,
+        "p90_ms": 0.457125,
+        "p95_ms": 0.628512,
+        "p99_ms": 1.533025,
+        "max_ms": 177.846829
+      },
+      "trials_ops_per_sec": [
+        21873.46436263835
+      ]
+    }
+  ],
+  "cacheable_endpoint": [
+    {
+      "name": "cacheable_99_reads",
+      "ops": 4667,
+      "errors": 0,
+      "duration_s": 0.400675424,
+      "ops_per_sec": 11647.83193690462,
+      "latency": {
+        "count": 4667,
+        "min_ms": 0.040904,
+        "mean_ms": 0.6854239597171631,
+        "p50_ms": 0.394183,
+        "p90_ms": 0.796146,
+        "p95_ms": 1.068501,
+        "p99_ms": 2.413301,
+        "max_ms": 41.809952
+      },
+      "trials_ops_per_sec": [
+        11647.83193690462
+      ]
+    },
+    {
+      "name": "cacheable_90_reads",
+      "ops": 3442,
+      "errors": 0,
+      "duration_s": 0.400792841,
+      "ops_per_sec": 8587.97774783607,
+      "latency": {
+        "count": 3442,
+        "min_ms": 0.048285,
+        "mean_ms": 0.9297282315514236,
+        "p50_ms": 0.480493,
+        "p90_ms": 1.09741,
+        "p95_ms": 1.483803,
+        "p99_ms": 4.721215,
+        "max_ms": 43.213006
+      },
+      "trials_ops_per_sec": [
+        8587.97774783607
+      ]
+    },
+    {
+      "name": "hotspot_reads",
+      "ops": 3911,
+      "errors": 0,
+      "duration_s": 0.400613685,
+      "ops_per_sec": 9762.522216384095,
+      "latency": {
+        "count": 3911,
+        "min_ms": 0.045229,
+        "mean_ms": 0.8168099084633086,
+        "p50_ms": 0.486307,
+        "p90_ms": 1.088021,
+        "p95_ms": 1.540275,
+        "p99_ms": 4.152055,
+        "max_ms": 41.505457
+      },
+      "trials_ops_per_sec": [
+        9762.522216384095
+      ]
+    }
+  ],
+  "total_application": [
+    {
+      "name": "app_99_reads",
+      "ops": 2066,
+      "errors": 0,
+      "duration_s": 0.589195595,
+      "ops_per_sec": 3506.475638196175,
+      "latency": {
+        "count": 2066,
+        "min_ms": 0.048316,
+        "mean_ms": 1.8565766911907067,
+        "p50_ms": 0.299092,
+        "p90_ms": 0.708924,
+        "p95_ms": 1.282992,
+        "p99_ms": 13.923831,
+        "max_ms": 219.568506
+      },
+      "trials_ops_per_sec": [
+        3506.475638196175
+      ]
+    },
+    {
+      "name": "app_90_reads",
+      "ops": 1398,
+      "errors": 0,
+      "duration_s": 0.592545842,
+      "ops_per_sec": 2359.3111298889175,
+      "latency": {
+        "count": 1398,
+        "min_ms": 0.033933,
+        "mean_ms": 2.7239478226037197,
+        "p50_ms": 0.177024,
+        "p90_ms": 2.804346,
+        "p95_ms": 4.112652,
+        "p99_ms": 111.07956,
+        "max_ms": 214.279838
+      },
+      "trials_ops_per_sec": [
+        2359.3111298889175
+      ]
+    }
+  ],
+  "writes": [
+    {
+      "name": "hotspot_writes",
+      "ops": 130,
+      "errors": 0,
+      "duration_s": 0.418800837,
+      "ops_per_sec": 310.41007685474136,
+      "latency": {
+        "count": 130,
+        "min_ms": 3.507295,
+        "mean_ms": 6.4336785615384615,
+        "p50_ms": 5.506506,
+        "p90_ms": 8.383878,
+        "p95_ms": 11.108217,
+        "p99_ms": 21.605098,
+        "max_ms": 22.794445
+      },
+      "trials_ops_per_sec": [
+        310.41007685474136
+      ]
+    }
+  ],
+  "wrong_reads": [
+    {
+      "phase": "cold_fill",
+      "summary": {
+        "total_reads": 40,
+        "fresh_reads": 40,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 17,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 0,
+        "reads_by_source": {
+          "fill": 23,
+          "hit": 17
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 5,
+          "p50_ms": 148,
+          "p99_ms": 186,
+          "max_ms": 205
+        }
+      }
+    },
+    {
+      "phase": "warm_read_only",
+      "summary": {
+        "total_reads": 10225,
+        "fresh_reads": 10225,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 10185,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 14,
+        "reads_by_source": {
+          "fill": 40,
+          "hit": 10185
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 12,
+          "p50_ms": 118,
+          "p99_ms": 205,
+          "max_ms": 209
+        }
+      }
+    },
+    {
+      "phase": "app_99_reads",
+      "summary": {
+        "total_reads": 2171,
+        "fresh_reads": 2145,
+        "wrong_stale_reads": 3,
+        "ahead_reads": 23,
+        "cache_hits": 2141,
+        "wrong_pct_of_all_reads": 0.1381851681252879,
+        "wrong_pct_of_cache_hits": 0.14012143858010276,
+        "unique_keys_affected": 2,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 3,
+          "p50_ms": 953,
+          "p99_ms": 953,
+          "max_ms": 974
+        },
+        "consecutive_wrong_read_streak_max": 1,
+        "time_to_freshness_after_ack_ms": {
+          "count": 24,
+          "p50_ms": 1,
+          "p99_ms": 25,
+          "max_ms": 119
+        },
+        "concurrent_ambiguous_reads": 30,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 7,
+        "reads_by_source": {
+          "fallback": 1,
+          "fill": 29,
+          "hit": 2141
+        },
+        "wrong_reads_by_cause": {
+          "other evidenced cause": 3
+        },
+        "lease_wait_ms": {
+          "count": 24,
+          "p50_ms": 161,
+          "p99_ms": 216,
+          "max_ms": 218
+        }
+      }
+    },
+    {
+      "phase": "cacheable_99_reads",
+      "summary": {
+        "total_reads": 7938,
+        "fresh_reads": 7912,
+        "wrong_stale_reads": 3,
+        "ahead_reads": 23,
+        "cache_hits": 7908,
+        "wrong_pct_of_all_reads": 0.03779289493575208,
+        "wrong_pct_of_cache_hits": 0.03793626707132018,
+        "unique_keys_affected": 2,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 3,
+          "p50_ms": 953,
+          "p99_ms": 953,
+          "max_ms": 974
+        },
+        "consecutive_wrong_read_streak_max": 1,
+        "time_to_freshness_after_ack_ms": {
+          "count": 25,
+          "p50_ms": 1,
+          "p99_ms": 119,
+          "max_ms": 248
+        },
+        "concurrent_ambiguous_reads": 30,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 23,
+        "reads_by_source": {
+          "fallback": 1,
+          "fill": 29,
+          "hit": 7908
+        },
+        "wrong_reads_by_cause": {
+          "other evidenced cause": 3
+        },
+        "lease_wait_ms": {
+          "count": 24,
+          "p50_ms": 161,
+          "p99_ms": 216,
+          "max_ms": 218
+        }
+      }
+    },
+    {
+      "phase": "app_90_reads",
+      "summary": {
+        "total_reads": 9151,
+        "fresh_reads": 9085,
+        "wrong_stale_reads": 6,
+        "ahead_reads": 60,
+        "cache_hits": 9015,
+        "wrong_pct_of_all_reads": 0.06556660474265108,
+        "wrong_pct_of_cache_hits": 0.06655574043261231,
+        "unique_keys_affected": 2,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 6,
+          "p50_ms": 131,
+          "p99_ms": 953,
+          "max_ms": 974
+        },
+        "consecutive_wrong_read_streak_max": 1,
+        "time_to_freshness_after_ack_ms": {
+          "count": 176,
+          "p50_ms": 1,
+          "p99_ms": 145,
+          "max_ms": 321
+        },
+        "concurrent_ambiguous_reads": 94,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 24,
+        "reads_by_source": {
+          "fallback": 5,
+          "fill": 131,
+          "hit": 9015
+        },
+        "wrong_reads_by_cause": {
+          "other evidenced cause": 6
+        },
+        "lease_wait_ms": {
+          "count": 47,
+          "p50_ms": 166,
+          "p99_ms": 216,
+          "max_ms": 218
+        }
+      }
+    },
+    {
+      "phase": "cacheable_90_reads",
+      "summary": {
+        "total_reads": 13936,
+        "fresh_reads": 13870,
+        "wrong_stale_reads": 6,
+        "ahead_reads": 60,
+        "cache_hits": 13800,
+        "wrong_pct_of_all_reads": 0.04305396096440873,
+        "wrong_pct_of_cache_hits": 0.043478260869565216,
+        "unique_keys_affected": 2,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 6,
+          "p50_ms": 131,
+          "p99_ms": 953,
+          "max_ms": 974
+        },
+        "consecutive_wrong_read_streak_max": 1,
+        "time_to_freshness_after_ack_ms": {
+          "count": 185,
+          "p50_ms": 1,
+          "p99_ms": 297,
+          "max_ms": 387
+        },
+        "concurrent_ambiguous_reads": 94,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 33,
+        "reads_by_source": {
+          "fallback": 5,
+          "fill": 131,
+          "hit": 13800
+        },
+        "wrong_reads_by_cause": {
+          "other evidenced cause": 6
+        },
+        "lease_wait_ms": {
+          "count": 47,
+          "p50_ms": 166,
+          "p99_ms": 216,
+          "max_ms": 218
+        }
+      }
+    },
+    {
+      "phase": "hotspot_reads",
+      "summary": {
+        "total_reads": 5037,
+        "fresh_reads": 5037,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 5037,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 16,
+        "reads_by_source": {
+          "hit": 5037
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        }
+      }
+    },
+    {
+      "phase": "hotspot_writes",
+      "summary": {
+        "total_reads": 5037,
+        "fresh_reads": 5037,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 5037,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 16,
+        "reads_by_source": {
+          "hit": 5037
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        }
+      }
+    },
+    {
+      "phase": "stampede",
+      "summary": {
+        "total_reads": 128,
+        "fresh_reads": 128,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 120,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 0,
+        "reads_by_source": {
+          "fill": 8,
+          "hit": 120
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 15,
+          "p50_ms": 180,
+          "p99_ms": 210,
+          "max_ms": 223
+        }
+      }
+    },
+    {
+      "phase": "instances_1",
+      "summary": {
+        "total_reads": 7270,
+        "fresh_reads": 7232,
+        "wrong_stale_reads": 9,
+        "ahead_reads": 29,
+        "cache_hits": 7158,
+        "wrong_pct_of_all_reads": 0.12379642365887207,
+        "wrong_pct_of_cache_hits": 0.12573344509639564,
+        "unique_keys_affected": 3,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 9,
+          "p50_ms": 9,
+          "p99_ms": 26,
+          "max_ms": 49
+        },
+        "consecutive_wrong_read_streak_max": 1,
+        "time_to_freshness_after_ack_ms": {
+          "count": 111,
+          "p50_ms": 2,
+          "p99_ms": 299,
+          "max_ms": 557
+        },
+        "concurrent_ambiguous_reads": 47,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 7,
+        "reads_by_source": {
+          "fallback": 5,
+          "fill": 107,
+          "hit": 7158
+        },
+        "wrong_reads_by_cause": {
+          "other evidenced cause": 9
+        },
+        "lease_wait_ms": {
+          "count": 22,
+          "p50_ms": 170,
+          "p99_ms": 215,
+          "max_ms": 222
+        }
+      }
+    },
+    {
+      "phase": "instances_3",
+      "summary": {
+        "total_reads": 9147,
+        "fresh_reads": 9118,
+        "wrong_stale_reads": 1,
+        "ahead_reads": 28,
+        "cache_hits": 9087,
+        "wrong_pct_of_all_reads": 0.010932546190007653,
+        "wrong_pct_of_cache_hits": 0.011004732034774953,
+        "unique_keys_affected": 1,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 1,
+          "p50_ms": 14,
+          "p99_ms": 14,
+          "max_ms": 14
+        },
+        "consecutive_wrong_read_streak_max": 1,
+        "time_to_freshness_after_ack_ms": {
+          "count": 83,
+          "p50_ms": 2,
+          "p99_ms": 428,
+          "max_ms": 586
+        },
+        "concurrent_ambiguous_reads": 41,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 15,
+        "reads_by_source": {
+          "fallback": 1,
+          "fill": 59,
+          "hit": 9087
+        },
+        "wrong_reads_by_cause": {
+          "other evidenced cause": 1
+        },
+        "lease_wait_ms": {
+          "count": 21,
+          "p50_ms": 119,
+          "p99_ms": 213,
+          "max_ms": 224
+        }
+      }
+    }
+  ],
+  "stampede": {
+    "readers": 16,
+    "keys": 8,
+    "elapsed_ms": 227,
+    "database_loads": 8,
+    "database_loads_per_key": 1,
+    "lease_acquisitions": 254,
+    "lease_contended": 74,
+    "fallbacks": 0,
+    "duplicate_fills": 0,
+    "wrong_reads": 0,
+    "impossible_values": 0,
+    "note": "16 readers released together on 8 keys after a full flush; database loads per key is the stampede metric"
+  },
+  "instances": [
+    {
+      "logical_instances": 1,
+      "total_workers": 8,
+      "backend": "redis",
+      "total_application_ops_per_sec": 1703.4516191036755,
+      "total_application_trials_ops_per_sec": [
+        1703.4516191036755
+      ],
+      "total_application_spread_pct": 0,
+      "cacheable_endpoint_ops_per_sec": 10640.30054145185,
+      "wrong_reads": 9,
+      "impossible_values": 0,
+      "cache_bypass_reads": 0,
+      "local_lru_items_final": 0,
+      "note": "shared store: invalidation is visible to every instance"
+    },
+    {
+      "logical_instances": 3,
+      "total_workers": 8,
+      "backend": "redis",
+      "total_application_ops_per_sec": 1213.212709399441,
+      "total_application_trials_ops_per_sec": [
+        1213.212709399441
+      ],
+      "total_application_spread_pct": 0,
+      "cacheable_endpoint_ops_per_sec": 15241.990817083892,
+      "wrong_reads": 1,
+      "impossible_values": 0,
+      "cache_bypass_reads": 0,
+      "local_lru_items_final": 0,
+      "note": "shared store: invalidation is visible to every instance"
+    }
+  ],
+  "faults": [
+    {
+      "name": "db-rollback-after-pre-write-tombstone",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "tombstone removed the pre-existing entry; the rolled-back mutation left no cache value (fill -\u003e fill); the next read returned fresh",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "cache-update-failure-after-commit",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "strict: the tombstone installed before the commit survived the failed publish; the read refilled and returned fresh",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "lease-holder-death",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "an abandoned lease blocked a second holder and was stealable after 100ms; no manual intervention required",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "cache-unavailable",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "20 reads during the outage all returned a committed state (20 bypassed the cache, 0 wrong, 0 impossible)",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "cache-aside-fill-races-writer",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "a fill and a write on donor 4 released together; 0 wrong and 0 impossible reads",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "dirty-cache-write-audit-rejects-impossible-version",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "the injected record corresponded to no committed state: the detector classified it impossible directly and the read through the cache returned impossible (source hit)",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    }
+  ],
+  "audits": [
+    {
+      "passed": true,
+      "checks": 26,
+      "portal_content_mismatches": 0,
+      "donation_set_mismatches": 0,
+      "aggregate_mismatches": 0,
+      "recent_slice_mismatches": 0,
+      "design_checks": {
+        "a_outbox_orphans": 0,
+        "a_rolldown_drift": 0
+      }
+    }
+  ],
+  "strict_contract_violations": 6,
+  "impossible_cache_values": 0,
+  "lease": {
+    "acquisitions": 259,
+    "contended": 74,
+    "waits": 0,
+    "wait_p50_ms": 0,
+    "wait_p99_ms": 0,
+    "wait_max_ms": 0,
+    "timeouts": 74,
+    "lost": 0,
+    "duplicate_fills": 0,
+    "fallback_reads": 5,
+    "fills_per_key_per_burst": 0,
+    "lease_duration": "100ms",
+    "calibration": "4 x measured p99 fill latency, raised to the 100 ms floor (p99 fill = 997µs)"
+  },
+  "expiry_by_age_bucket": {
+    "0-75s": {
+      "hits": 45266,
+      "probabilistic_expiries": 85
+    },
+    "\u003c0s": {
+      "hits": 1,
+      "probabilistic_expiries": 0
+    }
+  },
+  "error": "STRICT CONTRACT VIOLATED: 6 stale-after-ack read(s); the cell cannot support a performance conclusion"
+}

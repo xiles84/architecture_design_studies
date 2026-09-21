@@ -138,6 +138,15 @@ end
 redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[4])
 return 1`
 
+	// luaFence advances the fence and removes the value in ONE round trip. Two
+	// separate commands (INCR then DEL) leave a window in which a reader can still
+	// find and serve the value the writer is invalidating -- which showed up as the
+	// only remaining stale-after-ack reads in a strict cell, 1 to 6 of them, and only
+	// with this backend: the in-process store does both under one mutex.
+	luaFence = `redis.call('INCR', KEYS[2])
+redis.call('DEL', KEYS[1])
+return tonumber(redis.call('GET', KEYS[2])) or 0`
+
 	luaRelease = `if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
 else
@@ -364,14 +373,11 @@ func fenceKey(key string) string { return key + ":fence" }
 func (r *redisStore) Fence(_ context.Context, key string) (int64, error) {
 	var out int64
 	err := r.withConn(func(rc *respConn) error {
-		reply, err := rc.do("INCR", fenceKey(key))
+		reply, err := rc.do("EVAL", luaFence, "2", key, fenceKey(key))
 		if err != nil {
 			return err
 		}
 		out, _ = reply.(int64)
-		if _, err := rc.do("DEL", key); err != nil {
-			return err
-		}
 		return nil
 	})
 	return out, err

@@ -113,6 +113,10 @@ type adapter struct {
 
 	seqGen atomic.Int64
 
+	// phaseName is the phase currently running, used only to attribute a residual
+	// stale read to what produced it.
+	phaseName string
+
 	// counters the report needs
 	fills           atomic.Int64
 	fillErrors      atomic.Int64
@@ -462,6 +466,9 @@ func (a *adapter) finish(ctx context.Context, keyID int64, content PortalContent
 	if kind == KindStale && at > 0 {
 		out.StaleMS = float64(nowMS() - at)
 	}
+	if kind == KindStale {
+		out.Cause = a.staleCause(out)
+	}
 	if kind == KindStale && a.d.Freshness == FreshStrict {
 		a.strictWrong.Add(1)
 	}
@@ -470,6 +477,27 @@ func (a *adapter) finish(ctx context.Context, keyID int64, content PortalContent
 	}
 	a.log.Record(out)
 	return out
+}
+
+// staleCause names the phase and the path a stale read came from, so a residual
+// violation can be attributed instead of guessed at.
+func (a *adapter) staleCause(out ReadOutcome) string {
+	phase := a.phaseName
+	if phase == "" {
+		phase = "unattributed"
+	}
+	where := map[string]string{
+		SrcHit:       "cache hit served a superseded entry",
+		SrcValidated: "cache hit served an entry that passed validation",
+		SrcFill:      "the refilling reader published before the write committed",
+		SrcFallback:  "lease fallback read a superseded snapshot",
+		SrcBypass:    "authoritative read returned a superseded snapshot",
+		SrcDatabase:  "database read returned a superseded snapshot",
+	}[out.Source]
+	if where == "" {
+		where = "unknown path " + out.Source
+	}
+	return phase + ": " + where
 }
 
 func (a *adapter) noteFillLatency(d time.Duration) {

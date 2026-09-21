@@ -341,31 +341,31 @@ func (c *cell) runPhase(ctx context.Context, phase, explainPath string, sample i
 		return nil
 
 	case "warm":
-		c.resetWrong()
+		c.resetWrong("warm")
 		return c.runWarm(ctx)
 
 	case "mixed":
-		c.resetWrong()
+		c.resetWrong("mixed")
 		return c.runMixed(ctx)
 
 	case "hotspot":
-		c.resetWrong()
+		c.resetWrong("hotspot")
 		return c.runHotspot(ctx)
 
 	case "stampede":
-		c.resetWrong()
+		c.resetWrong("stampede")
 		return c.runStampede(ctx)
 
 	case "instances":
-		c.resetWrong()
+		c.resetWrong("instances")
 		return c.runInstances(ctx)
 
 	case "churn":
-		c.resetWrong()
+		c.resetWrong("churn")
 		return c.runChurn(ctx)
 
 	case "faults":
-		c.resetWrong()
+		c.resetWrong("faults")
 		return c.runFaults(ctx)
 
 	case "audit":

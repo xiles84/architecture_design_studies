@@ -3,24 +3,24 @@ people=40 scale=tiny
 A cache hit executes no SQL. These are the statements a miss, a fill and a strict validation run.
 
 === r_portal_person  (params: person_id)
-Nested Loop  (cost=0.15..10.85 rows=1 width=192) (actual time=0.057..0.060 rows=1 loops=1)
+Nested Loop  (cost=0.15..10.85 rows=1 width=192) (actual time=0.066..0.069 rows=1 loops=1)
   Output: p.person_id, p.full_name, p.email, p.joined_at, p.charity_id, c.name, c.country, (SubPlan 1), (SubPlan 2)
   Inner Unique: true
   Buffers: shared hit=9
-  ->  Seq Scan on public.person p  (cost=0.00..1.50 rows=1 width=88) (actual time=0.017..0.019 rows=1 loops=1)
+  ->  Seq Scan on public.person p  (cost=0.00..1.50 rows=1 width=88) (actual time=0.018..0.020 rows=1 loops=1)
         Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.cache_version
         Filter: (p.person_id = '1'::bigint)
         Rows Removed by Filter: 39
         Buffers: shared hit=1
-  ->  Index Scan using charity_pkey on public.charity c  (cost=0.15..2.37 rows=1 width=72) (actual time=0.013..0.013 rows=1 loops=1)
+  ->  Index Scan using charity_pkey on public.charity c  (cost=0.15..2.37 rows=1 width=72) (actual time=0.015..0.015 rows=1 loops=1)
         Output: c.charity_id, c.name, c.country, c.founded_on
         Index Cond: (c.charity_id = p.charity_id)
         Buffers: shared hit=2
   SubPlan 1
-    ->  Aggregate  (cost=3.48..3.49 rows=1 width=8) (actual time=0.015..0.016 rows=1 loops=1)
+    ->  Aggregate  (cost=3.48..3.49 rows=1 width=8) (actual time=0.017..0.017 rows=1 loops=1)
           Output: count(*)
           Buffers: shared hit=3
-          ->  Bitmap Heap Scan on public.donation d  (cost=1.39..3.47 rows=2 width=0) (actual time=0.011..0.012 rows=8 loops=1)
+          ->  Bitmap Heap Scan on public.donation d  (cost=1.39..3.47 rows=2 width=0) (actual time=0.012..0.013 rows=8 loops=1)
                 Recheck Cond: (d.person_id = p.person_id)
                 Heap Blocks: exact=1
                 Buffers: shared hit=3
@@ -28,7 +28,7 @@ Nested Loop  (cost=0.15..10.85 rows=1 width=192) (actual time=0.057..0.060 rows=
                       Index Cond: (d.person_id = p.person_id)
                       Buffers: shared hit=2
   SubPlan 2
-    ->  Aggregate  (cost=3.48..3.49 rows=1 width=32) (actual time=0.006..0.006 rows=1 loops=1)
+    ->  Aggregate  (cost=3.48..3.49 rows=1 width=32) (actual time=0.010..0.010 rows=1 loops=1)
           Output: COALESCE(sum(d_1.amount_cents), '0'::numeric)
           Buffers: shared hit=3
           ->  Bitmap Heap Scan on public.donation d_1  (cost=1.39..3.47 rows=2 width=8) (actual time=0.002..0.003 rows=8 loops=1)
@@ -39,65 +39,65 @@ Nested Loop  (cost=0.15..10.85 rows=1 width=192) (actual time=0.057..0.060 rows=
                 ->  Bitmap Index Scan on donation_person_time_idx  (cost=0.00..1.39 rows=2 width=0) (actual time=0.001..0.001 rows=8 loops=1)
                       Index Cond: (d_1.person_id = p.person_id)
                       Buffers: shared hit=2
-Planning Time: 0.186 ms
-Execution Time: 0.134 ms
+Planning Time: 0.203 ms
+Execution Time: 0.245 ms
 
 === r_portal_recent  (params: person_id)
-Limit  (cost=3.48..3.49 rows=2 width=72) (actual time=0.018..0.020 rows=8 loops=1)
+Limit  (cost=3.48..3.49 rows=2 width=72) (actual time=0.031..0.032 rows=8 loops=1)
   Output: donation_id, amount_cents, currency, donated_at, note
   Buffers: shared hit=3
-  ->  Sort  (cost=3.48..3.49 rows=2 width=72) (actual time=0.018..0.018 rows=8 loops=1)
+  ->  Sort  (cost=3.48..3.49 rows=2 width=72) (actual time=0.030..0.030 rows=8 loops=1)
         Output: donation_id, amount_cents, currency, donated_at, note
         Sort Key: donation.donated_at DESC, donation.donation_id DESC
         Sort Method: quicksort  Memory: 26kB
         Buffers: shared hit=3
-        ->  Bitmap Heap Scan on public.donation  (cost=1.39..3.47 rows=2 width=72) (actual time=0.009..0.010 rows=8 loops=1)
+        ->  Bitmap Heap Scan on public.donation  (cost=1.39..3.47 rows=2 width=72) (actual time=0.019..0.020 rows=8 loops=1)
               Output: donation_id, amount_cents, currency, donated_at, note
               Recheck Cond: (donation.person_id = '1'::bigint)
               Heap Blocks: exact=1
               Buffers: shared hit=3
-              ->  Bitmap Index Scan on donation_person_time_idx  (cost=0.00..1.39 rows=2 width=0) (actual time=0.005..0.005 rows=8 loops=1)
+              ->  Bitmap Index Scan on donation_person_time_idx  (cost=0.00..1.39 rows=2 width=0) (actual time=0.012..0.012 rows=8 loops=1)
                     Index Cond: (donation.person_id = '1'::bigint)
                     Buffers: shared hit=2
-Planning Time: 0.084 ms
-Execution Time: 0.031 ms
+Planning Time: 0.093 ms
+Execution Time: 0.050 ms
 
 === r_charity_recent  (params: charity_id)
-Limit  (cost=4.94..4.95 rows=2 width=56) (actual time=0.090..0.096 rows=50 loops=1)
+Limit  (cost=4.94..4.95 rows=2 width=56) (actual time=0.111..0.118 rows=50 loops=1)
   Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
   Buffers: shared hit=6
-  ->  Sort  (cost=4.94..4.95 rows=2 width=56) (actual time=0.089..0.092 rows=50 loops=1)
+  ->  Sort  (cost=4.94..4.95 rows=2 width=56) (actual time=0.111..0.114 rows=50 loops=1)
         Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
         Sort Key: d.donated_at DESC, d.donation_id DESC
         Sort Method: quicksort  Memory: 30kB
         Buffers: shared hit=6
-        ->  Hash Join  (cost=3.37..4.93 rows=2 width=56) (actual time=0.050..0.063 rows=80 loops=1)
+        ->  Hash Join  (cost=3.37..4.93 rows=2 width=56) (actual time=0.078..0.090 rows=80 loops=1)
               Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
               Hash Cond: (p.person_id = d.person_id)
               Buffers: shared hit=6
-              ->  Seq Scan on public.person p  (cost=0.00..1.40 rows=40 width=40) (actual time=0.005..0.007 rows=40 loops=1)
+              ->  Seq Scan on public.person p  (cost=0.00..1.40 rows=40 width=40) (actual time=0.020..0.022 rows=40 loops=1)
                     Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.cache_version
                     Buffers: shared hit=1
-              ->  Hash  (cost=3.35..3.35 rows=2 width=32) (actual time=0.034..0.035 rows=80 loops=1)
+              ->  Hash  (cost=3.35..3.35 rows=2 width=32) (actual time=0.053..0.053 rows=80 loops=1)
                     Output: d.donation_id, d.amount_cents, d.donated_at, d.person_id
                     Buckets: 1024  Batches: 1  Memory Usage: 13kB
                     Buffers: shared hit=5
-                    ->  Bitmap Heap Scan on public.donation d  (cost=1.26..3.35 rows=2 width=32) (actual time=0.012..0.024 rows=80 loops=1)
+                    ->  Bitmap Heap Scan on public.donation d  (cost=1.26..3.35 rows=2 width=32) (actual time=0.026..0.039 rows=80 loops=1)
                           Output: d.donation_id, d.amount_cents, d.donated_at, d.person_id
                           Recheck Cond: (d.charity_id = '1'::bigint)
                           Heap Blocks: exact=4
                           Buffers: shared hit=5
-                          ->  Bitmap Index Scan on donation_charity_time_idx  (cost=0.00..1.26 rows=2 width=0) (actual time=0.007..0.007 rows=80 loops=1)
+                          ->  Bitmap Index Scan on donation_charity_time_idx  (cost=0.00..1.26 rows=2 width=0) (actual time=0.020..0.020 rows=80 loops=1)
                                 Index Cond: (d.charity_id = '1'::bigint)
                                 Buffers: shared hit=1
-Planning Time: 0.132 ms
-Execution Time: 0.112 ms
+Planning Time: 0.133 ms
+Execution Time: 0.137 ms
 
 === r_person_version  (params: person_id)
-Seq Scan on public.person  (cost=0.00..1.50 rows=1 width=8) (actual time=0.006..0.009 rows=1 loops=1)
+Seq Scan on public.person  (cost=0.00..1.50 rows=1 width=8) (actual time=0.009..0.011 rows=1 loops=1)
   Output: cache_version
   Filter: (person.person_id = '1'::bigint)
   Rows Removed by Filter: 39
   Buffers: shared hit=1
-Planning Time: 0.033 ms
-Execution Time: 0.016 ms
+Planning Time: 0.044 ms
+Execution Time: 0.021 ms
