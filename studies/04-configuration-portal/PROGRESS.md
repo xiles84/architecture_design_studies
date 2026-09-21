@@ -111,4 +111,69 @@ Probe runs are dated and kept (`report-*.txt`); the first is the crashed run abo
 
 ---
 
-*(Steps 4 onward are appended as they complete.)*
+## Step 4–7 — design catalogue, harness, image and dev checks
+
+Added and committed:
+
+- 10 SQL designs under `sql/`, five files each, in the repository catalogue format.
+- The Go harness (`harness/`): deterministic dataset, load, gate, workload, contention,
+  ledger, audits, report.
+- `platform/core/measure/arrival.go` (already committed separately) plus two new tests.
+- `Containerfile`, `study.env`, `sqlfs.go`, `run-study.sh`, `probe-engines.sh`, `README.md`,
+  `sql/README.md`.
+
+**Phase C dev checks — all 10 designs on `pg-single` at `tiny`, gate passed, 5 reads and 6 writes
+measured per design, report generated, inputs digest `364ee7176b19777c`.**
+
+Both negative controls fired:
+
+| Design | Strategy | Acked | Counter | Expected | Lost updates |
+|---|---|---|---|---|---|
+| `c1_optimistic_version` | optimistic | 286 | 286 | 286 | **0** |
+| `c2_pessimistic_lock` | pessimistic | 497 | 497 | 497 | **0** |
+| `x1_lost_update_control` | none (control) | 653 | 46 | 653 | **607** |
+
+`x2_rollup_drift_control` fired through its own `a_rollup_mismatches` audit.
+
+## Bugs the gate caught before a number was reported
+
+Five harness bugs, four of them found by the correctness gate rather than by reading the code.
+All five are recorded because they are the failure mode this repository is built to avoid: each
+one would have produced a confident wrong number.
+
+1. **Positional comparison of an alphabetically sorted result against a section-ordered dataset.**
+   The reference design was reported as returning the wrong values. Fixed by sorting the expected
+   entries by key.
+2. **Two statements used `$1` without declaring `-- params:`.** 2 263 write operations ran
+   against a server answering "there is no parameter $1" and every one was counted as an error,
+   so the read side looked clean while the write side measured nothing. Fixed in the SQL, and the
+   harness now refuses to load a design whose statement uses `$n` without declaring parameters.
+3. **One ledger per phase instead of per cell.** The contention audit then reconciled the
+   database against a dataset the write phase had already legitimately changed, and reported every
+   installation as missing keys.
+4. **A negative control failing its audit was treated as a broken design.** x2 firing is the
+   control working; failing the cell there would have made the control look like a defect.
+5. **The lost-update detector compared the stored counter against the last value written** —
+   a number with itself — and reported 583 acknowledged increments with a counter of 39 as a pass.
+   It now compares the counter against the number of acknowledged increments.
+
+Two more were found while building the probe and the runner:
+
+6. **The podman build context is resolved client-side on Windows**, so `/mnt/c/...` becomes
+   `C:\mnt\c\...` and the build fails with "context must be a directory". A bind-mount source
+   tolerates `/mnt/c/...`; a build context does not. The runner now uses `winpath()` for the
+   build and `hostpath()` for mounts. The phase B probe had proved mounts, not the build.
+7. **The probes empty-mount check grepped the cumulative report**, so one failing form tainted
+   every later form. It now greps a per-form log.
+
+## Known gaps at this checkpoint
+
+- **Eight designs are mapped and not implemented** (`d2`, `d3`, `d4`, `h1`, `s1`, `s2`, `y1`,
+  `y2`). Recorded as a coverage gap; no conclusion may treat them as measured or as excluded.
+- **Diagrams are not written yet.** `diagrams/` is empty; the ASCII tables in `README.md` and
+  `sql/README.md` carry the same information for now.
+- Only `pg-single` has been run. `yb-single` and `yb-cluster3` are untested at this commit, and
+  the colocation pair that needs them is not implemented.
+---
+
+*(Steps 8 onward are appended as they complete.)*

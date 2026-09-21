@@ -1,0 +1,7 @@
+-- The index control, deliberately empty.
+--
+-- This design is n1_rows_indexed with exactly one decision changed: there is no
+-- secondary index on (key). The primary key still serves a complete read, so
+-- r01-r04 are unaffected and only r05 must fall back to a scan. That isolates
+-- what the cross-installation search index costs to maintain against what it
+-- buys.

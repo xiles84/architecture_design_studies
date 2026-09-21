@@ -1,0 +1,38 @@
+# Benchmark client for study 04 (configuration portal).
+#
+# Build context is the REPOSITORY ROOT, not this directory, because the harness
+# depends on the shared platform module (platform/) through a replace directive.
+# run-study.sh passes the right context; .containerignore at the root keeps
+# results and git history out of it.
+#
+# The SQL catalogue is compiled into the binary via go:embed, so a result can
+# never be produced by a binary running SQL that differs from the SQL beside it.
+#
+# Tests run in the build stage, and so does the platform's own test suite: the
+# arrival scheduler decides whether a cadence number is the client's limit or the
+# database's, and the invariant ledger decides whether a design broke a contract.
+# An image whose tests fail must not exist.
+
+FROM docker.io/library/golang:1.26-bookworm AS build
+WORKDIR /src
+
+COPY platform/go.mod platform/go.sum ./platform/
+COPY studies/04-configuration-portal/go.mod studies/04-configuration-portal/go.sum ./studies/04-configuration-portal/
+RUN cd studies/04-configuration-portal && go mod download
+
+COPY platform/ ./platform/
+COPY studies/04-configuration-portal/sqlfs.go ./studies/04-configuration-portal/
+COPY studies/04-configuration-portal/sql/ ./studies/04-configuration-portal/sql/
+COPY studies/04-configuration-portal/harness/ ./studies/04-configuration-portal/harness/
+
+# The platform's tests gate the image as well: this study adds the open-loop
+# arrival scheduler there, and a study must not ship on a platform that fails its
+# own tests.
+RUN cd platform && go vet ./... && go test ./...
+RUN cd studies/04-configuration-portal && go vet ./... && go test ./... && \
+    CGO_ENABLED=0 GOFLAGS=-trimpath go build -ldflags="-s -w" -o /out/bench ./harness
+
+FROM scratch
+COPY --from=build /out/bench /bench
+WORKDIR /results
+ENTRYPOINT ["/bench"]
