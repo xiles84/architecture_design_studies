@@ -258,12 +258,9 @@ func runCell(ctx context.Context, res *CellResult, d Design, dsn, explainPath st
 
 	c.snapshotCache()
 	res.StrictViolations = ad.strictWrong.Load()
-	res.ImpossibleValues += ad.impossible.Load()
-	if ad.log != nil {
-		if s := ad.log.Summary(); s.ImpossibleValues > 0 {
-			res.ImpossibleValues += s.ImpossibleValues
-		}
-	}
+	// res.ImpossibleValues was accumulated from the PER-PHASE summaries, which is the
+	// only place a read is counted once. Adding the adapter's running counter here as
+	// well double-counted every occurrence.
 
 	// The acceptance rules. A strict cell with a wrong read is a correctness
 	// failure and cannot support a performance conclusion; an impossible cache value
@@ -331,24 +328,31 @@ func (c *cell) runPhase(ctx context.Context, phase, explainPath string, sample i
 		return nil
 
 	case "warm":
+		c.resetWrong()
 		return c.runWarm(ctx)
 
 	case "mixed":
+		c.resetWrong()
 		return c.runMixed(ctx)
 
 	case "hotspot":
+		c.resetWrong()
 		return c.runHotspot(ctx)
 
 	case "stampede":
+		c.resetWrong()
 		return c.runStampede(ctx)
 
 	case "instances":
+		c.resetWrong()
 		return c.runInstances(ctx)
 
 	case "churn":
+		c.resetWrong()
 		return c.runChurn(ctx)
 
 	case "faults":
+		c.resetWrong()
 		return c.runFaults(ctx)
 
 	case "audit":

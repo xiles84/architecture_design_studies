@@ -126,12 +126,11 @@ func (c *cell) faultCacheFailureAfterCommit(ctx context.Context) FaultResult {
 	// invalidation/publish is skipped and the old entry survives.
 	c.ad.faultSkipNextInvalidation.Store(true)
 	c.ad.faultPublishFail.Store(true)
-	m, err := c.buildMutation(r)
+	m, err := c.buildMutationFor(r, &p)
 	if err != nil {
 		fr.Detail = "no mutation: " + err.Error()
 		return fr
 	}
-	m.PersonID = p.ID
 	if err := c.ad.Write(ctx, 0, m); err != nil {
 		fr.Detail = "the mutation failed at the database, not the cache: " + err.Error()
 		return fr
@@ -255,11 +254,10 @@ func (c *cell) faultFillRacesWriter(ctx context.Context) FaultResult {
 	}()
 	go func() {
 		defer func() { done <- struct{}{} }()
-		m, err := c.buildMutation(r)
+		m, err := c.buildMutationFor(r, &p)
 		if err != nil {
 			return
 		}
-		m.PersonID = p.ID
 		_ = c.ad.Write(ctx, 0, m)
 	}()
 	<-done
@@ -293,12 +291,11 @@ func (c *cell) faultExternalWriter(ctx context.Context) FaultResult {
 
 	// Commit straight to the database, with no version bump, no tombstone and no
 	// invalidation: exactly what an unknown legacy application does.
-	m, err := c.buildMutation(r)
+	m, err := c.buildMutationFor(r, &p)
 	if err != nil {
 		fr.Detail = "no mutation: " + err.Error()
 		return fr
 	}
-	m.PersonID = p.ID
 	if err := c.externalWrite(ctx, m); err != nil {
 		fr.Detail = "external write failed: " + err.Error()
 		return fr
@@ -393,12 +390,11 @@ func (c *cell) faultSuppressedInvalidation(ctx context.Context) FaultResult {
 	before := c.ad.log.Summary()
 
 	c.ad.faultSuppressInvalidation.Store(true)
-	m, err := c.buildMutation(r)
+	m, err := c.buildMutationFor(r, &p)
 	if err != nil {
 		fr.Detail = "no mutation: " + err.Error()
 		return fr
 	}
-	m.PersonID = p.ID
 	if err := c.ad.Write(ctx, 0, m); err != nil {
 		fr.Detail = "the mutation failed: " + err.Error()
 		return fr

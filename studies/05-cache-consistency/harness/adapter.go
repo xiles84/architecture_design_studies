@@ -511,8 +511,12 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 		return nil
 	}
 
+	// A scenario with no cache has no instance to bump, and must never be given a
+	// pretend one: the baseline is the database alone.
 	for _, k := range keys {
-		a.inst[instIdx].BumpGen(k)
+		if len(a.inst) > 0 {
+			a.inst[instIdx%len(a.inst)].BumpGen(k)
+		}
 	}
 
 	switch {

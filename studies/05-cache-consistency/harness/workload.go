@@ -155,38 +155,55 @@ func (c *cell) uncacheableOp() measure.Op {
 	}
 }
 
-// buildMutation chooses and parameterises one logical mutation. The choice is
-// weighted the way a donation portal behaves: mostly inserts, some corrections, and
-// the rare edits and reassignments that break caches which only think about inserts.
-func (c *cell) buildMutation(r *rand.Rand) (mutation, error) {
+// buildMutationFor parameterises one logical mutation. `target`, when non-nil, is the
+// donor the caller needs the mutation to land on -- the hotspot and fault phases use
+// it to force contention onto a hot key.
+//
+// It is a PARAMETER rather than an assignment after the fact. Setting m.PersonID on a
+// ready-made mutation leaves that mutation's donation belonging to somebody else, so
+// the database changes a row the ledger never touched and the two diverge. The gate
+// caught exactly that on the first dev check: a fill returned a portal state the
+// oracle had never held, the read was correctly classified impossible, and the cell
+// failed. The lesson is the study's own: a harness that mis-attributes a write does not
+// fail loudly, it fabricates a correctness finding.
+func (c *cell) buildMutationFor(r *rand.Rand, target *Person) (mutation, error) {
+	base := func() Person {
+		if target != nil {
+			return *target
+		}
+		return c.ds.PickPerson(r)
+	}
 	roll := r.Intn(100)
 	switch {
 	case roll < 55:
-		return c.buildInsert(r), nil
+		return c.buildInsertFor(r, base()), nil
 	case roll < 75:
-		if m, ok := c.buildCorrect(r); ok {
+		if m, ok := c.buildCorrectFor(r, base()); ok {
 			return m, nil
 		}
-		return c.buildInsert(r), nil
+		return c.buildInsertFor(r, base()), nil
 	case roll < 85:
-		if m, ok := c.buildDelete(r); ok {
+		if m, ok := c.buildDeleteFor(r, base()); ok {
 			return m, nil
 		}
-		return c.buildInsert(r), nil
+		return c.buildInsertFor(r, base()), nil
 	case roll < 95:
-		p := c.ds.PickPerson(r)
+		p := base()
 		return mutation{Kind: "person_update", PersonID: p.ID,
 			FullName: fmt.Sprintf("renamed-%d", p.ID), Email: fmt.Sprintf("renamed%06d@example.org", p.ID)}, nil
 	default:
-		if m, ok := c.buildReassign(r); ok {
+		if m, ok := c.buildReassignFor(r, base()); ok {
 			return m, nil
 		}
-		return c.buildInsert(r), nil
+		return c.buildInsertFor(r, base()), nil
 	}
 }
 
-func (c *cell) buildInsert(r *rand.Rand) mutation {
-	p := c.ds.PickPerson(r)
+// buildMutation is the unforced form, used wherever the workload may choose its own
+// donor.
+func (c *cell) buildMutation(r *rand.Rand) (mutation, error) { return c.buildMutationFor(r, nil) }
+
+func (c *cell) buildInsertFor(r *rand.Rand, p Person) mutation {
 	id := c.ds.MaxDonationID + c.seq.Add(1)
 	note := fmt.Sprintf("workload gift %d", id)
 	if r.Intn(2) == 0 {
@@ -208,42 +225,33 @@ func (c *cell) buildInsert(r *rand.Rand) mutation {
 	}
 }
 
-func (c *cell) buildCorrect(r *rand.Rand) (mutation, bool) {
-	for attempt := 0; attempt < 4; attempt++ {
-		p := c.ds.PickPerson(r)
-		d, ok := c.orc.PickDonation(p.ID, r)
-		if !ok {
-			continue
-		}
-		return mutation{Kind: "correct", PersonID: p.ID, DonationID: d.ID,
-			AmountCents: d.AmountCents + int64(1+r.Intn(5000))}, true
+func (c *cell) buildCorrectFor(r *rand.Rand, p Person) (mutation, bool) {
+	d, ok := c.orc.PickDonation(p.ID, r)
+	if !ok {
+		return mutation{}, false
 	}
-	return mutation{}, false
+	return mutation{Kind: "correct", PersonID: p.ID, DonationID: d.ID,
+		AmountCents: d.AmountCents + int64(1+r.Intn(5000))}, true
 }
 
-func (c *cell) buildDelete(r *rand.Rand) (mutation, bool) {
-	for attempt := 0; attempt < 4; attempt++ {
-		p := c.ds.PickPerson(r)
-		d, ok := c.orc.PickDonation(p.ID, r)
-		if !ok {
-			continue
-		}
-		return mutation{Kind: "delete", PersonID: p.ID, DonationID: d.ID}, true
+func (c *cell) buildDeleteFor(r *rand.Rand, p Person) (mutation, bool) {
+	d, ok := c.orc.PickDonation(p.ID, r)
+	if !ok {
+		return mutation{}, false
 	}
-	return mutation{}, false
+	return mutation{Kind: "delete", PersonID: p.ID, DonationID: d.ID}, true
 }
 
-// buildReassign moves one donation to a different donor. Both keys change, which is
-// the mutation a single-key cache invalidation gets wrong.
-func (c *cell) buildReassign(r *rand.Rand) (mutation, bool) {
+// buildReassignFor moves one of THIS donor's donations to a different donor. Both
+// keys change, which is the mutation a single-key cache invalidation gets wrong.
+func (c *cell) buildReassignFor(r *rand.Rand, p Person) (mutation, bool) {
+	d, ok := c.orc.PickDonation(p.ID, r)
+	if !ok {
+		return mutation{}, false
+	}
 	for attempt := 0; attempt < 6; attempt++ {
-		p := c.ds.PickPerson(r)
 		other := c.ds.PickPerson(r)
 		if other.ID == p.ID {
-			continue
-		}
-		d, ok := c.orc.PickDonation(p.ID, r)
-		if !ok {
 			continue
 		}
 		d.CharityID = other.CharityID
@@ -289,6 +297,16 @@ func (c *cell) blendedOp(readPercent int) measure.Op {
 
 // ---------------------------------------------------------------- phases
 
+// resetWrong starts a fresh account for the next phase. The study reports wrong
+// reads PER PHASE: a design that is stale only while writes are in flight is a
+// different finding from one that is stale during warm reads, and a cumulative
+// number would hide which.
+func (c *cell) resetWrong() {
+	if c.ad != nil {
+		c.ad.log = newReadLog()
+	}
+}
+
 func (c *cell) phaseWrong(name string) {
 	s := c.ad.log.Summary()
 	c.res.Wrong = append(c.res.Wrong, PhaseWrong{Phase: name, Summary: s})
@@ -298,6 +316,13 @@ func (c *cell) phaseWrong(name string) {
 }
 
 func (c *cell) snapshotCache() {
+	if len(c.ad.inst) == 0 {
+		// The no-cache baseline has no backend to account for. Reporting zeros
+		// rather than omitting the section keeps every cell's shape identical.
+		c.res.Cache = CacheStats{Backend: string(BackendNone)}
+		c.res.Lease = LeaseStats{LeaseDuration: "n/a", Calibration: "no cache in this scenario"}
+		return
+	}
 	st := c.ad.store(0).Stats()
 	capacity := int64(c.opts.CapacityKB) * 1024
 	// The backend's resident bytes are the cache's whole footprint: payload plus
@@ -460,12 +485,12 @@ func (c *cell) runHotspot(ctx context.Context) error {
 		}, "hotspot_writes", func(ctx context.Context, r *rand.Rand) (measure.Outcome, error) {
 			ops.Add(1)
 			p := hot[r.Intn(len(hot))]
-			m, err := c.buildMutation(r)
+			// The mutation is built FOR the hot donor, not reassigned to it
+			// afterwards: see buildMutationFor.
+			m, err := c.buildMutationFor(r, &p)
 			if err != nil {
 				return measure.Outcome{}, err
 			}
-			// Force the mutation onto a hot key so the contention is real.
-			m.PersonID = p.ID
 			return measure.Outcome{}, c.ad.Write(ctx, c.instIdx(r), m)
 		})
 		c.res.Writes = append(c.res.Writes, wr)

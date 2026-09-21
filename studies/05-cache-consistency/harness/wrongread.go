@@ -206,8 +206,8 @@ func (l *readLog) Summary() WrongReadSummary {
 		ImpossibleValues:     l.impossible,
 		ExpiredHard:          l.expiredHard,
 		ExpiredProbabilistic: l.expiredProb,
-		BySource:             l.bySource,
-		ByCause:              l.byCause,
+		BySource:             copyCounts(l.bySource),
+		ByCause:              copyCounts(l.byCause),
 		StaleDuration:        statFromSamples(l.staleMS),
 		TimeToFreshness:      statFromSamples(l.ttfMS),
 		LeaseWait:            statFromSamples(l.leaseWaitMS),
@@ -233,4 +233,16 @@ func statFromSamples(xs []float64) msStat {
 	sort.Float64s(c)
 	at := func(p float64) float64 { return c[int(p*float64(len(c)-1))] }
 	return msStat{Count: int64(len(c)), P50: at(0.50), P99: at(0.99), Max: c[len(c)-1]}
+}
+
+// copyCounts returns a snapshot. Returning the live map would make every phase's
+// summary share one growing map, and the report would show the cell's final totals
+// on every line while the counters beside them differed -- a contradiction no reader
+// could resolve.
+func copyCounts(m map[string]int64) map[string]int64 {
+	out := make(map[string]int64, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }
