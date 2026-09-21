@@ -61,4 +61,54 @@ drive the documented Windows engine through `podman.exe`, never initialise a WSL
 
 ---
 
-*(Steps 3 onward are appended as they complete.)*
+## Step 3 — WSL → Podman bridge (`infra/lib.sh`), and the Phase B bind-mount probe
+
+**Bridge (AM-01).** `infra/lib.sh` gained an additive engine resolver:
+
+```
+ADS_PODMAN = $ADS_PODMAN | $PODMAN | `podman` on PATH | /mnt/c/Program Files/RedHat/Podman/podman.exe
+podman() { command "$ADS_PODMAN" "$@"; }
+```
+
+Verified live from the task worktree:
+
+```
+ADS_PODMAN=/mnt/c/Program Files/RedHat/Podman/podman.exe
+command -v podman -> podman          # the function; every existing call site keeps working
+need_podman OK
+podman --version -> podman version 5.8.1
+winpath <worktree>/infra -> C:/extra/.../.worktrees/study04-configuration-portal/infra
+hostpath <worktree>/infra -> /mnt/c/extra/.../.worktrees/study04-configuration-portal/infra
+```
+
+`hostpath()` was **not** modified — studies 01–03 also pass its result to `git`, so widening its
+meaning would have changed code behind published results. A separate `winpath()` was added as a
+documented fallback. Study 01–03 runners are untouched.
+
+**Phase B probe** (`probe-bind-mount.sh`, evidence in `results/devchecks/phase-b-bind-mount/`).
+Took the benchmark lock, started one container (no database), and released the lock. Result:
+
+| Form | Sentinel visible | Read-back identical | Host write survived | Verdict |
+|---|---|---|---|---|
+| `hostpath` → `/mnt/c/...` | yes | yes | yes | **WORKS** |
+| `winpath` → `C:/...` | yes | yes | yes | **WORKS** |
+| control → a path that cannot exist | no | n/a | no | **FAILS** (container exit 125) |
+
+`RUNNER_DECISION=hostpath`. The runner therefore uses `hostpath()` exactly as studies 02 and 03 do.
+The control matters: without it, a probe that always answered "works" would have looked identical.
+
+Two bugs were found and fixed in the probe itself while building it, both recorded because they are
+the kind that silently produce confident nonsense:
+
+1. an `awk` expression inside the double-quoted container command was expanded by the *outer* shell
+   (`$3`/`$4` unbound under `set -u`), so the probe died mid-run — the lock was released by its
+   EXIT trap, and the failure was visible rather than silent;
+2. the "empty mount" check grepped the **cumulative** report, so one failing form would have marked
+   every later form as an empty mount. It now greps a per-form log, and the verdict window was
+   widened past the diagnostics to the verdict line.
+
+Probe runs are dated and kept (`report-*.txt`); the first is the crashed run above.
+
+---
+
+*(Steps 4 onward are appended as they complete.)*

@@ -723,4 +723,20 @@ needed, and `hostpath()`'s existing behaviour is preserved unless the probe prov
 **Supersedes:** nothing. This amendment *adds* the engine resolution the repository previously got
 from having `podman` on `PATH`.
 
+**Probe outcome (measured 2026-09-21, `results/devchecks/phase-b-bind-mount/`):** the phase B
+bind-mount probe ran before any measurement and both spellings mount the study tree correctly from
+WSL:
+
+| Mount source as passed | Sentinel visible | Container read-back identical | Host write survived | Verdict |
+|---|---|---|---|---|
+| `/mnt/c/...` (`hostpath`) | yes | yes | yes | **WORKS** |
+| `C:/...` (`winpath`) | yes | yes | yes | **WORKS** |
+| `/mnt/c/.../definitely-not-here` (control) | no | no | no | **FAILS** |
+
+`RUNNER_DECISION=hostpath`. The third row is the control that makes the first two meaningful: a
+probe that reports "works" for a path that cannot exist would be worthless. Because `hostpath()`
+already works, it is left **byte-for-byte unchanged** and `winpath()` remains an unused, documented
+fallback for a host where the Windows form is required. The runner therefore reads exactly like the
+other studies' runners; no new path handling is introduced anywhere.
+
 **Next setting:** **HIGH — execute this handoff using the same DeepSeek HIGH model in WSL.**
