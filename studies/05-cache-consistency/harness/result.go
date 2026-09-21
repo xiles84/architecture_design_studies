@@ -85,6 +85,7 @@ type CacheStats struct {
 	ExternalWrites          int64            `json:"external_writes_bypassing_adapter"`
 	AmbiguousWrites         int64            `json:"ambiguous_writes_invalidated"`
 	SuppressedInvalidations int64            `json:"suppressed_invalidations"`
+	UnrecordedConfirmed     int64            `json:"unrecorded_committed_states_confirmed"`
 	BackendStats            map[string]int64 `json:"backend_stats,omitempty"`
 	PayloadBytes            int64            `json:"logical_payload_bytes"`
 	MetadataBytes           int64            `json:"metadata_bytes"`

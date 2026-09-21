@@ -358,6 +358,7 @@ func (c *cell) snapshotCache() {
 		ExternalWrites:          c.ad.externalWrites.Load(),
 		AmbiguousWrites:         c.ad.ambiguousWrites.Load(),
 		SuppressedInvalidations: c.ad.suppressedInvalidations.Load(),
+		UnrecordedConfirmed:     c.ad.unrecordedConfirmed.Load(),
 		BackendStats:            st,
 		PayloadBytes:            payload,
 		MetadataBytes:           meta,

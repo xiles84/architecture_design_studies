@@ -406,7 +406,7 @@ func writeReport(resultsDir, out string) error {
 
 	// ---------------------------------------------------------------- cache stats
 	b.WriteString("## Cache accounting\n\n")
-	kt := markdown.NewTable("Topology", "Scenario", "backend", "capacity B", "resident B", "items", "evictions", "fills", "publishes", "fenced", "publish failures", "invalidations", "tombstones", "version validations", "bypass reads", "external writes")
+	kt := markdown.NewTable("Topology", "Scenario", "backend", "capacity B", "resident B", "items", "evictions", "fills", "publishes", "fenced", "publish failures", "invalidations", "tombstone fences", "version validations", "bypass reads", "external writes", "unrecorded states confirmed")
 	for _, c := range cells {
 		k := c.Cache
 		kt.Row(c.Topology, "`"+c.ScenarioShort+"`", dash(k.Backend), markdown.Bytes(k.CapacityBytes),
@@ -414,7 +414,8 @@ func writeReport(resultsDir, out string) error {
 			fmt.Sprintf("%d", k.Fills), fmt.Sprintf("%d", k.Publishes), fmt.Sprintf("%d", k.PublishFenced),
 			fmt.Sprintf("%d", k.PublishFailed), fmt.Sprintf("%d", k.Invalidations),
 			fmt.Sprintf("%d", k.Tombstones), fmt.Sprintf("%d", k.ValidationQueries),
-			fmt.Sprintf("%d", k.BypassReads), fmt.Sprintf("%d", k.ExternalWrites))
+			fmt.Sprintf("%d", k.BypassReads), fmt.Sprintf("%d", k.ExternalWrites),
+			fmt.Sprintf("%d", k.UnrecordedConfirmed))
 	}
 	kt.Write(&b)
 

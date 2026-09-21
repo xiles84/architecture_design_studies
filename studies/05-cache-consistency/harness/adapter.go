@@ -136,6 +136,9 @@ type adapter struct {
 	extBumps        atomic.Int64
 	strictWrong     atomic.Int64
 	impossible      atomic.Int64
+	// unrecordedConfirmed counts reads whose value was committed but not yet on the
+	// ledger when the read finished. They are classified ahead, never impossible.
+	unrecordedConfirmed atomic.Int64
 
 	// fault injection, driven by the faults phase. Each is a one-shot or a switch,
 	// set before the phase and cleared after it, so a fault cannot leak into the
@@ -261,7 +264,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 			return out, err
 		}
 		out.Source = SrcDatabase
-		return a.finish(keyID, content, out, reqHash, reqSeq), nil
+		return a.finish(ctx, keyID, content, out, reqHash, reqSeq), nil
 	}
 
 	// A strict scenario whose freshness cannot be proven from the cache reads the
@@ -276,7 +279,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 		}
 		out.Source = SrcBypass
 		out.Cause = "strict freshness unsupported by the cache alone"
-		return a.finish(keyID, content, out, reqHash, reqSeq), nil
+		return a.finish(ctx, keyID, content, out, reqHash, reqSeq), nil
 	}
 
 	if a.faultCacheDown.Load() {
@@ -289,7 +292,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 		}
 		out.Source = SrcBypass
 		out.Cause = "cache outage"
-		return a.finish(keyID, content, out, reqHash, reqSeq), nil
+		return a.finish(ctx, keyID, content, out, reqHash, reqSeq), nil
 	}
 
 	store := a.store(instIdx % len(a.inst))
@@ -317,7 +320,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 					out.AgeMS = age
 					out.ClaimedVersion = e.Version
 					out.Source = SrcValidated
-					return a.finish(keyID, e.Content, out, reqHash, reqSeq), nil
+					return a.finish(ctx, keyID, e.Content, out, reqHash, reqSeq), nil
 				}
 				// The local entry is behind the authoritative version: it must not
 				// be served. Fall through to the fill path.
@@ -325,7 +328,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 				out.AgeMS = age
 				out.ClaimedVersion = e.Version
 				out.Source = SrcHit
-				return a.finish(keyID, e.Content, out, reqHash, reqSeq), nil
+				return a.finish(ctx, keyID, e.Content, out, reqHash, reqSeq), nil
 			}
 		} else {
 			out.ExpiredBy = expiredBy
@@ -339,7 +342,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 		}
 		out.Source = SrcBypass
 		out.Cause = "cache outage"
-		return a.finish(keyID, content, out, reqHash, reqSeq), nil
+		return a.finish(ctx, keyID, content, out, reqHash, reqSeq), nil
 	}
 
 	// --- fill path, through the per-key lease
@@ -353,7 +356,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 		}
 		out.Source = SrcBypass
 		out.Cause = "cache outage"
-		return a.finish(keyID, content, out, reqHash, reqSeq), nil
+		return a.finish(ctx, keyID, content, out, reqHash, reqSeq), nil
 	}
 	if acquired {
 		a.leasesAcquired.Add(1)
@@ -366,7 +369,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 				out.CacheHit = true
 				out.Source = SrcHit
 				out.ClaimedVersion = e2.Version
-				return a.finish(keyID, e2.Content, out, reqHash, reqSeq), nil
+				return a.finish(ctx, keyID, e2.Content, out, reqHash, reqSeq), nil
 			}
 		}
 		// The fence is captured BEFORE the database snapshot. If the key is
@@ -398,7 +401,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 		}
 		out.Source = SrcFill
 		out.ClaimedVersion = version
-		return a.finish(keyID, content, out, reqHash, reqSeq), nil
+		return a.finish(ctx, keyID, content, out, reqHash, reqSeq), nil
 	}
 
 	// Contended: wait a bounded, jittered time, re-check, then fall back to the
@@ -414,7 +417,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 			out.CacheHit = true
 			out.Source = SrcHit
 			out.ClaimedVersion = e3.Version
-			return a.finish(keyID, e3.Content, out, reqHash, reqSeq), nil
+			return a.finish(ctx, keyID, e3.Content, out, reqHash, reqSeq), nil
 		}
 	}
 	a.fallbackReads.Add(1)
@@ -423,7 +426,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 		return out, err
 	}
 	out.Source = SrcFallback
-	return a.finish(keyID, content, out, reqHash, reqSeq), nil
+	return a.finish(ctx, keyID, content, out, reqHash, reqSeq), nil
 }
 
 func (a *adapter) versionMatches(ctx context.Context, keyID int64, e *Entry) bool {
@@ -435,10 +438,21 @@ func (a *adapter) versionMatches(ctx context.Context, keyID int64, e *Entry) boo
 // finish classifies the read against the oracle and records it. The strict
 // violation and impossible-value counters are incremented HERE, at the moment of
 // the read, so a cell cannot pass by aggregating its own evidence incorrectly.
-func (a *adapter) finish(keyID int64, content PortalContent, out ReadOutcome, reqHash string, reqSeq int64) ReadOutcome {
+func (a *adapter) finish(ctx context.Context, keyID int64, content PortalContent, out ReadOutcome, reqHash string, reqSeq int64) ReadOutcome {
 	h := content.ContentHash()
 	out.ReturnedHash = h
 	kind, rseq, behind, at := a.orc.Classify(keyID, h, reqHash, reqSeq)
+	if kind == KindImpossible {
+		// An UNRECORDED state is not an impossible one. The oracle learns about a
+		// committed state after the commit returns, so a reader racing that commit can
+		// hold a state the ledger has not recorded yet. One conditional read settles
+		// it, and it runs only when a hash is otherwise unknown -- never on a hit, so
+		// it cannot distort the measurement it protects.
+		if db, _, derr := readPortalSQL(ctx, a.db, a.cat, a.d.usesVersion(), keyID); derr == nil && db.ContentHash() == h {
+			kind = KindAhead
+			a.unrecordedConfirmed.Add(1)
+		}
+	}
 	out.Kind = kind
 	out.ReturnedSeq = rseq
 	out.Behind = behind
@@ -535,6 +549,17 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 
 	switch {
 	case strict && a.d.Strategy == StrategyAside:
+		// Fence a SECOND time, now that the mutation has committed. The pre-commit
+		// fence invalidates the cache for the duration of the mutation; this one
+		// bounds the fence token itself. Without it, a fill that read its fence in the
+		// window between the pre-commit fence and the commit would read the
+		// pre-mutation state and be allowed to publish it, because the fence it
+		// captured was already the new one. That window is real under load: the first
+		// version of this code recorded ~14 000 stale-after-ack reads in a strict
+		// cell that fenced only before the commit.
+		for _, k := range keys {
+			a.installTombstone(ctx, instIdx, k)
+		}
 		// Leave the cache invalidated and only then acknowledge, per the contract.
 		for _, k := range keys {
 			a.log.NoteAck(k)
@@ -543,6 +568,10 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 		return nil
 
 	case strict && a.d.Strategy == StrategyThrough:
+		// The same second fence, then republish the committed representation.
+		for _, k := range keys {
+			a.installTombstone(ctx, instIdx, k)
+		}
 		// The committed representation is the ONLY thing republished. A failed
 		// republish leaves the tombstone installed in step 1 -- a correct, if
 		// slower, state. Never the old value.
