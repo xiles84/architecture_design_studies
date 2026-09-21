@@ -823,6 +823,13 @@ fails for the right reason — its own `a_rollup_drift` audit reports 3 mismatch
 it stands. The two green reference cells (`ref-normalized-indexed`, `ref-embedded-locked`) and both
 controls still behave.
 
+**Residual classified (AM-04).** The few stale reads that survive the fence are, in the legacy
+in-process aside cell, `fill` and `bypass` samples — **database reads**, not cache hits — each exactly
+one state behind the requirement and resolving before the phase-end assertion runs. The next step is
+pinned down: record `(key, ack seq, commit time)` per mutation, compare a stale database read's snapshot
+time with the acknowledgement time, and add "a fresh connection must already see the state the
+requirement moved to, immediately after each ack" as an assertion.
+
 **Status: measured, analysed and integrated into `main`; not finished.** The nine failed cells, the
 rollup reference drift, the unrun churn/equal-total/topology arms and the three-instance confirmation are
 open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run

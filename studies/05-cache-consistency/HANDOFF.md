@@ -558,6 +558,16 @@ through path, not as an accounting one.
    stands. The dirty-cache-write audit keeps its teeth: a HIT with an unknown hash is
    still impossible.
 
+**AM-04 — classification of the residual, 2026-09-21 (same session).** The residual was
+classified by reading the unique stale samples instead of their counts: in the legacy
+in-process aside cell both unique samples are database reads (`fill`, `bypass`) returning a
+state exactly ONE behind the requirement, not cache hits. So the residual is the transient
+"requirement leads the database's visible state by one state" class, which resolves before the
+phase-end assertion runs. **The next experiment is fixed:** record `(key, ack seq, commit time)`
+per mutation, and on a stale database read compare the read's snapshot time with the ack time;
+then add the assertion that immediately after every acknowledgement a fresh connection already
+sees the state the requirement moved to. That fails loudly and is a dozen lines.
+
 #### 4. Decision: the ledger cannot model concurrently conflicting writes of one key
 
 Recorded as a **known limitation, not fixed**: two concurrent mutations of the same key

@@ -394,6 +394,30 @@ That is the study's most important open result, and it is now unambiguous: the
 question is *which* residual mechanism survives the fence, not whether the harness or
 the ledger is to blame.
 
+**And the residual is classified further, which narrows it sharply.** Reading the
+unique stale samples of that cell rather than the counts:
+
+| Sample | Source | Required seq | Returned seq | Behind | Overlapped |
+|---|---|---|---|---|---|
+| 1 | `fill` | 45 | 44 | 1 | false |
+| 2 | `bypass` | 969 | 968 | 1 | false |
+
+The source matters more than the count. **Neither sample is a cache hit.** A `fill`
+and a `bypass` both read the database directly, in one repeatable-read transaction, and
+both returned a state exactly **one** behind the requirement. So the residual in this
+cell is not "a hit served a superseded entry" at all: it is the same class the ledger
+assertion was built for — **the requirement leading the database's visible state by
+exactly one state, transiently**, resolving by the time the phase-end assertion runs
+(which is why that assertion reports 0 mismatches).
+
+The cheap, decisive next experiment is therefore written down rather than guessed at:
+record per mutation `(key, ack seq, commit time)`, and on a stale database read compare
+the read's snapshot time with the acknowledgement time. If the ack precedes the commit
+becoming visible to a fresh snapshot, then `Ack` is being called at the wrong point in
+some path — the assertion to add is "immediately after each acknowledgement, a fresh
+connection must already see the state the requirement moved to", which fails loudly and
+is a dozen lines.
+
 ### 6d. The rollup reference's impossible values were a harness artifact; its real defect is a drifting rollup
 
 `ref-rollup-trigger` reported 114 "impossible" values, all from **database** reads —
