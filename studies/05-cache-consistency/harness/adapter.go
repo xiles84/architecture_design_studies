@@ -264,7 +264,11 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 
 	// No cache at all: the baseline. The read still reports itself so the oracle's
 	// account of a correct design can be seen to work.
-	if !a.d.hasCache() {
+	if !a.d.hasCache() || len(a.inst) == 0 {
+		// The second condition is a guarantee, not a convenience: a store lookup with
+		// no instances is a division by zero, and a scenario that reaches the cache
+		// path without a backend is a harness bug that must not look like a crash in a
+		// measurement.
 		content, _, _, err := a.readPortalSnapshot(ctx, keyID)
 		if err != nil {
 			return out, err
@@ -302,6 +306,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 	}
 
 	store := a.store(instIdx % len(a.inst))
+	_ = store
 	now := nowMS()
 
 	// --- hit path

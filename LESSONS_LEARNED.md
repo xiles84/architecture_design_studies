@@ -329,6 +329,72 @@ not agree on formatting, so never build a correctness check on byte equality.
 
 ---
 
+### "Publish only after the commit" does not make cache-aside safe
+
+A reader that begins its cache fill *before* a writer's invalidation holds a state that is committed and
+**superseded**. Publishing it afterwards puts back exactly the value the writer removed. Study 05 measured
+~14 000 stale-after-ack reads in a strict cell whose only rule was "publish after the commit".
+
+What closes it is a per-key **invalidation fence in the cache**: the writer advances the fence and removes
+the value atomically; a fill captures the fence *before* its database snapshot and stamps it on the entry;
+a publish is refused unless the key's fence is unchanged. Two details are load-bearing, and both were found
+by failing cells rather than by reasoning:
+
+* a strict writer must fence **before and after** the commit — one fence leaves a window in which a reader
+  captures the *new* fence and then reads the *pre-mutation* state, so the check passes;
+* the ledger's freshness requirement must move at the **acknowledgement**, not at the commit, because the
+  contract is written against the ack and a strict writer fences before it acks. Treating the commit as the
+  boundary made correct cells look wrong.
+
+Study 05's `publishes_refused_by_fence` (61–85 refusals per cell) is the evidence that the race is real, not
+theoretical. The DB version token is **not** what fixes this; the fence is, and it works for a legacy model
+that cannot be modified. A version token is still what lets a multi-instance *local* cache validate a hit.
+
+### A harness that mis-attributes one write fabricates correctness findings
+
+Study 05's hotspot phase built a mutation and then overwrote its `PersonID` to force it onto a hot donor.
+For a correct/delete/reassign the donation belonged to the donor chosen inside the builder, so the database
+changed a row the ledger attributed to someone else and the two diverged. The gate reported it as an
+**impossible cache value** and failed a fault cell whose own logic was correct.
+
+The general rule: a mutation must be **built for** its target, never adjusted afterwards. The same class of
+bug appeared twice more in the same session — a correction written as an absolute amount made two concurrent
+corrections order-sensitive (fixed by making both the SQL and the ledger relative), and a *single* pending
+state slot lost one of two simultaneously-committed states (fixed with a reference-counted set).
+
+### A cache that was never started looks exactly like a cache that is merely cold
+
+Study 05's runner called `need_redis` for a helper named `needs_redis`, so no cache container was ever
+started — and because a cache error degrades to an authoritative read by design, every cache scenario
+"passed" its phases while measuring nothing but the database. Only the fault that demanded a working lease
+failed, and it looked like a lease bug for four dev iterations.
+
+Two lessons, and the cheap one first: check the helper name you are calling. The durable one: **a scenario
+that needs a cache must prove the cache answers before it measures anything** (a `PING` gate in the cell,
+not a promise in the runner). Absence must never be indistinguishable from a cold start.
+
+### A zero value that means "unset" is a cache that does not exist
+
+`hasCache()` was `backend != "none"`. The zero value of the backend field is `""`, so three reference cells
+that simply did not set it were treated as cache scenarios and panicked on an empty instance list instead of
+running as the no-cache baselines they were. Ask for the backends you support explicitly
+(`backend == memory || backend == redis`); never test a field against one sentinel value when the field has
+a zero value that is neither.
+
+### A phase that measures a different deployment must not leave state behind for the next one
+
+Study 05's three-instance phase measures a different deployment through its own instances. Its writes cannot
+invalidate the base adapter's stores, so entries written before it survived it and a later strict read
+looked like a violation of a deployment that never produced it. The phase now starts and ends cold. Any
+phase that swaps in a different set of components owns the state it leaves.
+
+### Write-phase counters and end-state gauges are not the same reading
+
+Study 05's cache snapshot happens once, at the end of a cell, after the fault phases have flushed — so
+`items` and `resident_bytes` describe an empty cache while `evictions`, `fills` and `publishes` describe the
+whole cell. Both are worth reporting, but a reader who takes the gauge for steady state is misled. Read
+gauges at the moment they mean something, or say in the report which moment that is.
+
 ## Hardware and containers
 
 ### Heterogeneous CPUs make core pinning a trap

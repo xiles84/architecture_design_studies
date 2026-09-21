@@ -97,6 +97,11 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `run/03-reserved-seating/20260916T000706Z` | commit that produced study 03's ER-04 repair run (`4044dd5`) |
 | `study-03/v1.1-repairs` | study 03: AM-03 harness, both repair runs, regenerated reports, and results/reports pinned to LF |
 | `study-03/v1-analysis` | study 03: signed analysis of the small matrix, report index, README and context complete |
+| `study-05/v0-handoff` | study 05 (external cache) Execution Handoff EH-05 rev 1, escalation log, progress log, scoped LF policy, Redis image pin |
+| `study-05/v1-harness` | study 05: scenario registry, both cache backends, lease, oracle, wrong-read accounting, faults, report, containerised runner |
+| `run/05-cache-consistency/20260921T-survey` | commit that produced study 05's `small` `pg-single` survey (`567778f`) |
+| `study-05/v1-measured` | study 05: `small` survey measured (27 cells: 21 core + 3 reference + controls), reported |
+| `study-05/v1-analysis` | study 05: signed analysis and mechanism companion, including the nine failed cells and the coverage gaps |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -736,6 +741,63 @@ commits `bd2b825`, `8f02c53`, `2e95990`, `5e15abb`, `73eaf14` and `40f3294` are 
 16 496 422 912 bytes, kernel `6.6.87.2-microsoft-standard-WSL2`, host ASUS Zenbook S 14 UX5406SA.
 `podman machine inspect` still shows its stale `init` value of 4 CPUs / 2048 MiB; the live guest is
 the environment page's 8 CPU / ≈15.36 GiB, and no machine was created, resized or started.
+
+### Study 05 — external cache throughput and consistency (donor portal)
+
+**Question.** For a database-backed donor portal, what does an external cache buy in throughput and latency
+over the same-run no-cache baseline, what does strict freshness cost, how often and how badly is a relaxed
+cache wrong, and what can a *legacy* database model that may not be modified do compared with an owned one
+that may carry a version token and an outbox?
+
+**Where.** `studies/05-cache-consistency/` — EH-05 rev 1 (`HANDOFF.md`), `PROGRESS.md`, `ESCALATIONS.md`
+(two decided items, `05-ER-01`/`05-ER-02`), 21 core scenarios plus 3 database-layout reference cells and 2
+controls, SQL in `sql/{legacy,owned,reference}/`, the Go harness in `harness/`, runners `run-study.sh` and
+`probe-cache.sh`, the cache topology script `infra/redis.sh`.
+
+**Scenario ids are a product of dimensions**, not a family of copies:
+`<model>-<version>-<backend>-<strategy>-<freshness>-<writers>`, e.g.
+`owned-opt-redis-aside-strict-coord` or `legacy-na-memory-through-relaxed-ext20`.
+
+**The run.** `20260921T-survey`: scale `small` (800 donors), PostgreSQL 17.11 `pg-single` plus pinned Redis
+7.4.11, resource framing `db-only` (database 2 CPUs/3 GiB), seed 42, fault seed 4242, code `567778f`,
+inputs digest **`8ff86dc9e5228e86`**, report `reports/20260921T-survey.md`.
+
+**Result, in one line.** Caching added 2.0×–4.4× over the same-run no-cache baseline (3 914 → 15 018 warm
+reads/s for the best cell); strict freshness cost nothing measurable in read throughput in a clean pair;
+a single-instance relaxed cache was wrong for 0.04 %–0.3 % of reads while writes were in flight and for
+none in the warm read-only phase; a **three-instance shared-Redis cache was wrong for ~86 % of reads**, the
+run's headline; and **nine of 27 cells failed their correctness rules** and support no conclusion.
+
+**Correctness regime (the deliverable that matters most).** Content-hash freshness judged by an independent
+Go oracle and an operation ledger, not by re-reading the database on every hit; every payload-producing read
+in one repeatable-read transaction; every fill and refresh under a per-key lease; an exact byte-bounded LRU
+in process and `allkeys-lru` with recorded `maxmemory`/`maxmemory-samples` in Redis; a 300 s hard TTL that is
+never shortened plus probabilistic early expiry verified by fake-clock unit tests at 0/75/150/225/300 s; six
+deterministic fault phases; a stale-read negative control that fires; and a dirty-cache-write audit that
+injects a record from no committed state and requires rejection.
+
+**The finding that changes how caching should be built here:** "publish only after the commit" does *not*
+make cache-aside safe. A reader that begins its fill before a writer's invalidation holds a committed but
+**superseded** state and can republish it. The study closes that with a cache-side per-key **invalidation
+fence** (atomic in both backends, captured before the snapshot, checked on publish) that a strict writer
+advances **before and after** its commit, and by moving the ledger's freshness requirement to the
+**acknowledgement**. `publishes_refused_by_fence` (61–85 per cell) is the evidence that the race is real.
+See `reports/discussions/20260921-cache-fences-and-ledger.md`.
+
+**Do not reuse these numbers without reading the analysis' weakness list.** Single trials; no churn phase
+(so the TTL was never crossed in a measured run); no equal-total framing; no `medium` scale; no YugabyteDB
+or three-node cell, so the colocation requirement is an explicit gap; one laptop, shared cores, no real
+network; and an unresolved ledger limitation for concurrently conflicting writes of the same key.
+
+**One provenance caveat, stated up front:** the three reference cells were re-run after a harness fix, so those
+three were produced by a later code state than the other 24 cells while the manifest records one commit for the
+run. The fix changes `hasCache()` from a comparison against `"none"` to an explicit backend test, which is a
+no-op for every cell whose backend is set — i.e. all 24 others. The analysis repeats this in its weakness list.
+
+**Status: measured, analysed and integrated into `main`; not finished.** The nine failed cells, the
+rollup reference drift, the unrun churn/equal-total/topology arms and the three-instance confirmation are
+open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run
+this matrix unchanged.
 
 ## Decisions taken, and why
 

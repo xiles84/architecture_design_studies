@@ -305,7 +305,7 @@ func cacheRisk(s Strategy, f Freshness) string {
 func referenceScenarios() []Design {
 	return []Design{
 		{
-			ID: "ref-normalized-indexed", Short: "ref-norm", Group: "reference", Model: ModelRef,
+			ID: "ref-normalized-indexed", Short: "ref-norm", Group: "reference", Model: ModelRef, Backend: BackendNone,
 			Title:   "normalized, indexed",
 			Summary: "Study 01's D2 shape: no copied grandparent key on the child, so the charity feed pays the join and an insert maintains one fewer index.",
 			Risk:    "none specific",
@@ -314,7 +314,7 @@ func referenceScenarios() []Design {
 			Needs: withNeeds(),
 		},
 		{
-			ID: "ref-rollup-trigger", Short: "ref-roll", Group: "reference", Model: ModelRef,
+			ID: "ref-rollup-trigger", Short: "ref-roll", Group: "reference", Model: ModelRef, Backend: BackendNone,
 			Title:   "parent rollup maintained by trigger",
 			Summary: "The portal's two aggregates become stored person columns maintained by a child trigger that recomputes rather than increments. The portal read stops aggregating; every mutation starts paying.",
 			Risk:    "the stored aggregate can drift from the donations it summarises",
@@ -323,7 +323,7 @@ func referenceScenarios() []Design {
 			Needs: withNeeds(sAuditRollupDrift),
 		},
 		{
-			ID: "ref-embedded-locked", Short: "ref-emb", Group: "reference", Model: ModelRef,
+			ID: "ref-embedded-locked", Short: "ref-emb", Group: "reference", Model: ModelRef, Backend: BackendNone,
 			Title:   "bounded embedding, concurrency-correct (D10)",
 			Summary: "The newest 20 donations become a bounded JSONB slice on the parent, maintained by Study 01's D10 trigger: merge-and-sort on insert, parent row lock before a rebuild. Study 01 measured the naive D9 form corrupting donor caches under overlap; only the corrected form is a design here.",
 			Risk:    "the embedded slice can drift or be reordered; a_embedded_drift and the Go oracle both check it",
@@ -332,7 +332,7 @@ func referenceScenarios() []Design {
 			Needs: withNeeds(sAuditEmbeddedDrift),
 		},
 		{
-			ID: "ref-y1-colocated", Short: "y1-coloc", Group: "reference", Model: ModelRef,
+			ID: "ref-y1-colocated", Short: "y1-coloc", Group: "reference", Model: ModelRef, Backend: BackendNone,
 			Title:   "child keyed by person (YugabyteDB)",
 			Summary: "The flattened design with the child's primary key chosen for placement: every donation of one donor lives in one tablet. Point lookups by donation id become a two-hop distributed index lookup.",
 			Risk:    "donation_id is no longer unique by construction of the key; a unique index enforces it",
@@ -341,7 +341,7 @@ func referenceScenarios() []Design {
 			Needs: withNeeds(sAuditRolldownDrift),
 		},
 		{
-			ID: "ref-y2-noncolocated", Short: "y2-noncol", Group: "reference", Model: ModelRef,
+			ID: "ref-y2-noncolocated", Short: "y2-noncol", Group: "reference", Model: ModelRef, Backend: BackendNone,
 			Title:   "child keyed by identity (YugabyteDB)",
 			Summary: "The same flattened design with the child's natural primary key, so a donor's donations hash across every tablet in the cluster. The pair isolates physical placement with columns, operations, indexes and budget held constant.",
 			Risk:    "none specific; this is the reference shape",
@@ -405,7 +405,11 @@ func designByID(id string) (Design, bool) {
 }
 
 // hasCache reports whether the scenario has a cache in front of the database.
-func (d Design) hasCache() bool { return d.Backend != BackendNone }
+// hasCache asks the backend explicitly. Comparing against BackendNone alone made the
+// ZERO VALUE of the field ("" for a design that simply did not set it) count as a
+// cache, and three reference cells then panicked on an empty instance list instead of
+// running as the no-cache baselines they are.
+func (d Design) hasCache() bool { return d.Backend == BackendMemory || d.Backend == BackendRedis }
 
 // effectiveModel is the database model the SQL catalogue comes from. The controls
 // reuse a model's catalogue but are not that model.
