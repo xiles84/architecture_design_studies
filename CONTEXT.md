@@ -811,9 +811,16 @@ companion, context and lessons) and the receipt commit that carries this paragra
 (`pg-single`, `ads-redis`) were stopped and removed by the runner; nothing was pushed or pulled, and no tag
 was moved, deleted or reused.
 
-**Post-integration checks re-run on the combined state:** `gofmt`, `go vet ./...` and `go test ./...` for
-the platform and the study, inside the pinned `golang:1.26-bookworm` container. The platform was unchanged
-by this task.
+**Post-integration checks re-run on the combined state**, inside the pinned `golang:1.26-bookworm`
+container, against the `main` checkout mounted read-only: `gofmt -l .` clean; `go vet ./...` clean for the
+study; `go test ./...` green for the study (14 tests, including the fake-clock probabilistic-expiry tests at
+0/75/150/225/300 s, the exact-LRU byte bound, the lease rule, the fence rule and the oracle's
+freshness/acknowledgement semantics). The platform is unchanged by this task, so its tests are unchanged
+**with one caveat worth recording**: `go test ./...` across the platform failed once on
+`adsplatform/core/measure` and the same package passed when run alone immediately afterwards. The timing
+tests in that package are sensitive to parallel package execution and to load on this machine — the same
+hazard `LESSONS_LEARNED.md` records for measurement generally. It is study 04's code, it is not part of this
+task, and it is reported here rather than fixed.
 
 ## Decisions taken, and why
 
