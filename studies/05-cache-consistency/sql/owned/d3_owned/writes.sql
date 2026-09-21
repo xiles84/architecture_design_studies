@@ -90,3 +90,12 @@ UPDATE person
    SET cache_version = cache_version + 1
  WHERE person_id = $1
    AND cache_version = $2;
+
+-- name: w_version_set
+-- params: person_id, new_version
+-- The UNSAFE form, used only by the negative control. The new version is computed
+-- by the application from a value it read earlier and written back unguarded, so
+-- two concurrent writers can both be acknowledged while one bump is lost. Every
+-- candidate design uses w_version_cas or w_version_bump instead; this statement
+-- exists so the control can be the wrong design on purpose.
+UPDATE person SET cache_version = $2 WHERE person_id = $1;
