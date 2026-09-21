@@ -533,3 +533,83 @@ resuming at AM-03.10.**
     5 s for study 03; B2 = 128; estimated total ~8 h (< 10 h). See `am03-cal-small/SUMMARY.md`.
     Confidence High (rules applied mechanically).
 - Phase 3b runs 3b-1 → 3b-4 follow, one at a time, from committed trees, each with `--tag`.
+
+## LOW iteration 6 — 2026-09-21 (deepseek-flash): phase 3b executed and the analyses signed
+
+- Executor/analyst: **deepseek-flash** (DeepSeek), Deep Code CLI; effort setting not exposed
+  by the session. This is *not* the model this task's map names for either role (LOW =
+  Claude Sonnet 5, HIGH = Claude Opus 5). The owner's decision to let this session finish
+  the mapped work is recorded in `CONTEXT.md`; the handoff's HIGH validation of phase 3b
+  remains **open** and this iteration does not claim it.
+- Picked the task up with one run finished and uncommitted, and two worktrees whose git
+  links the two shells disagree about. What was wrong, and what was done:
+  - `.worktrees/recency-reports`' `.git` file and its admin `gitdir` held Windows-form
+    paths, so WSL git called the worktree prunable. `git worktree repair` fixed WSL's view
+    but wrote `/mnt/c/...`, which Git Bash's `git.exe` cannot resolve. Both ends now use a
+    **relative** `gitdir` (`../../.git/worktrees/recency-reports`), which both clients
+    resolve; the *admin* `gitdir` is left WSL-absolute because a relative path there makes
+    `git worktree list` mark the worktree prunable. **D6.**
+  - The checkout carried 3 147 CRLF-vs-LF phantom modifications (337 of them inside the
+    runner's `CODE_PATHS`, which would have made `--tag` refuse). Verified
+    `git diff --ignore-cr-at-eol --quiet` exits 0 over all of them, then normalized the
+    working tree from its own LF index — the same remedy study 04's receipt records for the
+    main checkout. No index entry, commit or tag changed by it.
+  - `infra/lib.sh` on this branch predates main's `8f02c53` WSL bridge, so WSL had no
+    podman client and `run_lock_acquire`'s `podman volume create` failed — the lock read as
+    held and 3b-2 refused to start. Correctly, and harmlessly: no cell ran. Took
+    **main's `infra/lib.sh` unchanged** (58 insertions, 1 deletion: `ADS_PODMAN`/`PODMAN`
+    precedence, the `podman()` function, a path-aware `need_podman`, `winpath()`). **D5.**
+    The measured runs themselves still execute under **Git Bash**, exactly as 3b-1 and the
+    AM-04 dev checks did, where `cygpath` makes `hostpath()` the Windows form podman.exe
+    needs; the WSL resolver is what lets a WSL session take the shared lock.
+  - A refused launch had created `run/02-ticket-booking/20260921T182546Z` before dying. Tags
+    are never moved or deleted, so it stays and is recorded as marking no run (no cells, no
+    manifest, no report); its empty results directory was removed and 3b-2 used a new id.
+  - Wiring dev check after the environment changes: `devchecks/smoke-gitbash-3b` (X1,
+    `pg-single`, `tiny`, `verify,explain,read`), 46/46, plan captured, report generated,
+    lock released. Committed as `dad86d0` before any measured run.
+- **D9 — the owed `v2.1-reports-repaired` tags.** AM-03.13 says "after AM-03.8" but phase
+  3b was blocked before anyone created them. Both are now annotated tags on `cb62711`, the
+  tip of the AM-03 execution (repairs + evidence + records). `6b1926b` was considered and
+  rejected: it holds AM-03.8's evidence but not AM-03.9's records. Their messages state
+  that RR-ER-01 was still open at that state (decided later in AM-04, tagged
+  `study-02/v2.2-ledger-attribution`), so a reader can diff the two.
+- Runs, one at a time, from committed trees, each with the runner's `--tag`:
+  - **3b-1** `20260920T234953Z` — produced by the previous session, finished 02:38:52Z,
+    never committed. Committed unchanged as `b0d9b69`; digest `160bd80c49bbd892`; 45 cells,
+    0 failed, both controls' cells present but unable to fire (no writing phase).
+  - **3b-2** `20260921T183722Z` — 2 h 09 min. Digest `4a02ec8fb0991166`. Committed as
+    `a04fd20`. **One cell partial**: `yb-cluster3/x1_cas_ledger` stopped in race trial 3 at
+    the 10 000-seat tier with a YugabyteDB RPC timeout (SQLSTATE XX000), after gate 48/48,
+    every ledger audit consistent and both post-write report checks ok; 16 of 24 tiers
+    recorded. **D8** — AM-04.6 names "a YugabyteDB cell failing the way C2 already does" as
+    *not* a stop condition and says log and continue; the analysis reports the cell as
+    partial. Nothing re-run.
+  - **3b-3** `20260921T205212Z` — 2 h 17 min, X1 first, 128 buyers. Digest `6c88f6463c80c6ac`.
+    Committed as `ab1b76e`. 0 failed cells, 24/24 tiers in every cell, all six gates pass,
+    and every X1 ledger audit consistent — including the `yb-cluster3` 128-buyer cell that
+    3b-2 lost and that the pre-AM-04 audit could not handle. One counted request error
+    (`yb-single`, 100-seat tier, "Restart of completed transaction").
+  - **3b-4** `20260921T231328Z` (study 03 reports matrix, all designs, 5 s) — running at the
+    time of writing; its outcome is recorded in `CONTEXT.md` and in the run's own report.
+- **D7 — the wall-clock guard, decided rather than escalated.** AM-03.11's rule is a
+  *pre-run* decision applied to the calibration's projection (~8 h, under the 10 h guard),
+  and AM-04.6's stop conditions are about correctness. The actuals drifted above the
+  projection: 3b-1 2 h 49 min (2.5 h estimated), 3b-2 2 h 09 min (1.7 h), 3b-3 2 h 17 min
+  (1.7 h), 3b-4 ≈ 6.5 min/cell over 41 cells (2.0 h estimated). The drift is 128-buyer and
+  14-design tiers on a quota-throttled engine, not a defect: every gate and audit green.
+  Stopping mid-3b-3 would have left one arm of the pair and all of study 03 unmeasured,
+  which costs more than the hours. Recorded in the analyses as a cost, and it is the reason
+  the next protocol should size race tiers by tier-time budget rather than by cell time.
+- **D10 — the analyses are signed by a new analyst.** Four analyses and one discussion
+  companion, all `analyst: deepseek-flash`, each stating the substitution and leaving HIGH's
+  validation open: `20260920T234953Z--deepseek-flash--2026-09-21` (reports matrix),
+  `20260921T183722Z--deepseek-flash--2026-09-21` (32 buyers), `20260921T205212Z--deepseek-flash
+  --2026-09-21` (128 buyers), and `reports/discussions/20260921-p3-x1-ledger-pair.md`. The
+  two race arms disagree about PostgreSQL and say so; the reports analysis records that the
+  report's P3 → X1 *read* rows are a cell-level effect rather than the ledger (identical
+  plan, identical buffer counts, 2x per-operation difference).
+- Records: `CONTEXT.md` carries the run-by-run state; `LESSONS_LEARNED.md` gains the
+  lessons this iteration cost (ENVIRONMENT.md-style link forms, uncommitted runs, controls
+  that cannot fire without a writing phase, cell-order effects, the audit ordering lesson
+  AM-04.6 asked LOW to write down).

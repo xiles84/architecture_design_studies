@@ -814,3 +814,94 @@ read 20–100 ms after the hold's commit that did not show it. The report tables
 TL;DR listed L2 among designs with invariant violations. When a class depends on a diagnostic, report
 "unclassified" wherever the diagnostic cannot run, in every place the number appears.
 
+## Operational reports and the recency question (EH-02)
+
+### Nothing reconstructs commit order; write the check so it does not need to
+
+Learned by study 02's X1 ledger and decided in AM-04; recorded here in this session's words,
+as that amendment asked. The ledger needed to know *which of two events for a seat came
+first* — a refund must name the buyer of the sale it reverses, and the reconciliation audit
+had to read each seat's history as sold → cancelled → sold. Two candidate keys were tried
+and both are wrong, on different engines:
+
+- **`now()`** is the transaction *start* time in PostgreSQL, not the commit time. Under a
+  CAS retry loop a later-starting transaction can commit first, so ordering by `at` inverted
+  a cancel and the resale that necessarily followed it (seat 87/10: `at` said the second
+  sale preceded the cancellation that freed the seat).
+- **A `BIGSERIAL`** hands out cached blocks per connection on YugabyteDB, so `sale_event_id`
+  is not commit order there either — 53–246 attribution "problems" per run, identical across
+  repeats, and `ALTER SEQUENCE … CACHE 1` did not change what YSQL reported.
+
+The fix was not a better key. The refund reads the buyer **from the row it is about to
+clear**, under `FOR UPDATE`, in the same statement, and the audit was rewritten order-free
+(no `LAG`, no `ROW_NUMBER`): a buyer may not be refunded more times than they bought a
+seat, and a live sale must appear in the ledger verbatim. Both checks hold after every race
+and churn tier on both engines, including at the 128-buyer contention that produced the
+false positives. **An audit that needs to know "which record came first" should be
+rewritten so it does not need to know.**
+
+### A finished run is not a recorded run
+
+The previous session's 3b-1 (45 cells, 2 h 49 min) completed at 02:38:52Z and its results
+were left untracked when the session ended. The `run/…` tag existed and pointed at the
+producing commit, the report existed, and none of it was in the history: `git status` in
+that worktree showed 185 untracked files. A reader of `git log` would have seen the run's
+tag and no data. **Commit a run's output before starting anything else after it**, and treat
+"the tag exists" as no evidence at all that the results were committed — the runner tags
+the *code* before the run, not the output after it.
+
+### A worktree link that works for one shell can be invisible to the other
+
+This repository is worked from WSL and from Git Bash on Windows, and a worktree's link form
+decides which of them can use it. The 2026-09-20 session's worktree held Windows-form paths,
+so WSL git called it "prunable"; `git worktree repair` then wrote `/mnt/c/...`, which Git
+Bash's `git.exe` cannot resolve — repairing for one shell broke the other. The form that
+works for both is a **relative** `gitdir` in the worktree's own `.git` file
+(`gitdir: ../../.git/worktrees/<name>`). The *admin* side (`.git/worktrees/<name>/gitdir`)
+should stay absolute for whichever shell owns the checkout: a relative path there makes
+`git worktree list` print a relative path and mark the worktree prunable, and a later
+`git worktree prune` in any session would then delete the entry.
+
+### An absent podman client looks exactly like a held lock
+
+`run_lock_acquire` creates the lock volume and reads any failure as "someone else is
+running". On WSL, where this branch's `infra/lib.sh` had no client, `podman volume create`
+failed with "command not found", the diagnostic then failed too, and the runner printed
+`another benchmark holds this machine's lock: (lock volume vanished)` before refusing. The
+message names the wrong cause. `(lock volume vanished)` means "the create failed, and so did
+the inspect" — check `command -v podman` before believing another session holds the lock.
+Main's resolver (`repo/wsl-podman-bridge`) fixes the client; the message is still ambiguous.
+
+### A control that is not in the run cannot fire
+
+Study 02's reports matrix (3b-1) has phases `verify,explain,read`, so the two negative
+controls had no contention to fail under and the report says "did not fire — this experiment
+did not generate enough contention". The race pair (3b-2/3b-3) measured only P3 and X1, so
+its control line reads "**0 of 0 fired**". In both cases the gate passed and the audits were
+consistent — and in neither case has the audit been *shown* to catch overbooking in that
+regime. Methodology 5a's point survives contact: a correct design passing beside no wrong
+design is weak evidence. **Include at least one control in every run whose correctness is
+claimed**, even when the run's question is throughput.
+
+### A design's measured speed can follow its position in the cell order
+
+The same P3 → X1 pair was measured twice, changing the buyer count and the design order
+together: at 32 buyers with P3 first, X1 looked 2–3x *faster* in the race; at 128 buyers
+with X1 first, P3 was 1.1–2.3x faster with tight trials. The tell was in the report's own
+spread column — P3's three trials disagreed by 92–283 % in exactly the cells where it
+looked slow. A third sighting came from a read-only run: X1's buyer reads were ~2x slower
+than P3's including a primary-key lookup whose plan and buffer counts were identical
+(`Index Scan using ticket_pkey`, `shared hit=4`), i.e. the whole cell was slower per
+operation. **A pair measured once per cell cannot separate the design from the machine.**
+Alternate the order between arms, or better, interleave the two designs tier-by-tier inside
+one cell; and when a pair table prints a ratio, read the trials' spread before the ratio.
+
+### A time guard is a pre-run decision; re-check it against the actuals
+
+AM-03.11 sized phase 3b at ~8 h from a calibration and set a 10 h escalation guard, which
+was applied mechanically before the runs. The runs then took 2 h 49 min, 2 h 09 min,
+2 h 17 min and several hours against 2.5 h, 1.7 h, 1.7 h and 2 h — because 128-buyer and
+14-design tiers on a CFS-throttled engine cost far more than the small calibration cells
+suggested. The guard's letter was satisfied and its spirit was not. **Size a run from
+per-tier time budgets measured on the slowest topology, and re-estimate after the first arm
+rather than after the last.**
