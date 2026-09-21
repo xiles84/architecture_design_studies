@@ -43,7 +43,7 @@ func main() {
 		warmup       = flag.Duration("warmup", 0, "discarded warmup per phase (0 = scale default)")
 		trials       = flag.Int("trials", 1, "trials per measurement; throughput is the median")
 		retries      = flag.Int("retries", 8, "bounded retries for the optimistic version CAS")
-		phases       = flag.String("phases", "verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,churn,faults,audit", "phases for -cmd full")
+		phases       = flag.String("phases", "verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,churn,faults,ackcheck,audit", "phases for -cmd full")
 		instances    = flag.Int("instances", 1, "logical application instances")
 		churnFor     = flag.Duration("churn-duration", 0, "sustained churn duration (0 = skip; the 300 s TTL is never shortened)")
 		stampede     = flag.Int("stampede-readers", 16, "readers released together in the stampede phase")
@@ -53,6 +53,7 @@ func main() {
 		fits         = flag.Bool("cache-fits", false, "size the cache so the whole working set fits (the control condition)")
 		redisAddr    = flag.String("redis-addr", os.Getenv("BENCH_REDIS_ADDR"), "host:port of the cache under test")
 		redisMB      = flag.Int("redis-maxmemory-mb", 0, "recorded Redis maxmemory, for the report only")
+		serialKeys   = flag.Bool("serialize-keys", true, "serialise writes that touch one key so the ledger's history matches the database's commit order")
 		frame        = flag.String("resource-frame", "db-only", "db-only | add-cache | equal-total")
 		sample       = flag.Int("sample", 12, "donors verified and audited per cell (0 = all)")
 		stmtTO       = flag.Int("stmt-timeout-ms", 300000, "server-side statement_timeout")
@@ -113,7 +114,7 @@ func main() {
 		Retries: *retries, Phases: *phases, Instances: *instances, ChurnFor: *churnFor,
 		Stampede: *stampede, StampedeN: *stampedeN, HotKeys: *hotKeys,
 		CapacityKB: *capacityKB, CacheFit: *fits, RedisAddr: *redisAddr,
-		RedisMaxMB: *redisMB, ResourceFrame: *frame,
+		RedisMaxMB: *redisMB, ResourceFrame: *frame, SerializeKeys: *serialKeys,
 	}
 	applyScale(&opts)
 
@@ -261,7 +262,7 @@ func runCell(ctx context.Context, res *CellResult, d Design, dsn, explainPath st
 
 	log := newReadLog()
 	ad := newAdapter(d, cat, db, ds, orc, res.Options, insts, log)
-	c := &cell{d: d, cat: cat, db: db, ds: ds, orc: orc, ad: ad, res: res, opts: res.Options}
+	c := &cell{d: d, cat: cat, db: db, ds: ds, orc: orc, ad: ad, res: res, opts: res.Options, dsn: dsn}
 
 	for _, p := range strings.Split(res.Options.Phases, ",") {
 		if err := c.runPhase(ctx, strings.TrimSpace(p), explainPath, sample); err != nil {
@@ -387,6 +388,16 @@ func (c *cell) runPhase(ctx context.Context, phase, explainPath string, sample i
 		}
 		// The assertion the strict conclusions rest on, checked while nothing writes.
 		return c.checkLedgerMatchesDB(ctx, "churn")
+
+	case "ackcheck":
+		// A negative control exists to break an invariant, so the acknowledgement and
+		// ledger checks are skipped for it and it is judged by its own fault instead.
+		// Skipping is recorded in the report, not silent.
+		if c.d.NegativeControl {
+			c.res.AckCheck = &AckCheck{Passed: true, Examples: []string{"skipped: this cell is a negative control"}}
+			return nil
+		}
+		return c.runAckCheck(ctx)
 
 	case "faults":
 		c.resetWrong("faults")

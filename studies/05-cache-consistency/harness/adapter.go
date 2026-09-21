@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -123,6 +125,11 @@ type adapter struct {
 	// phaseName is the phase currently running, used only to attribute a residual
 	// stale read to what produced it.
 	phaseName string
+
+	// keyLocks shards a mutex per key so writes to ONE key are applied and recorded in
+	// one order. Writes to different keys never contend, which is what the hotspot and
+	// contention phases are about.
+	keyLocks [64]sync.Mutex
 
 	// counters the report needs
 	fills           atomic.Int64
@@ -470,6 +477,31 @@ func (a *adapter) versionMatches(ctx context.Context, keyID int64, e *Entry) boo
 // finish classifies the read against the oracle and records it. The strict
 // violation and impossible-value counters are incremented HERE, at the moment of
 // the read, so a cell cannot pass by aggregating its own evidence incorrectly.
+// lockKeys takes the per-key locks for a mutation, in ascending shard order so two
+// reassignments of the same pair cannot deadlock, and returns the release.
+func (a *adapter) lockKeys(keys []int64) func() {
+	shards := make([]int, 0, len(keys))
+	for _, k := range keys {
+		shards = append(shards, int(uint64(k)%uint64(len(a.keyLocks))))
+	}
+	sort.Ints(shards)
+	taken := make([]int, 0, len(shards))
+	prev := -1
+	for _, sh := range shards {
+		if sh == prev {
+			continue
+		}
+		a.keyLocks[sh].Lock()
+		taken = append(taken, sh)
+		prev = sh
+	}
+	return func() {
+		for i := len(taken) - 1; i >= 0; i-- {
+			a.keyLocks[taken[i]].Unlock()
+		}
+	}
+}
+
 // ackTokens acknowledges a completed write: it moves the ledger's freshness
 // requirement for each affected key and starts that key's time-to-freshness clock.
 // The two move together, because the strict contract is written against the
@@ -591,6 +623,11 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 	ext := a.d.Writers == WritersExt20 && n%5 == 0
 	strict := a.d.Freshness == FreshStrict
 	keys := m.keys()
+
+	if a.opts.SerializeKeys {
+		unlock := a.lockKeys(keys)
+		defer unlock()
+	}
 
 	// 1. Strict scenario: fence the cache BEFORE the authoritative mutation. The
 	//    tombstone carries no data; it only makes readers fill again.

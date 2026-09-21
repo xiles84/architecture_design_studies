@@ -32,7 +32,13 @@ type Options struct {
 	RedisAddr     string        `json:"redis_addr,omitempty"`
 	RedisMaxMB    int           `json:"redis_maxmemory_mb,omitempty"`
 	ResourceFrame string        `json:"resource_framing"`
-	ExtFraction   int           `json:"external_write_fraction_pct"`
+	// SerializeKeys serialises the writes that touch ONE key (never across keys) so the
+	// ledger's history order matches the database's commit order. It is on by default
+	// because the study's subject is the cache, not intra-row write contention, and a
+	// ledger that disagrees with the database manufactures correctness findings. Turn
+	// it off to measure the unserialised behaviour, and say so when you do.
+	SerializeKeys bool `json:"serialize_writes_per_key"`
+	ExtFraction   int  `json:"external_write_fraction_pct"`
 }
 
 type EngineInfo struct {
@@ -237,6 +243,7 @@ type CellResult struct {
 
 	Audits           []AuditInfo                 `json:"audits,omitempty"`
 	Ledger           []LedgerCheck               `json:"ledger_assertions,omitempty"`
+	AckCheck         *AckCheck                   `json:"ack_check,omitempty"`
 	StrictViolations int64                       `json:"strict_contract_violations"`
 	ImpossibleValues int64                       `json:"impossible_cache_values"`
 	Lease            LeaseStats                  `json:"lease"`

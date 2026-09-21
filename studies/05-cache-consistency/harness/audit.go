@@ -183,6 +183,14 @@ func firstN(xs []int64, n int) []int64 {
 // A requirement BEHIND a committed-but-unacknowledged state is legitimate and is not
 // counted: that state classifies as ahead.
 func (c *cell) checkLedgerMatchesDB(ctx context.Context, phase string) error {
+	if c.d.NegativeControl {
+		// The control is SUPPOSED to diverge from the ledger -- that is what makes it a
+		// control -- so asserting agreement would fail the one cell whose failure is
+		// required. Its own fault check is what judges it.
+		c.res.Ledger = append(c.res.Ledger, LedgerCheck{Phase: phase, Passed: true,
+			Examples: []string{"skipped: this cell is a negative control"}})
+		return nil
+	}
 	usesVersion := c.d.usesVersion()
 	lc := LedgerCheck{Phase: phase, People: len(c.ds.People), Passed: true}
 	for _, p := range c.ds.People {

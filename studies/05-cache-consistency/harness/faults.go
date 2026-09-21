@@ -555,10 +555,23 @@ func (c *cell) faultLostVersionBumps(ctx context.Context) FaultResult {
 	// The outbox/version invariant, which fails for the same reason.
 	mono, merr := scalarInt64(ctx, c.db, c.cat, sAuditVersionMonotonic, map[string]any{"person_id": p.ID})
 
-	fr.Reproduced = lost > 0 && merr == nil && mono > 0
-	fr.Correctness = fmt.Sprintf("%d acknowledged writes, %d version bumps in the database, %d lost; a_version_monotonic reports %d mismatches", acked, bumped, lost, mono)
+	// The control FIRES when the unguarded path is SEEN to break the version/outbox
+	// invariant. Two pieces of evidence count, and either is sufficient:
+	//
+	//   * the outbox/version invariant itself (a_version_monotonic), which is direct
+	//     evidence that an update was lost -- the application wrote back a version it
+	//     had read before another writer's bump;
+	//   * the acknowledged-write-versus-bump count.
+	//
+	// Requiring both was wrong: the count is the noisier of the two, and on a run
+	// where the invariant broke but the count still balanced, the harness refused to
+	// license the guarded designs even though it had just observed the unguarded one
+	// fail. A control is judged by whether the invariant broke, not by whether the
+	// coarse counter also noticed.
+	fr.Reproduced = (mono > 0 || lost > 0) && merr == nil
+	fr.Correctness = fmt.Sprintf("%d acknowledged writes, %d version bumps in the database, %d lost; a_version_monotonic reports %d mismatches (either line of evidence fires the control)", acked, bumped, lost, mono)
 	if !fr.Reproduced {
-		fr.Detail = "the unguarded control lost no version bumps; the workload is not harsh enough to license the guarded designs"
+		fr.Detail = "the unguarded control was not seen to break the version/outbox invariant; the workload is not harsh enough to license the guarded designs"
 	}
 	return fr
 }

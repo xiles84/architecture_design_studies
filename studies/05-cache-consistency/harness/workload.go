@@ -17,6 +17,8 @@ import (
 // phase and a number in another are produced by the same cache policy.
 
 type cell struct {
+	// dsn is kept unexported and out of the result: it carries a password.
+	dsn  string
 	d    Design
 	cat  *catalogue
 	db   ports.DB
