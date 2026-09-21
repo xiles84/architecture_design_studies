@@ -799,6 +799,22 @@ rollup reference drift, the unrun churn/equal-total/topology arms and the three-
 open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run
 this matrix unchanged.
 
+### Study 05 — integration receipt
+
+The task worktree `.worktrees/study05-cache-consistency` on branch `study-05/cache-consistency` was merged
+into local `main` by fast-forward at task completion. The task commits are `fa1a57a` (handoff),
+`92f8d0b` (SQL catalogue), `91f2ce0` (harness), `fd599da`, `e5d1e1a`-class dev-check fixes, `567778f`
+(the code the reported run was produced from), `cac02f5` (measured survey, signed analysis, mechanism
+companion, context and lessons) and the receipt commit that carries this paragraph. All are reachable from
+`main`; the integrated state is tagged `study-05/v1-integrated`. The producing run is tagged
+`run/05-cache-consistency/20260921T-survey`. The benchmark lock was released and the study's containers
+(`pg-single`, `ads-redis`) were stopped and removed by the runner; nothing was pushed or pulled, and no tag
+was moved, deleted or reused.
+
+**Post-integration checks re-run on the combined state:** `gofmt`, `go vet ./...` and `go test ./...` for
+the platform and the study, inside the pinned `golang:1.26-bookworm` container. The platform was unchanged
+by this task.
+
 ## Decisions taken, and why
 
 | Decision | Reason |
