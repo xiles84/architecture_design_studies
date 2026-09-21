@@ -54,6 +54,14 @@ OpenAI and others) work in this repository, sometimes at the same time.
 
 | Tag | Marks |
 |---|---|
+| `study-04/v0-handoff` | study 04 (configuration portal) Execution Handoff EH-04 rev 1, escalation log, progress log, scoped LF policy |
+| `study-04/v0.1-handoff-amendment-01` | study 04: AM-01 executed — WSL reaches the documented Podman engine; phase B bind-mount probe |
+| `repo/wsl-podman-bridge` | infra/lib.sh: engine resolver + `podman()` + `winpath()`; studies 01-03 untouched |
+| `repo/open-loop-arrivals` | platform: the open-loop arrival driver cadence experiments need |
+| `study-04/v1-harness` | study 04: 10-design SQL catalogue, harness, gate, ledger, audits, report generator; dev-checked |
+| `run/04-configuration-portal/20260921T1215Z-small` | commit that produced study 04's small `pg-single` matrix |
+| `study-04/v1-measured` | study 04: small matrix measured and reported; both controls fired |
+| `study-04/v1-analysis` | study 04: signed analysis and mechanism discussion companion |
 | `study-01/v1` | study 01 code and reports behind its first analysis (`795420b`) |
 | `study-01/v2-second-analysis` | study 01 with the independent GPT-6 analysis and regenerated reports (`918a90f`) |
 | `study-01/v2-before-enhancements` | study 01 before the v3 follow-ups (GPT-6 session) |
@@ -660,10 +668,26 @@ seat being sold twice. The hard parts become:
 
 ### Study 04 — configuration portal (product → installed product → configuration entry)
 
-**Status (2026-09-21):** planning checkpoint committed and tagged `study-04/v0-handoff`.
-Nothing is running; the benchmark lock is free. One agent, DeepSeek HIGH (`deepseek-flash`; effort
-and tool identity not exposed by the session), plans, implements, measures, validates, analyses
-and integrates this study — there is no LOW executor and no model switch.
+**Status (2026-09-21):** measured and analysed on PostgreSQL single-node. Tagged
+`study-04/v0-handoff`, `study-04/v0.1-handoff-amendment-01`, `study-04/v1-harness`,
+`study-04/v1-measured`, `study-04/v1-analysis`. Nothing is running; the benchmark lock is free. One
+agent, DeepSeek HIGH (`deepseek-flash`; effort and tool identity not exposed by the session),
+planned, implemented, measured, validated and analysed this study — there is no LOW executor and no
+model switch, which the analysis states as a limitation.
+
+**Measured run `20260921T1215Z-small`** (tag `run/04-configuration-portal/20260921T1215Z-small`,
+inputs digest `ab0f6ef5e5500775`): ten designs at scale `small` on `pg-single`, ten cells, none
+failed, both negative controls fired. Headlines, all from
+[the signed analysis](studies/04-configuration-portal/reports/analyses/20260921T1215Z-small--deepseek-flash--2026-09-21.md):
+a lock-before-update delivered 886 ops/s against a version check's 503 at identical correctness,
+with 545 retries and 10 560 conflicts on the optimistic side; the unchecked read-modify-write
+acknowledged 3 416 increments and left the counter at 215 (**3 201 lost updates, 93.7 %**); a parent
+rollup makes the portal overview ~15x faster while the trigger variant costs 6.9x on
+whole-configuration replacement; the same logical configuration is 10.5x smaller as one document.
+**The run's principal weakness**: reads whose SQL is identical across the eight row designs spread
+by 65 %, so no read difference below ~1.7x in this digest is attributable. Clause: ten of the
+eighteen designs are implemented; cadence, churn, deployment controls and repeated trials are
+mapped and not run, and the analysis records them as coverage gaps.
 
 The portal is used by other products: all configuration creation, modification, publication and
 retrieval goes through it and its database. Configuration belongs to an **installed product** (one

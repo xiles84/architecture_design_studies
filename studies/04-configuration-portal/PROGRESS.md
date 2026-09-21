@@ -177,3 +177,35 @@ Two more were found while building the probe and the runner:
 ---
 
 *(Steps 8 onward are appended as they complete.)*
+
+## Step 8–9 — small matrix, report, and signed analysis
+
+**Phase D (reduced), `20260921T1215Z-small`.** Ten cells, one per design, `pg-single`, scale
+`small` (60 installed products × 60 entries), phases `verify,explain,read,write,contention`,
+`--duration 3s --warmup 1s`. Run tag `run/04-configuration-portal/20260921T1215Z-small` on commit
+`5e15abb`; inputs digest `ab0f6ef5e5500775`; **no cell failed**; both negative controls fired.
+
+| Design | Strategy | Acked | Counter | Lost updates | ops/s |
+|---|---|---|---|---|---|
+| `c1_optimistic_version` | optimistic | 2 065 | 2 065 | **0** | 503 |
+| `c2_pessimistic_lock` | pessimistic | 3 539 | 3 539 | **0** | 886 |
+| `x1_lost_update_control` | none (control) | 3 416 | 215 | **3 201** (93.7 %) | 768 |
+| `x2_rollup_drift_control` | drift (control) | — | — | fired: 60 rollup mismatches | 570 |
+
+Signed analysis:
+`reports/analyses/20260921T1215Z-small--deepseek-flash--2026-09-21.md`, with the mechanism
+companion `reports/discussions/20260921-configuration-portal-mechanisms--deepseek-flash--2026-09-21.md`.
+The report was regenerated afterwards so its analysis index picks the analysis up by digest.
+
+**The analysis's principal finding is a weakness in this run.** `r01`/`r02`/`r03` have
+byte-identical SQL in the eight row-per-key designs, yet their throughputs spread by ~65 %
+(`r03` 25 114 to 40 010 ops/s). The likely cause is that every cell runs against the same
+container in one pass and each drops and recreates its schema over the previous cell's dead
+tuples, so the database is not the same instrument at cell 1 and cell 10 — but this run contains
+no repeated design and cannot prove it. The consequence is stated wherever the numbers are used:
+**no read difference below ~1.7x in this digest is attributable**, and only the ~15x rollup effect
+is claimed.
+
+Coverage gaps recorded rather than implied away: eight of the eighteen designs are unbuilt;
+YugabyteDB topologies, cadence, cardinality crossover, churn, deployment controls and repeated
+conclusion runs are mapped and unrun; no independent model has reviewed this work.
