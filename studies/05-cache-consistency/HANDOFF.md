@@ -459,3 +459,66 @@ limitation.
 ## Amendments
 
 *(HIGH appends dated, attributed `AM-NN` decisions here; existing text is never erased.)*
+
+### AM-01 — 2026-09-21 — DeepSeek HIGH (`deepseek-flash`)
+
+**Status: decided by HIGH, implemented, measured and integrated. EH-05 rev 1 stands; this
+amendment records three decisions the execution forced and one requirement the execution
+CHANGED. The original text above is untouched.**
+
+#### 1. Requirement change: an invalidation fence is required, not optional
+
+EH-05 §"cache-aside sequence" and §"write-through sequence" required that a cache value
+be published only if it corresponds to a successfully committed state, and that a strict
+writer "fences/tombstones before the mutation". **That is not sufficient and the handoff
+was wrong to treat it as sufficient.** Measured: a strict cell with only that rule
+recorded ~14 000 stale-after-ack reads, because a reader whose fill began *before* the
+invalidation holds a committed but SUPERSEDED state and can republish it afterwards.
+
+Amendment to the design, now binding for this study and recommended for any later one:
+
+* `EntryStore` carries a per-key **invalidation fence**. `Fence(key)` advances it and
+  removes the value in ONE atomic operation (one mutex in the in-process store, one Lua
+  script in Redis); `FenceOf(key)` reads it; `Put` is refused unless the stored fence
+  equals the entry's.
+* A fill captures the fence **before** it takes its database snapshot and stamps it on
+  the entry.
+* A strict writer fences **before AND after** the commit. One fence leaves a window in
+  which a reader captures the new fence and then reads the pre-mutation state.
+* A relaxed writer's post-commit invalidation is the same operation; what makes a
+  scenario relaxed is WHEN it runs and that it may be skipped or fail, not a weaker fence.
+* The ledger's freshness requirement moves at the **ACKNOWLEDGEMENT**, not at the commit,
+  because the contract is written against the ack and a strict writer fences before it
+  acks. A committed-but-unacknowledged state is classified `ahead`, never `impossible`.
+
+Evidence: `PROGRESS.md` (the dev-check iterations), the signed analysis
+`reports/analyses/20260921-cache-consistency-survey.md` §2, and the discussion companion
+`reports/discussions/20260921-cache-fences-and-ledger.md` §1.
+
+#### 2. Decision: Redis is a new shared topology script, pinned in `infra/versions.env`
+
+`infra/redis.sh` starts `docker.io/library/redis:7.4.11-alpine`
+(id `f84b0c4678011602b9b98c227a4dcd5468bf8b088b02fdd4165cb7758bad8058`) with an explicit
+`maxmemory`, `maxmemory-policy=allkeys-lru`, `maxmemory-samples=5`, `--save ''` and
+`--appendonly no`, under the benchmark lock. Append-only to `versions.env`; no existing
+value changed. Studies 01–04 never start Redis, so the addition cannot affect them.
+Escalation: `05-ER-02`, decided.
+
+#### 3. Decision: no WSL-local Podman engine; the documented Windows engine is used
+
+`podman` is not on `PATH` in WSL. `infra/lib.sh`'s resolver reaches the documented Windows
+engine through `podman.exe`, which is exactly the bridge the owner added, so **no new
+bridge and no new engine were created** (creating one would have violated the
+"install nothing on the host" rule and risked a second, unrunnable engine).
+Escalation: `05-ER-01`, decided.
+
+#### 4. Decision: the ledger cannot model concurrently conflicting writes of one key
+
+Recorded as a **known limitation, not fixed**: two concurrent mutations of the same key
+can reach the ledger in an order the database did not commit in, which surfaces as an
+impossible value or an audit mismatch. One instance of it *was* fixed properly
+(amount corrections are relative in both the SQL and the ledger); the remaining instance
+(set-valued mutations) is declared in the analysis' weakness list and in section 6 of the
+analysis as a harness limitation, with the two honest routes out of it named. HIGH did not
+choose between them because both change what the hotspot phase measures and the choice
+belongs with the next planning iteration.
