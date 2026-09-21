@@ -125,8 +125,14 @@ GIT=(git -C "$(hostpath "$REPO")")
 REPO_COMMIT="$("${GIT[@]}" rev-parse HEAD 2>/dev/null)" \
   || die "cannot read the repository commit -- refusing to produce results that cannot be traced to code"
 CODE_PATHS=(platform infra "studies/$STUDY_ID" .containerignore ':!studies/*/results' ':!studies/*/reports')
-STATUS="$("${GIT[@]}" status --porcelain -- "${CODE_PATHS[@]}")" \
+STATUS_RAW="$("${GIT[@]}" status --porcelain --untracked-files=all -- "${CODE_PATHS[@]}")" \
   || die "git status failed -- cannot tell whether the study code is committed"
+# A run's own OUTPUT never makes its code dirty. Results and reports are what the
+# run produces, and the first dev check of this study was reported as dirty purely
+# because a probe had written results/devchecks/ -- a false "not reproducible" flag
+# is as bad as a missing one. Everything else in the listed paths still counts,
+# including a new harness file that has not been committed yet.
+STATUS="$(printf '%s\n' "$STATUS_RAW" | grep -v -E '^.. studies/[^/]+/(results|reports)/' || true)"
 REPO_DIRTY="false"
 [[ -n "$STATUS" ]] && REPO_DIRTY="true"
 REPO_DESCRIBE="$("${GIT[@]}" describe --tags --always 2>/dev/null || echo "$REPO_COMMIT")"

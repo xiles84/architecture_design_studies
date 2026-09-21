@@ -23,7 +23,11 @@ podman build -q -t "$BENCH_IMAGE" -f "$(winpath "$STUDY_DIR/Containerfile")" "$(
   || die "image build failed"
 
 bash "$REPO/infra/redis.sh" up || die "redis failed to start"
-trap 'bash "$REPO/infra/redis.sh" down >/dev/null 2>&1' EXIT
+# Chain the lock release: run_lock_acquire installed an EXIT trap, and replacing it
+# outright would leave the machine's benchmark lock held after a successful probe --
+# which is exactly what happened on the first dev check, and is why this line is a
+# chain rather than an assignment.
+trap 'run_lock_release; bash "$REPO/infra/redis.sh" down >/dev/null 2>&1' EXIT
 
 log "probing Redis primitives and policy"
 podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEMORY" \
