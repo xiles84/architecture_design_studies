@@ -4,7 +4,7 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-20
+**Last updated:** 2026-09-21
 
 ---
 
@@ -657,6 +657,51 @@ seat being sold twice. The hard parts become:
 - **Experiments:** a hot-drop race with seat choice and deferred confirmers on real
   40-minute holds, and a compressed-time lifecycle with a sweeper outage.
 - **Connections** are spread over all three YugabyteDB nodes.
+
+### Study 04 — configuration portal (product → installed product → configuration entry)
+
+**Status (2026-09-21):** planning checkpoint committed and tagged `study-04/v0-handoff`.
+Nothing is running; the benchmark lock is free. One agent, DeepSeek HIGH (`deepseek-flash`; effort
+and tool identity not exposed by the session), plans, implements, measures, validates, analyses
+and integrates this study — there is no LOW executor and no model switch.
+
+The portal is used by other products: all configuration creation, modification, publication and
+retrieval goes through it and its database. Configuration belongs to an **installed product** (one
+deployment of a **product definition**, in an **environment**, optionally per **business unit**),
+never to the product definition itself; several installations of one definition may share an
+environment.
+
+- Specification: [`studies/04-configuration-portal/HANDOFF.md`](studies/04-configuration-portal/HANDOFF.md)
+  (`EH-04` revision 1). Escalations: `ESCALATIONS.md`; step log: `PROGRESS.md`.
+- **18 designs**: `n0`–`n4` normalized (index control, reference, rolldown, trigger rollup, app
+  rollup); `d1`–`d4` document (one-to-one row, embedded on the parent, section-sharded, JSON path
+  update); `h1` normalized rows plus a materialized read representation; `s1` immutable snapshots
+  with an atomic revision pointer, `s2` append-only history plus materialized current state;
+  `y1`/`y2` colocated vs non-colocated (YugabyteDB only); `c1`/`c2` optimistic vs pessimistic
+  concurrency; `x1`/`x2` the two negative controls (lost update, rollup drift).
+- **INV-1…INV-13** verified in Go from the generated dataset; correctness gates timing.
+- **Cardinality tiers 1, 10, 30, 60, 120, 500** — 60 mandatory — plus a bounded skewed
+  distribution. The controlled comparisons hold total entries, then total serialized bytes,
+  approximately constant while entries per installed product changes; a **fixed fleet** is a
+  separately labelled third scenario.
+- **Cadence is a rate, not a wait:** λ = installed products / period, i.e. 0.0058–500 updates/s for
+  a 500-product fleet. Jittered arrivals and synchronized bursts; every calculated capacity is
+  labelled a projection and never presented as a measured temporal result.
+- This session's measurement scope, agreed with the owner, is **prove the pipeline**: phases A–C
+  plus a reduced phase D (a small `pg-single` matrix). Full-breadth D and phases E–J are mapped in
+  the handoff for a later session.
+
+**04-ER-01 (decided):** the preflight assumed a native WSL `podman`; there is none. The documented
+engine is reachable only through the Windows `podman.exe`, which from WSL already reports the same
+server, images, volumes and benchmark-lock state. AM-01 decides that WSL drives that engine through
+`podman.exe` via an additive resolver in `infra/lib.sh`, and that a WSL-local podman is never
+initialised — a second engine would carry no shared benchmark lock, which is the failure the lock
+exists to prevent. Recorded in `ESCALATIONS.md`.
+
+**Environment:** `host-zenbook-ux5406sa` re-verified live on 2026-09-21 — 8 CPUs,
+16 496 422 912 bytes, kernel `6.6.87.2-microsoft-standard-WSL2`, host ASUS Zenbook S 14 UX5406SA.
+`podman machine inspect` still shows its stale `init` value of 4 CPUs / 2048 MiB; the live guest is
+the environment page's 8 CPU / ≈15.36 GiB, and no machine was created, resized or started.
 
 ## Decisions taken, and why
 
