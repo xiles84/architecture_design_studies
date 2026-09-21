@@ -856,7 +856,24 @@ three-node cluster, no colocation evidence, no open-loop SLO work.
 
 **Status: measured, analysed and integrated into `main`.** Findings, coverage gaps and the five leads for a
 second analyst are in `reports/analyses/20260921-cache-consistency-allgreen.md`, which supersedes the
-survey analysis (now in `reports/outdated/`). The nine failed cells, the
+survey analysis (now in `reports/outdated/`).
+
+### Study 05 — final integration receipt
+
+Branch `study-05/cache-consistency` (worktree `.worktrees/study05-cache-consistency`) was merged into local
+`main` by fast-forward at each milestone; the final state is `main` = the commit carrying this paragraph, with
+every task commit reachable — `fa1a57a`, `92f8d0b`, `91f2ce0`, `567778f`, `cac02f5`, `a1f09a4`, `72bb543`,
+`4a747f5`, `43a2990`, `ead9b18`, `0682f5e`, `f9d9f57`, `48fe1e3` (the code the reported run was produced
+from) and `372f437` (final analysis, lessons, context). Annotated tags: `study-05/v0-handoff`,
+`study-05/v0.1-handoff-amendment-01`, `study-05/v1-harness`, `study-05/v1-measured`, `study-05/v1-analysis`,
+`study-05/v1-integrated`, `study-05/v1.1-diagnostics`, `study-05/v2-owner-guard`,
+`study-05/v2.1-impossible-attribution`, `study-05/v2.2-residual-classified`, `study-05/v3-allgreen`,
+`study-05/v3-analysis`, and the reported runs `run/05-cache-consistency/20260921T-survey` and
+`run/05-cache-consistency/20260921T-survey3`. No tag was moved, deleted or reused; nothing was pushed or
+pulled and no remote was touched. The benchmark lock was released and the study's containers (`pg-single`,
+`ads-redis`) were stopped and removed by the runner after every pass. Post-integration checks on `main`:
+`gofmt -l .` clean; `go vet ./...` clean; `go test ./...` green for the study, in the pinned Go container
+(the platform's timing-sensitive `core/measure` test remains the one caveat recorded above). The nine failed cells, the
 rollup reference drift, the unrun churn/equal-total/topology arms and the three-instance confirmation are
 open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run
 this matrix unchanged.
