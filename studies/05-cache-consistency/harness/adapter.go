@@ -83,9 +83,11 @@ type mutation struct {
 	NewPersonID int64
 	DonationID  int64
 	AmountCents int64
-	FullName    string
-	Email       string
-	Donation    Donation
+	// DeltaCents is a RELATIVE amount change, which is what the SQL applies.
+	DeltaCents int64
+	FullName   string
+	Email      string
+	Donation   Donation
 }
 
 // keys are the cache keys this mutation affects. Reassignment affects two, which is
@@ -442,16 +444,16 @@ func (a *adapter) versionMatches(ctx context.Context, keyID int64, e *Entry) boo
 // finish classifies the read against the oracle and records it. The strict
 // violation and impossible-value counters are incremented HERE, at the moment of
 // the read, so a cell cannot pass by aggregating its own evidence incorrectly.
-// ackKeys acknowledges a completed write: it moves the ledger's freshness requirement
-// for the key and starts the time-to-freshness clock. The two move together, because
-// the strict contract is written against the ACKNOWLEDGEMENT, not against the commit
-// -- and a strict writer is required to leave the cache invalidated before it
-// acknowledges. A commit that is not yet acknowledged therefore cannot make a served
-// value stale.
-func (a *adapter) ackKeys(keys []int64) {
-	for _, k := range keys {
-		a.orc.Ack(k)
-		a.log.NoteAck(k)
+// ackTokens acknowledges a completed write: it moves the ledger's freshness
+// requirement for each affected key and starts that key's time-to-freshness clock.
+// The two move together, because the strict contract is written against the
+// ACKNOWLEDGEMENT, not against the commit -- and a strict writer is required to leave
+// the cache invalidated before it acknowledges. A commit that is not yet acknowledged
+// therefore cannot make a served value stale.
+func (a *adapter) ackTokens(tokens []ackToken) {
+	for _, t := range tokens {
+		a.orc.Ack(t)
+		a.log.NoteAck(t.KeyID)
 	}
 }
 
@@ -570,7 +572,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 		a.reconcileAmbiguous(ctx, m)
 		return err
 	}
-	a.noteCommitted(m)
+	acks := a.noteCommitted(m)
 
 	// 3. An external writer commits and then does NOT touch the cache. It is the
 	//    regime the strict legacy cells have to survive, so it must not be modelled
@@ -602,9 +604,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 			a.installTombstone(ctx, instIdx, k)
 		}
 		// Leave the cache invalidated and only then acknowledge, per the contract.
-		for _, k := range keys {
-			a.ackKeys([]int64{k})
-		}
+		a.ackTokens(acks)
 		_ = retries
 		return nil
 
@@ -625,9 +625,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 				a.publishFailed.Add(1)
 			}
 		}
-		for _, k := range keys {
-			a.ackKeys([]int64{k})
-		}
+		a.ackTokens(acks)
 		return nil
 
 	case a.d.Freshness == FreshRelaxed && a.d.Strategy == StrategyAside:
@@ -639,9 +637,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 			}
 			a.invalidate(ctx, instIdx, k)
 		}
-		for _, k := range keys {
-			a.ackKeys([]int64{k})
-		}
+		a.ackTokens(acks)
 		return nil
 
 	case a.d.Freshness == FreshRelaxed && a.d.Strategy == StrategyThrough:
@@ -654,17 +650,13 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 				a.publishFailed.Add(1)
 			}
 		}
-		for _, k := range keys {
-			a.ackKeys([]int64{k})
-		}
+		a.ackTokens(acks)
 		return nil
 	}
 
 	// A no-cache scenario still records the acknowledgement so the oracle's
 	// time-to-freshness clock runs; there is no cache to update.
-	for _, k := range keys {
-		a.ackKeys([]int64{k})
-	}
+	a.ackTokens(acks)
 	_ = retries
 	return nil
 }
@@ -756,19 +748,23 @@ func (a *adapter) reconcileAmbiguous(ctx context.Context, m mutation) {
 
 // noteCommitted applies the mutation to the oracle, which is the only record of
 // what the client was promised.
-func (a *adapter) noteCommitted(m mutation) {
+// noteCommitted applies a committed mutation to the ledger and returns the ack tokens
+// for the states it produced. The data changes HERE, because it is committed; the
+// freshness requirement moves later, at the acknowledgement.
+func (a *adapter) noteCommitted(m mutation) []ackToken {
 	switch m.Kind {
 	case "insert":
-		a.orc.ApplyInsert(m.PersonID, m.Donation)
+		return a.orc.ApplyInsert(m.PersonID, m.Donation)
 	case "correct":
-		a.orc.ApplyCorrect(m.PersonID, m.DonationID, m.AmountCents)
+		return a.orc.ApplyCorrect(m.PersonID, m.DonationID, m.DeltaCents)
 	case "delete":
-		a.orc.ApplyDelete(m.PersonID, m.DonationID)
+		return a.orc.ApplyDelete(m.PersonID, m.DonationID)
 	case "person_update":
-		a.orc.ApplyPersonUpdate(m.PersonID, m.FullName, m.Email)
+		return a.orc.ApplyPersonUpdate(m.PersonID, m.FullName, m.Email)
 	case "reassign":
-		a.orc.ApplyReassign(m.DonationID, m.PersonID, m.NewPersonID, m.Donation.CharityID)
+		return a.orc.ApplyReassign(m.DonationID, m.PersonID, m.NewPersonID, m.Donation.CharityID)
 	}
+	return nil
 }
 
 // republish fills the committed view and publishes it. It runs ONLY after the
@@ -987,7 +983,7 @@ func (a *adapter) execMutation(ctx context.Context, q ports.Queryer, m mutation)
 		})
 		return err
 	case "correct":
-		_, err := a.exec(ctx, q, sDonationCorrect, map[string]any{"donation_id": m.DonationID, "amount_cents": m.AmountCents})
+		_, err := a.exec(ctx, q, sDonationCorrect, map[string]any{"donation_id": m.DonationID, "delta_cents": m.DeltaCents})
 		return err
 	case "delete":
 		_, err := a.exec(ctx, q, sDonationDelete, map[string]any{"donation_id": m.DonationID})

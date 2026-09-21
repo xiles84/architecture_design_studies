@@ -237,8 +237,8 @@ func (c *cell) buildCorrectFor(r *rand.Rand, p Person) (mutation, bool) {
 	if !ok {
 		return mutation{}, false
 	}
-	return mutation{Kind: "correct", PersonID: p.ID, DonationID: d.ID,
-		AmountCents: d.AmountCents + int64(1+r.Intn(5000))}, true
+	delta := int64(1 + r.Intn(5000))
+	return mutation{Kind: "correct", PersonID: p.ID, DonationID: d.ID, DeltaCents: delta}, true
 }
 
 func (c *cell) buildDeleteFor(r *rand.Rand, p Person) (mutation, bool) {

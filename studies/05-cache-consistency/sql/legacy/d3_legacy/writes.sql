@@ -22,11 +22,11 @@ INSERT INTO donation (donation_id, person_id, charity_id, amount_cents, currency
 VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: w_donation_correct
--- params: donation_id, amount_cents
+-- params: donation_id, delta_cents
 -- An amount correction is an UPDATE of the child row in place. It changes the
 -- donated total and possibly the recent-20 slice's content, so every cache
 -- strategy must invalidate or republish the donor's entry.
-UPDATE donation SET amount_cents = $2 WHERE donation_id = $1;
+UPDATE donation SET amount_cents = amount_cents + $2 WHERE donation_id = $1;
 
 -- name: w_donation_delete
 -- params: donation_id

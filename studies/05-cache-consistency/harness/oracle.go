@@ -43,6 +43,11 @@ type oraclePerson struct {
 	donations map[int64]Donation
 	seq       int64
 	curHash   string
+	// pending holds the states produced by writes that have committed but are not yet
+	// acknowledged. It is a MAP, not a single slot: two writers can commit before
+	// either acknowledges, and a single slot loses one of their states -- which then
+	// looks impossible when a reader serves it from the cache.
+	pending map[string]int
 	// pendingHash is the state a committed but not yet ACKNOWLEDGED write produced.
 	// The protocol's requirement is defined at the acknowledgement, not at the commit
 	// ("a read that begins after a write to that key was acknowledged"), and a cache
@@ -147,32 +152,47 @@ func (o *oracle) hashLocked(personID int64, op *oraclePerson) string {
 // markPendingLocked records that this key has reached a new committed state that has
 // not been acknowledged yet. The DATA is committed; the freshness REQUIREMENT does not
 // move until Ack, because that is what the protocol's contract is written against.
-func (o *oracle) markPendingLocked(personID int64) {
+func (o *oracle) markPendingLocked(personID int64) string {
 	op := o.people[personID]
 	if op == nil {
-		return
+		return ""
 	}
-	op.pendingHash = o.hashLocked(personID, op)
+	h := o.hashLocked(personID, op)
+	if op.pending == nil {
+		op.pending = map[string]int{}
+	}
+	op.pending[h]++
+	return h
+}
+
+// ackToken names one committed state of one key that is about to be acknowledged.
+type ackToken struct {
+	KeyID int64
+	Hash  string
 }
 
 // Ack moves the requirement. Every write path calls it at the point where it would
 // acknowledge the write to the caller -- which for a strict writer is AFTER the cache
 // has been fenced, and for a relaxed writer after its best-effort update. A write that
 // was never acknowledged never moves the requirement.
-func (o *oracle) Ack(personID int64) {
+func (o *oracle) Ack(t ackToken) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	op := o.people[personID]
-	if op == nil {
+	op := o.people[t.KeyID]
+	if op == nil || t.Hash == "" {
 		return
 	}
-	if op.pendingHash == "" {
+	if n := op.pending[t.Hash]; n > 1 {
+		op.pending[t.Hash] = n - 1
+	} else {
+		delete(op.pending, t.Hash)
+	}
+	if op.curHash == t.Hash {
 		return
 	}
 	op.seq++
-	op.curHash = op.pendingHash
-	op.pendingHash = ""
-	op.history = append(op.history, stateStamp{Seq: op.seq, Hash: op.curHash, AtMS: nowMS()})
+	op.curHash = t.Hash
+	op.history = append(op.history, stateStamp{Seq: op.seq, Hash: t.Hash, AtMS: nowMS()})
 }
 
 // ---------------------------------------------------------------- mutations
@@ -182,77 +202,83 @@ func (o *oracle) Ack(personID int64) {
 // whose COMMIT outcome was ambiguous and which was therefore rolled back, is
 // applied through RollbackMutation instead.
 
-func (o *oracle) ApplyInsert(personID int64, d Donation) {
+func (o *oracle) ApplyInsert(personID int64, d Donation) []ackToken {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	op := o.people[personID]
 	if op == nil {
-		return
+		return nil
 	}
 	op.donations[d.ID] = d
-	o.markPendingLocked(personID)
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
 }
 
-func (o *oracle) ApplyCorrect(personID int64, donationID, amountCents int64) {
+func (o *oracle) ApplyCorrect(personID int64, donationID, deltaCents int64) []ackToken {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	op := o.people[personID]
 	if op == nil {
-		return
+		return nil
 	}
 	d, ok := op.donations[donationID]
 	if !ok {
-		return
+		return nil
 	}
-	d.AmountCents = amountCents
+	// Relative, to match the SQL: two concurrent corrections to one donation then
+	// produce the same total whichever order they commit in, so the ledger and the
+	// database cannot disagree about an aggregate for a reason that belongs to the
+	// harness rather than to a design.
+	d.AmountCents += deltaCents
 	op.donations[donationID] = d
-	o.markPendingLocked(personID)
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
 }
 
-func (o *oracle) ApplyDelete(personID int64, donationID int64) {
+func (o *oracle) ApplyDelete(personID int64, donationID int64) []ackToken {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	op := o.people[personID]
 	if op == nil {
-		return
+		return nil
 	}
 	delete(op.donations, donationID)
-	o.markPendingLocked(personID)
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
 }
 
-func (o *oracle) ApplyPersonUpdate(personID int64, fullName, email string) {
+func (o *oracle) ApplyPersonUpdate(personID int64, fullName, email string) []ackToken {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	op := o.people[personID]
 	if op == nil {
-		return
+		return nil
 	}
 	op.fullName = fullName
 	op.email = email
-	o.markPendingLocked(personID)
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
 }
 
 // ApplyReassign moves a donation between two people. Both keys reach a new
 // committed state, so both are bumped -- which is why reassignment is the mutation
 // that breaks caches which only ever think about one key.
-func (o *oracle) ApplyReassign(donationID, fromPerson, toPerson, newCharityID int64) {
+func (o *oracle) ApplyReassign(donationID, fromPerson, toPerson, newCharityID int64) []ackToken {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	from := o.people[fromPerson]
 	to := o.people[toPerson]
 	if from == nil || to == nil {
-		return
+		return nil
 	}
 	d, ok := from.donations[donationID]
 	if !ok {
-		return
+		return nil
 	}
 	delete(from.donations, donationID)
 	d.PersonID = toPerson
 	d.CharityID = newCharityID
 	to.donations[donationID] = d
-	o.markPendingLocked(fromPerson)
-	o.markPendingLocked(toPerson)
+	return []ackToken{
+		{KeyID: fromPerson, Hash: o.markPendingLocked(fromPerson)},
+		{KeyID: toPerson, Hash: o.markPendingLocked(toPerson)},
+	}
 }
 
 // ExtBump records an acknowledged EXTERNAL write: one that bypassed the cache
@@ -261,7 +287,7 @@ func (o *oracle) ApplyReassign(donationID, fromPerson, toPerson, newCharityID in
 func (o *oracle) ExtBump(personID int64) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.markPendingLocked(personID)
+	_ = o.markPendingLocked(personID)
 }
 
 // ---------------------------------------------------------------- reads
@@ -282,7 +308,7 @@ func (o *oracle) CurrentSeq(personID int64) int64 {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if op := o.people[personID]; op != nil {
-		if op.pendingHash != "" {
+		if len(op.pending) > 0 {
 			return op.seq + 1
 		}
 		return op.seq
@@ -310,10 +336,11 @@ func (o *oracle) Classify(personID int64, returnedHash string, reqHash string, r
 	if returnedHash == reqHash {
 		return KindFresh, reqSeq, 0, 0
 	}
-	if op.pendingHash != "" && returnedHash == op.pendingHash {
+	if op.pending[returnedHash] > 0 {
 		// Committed, not yet acknowledged: legitimately ahead of the requirement.
 		return KindAhead, op.seq + 1, 0, 0
 	}
+	_ = op
 	for i := len(op.history) - 1; i >= 0; i-- {
 		if op.history[i].Hash == returnedHash {
 			s := op.history[i].Seq
@@ -398,8 +425,10 @@ func (o *oracle) PickDonation(personID int64, r *rand.Rand) (Donation, bool) {
 func (o *oracle) PendingHash(personID int64) string {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if op := o.people[personID]; op != nil {
-		return op.pendingHash
+	if op := o.people[personID]; op != nil && len(op.pending) > 0 {
+		for h := range op.pending {
+			return h
+		}
 	}
 	return ""
 }

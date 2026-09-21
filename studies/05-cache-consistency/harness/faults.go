@@ -336,7 +336,10 @@ func (c *cell) externalWrite(ctx context.Context, m mutation) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	c.ad.noteCommitted(m)
+	// An external writer's commit IS its acknowledgement: nothing fences the cache on
+	// its behalf, which is exactly why the strict legacy cells must read
+	// authoritatively under this regime.
+	c.ad.ackTokens(c.ad.noteCommitted(m))
 	return nil
 }
 
@@ -368,7 +371,7 @@ func mutationParams(m mutation) map[string]any {
 			"amount_cents": d.AmountCents, "currency": d.Currency, "donated_at": d.DonatedAt, "note": note,
 		}
 	case "correct":
-		return map[string]any{"donation_id": m.DonationID, "amount_cents": m.AmountCents}
+		return map[string]any{"donation_id": m.DonationID, "delta_cents": m.DeltaCents}
 	case "delete":
 		return map[string]any{"donation_id": m.DonationID}
 	case "person_update":

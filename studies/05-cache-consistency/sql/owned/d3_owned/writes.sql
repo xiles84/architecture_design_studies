@@ -34,8 +34,8 @@ INSERT INTO donation (donation_id, person_id, charity_id, amount_cents, currency
 VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: w_donation_correct
--- params: donation_id, amount_cents
-UPDATE donation SET amount_cents = $2 WHERE donation_id = $1;
+-- params: donation_id, delta_cents
+UPDATE donation SET amount_cents = amount_cents + $2 WHERE donation_id = $1;
 
 -- name: w_donation_delete
 -- params: donation_id
