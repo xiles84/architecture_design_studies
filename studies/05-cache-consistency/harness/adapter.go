@@ -442,6 +442,19 @@ func (a *adapter) versionMatches(ctx context.Context, keyID int64, e *Entry) boo
 // finish classifies the read against the oracle and records it. The strict
 // violation and impossible-value counters are incremented HERE, at the moment of
 // the read, so a cell cannot pass by aggregating its own evidence incorrectly.
+// ackKeys acknowledges a completed write: it moves the ledger's freshness requirement
+// for the key and starts the time-to-freshness clock. The two move together, because
+// the strict contract is written against the ACKNOWLEDGEMENT, not against the commit
+// -- and a strict writer is required to leave the cache invalidated before it
+// acknowledges. A commit that is not yet acknowledged therefore cannot make a served
+// value stale.
+func (a *adapter) ackKeys(keys []int64) {
+	for _, k := range keys {
+		a.orc.Ack(k)
+		a.log.NoteAck(k)
+	}
+}
+
 func (a *adapter) finish(ctx context.Context, keyID int64, content PortalContent, out ReadOutcome, reqHash string, reqSeq int64) ReadOutcome {
 	h := content.ContentHash()
 	out.ReturnedHash = h
@@ -590,7 +603,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 		}
 		// Leave the cache invalidated and only then acknowledge, per the contract.
 		for _, k := range keys {
-			a.log.NoteAck(k)
+			a.ackKeys([]int64{k})
 		}
 		_ = retries
 		return nil
@@ -613,7 +626,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 			}
 		}
 		for _, k := range keys {
-			a.log.NoteAck(k)
+			a.ackKeys([]int64{k})
 		}
 		return nil
 
@@ -627,7 +640,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 			a.invalidate(ctx, instIdx, k)
 		}
 		for _, k := range keys {
-			a.log.NoteAck(k)
+			a.ackKeys([]int64{k})
 		}
 		return nil
 
@@ -642,7 +655,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 			}
 		}
 		for _, k := range keys {
-			a.log.NoteAck(k)
+			a.ackKeys([]int64{k})
 		}
 		return nil
 	}
@@ -650,7 +663,7 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 	// A no-cache scenario still records the acknowledgement so the oracle's
 	// time-to-freshness clock runs; there is no cache to update.
 	for _, k := range keys {
-		a.log.NoteAck(k)
+		a.ackKeys([]int64{k})
 	}
 	_ = retries
 	return nil

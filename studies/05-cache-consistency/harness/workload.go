@@ -91,7 +91,8 @@ func buildInstances(backend Backend, n int, capBytes int64, redisAddr string, re
 // ---------------------------------------------------------------- operations
 
 func (c *cell) instIdx(r *rand.Rand) int {
-	if len(c.ad.inst) == 1 {
+	// A scenario with no cache has no instance to choose, and must not call Intn(0).
+	if len(c.ad.inst) <= 1 {
 		return 0
 	}
 	return r.Intn(len(c.ad.inst))

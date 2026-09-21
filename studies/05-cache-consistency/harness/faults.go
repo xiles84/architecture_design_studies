@@ -135,6 +135,9 @@ func (c *cell) faultCacheFailureAfterCommit(ctx context.Context) FaultResult {
 		fr.Detail = "the mutation failed at the database, not the cache: " + err.Error()
 		return fr
 	}
+	// The cache side of the write was made to fail, so a relaxed writer's
+	// acknowledgement still happens (that is the point of the fault) while the cache
+	// keeps the superseded value.
 	c.ad.faultPublishFail.Store(false)
 	c.ad.faultSkipNextInvalidation.Store(false)
 

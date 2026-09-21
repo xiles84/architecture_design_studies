@@ -276,6 +276,16 @@ func TestOracleClassifiesFreshStaleAheadAndImpossible(t *testing.T) {
 	d.PersonID = key
 	d.CharityID = p.CharityID
 	orc.ApplyInsert(key, d)
+	// The data is committed, but the requirement moves only at the acknowledgement --
+	// which is when a strict writer has already fenced the cache. Until then the new
+	// content is legitimately AHEAD of a read that started earlier.
+	if h, sq := orc.Required(key); h != hash0 || sq != seq0 {
+		t.Fatalf("the requirement moved at the commit, before the acknowledgement")
+	}
+	if k, _, _, _ := orc.Classify(key, orc.PendingHash(key), hash0, seq0); k != KindAhead {
+		t.Fatalf("a committed but unacknowledged state was classified %q, expected ahead", k)
+	}
+	orc.Ack(key)
 	hash1, seq1 := orc.Required(key)
 	if seq1 != 1 {
 		t.Fatalf("after one acknowledged write the sequence is %d, expected 1", seq1)
@@ -312,6 +322,8 @@ func TestOracleReassignmentMovesBothKeys(t *testing.T) {
 	beforeB, seqB := orc.Required(b.ID)
 	d.CharityID = b.CharityID
 	orc.ApplyReassign(d.ID, a.ID, b.ID, b.CharityID)
+	orc.Ack(a.ID)
+	orc.Ack(b.ID)
 
 	afterA, seqA2 := orc.Required(a.ID)
 	afterB, seqB2 := orc.Required(b.ID)

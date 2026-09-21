@@ -43,7 +43,14 @@ type oraclePerson struct {
 	donations map[int64]Donation
 	seq       int64
 	curHash   string
-	history   []stateStamp
+	// pendingHash is the state a committed but not yet ACKNOWLEDGED write produced.
+	// The protocol's requirement is defined at the acknowledgement, not at the commit
+	// ("a read that begins after a write to that key was acknowledged"), and a cache
+	// writer is required to leave the cache invalidated before it acknowledges. A
+	// value matching pendingHash is therefore legitimately ahead of the read's
+	// requirement, not impossible.
+	pendingHash string
+	history     []stateStamp
 }
 
 type oracle struct {
@@ -137,14 +144,34 @@ func (o *oracle) hashLocked(personID int64, op *oraclePerson) string {
 	return o.contentLocked(personID, op).ContentHash()
 }
 
-// bumpLocked records that this key reached a new committed state.
-func (o *oracle) bumpLocked(personID int64) {
+// markPendingLocked records that this key has reached a new committed state that has
+// not been acknowledged yet. The DATA is committed; the freshness REQUIREMENT does not
+// move until Ack, because that is what the protocol's contract is written against.
+func (o *oracle) markPendingLocked(personID int64) {
 	op := o.people[personID]
 	if op == nil {
 		return
 	}
+	op.pendingHash = o.hashLocked(personID, op)
+}
+
+// Ack moves the requirement. Every write path calls it at the point where it would
+// acknowledge the write to the caller -- which for a strict writer is AFTER the cache
+// has been fenced, and for a relaxed writer after its best-effort update. A write that
+// was never acknowledged never moves the requirement.
+func (o *oracle) Ack(personID int64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return
+	}
+	if op.pendingHash == "" {
+		return
+	}
 	op.seq++
-	op.curHash = o.hashLocked(personID, op)
+	op.curHash = op.pendingHash
+	op.pendingHash = ""
 	op.history = append(op.history, stateStamp{Seq: op.seq, Hash: op.curHash, AtMS: nowMS()})
 }
 
@@ -163,7 +190,7 @@ func (o *oracle) ApplyInsert(personID int64, d Donation) {
 		return
 	}
 	op.donations[d.ID] = d
-	o.bumpLocked(personID)
+	o.markPendingLocked(personID)
 }
 
 func (o *oracle) ApplyCorrect(personID int64, donationID, amountCents int64) {
@@ -179,7 +206,7 @@ func (o *oracle) ApplyCorrect(personID int64, donationID, amountCents int64) {
 	}
 	d.AmountCents = amountCents
 	op.donations[donationID] = d
-	o.bumpLocked(personID)
+	o.markPendingLocked(personID)
 }
 
 func (o *oracle) ApplyDelete(personID int64, donationID int64) {
@@ -190,7 +217,7 @@ func (o *oracle) ApplyDelete(personID int64, donationID int64) {
 		return
 	}
 	delete(op.donations, donationID)
-	o.bumpLocked(personID)
+	o.markPendingLocked(personID)
 }
 
 func (o *oracle) ApplyPersonUpdate(personID int64, fullName, email string) {
@@ -202,7 +229,7 @@ func (o *oracle) ApplyPersonUpdate(personID int64, fullName, email string) {
 	}
 	op.fullName = fullName
 	op.email = email
-	o.bumpLocked(personID)
+	o.markPendingLocked(personID)
 }
 
 // ApplyReassign moves a donation between two people. Both keys reach a new
@@ -224,8 +251,8 @@ func (o *oracle) ApplyReassign(donationID, fromPerson, toPerson, newCharityID in
 	d.PersonID = toPerson
 	d.CharityID = newCharityID
 	to.donations[donationID] = d
-	o.bumpLocked(fromPerson)
-	o.bumpLocked(toPerson)
+	o.markPendingLocked(fromPerson)
+	o.markPendingLocked(toPerson)
 }
 
 // ExtBump records an acknowledged EXTERNAL write: one that bypassed the cache
@@ -234,7 +261,7 @@ func (o *oracle) ApplyReassign(donationID, fromPerson, toPerson, newCharityID in
 func (o *oracle) ExtBump(personID int64) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.bumpLocked(personID)
+	o.markPendingLocked(personID)
 }
 
 // ---------------------------------------------------------------- reads
@@ -255,6 +282,9 @@ func (o *oracle) CurrentSeq(personID int64) int64 {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if op := o.people[personID]; op != nil {
+		if op.pendingHash != "" {
+			return op.seq + 1
+		}
 		return op.seq
 	}
 	return 0
@@ -279,6 +309,10 @@ func (o *oracle) Classify(personID int64, returnedHash string, reqHash string, r
 	}
 	if returnedHash == reqHash {
 		return KindFresh, reqSeq, 0, 0
+	}
+	if op.pendingHash != "" && returnedHash == op.pendingHash {
+		// Committed, not yet acknowledged: legitimately ahead of the requirement.
+		return KindAhead, op.seq + 1, 0, 0
 	}
 	for i := len(op.history) - 1; i >= 0; i-- {
 		if op.history[i].Hash == returnedHash {
@@ -357,4 +391,15 @@ func (o *oracle) PickDonation(personID int64, r *rand.Rand) (Donation, bool) {
 		i++
 	}
 	return Donation{}, false
+}
+
+// PendingHash exposes the committed-but-unacknowledged state for the unit tests that
+// pin the acknowledgement semantics.
+func (o *oracle) PendingHash(personID int64) string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if op := o.people[personID]; op != nil {
+		return op.pendingHash
+	}
+	return ""
 }
