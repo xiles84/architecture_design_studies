@@ -122,14 +122,20 @@ func readReply(r *bufio.Reader) (any, error) {
 // ---------------------------------------------------------------- the store
 
 const (
-	luaPublish = `local cur = redis.call('GET', KEYS[1])
+	// luaPublish refuses a publication whose fence has moved (KEYS[2] is the key's
+	// fence) and one whose publication order is older than the stored entry's.
+	luaPublish = `local f = redis.call('GET', KEYS[2])
+if (tonumber(f) or 0) ~= tonumber(ARGV[3]) then
+  return 0
+end
+local cur = redis.call('GET', KEYS[1])
 if cur then
   local ok, c = pcall(cjson.decode, cur)
   if ok and type(c) == 'table' and c['q'] and tonumber(c['q']) > tonumber(ARGV[2]) then
     return 0
   end
 end
-redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[3])
+redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[4])
 return 1`
 
 	luaRelease = `if redis.call('GET', KEYS[1]) == ARGV[1] then
@@ -281,7 +287,8 @@ func (r *redisStore) Put(_ context.Context, key string, e *Entry, ttl time.Durat
 	}
 	var ok bool
 	err = r.withConn(func(rc *respConn) error {
-		reply, err := rc.do("EVAL", luaPublish, "1", key, string(b), strconv.FormatInt(e.Seq, 10), strconv.FormatInt(px, 10))
+		reply, err := rc.do("EVAL", luaPublish, "2", key, fenceKey(key), string(b),
+			strconv.FormatInt(e.Seq, 10), strconv.FormatInt(e.Fence, 10), strconv.FormatInt(px, 10))
 		if err != nil {
 			return err
 		}
@@ -344,9 +351,49 @@ func (r *redisStore) ReleaseLease(_ context.Context, key, token string) error {
 	})
 }
 
-// leaseKey namespaces leases away from the value keyspace, so a value with the
-// study's own key format can never collide with a lease.
+// leaseKey and fenceKey namespace the lease and the fence away from the value
+// keyspace, so a value can never collide with either.
 func leaseKey(key string) string { return key + ":fill-lease" }
+func fenceKey(key string) string { return key + ":fence" }
+
+// Fence advances the key's invalidation fence and removes any value, in the store
+// itself so that every instance of a multi-instance deployment shares it. This is
+// what makes a shared cache's strict freshness supportable across instances: the
+// tombstone is not just a deletion, it is a statement that anything read before it
+// is no longer publishable.
+func (r *redisStore) Fence(_ context.Context, key string) (int64, error) {
+	var out int64
+	err := r.withConn(func(rc *respConn) error {
+		reply, err := rc.do("INCR", fenceKey(key))
+		if err != nil {
+			return err
+		}
+		out, _ = reply.(int64)
+		if _, err := rc.do("DEL", key); err != nil {
+			return err
+		}
+		return nil
+	})
+	return out, err
+}
+
+func (r *redisStore) FenceOf(_ context.Context, key string) (int64, error) {
+	var out int64
+	err := r.withConn(func(rc *respConn) error {
+		reply, err := rc.do("GET", fenceKey(key))
+		if err != nil {
+			return err
+		}
+		if b, ok := reply.([]byte); ok && b != nil {
+			n, perr := strconv.ParseInt(string(b), 10, 64)
+			if perr == nil {
+				out = n
+			}
+		}
+		return nil
+	})
+	return out, err
+}
 
 func (r *redisStore) Close(_ context.Context) error {
 	r.closed.Store(true)

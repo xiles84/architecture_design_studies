@@ -97,6 +97,13 @@ func (c PortalContent) ContentHash() string {
 // backend's own TTL so that memory and Redis implement the same semantics and the
 // probabilistic early-expiry draw reads the same fields on both.
 type Entry struct {
+	// Fence is the key's invalidation fence at the moment this entry was read.
+	// Publication is REFUSED unless the key's fence is still this value, which is
+	// what stops a fill that began before an invalidation from republishing the
+	// state it read. That race is real and is not closed by publishing only after a
+	// commit: the reader's snapshot was taken before the write, so its content is a
+	// committed but superseded state.
+	Fence int64 `json:"f"`
 	// Seq is the adapter's monotonic publication order for this key. It is used
 	// for version fencing: an expired lease holder must not overwrite a newer
 	// committed version. On the owned model Version (below) is authoritative.
@@ -199,10 +206,18 @@ func AgeBucket(ageMS int64) string {
 type EntryStore interface {
 	Kind() string
 	Get(ctx context.Context, key string) (*Entry, bool, error)
-	// Put publishes with version fencing. It returns false when the stored entry
-	// carries a higher Seq, which is how an expired lease holder is prevented from
-	// overwriting a newer committed version.
+	// Put publishes with BOTH fences. It returns false when the stored entry carries
+	// a higher Seq (an expired lease holder must not overwrite a newer committed
+	// version) or when the key's fence has moved since the entry was read (a fill
+	// that began before an invalidation must not republish what it read).
 	Put(ctx context.Context, key string, e *Entry, ttl time.Duration) (bool, error)
+	// Fence advances the key's invalidation fence and removes any value. A strict
+	// writer calls it BEFORE the authoritative mutation; a relaxed writer calls it
+	// after the commit, as its best-effort invalidation. It is one operation because
+	// "remove the value" and "refuse anything read before now" are one intent.
+	Fence(ctx context.Context, key string) (int64, error)
+	// FenceOf reads the current fence, 0 when the key has never been invalidated.
+	FenceOf(ctx context.Context, key string) (int64, error)
 	Delete(ctx context.Context, key string) error
 	// Flush clears the whole cache. Used by the cold-cache and stampede phases and
 	// by the fault injections; never by a steady-state read.

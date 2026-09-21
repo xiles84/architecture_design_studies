@@ -33,8 +33,11 @@ import (
 type strictPolicy string
 
 const (
-	// PolicyInvalidationOnly: the writer's pre-commit tombstone is a sufficient
-	// proof of freshness, because every writer goes through the same cache.
+	// PolicyInvalidationOnly: the writer's pre-commit fence is a sufficient proof of
+	// freshness, because every writer goes through the same cache AND every reader
+	// shares that cache's fence. The fence is what makes it sufficient: a plain
+	// deletion would leave a reader that had already begun its fill free to
+	// republish the superseded state it read.
 	PolicyInvalidationOnly strictPolicy = "invalidation-only"
 	// PolicyVersionValidate: a local cache in a multi-instance deployment cannot
 	// rely on its own invalidation, so a strict reader validates the entry's
@@ -366,6 +369,16 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 				return a.finish(keyID, e2.Content, out, reqHash, reqSeq), nil
 			}
 		}
+		// The fence is captured BEFORE the database snapshot. If the key is
+		// invalidated while this fill is in flight, the fence moves and the publish
+		// below is refused: the content read here is a committed but superseded
+		// state, and caching it is exactly how cache-aside produces a stale read
+		// that no "publish after commit" rule prevents.
+		fence, ferr := store.FenceOf(ctx, key)
+		if ferr != nil {
+			a.fillErrors.Add(1)
+			return out, ferr
+		}
 		content, version, dur, err := a.readPortalSnapshot(ctx, keyID)
 		if err != nil {
 			a.fillErrors.Add(1)
@@ -374,6 +387,7 @@ func (a *adapter) ReadKey(ctx context.Context, instIdx int, keyID int64, r *rand
 		a.noteFillLatency(dur)
 		a.fills.Add(1)
 		e := newEntry(content, version, a.nextSeq(), nowMS())
+		e.Fence = fence
 		ok, perr := store.Put(ctx, key, e, hardTTL)
 		if perr != nil {
 			a.publishFailed.Add(1)
@@ -627,11 +641,13 @@ func (a *adapter) publishFail() bool { return a.faultPublishFail.Load() }
 // authoritative read to be strict at all.
 func (a *adapter) installTombstone(ctx context.Context, instIdx int, keyID int64) {
 	key := CacheKey(keyID)
+	store := a.inst[instIdx%len(a.inst)].Store
 	if a.d.Backend == BackendRedis {
-		_ = a.inst[0].Store.Delete(ctx, key)
-	} else {
-		_ = a.inst[instIdx].Store.Delete(ctx, key)
+		store = a.inst[0].Store
 	}
+	// Fence, not a bare delete: the deletion makes readers fill again, and the fence
+	// makes any fill that already started refuse to publish what it read.
+	_, _ = store.Fence(ctx, key)
 	a.tombstonePre.Add(1)
 }
 
@@ -641,11 +657,14 @@ func (a *adapter) invalidate(ctx context.Context, instIdx int, keyID int64) {
 		return
 	}
 	key := CacheKey(keyID)
+	store := a.inst[instIdx%len(a.inst)].Store
 	if a.d.Backend == BackendRedis {
-		_ = a.inst[0].Store.Delete(ctx, key)
-	} else {
-		_ = a.inst[instIdx].Store.Delete(ctx, key)
+		store = a.inst[0].Store
 	}
+	// The relaxed writer's post-commit invalidation is the same operation as the
+	// strict writer's pre-commit tombstone. What makes a scenario relaxed is WHEN it
+	// runs and that it may be skipped or fail -- not a weaker fence.
+	_, _ = store.Fence(ctx, key)
 	a.invalidations.Add(1)
 }
 
@@ -685,14 +704,19 @@ func (a *adapter) noteCommitted(m mutation) {
 // republish fills the committed view and publishes it. It runs ONLY after the
 // mutation's transaction committed.
 func (a *adapter) republish(ctx context.Context, instIdx int, keyID int64) error {
+	store := a.store(instIdx)
+	fence, err := store.FenceOf(ctx, CacheKey(keyID))
+	if err != nil {
+		return err
+	}
 	content, version, dur, err := a.readPortalSnapshot(ctx, keyID)
 	if err != nil {
 		return err
 	}
 	a.noteFillLatency(dur)
 	a.fills.Add(1)
-	store := a.store(instIdx)
 	e := newEntry(content, version, a.nextSeq(), nowMS())
+	e.Fence = fence
 	ok, err := store.Put(ctx, CacheKey(keyID), e, hardTTL)
 	if err != nil {
 		return err

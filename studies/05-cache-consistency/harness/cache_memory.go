@@ -38,6 +38,7 @@ type memStore struct {
 	capBytes int64
 	used     int64
 	items    map[string]*list.Element
+	fences   map[string]int64
 	lru      *list.List
 	leases   map[string]memLease
 	now      func() int64
@@ -62,6 +63,7 @@ func newMemStore(capBytes int64) *memStore {
 	return &memStore{
 		capBytes: capBytes,
 		items:    map[string]*list.Element{},
+		fences:   map[string]int64{},
 		lru:      list.New(),
 		leases:   map[string]memLease{},
 		now:      func() int64 { return time.Now().UnixNano() / int64(time.Millisecond) },
@@ -104,6 +106,12 @@ func (m *memStore) Put(_ context.Context, key string, e *Entry, _ time.Duration)
 	if m.closed {
 		return false, fmt.Errorf("memory cache closed")
 	}
+	// Fence check first: a fill that began before an invalidation must not
+	// republish what it read, whatever its publication order.
+	if m.fences[key] != e.Fence {
+		m.putFenced++
+		return false, nil
+	}
 	if el, ok := m.items[key]; ok {
 		cur := el.Value.(*memItem)
 		// Version fencing: a newer committed version must not be replaced by an
@@ -145,10 +153,27 @@ func (m *memStore) Delete(_ context.Context, key string) error {
 	return nil
 }
 
+func (m *memStore) Fence(_ context.Context, key string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.fences[key]++
+	if el, ok := m.items[key]; ok {
+		m.removeElement(el)
+	}
+	return m.fences[key], nil
+}
+
+func (m *memStore) FenceOf(_ context.Context, key string) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.fences[key], nil
+}
+
 func (m *memStore) Flush(_ context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.items = map[string]*list.Element{}
+	m.fences = map[string]int64{}
 	m.lru.Init()
 	m.used = 0
 	m.leases = map[string]memLease{}

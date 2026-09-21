@@ -430,3 +430,50 @@ func TestLeaseCalibrationIsBoundedAndExplained(t *testing.T) {
 		t.Fatalf("4 x 50 ms should be 200 ms, got %s", d3)
 	}
 }
+
+// TestFenceRefusesAFillThatStartedBeforeAnInvalidation is the study's central
+// correctness rule at the store level: invalidation is not just a deletion. A reader
+// whose fill began before the invalidation holds a committed but superseded state,
+// and publishing it afterwards is how cache-aside produces a stale read that no
+// "publish only after commit" rule prevents.
+func TestFenceRefusesAFillThatStartedBeforeAnInvalidation(t *testing.T) {
+	s := newMemStore(1 << 20)
+	ctx := context.Background()
+	f0, err := s.FenceOf(ctx, "k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f0 != 0 {
+		t.Fatalf("a never-invalidated key reports fence %d, expected 0", f0)
+	}
+	pre := newEntry(PortalContent{PersonID: 1, FullName: "pre"}, 0, 1, nowMS())
+	pre.Fence = f0
+	if ok, _ := s.Put(ctx, "k", pre, hardTTL); !ok {
+		t.Fatal("the initial publish was refused")
+	}
+
+	// The write path invalidates while that fill is notionally still in flight.
+	f1, err := s.Fence(ctx, "k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f1 != f0+1 {
+		t.Fatalf("the fence moved to %d, expected %d", f1, f0+1)
+	}
+	if _, hit, _ := s.Get(ctx, "k"); hit {
+		t.Fatal("the invalidated value is still being served")
+	}
+	if ok, _ := s.Put(ctx, "k", pre, hardTTL); ok {
+		t.Fatal("a fill that began before the invalidation republished its superseded content")
+	}
+	if s.Stats()["put_fenced"] == 0 {
+		t.Fatal("the refused publication was not counted as fenced")
+	}
+
+	// A fill that began AFTER the invalidation publishes normally.
+	post := newEntry(PortalContent{PersonID: 1, FullName: "post"}, 0, 2, nowMS())
+	post.Fence = f1
+	if ok, _ := s.Put(ctx, "k", post, hardTTL); !ok {
+		t.Fatal("a fill that began after the invalidation was refused")
+	}
+}

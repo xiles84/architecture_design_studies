@@ -430,54 +430,72 @@ func (c *cell) faultSuppressedInvalidation(ctx context.Context) FaultResult {
 	return fr
 }
 
-// faultDirtyWriteAudit proves the impossible-value detector works by injecting a
-// cache record that corresponds to no committed state. This is an AUDIT TEST, not a
+// faultDirtyWriteAudit proves the impossible-value detector works by presenting it
+// with a record that corresponds to no committed state. This is an AUDIT TEST, not a
 // benchmark strategy: its speed is never reported.
+//
+// The detector is exercised directly, and then end-to-end when the scenario actually
+// reads its cache. A scenario whose strict policy is an authoritative read never
+// consults the cache at all, and asking it to classify an injected record would be
+// asking the wrong component -- the first version of this test did exactly that and
+// reported a working detector as broken.
 func (c *cell) faultDirtyWriteAudit(ctx context.Context) FaultResult {
 	fr := FaultResult{Name: "dirty-cache-write-audit-rejects-impossible-version", Correctness: "pending"}
 	r := rand.New(rand.NewSource(c.opts.FaultSeed + 8))
 	p := c.ds.HotPeople(6)[5%len(c.ds.HotPeople(6))]
 	key := CacheKey(p.ID)
-	store := c.ad.store(0)
 
-	// A valid published entry first, so the audit is shown not to reject everything.
-	out, err := c.ad.ReadKey(ctx, 0, p.ID, r)
-	if err != nil {
-		fr.Detail = "prime read failed: " + err.Error()
+	// The committed payload and its requirement, read the way the adapter reads it.
+	committed, version, verr := readPortalSQL(ctx, c.db, c.cat, c.d.usesVersion(), p.ID)
+	if verr != nil {
+		fr.Detail = "could not read the committed payload: " + verr.Error()
 		return fr
 	}
-	if out.Kind != KindFresh && out.Kind != KindAhead {
-		fr.Detail = "the primed read was not fresh, so the audit cannot be calibrated"
+	reqHash, reqSeq := c.orc.Required(p.ID)
+	if k, _, _, _ := c.orc.Classify(p.ID, committed.ContentHash(), reqHash, reqSeq); k != KindFresh && k != KindAhead {
+		fr.Detail = "the committed payload was not accepted as committed, so the detector cannot be calibrated"
 		return fr
 	}
 
-	// Now an entry that corresponds to no committed state: a real payload with a
-	// field changed, published at a version far in the future.
-	bad, _, rerr := readPortalSQL(ctx, c.db, c.cat, c.d.usesVersion(), p.ID)
-	if rerr != nil {
-		fr.Detail = "could not read the committed payload: " + rerr.Error()
-		return fr
-	}
+	// An IMPOSSIBLE record: a real payload with a field changed, and a version far in
+	// the future. It corresponds to no state the database ever held.
+	bad := committed
 	bad.FullName = "impossible-cache-write-audit-marker"
-	bad.Normalize()
-	injected := newEntry(bad, 1<<40, c.ad.nextSeq(), nowMS())
-	if _, err := store.Put(ctx, key, injected, hardTTL); err != nil {
-		fr.Detail = "could not inject the invalid entry: " + err.Error()
-		return fr
+	kind, _, _, _ := c.orc.Classify(p.ID, bad.ContentHash(), reqHash, reqSeq)
+	direct := kind == KindImpossible
+
+	endToEnd := true
+	var readKind, readSource string
+	if c.ad.policy != PolicyAuthoritative && c.d.hasCache() {
+		store := c.ad.store(0)
+		fence, _ := store.FenceOf(ctx, key)
+		injected := newEntry(bad, 1<<40, c.ad.nextSeq(), nowMS())
+		injected.Fence = fence
+		if _, err := store.Put(ctx, key, injected, hardTTL); err != nil {
+			fr.Detail = "could not inject the invalid entry: " + err.Error()
+			return fr
+		}
+		out, err := c.ad.ReadKey(ctx, 0, p.ID, r)
+		if err != nil {
+			fr.Detail = "read after injection failed: " + err.Error()
+			return fr
+		}
+		readKind, readSource = out.Kind, out.Source
+		endToEnd = out.Kind == KindImpossible
+		// Leave the cache clean so the injection cannot leak into a later phase.
+		_, _ = store.Fence(ctx, key)
 	}
-	after, err := c.ad.ReadKey(ctx, 0, p.ID, r)
-	if err != nil {
-		fr.Detail = "read after injection failed: " + err.Error()
-		return fr
+
+	fr.Reproduced = direct && endToEnd
+	switch {
+	case fr.Reproduced && readKind != "":
+		fr.Correctness = fmt.Sprintf("the injected record corresponded to no committed state: the detector classified it impossible directly and the read through the cache returned %s (source %s)", readKind, readSource)
+	case fr.Reproduced:
+		fr.Correctness = "the injected record corresponded to no committed state and the detector classified it impossible (this scenario reads the database authoritatively, so there is no cache path to exercise)"
+	default:
+		fr.Detail = fmt.Sprintf("detector accepted an impossible record (direct=%t end-to-end=%t, read classified %q)", direct, endToEnd, readKind)
 	}
-	fr.Reproduced = after.Kind == KindImpossible
-	if fr.Reproduced {
-		fr.Correctness = "the injected record corresponded to no committed state and the audit classified it impossible"
-	} else {
-		fr.Detail = fmt.Sprintf("the audit accepted an impossible record (classified %s)", after.Kind)
-	}
-	// Leave the cache clean so the injection cannot leak into a later phase.
-	_ = store.Flush(ctx)
+	_ = version
 	return fr
 }
 
@@ -488,11 +506,9 @@ func (c *cell) faultDirtyWriteAudit(ctx context.Context) FaultResult {
 func (c *cell) faultLostVersionBumps(ctx context.Context) FaultResult {
 	fr := FaultResult{Name: "unguarded-version-bump-loses-updates", Correctness: "pending"}
 	p := c.ds.HotPeople(1)[0]
-	key := CacheKey(p.ID)
-	_ = key
 
 	// The starting point, read from the database rather than assumed.
-	v0, err := scalarInt64(ctx, c.db, c.cat, sPersonVersionQuery(), map[string]any{"person_id": p.ID})
+	v0, err := scalarInt64(ctx, c.db, c.cat, sPersonVersion, map[string]any{"person_id": p.ID})
 	if err != nil {
 		fr.Detail = "could not read the starting version: " + err.Error()
 		return fr
@@ -520,7 +536,7 @@ func (c *cell) faultLostVersionBumps(ctx context.Context) FaultResult {
 	}
 
 	acked := c.ad.writeCount.Load() - before
-	vf, err := scalarInt64(ctx, c.db, c.cat, sPersonVersionQuery(), map[string]any{"person_id": p.ID})
+	vf, err := scalarInt64(ctx, c.db, c.cat, sPersonVersion, map[string]any{"person_id": p.ID})
 	if err != nil {
 		fr.Detail = "could not read the final version: " + err.Error()
 		return fr
@@ -541,9 +557,7 @@ func (c *cell) faultLostVersionBumps(ctx context.Context) FaultResult {
 	return fr
 }
 
-// sPersonVersionQuery returns the statement that reads the authoritative token.
-func sPersonVersionQuery() string { return sPersonVersion }
-
+// scalarInt64 runs a single-value statement through the catalogue.
 func scalarInt64(ctx context.Context, db ports.DB, cat *catalogue, name string, vals map[string]any) (int64, error) {
 	a, err := cat.args(name, vals)
 	if err != nil {

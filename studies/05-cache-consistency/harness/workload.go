@@ -71,6 +71,12 @@ func newStore(backend Backend, capBytes int64, redisAddr string, redisConns int)
 }
 
 func buildInstances(backend Backend, n int, capBytes int64, redisAddr string, redisConns int) ([]*Instance, error) {
+	// The no-cache baselines and the reference cells have no backend. Returning an
+	// empty instance list (rather than a fake store) keeps "there is no cache here"
+	// visible in the type instead of pretended away.
+	if backend == BackendNone || backend == "" {
+		return nil, nil
+	}
 	out := make([]*Instance, 0, n)
 	for i := 0; i < n; i++ {
 		st, err := newStore(backend, capBytes, redisAddr, redisConns)

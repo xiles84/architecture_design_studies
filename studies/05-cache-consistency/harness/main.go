@@ -558,6 +558,37 @@ func probeRedisCapabilities(ctx context.Context, addr, out string) (map[string]a
 		res["round_trip_hash_matches"] = false
 	}
 	_ = st.Delete(ctx, vkey)
+
+	// Invalidation fence: a fill that began before an invalidation must not be able
+	// to publish what it read, and one that began after it must publish normally.
+	fkey := "probe:fence"
+	_ = st.Delete(ctx, fkey)
+	f0, _ := st.FenceOf(ctx, fkey)
+	pre := newEntry(PortalContent{PersonID: 2, FullName: "pre"}, 1, 1, nowMS())
+	pre.Fence = f0
+	if _, err := st.Put(ctx, fkey, pre, time.Minute); err != nil {
+		return nil, fmt.Errorf("fence probe publish: %w", err)
+	}
+	if _, err := st.Fence(ctx, fkey); err != nil {
+		return nil, fmt.Errorf("fence probe fence: %w", err)
+	}
+	refused, err := st.Put(ctx, fkey, pre, time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("fence probe republish: %w", err)
+	}
+	res["fill_started_before_invalidation_is_refused"] = !refused
+	f1, err := st.FenceOf(ctx, fkey)
+	if err != nil {
+		return nil, fmt.Errorf("fence probe fenceof: %w", err)
+	}
+	post := newEntry(PortalContent{PersonID: 2, FullName: "post"}, 2, 2, nowMS())
+	post.Fence = f1
+	accepted, err := st.Put(ctx, fkey, post, time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("fence probe post publish: %w", err)
+	}
+	res["fill_after_invalidation_is_accepted"] = accepted
+	_ = st.Delete(ctx, fkey)
 	res["stats"] = st.Stats()
 
 	// Hard expiry: a 1 ms TTL must be gone immediately afterwards.
@@ -580,7 +611,9 @@ func probeRedisCapabilities(ctx context.Context, addr, out string) (map[string]a
 	// A probe that did not observe every required behaviour is a failure, so it
 	// cannot be quietly skimmed.
 	for _, k := range []string{"lease_acquired_first", "lease_refused_second", "lease_released_by_compare_and_delete",
-		"older_publication_refused", "newer_publication_accepted", "round_trip_hash_matches", "hard_expiry_enforced_by_server"} {
+		"older_publication_refused", "newer_publication_accepted", "round_trip_hash_matches",
+		"hard_expiry_enforced_by_server", "fill_started_before_invalidation_is_refused",
+		"fill_after_invalidation_is_accepted"} {
 		if v, ok := res[k].(bool); !ok || !v {
 			return res, fmt.Errorf("probe: %s was not satisfied (%v)", k, res[k])
 		}
