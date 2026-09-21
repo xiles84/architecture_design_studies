@@ -99,6 +99,11 @@ func (m mutation) keys() []int64 {
 	return []int64{m.PersonID}
 }
 
+// errNoEffect reports a mutation whose statement matched no row: the observed owner
+// no longer owns the row. It is NOT a failure -- it is a correctly-refused write, and
+// the ledger leaves its state alone exactly as the database does.
+var errNoEffect = errors.New("mutation had no effect")
+
 type adapter struct {
 	d    Design
 	cat  *catalogue
@@ -145,6 +150,10 @@ type adapter struct {
 	// unrecordedConfirmed counts reads whose value was committed but not yet on the
 	// ledger when the read finished. They are classified ahead, never impossible.
 	unrecordedConfirmed atomic.Int64
+	// writeNoops counts writes a statement correctly refused because the observed
+	// owner no longer owns the row. They are not failures and they do not move the
+	// ledger's requirement.
+	writeNoops atomic.Int64
 
 	// fault injection, driven by the faults phase. Each is a one-shot or a switch,
 	// set before the phase and cleared after it, so a fault cannot leak into the
@@ -584,6 +593,15 @@ func (a *adapter) Write(ctx context.Context, instIdx int, m mutation) error {
 	// 2. The authoritative mutation, in one transaction with its version bump and
 	//    its outbox event.
 	retries, err := a.applyDB(ctx, m)
+	if errors.Is(err, errNoEffect) {
+		// The observed owner no longer owns the row, so the statement matched nothing
+		// and the database is unchanged. The ledger stays unchanged too and the write
+		// is acknowledged as a no-op: no committed value changed, so no invalidation
+		// is needed. Counted, so a workload that has quietly stopped doing work cannot
+		// hide inside a clean run.
+		a.writeNoops.Add(1)
+		return nil
+	}
 	if err != nil {
 		a.writeErrors.Add(1)
 		a.reconcileAmbiguous(ctx, m)
@@ -821,9 +839,18 @@ func (a *adapter) applyDB(ctx context.Context, m mutation) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		if err := a.execMutation(ctx, tx, m); err != nil {
+		n, err := a.execMutation(ctx, tx, m)
+		if err != nil {
 			_ = tx.Rollback(ctx)
 			return 0, err
+		}
+		if n == 0 {
+			// The statement refused to act: the row has moved or vanished since the
+			// harness observed it. The database did NOT change, so the ledger must not
+			// either -- this is the guard that keeps the two in agreement under
+			// deliberately concurrent writes.
+			_ = tx.Rollback(ctx)
+			return 0, errNoEffect
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return 0, err
@@ -847,9 +874,18 @@ func (a *adapter) applyDB(ctx context.Context, m mutation) (int, error) {
 			_ = tx.Rollback(ctx)
 			return 0, err
 		}
-		if err := a.execMutation(ctx, tx, m); err != nil {
+		n, err := a.execMutation(ctx, tx, m)
+		if err != nil {
 			_ = tx.Rollback(ctx)
 			return 0, err
+		}
+		if n == 0 {
+			// The statement refused to act: the row has moved or vanished since the
+			// harness observed it. The database did NOT change, so the ledger must not
+			// either -- this is the guard that keeps the two in agreement under
+			// deliberately concurrent writes.
+			_ = tx.Rollback(ctx)
+			return 0, errNoEffect
 		}
 		if err := a.bumpAndLog(ctx, tx, m, false, 0); err != nil {
 			_ = tx.Rollback(ctx)
@@ -879,16 +915,25 @@ func (a *adapter) applyDB(ctx context.Context, m mutation) (int, error) {
 				return attempt, err
 			}
 		}
-		if err := a.execMutation(ctx, tx, m); err != nil {
-			_ = tx.Rollback(ctx)
-			return attempt, err
-		}
-		n, err := a.exec(ctx, tx, sVersionCAS, map[string]any{"person_id": m.PersonID, "expected_version": v1})
+		n, err := a.execMutation(ctx, tx, m)
 		if err != nil {
 			_ = tx.Rollback(ctx)
 			return attempt, err
 		}
 		if n == 0 {
+			// The statement refused to act: the row has moved or vanished since the
+			// harness observed it. The database did NOT change, so the ledger must not
+			// either -- this is the guard that keeps the two in agreement under
+			// deliberately concurrent writes.
+			_ = tx.Rollback(ctx)
+			return attempt, errNoEffect
+		}
+		casN, err := a.exec(ctx, tx, sVersionCAS, map[string]any{"person_id": m.PersonID, "expected_version": v1})
+		if err != nil {
+			_ = tx.Rollback(ctx)
+			return attempt, err
+		}
+		if casN == 0 {
 			_ = tx.Rollback(ctx)
 			a.conflict()
 			continue
@@ -931,9 +976,18 @@ func (a *adapter) applyUnsafe(ctx context.Context, m mutation) (int, error) {
 			_ = tx.Rollback(ctx)
 			return attempt, err
 		}
-		if err := a.execMutation(ctx, tx, m); err != nil {
+		n, err := a.execMutation(ctx, tx, m)
+		if err != nil {
 			_ = tx.Rollback(ctx)
 			return attempt, err
+		}
+		if n == 0 {
+			// The statement refused to act: the row has moved or vanished since the
+			// harness observed it. The database did NOT change, so the ledger must not
+			// either -- this is the guard that keeps the two in agreement under
+			// deliberately concurrent writes.
+			_ = tx.Rollback(ctx)
+			return attempt, errNoEffect
 		}
 		// Application-computed bump: this is where the lost update happens.
 		if _, err := a.exec(ctx, tx, "w_version_set", map[string]any{"person_id": m.PersonID, "new_version": v + 1}); err != nil {
@@ -986,7 +1040,11 @@ func (a *adapter) lockForMutation(ctx context.Context, tx ports.Tx, m mutation) 
 	return tx.QueryRow(ctx, a.cat.stmt(sLockPerson).SQL, args...).Scan(&v)
 }
 
-func (a *adapter) execMutation(ctx context.Context, q ports.Queryer, m mutation) error {
+func (a *adapter) execMutation(ctx context.Context, q ports.Queryer, m mutation) (int64, error) {
+	var (
+		n   int64
+		err error
+	)
 	switch m.Kind {
 	case "insert":
 		d := m.Donation
@@ -994,25 +1052,26 @@ func (a *adapter) execMutation(ctx context.Context, q ports.Queryer, m mutation)
 		if d.Note != nil {
 			note = *d.Note
 		}
-		_, err := a.exec(ctx, q, sDonationInsert, map[string]any{
+		n, err = a.exec(ctx, q, sDonationInsert, map[string]any{
 			"donation_id": d.ID, "person_id": d.PersonID, "charity_id": d.CharityID,
 			"amount_cents": d.AmountCents, "currency": d.Currency, "donated_at": d.DonatedAt, "note": note,
 		})
-		return err
 	case "correct":
-		_, err := a.exec(ctx, q, sDonationCorrect, map[string]any{"donation_id": m.DonationID, "delta_cents": m.DeltaCents})
-		return err
+		n, err = a.exec(ctx, q, sDonationCorrect, map[string]any{
+			"donation_id": m.DonationID, "delta_cents": m.DeltaCents, "owner_id": m.PersonID})
 	case "delete":
-		_, err := a.exec(ctx, q, sDonationDelete, map[string]any{"donation_id": m.DonationID})
-		return err
+		n, err = a.exec(ctx, q, sDonationDelete, map[string]any{
+			"donation_id": m.DonationID, "owner_id": m.PersonID})
 	case "person_update":
-		_, err := a.exec(ctx, q, sPersonUpdate, map[string]any{"person_id": m.PersonID, "full_name": m.FullName, "email": m.Email})
-		return err
+		n, err = a.exec(ctx, q, sPersonUpdate, map[string]any{
+			"person_id": m.PersonID, "full_name": m.FullName, "email": m.Email})
 	case "reassign":
-		_, err := a.exec(ctx, q, sDonationReassign, map[string]any{"donation_id": m.DonationID, "new_person_id": m.NewPersonID})
-		return err
+		n, err = a.exec(ctx, q, sDonationReassign, map[string]any{
+			"donation_id": m.DonationID, "new_person_id": m.NewPersonID, "owner_id": m.PersonID})
+	default:
+		return 0, fmt.Errorf("unknown mutation kind %q", m.Kind)
 	}
-	return fmt.Errorf("unknown mutation kind %q", m.Kind)
+	return n, err
 }
 
 // bumpAndLog performs the plain (non-CAS) version bump and the outbox append inside

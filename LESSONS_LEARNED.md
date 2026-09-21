@@ -411,6 +411,28 @@ only the observation tells you which rule, and the source field is what separate
 wrong" from "the accounting is wrong". Add the assertion that makes the impossible case fail loudly
 (`Required()` must never be ahead of the database) before drawing any conclusion from the counter.
 
+### A mutation must enforce the owner it observed, or the ledger and the database diverge
+
+Study 05 built each write from the ledger's state and then applied it to the child row **by id
+only**. Under deliberately concurrent writes a second writer could move or delete that row in
+between, so the statement acted on a row that belonged to somebody else (or matched nothing and
+succeeded silently) while the ledger applied the change to the person it had observed. The two
+diverged, and the harness then reported impossible cache values and audit mismatches that belonged
+to no design.
+
+Two rules follow, and both are cheap:
+
+* **Every statement that acts on a child row carries the parent it was observed under**
+  (`WHERE donation_id = $1 AND person_id = $2`). A refused write is a *correct* outcome, not an
+  error.
+* **A statement that matched no row means nothing changed** — so the ledger must not change either.
+  Report it as its own outcome (`errNoEffect`), acknowledge it as a no-op, and count it, so a
+  workload that has quietly stopped doing work cannot hide inside a clean run.
+
+One more, from the same repair: when a mutation becomes *relative* in the ledger (a correction is a
+delta), it must become relative in **every** SQL catalogue that pairs with it. Three reference
+schemas still used an absolute `SET amount_cents = $2` and silently wrote the delta as the amount.
+
 ## Hardware and containers
 
 ### Heterogeneous CPUs make core pinning a trap

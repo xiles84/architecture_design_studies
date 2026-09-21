@@ -794,6 +794,22 @@ three were produced by a later code state than the other 24 cells while the mani
 run. The fix changes `hasCache()` from a comparison against `"none"` to an explicit backend test, which is a
 no-op for every cell whose backend is set — i.e. all 24 others. The analysis repeats this in its weakness list.
 
+**Post-survey repair (same session, after the analysis).** The strict `through` failures were traced
+to a *harness* defect, not a design one: a mutation selected a child row from the ledger and then
+acted on it by id only, so a concurrent writer could move or delete it in between and the database
+and the ledger diverged. Every child-row statement now enforces the owner the harness observed (all
+five schema directories), a statement matching no row is an acknowledged no-op that leaves the
+ledger alone and is counted (`write_noops_refused_by_owner`), and corrections are relative in every
+schema including the reference ones. AM-01's required assertion is implemented — after every writing
+phase the harness compares all 800 donors' database content against the ledger's requirement and
+fails the cell if the requirement is ahead: **0 mismatches in warm, mixed, hotspot and stampede; 1
+donor after `instances`**. A second measurement defect was closed in the same pass: violations
+recorded by the instances-phase arms were invisible to the cell's acceptance check, so one strict
+cell had passed with 11 hidden stale reads. With both fixed, two reference cells
+(`ref-normalized-indexed`, `ref-embedded-locked`) are green again, and the strict `through` residual
+is now a genuine cache-design finding (7–32 stale reads, every assertion passing, 260–625 refused
+publications per cell) rather than an ambiguity. Evidence: `results/verify-ledger/`.
+
 **Status: measured, analysed and integrated into `main`; not finished.** The nine failed cells, the
 rollup reference drift, the unrun churn/equal-total/topology arms and the three-instance confirmation are
 open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run

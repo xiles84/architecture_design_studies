@@ -86,6 +86,7 @@ type CacheStats struct {
 	AmbiguousWrites         int64            `json:"ambiguous_writes_invalidated"`
 	SuppressedInvalidations int64            `json:"suppressed_invalidations"`
 	UnrecordedConfirmed     int64            `json:"unrecorded_committed_states_confirmed"`
+	WriteNoops              int64            `json:"write_noops_refused_by_owner"`
 	BackendStats            map[string]int64 `json:"backend_stats,omitempty"`
 	PayloadBytes            int64            `json:"logical_payload_bytes"`
 	MetadataBytes           int64            `json:"metadata_bytes"`
@@ -148,6 +149,16 @@ type FaultResult struct {
 	Correctness string `json:"correctness"`
 	WrongReads  int64  `json:"wrong_reads_observed"`
 	Impossible  int64  `json:"impossible_values_observed"`
+}
+
+// LedgerCheck is one run of the requirement-versus-database assertion that a strict
+// conclusion depends on.
+type LedgerCheck struct {
+	Phase      string   `json:"phase"`
+	People     int      `json:"people_checked"`
+	Mismatches int      `json:"mismatches"`
+	Examples   []string `json:"examples,omitempty"`
+	Passed     bool     `json:"passed"`
 }
 
 type AuditInfo struct {
@@ -225,6 +236,7 @@ type CellResult struct {
 	Faults    []FaultResult    `json:"faults,omitempty"`
 
 	Audits           []AuditInfo                 `json:"audits,omitempty"`
+	Ledger           []LedgerCheck               `json:"ledger_assertions,omitempty"`
 	StrictViolations int64                       `json:"strict_contract_violations"`
 	ImpossibleValues int64                       `json:"impossible_cache_values"`
 	Lease            LeaseStats                  `json:"lease"`

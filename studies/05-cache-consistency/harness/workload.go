@@ -361,6 +361,7 @@ func (c *cell) snapshotCache() {
 		AmbiguousWrites:         c.ad.ambiguousWrites.Load(),
 		SuppressedInvalidations: c.ad.suppressedInvalidations.Load(),
 		UnrecordedConfirmed:     c.ad.unrecordedConfirmed.Load(),
+		WriteNoops:              c.ad.writeNoops.Load(),
 		BackendStats:            st,
 		PayloadBytes:            payload,
 		MetadataBytes:           meta,
@@ -624,6 +625,8 @@ func (c *cell) runInstances(ctx context.Context) error {
 	for _, in := range base.inst {
 		_ = in.Store.Flush(ctx)
 	}
+	// Accumulated so a violation recorded in this phase still fails the cell.
+	var instancesViolations, instancesImpossible atomic.Int64
 	for _, n := range []int{1, 3} {
 		insts, err := buildInstances(c.d.Backend, n, capBytes, c.opts.RedisAddr, c.opts.Workers+8)
 		if err != nil {
@@ -669,7 +672,13 @@ func (c *cell) runInstances(ctx context.Context) error {
 			_ = in.Store.Close(ctx)
 		}
 	}
+	// A violation recorded by an arm's own adapter must reach the CELL's acceptance
+	// check. The cell's check reads the base adapter's counter, so an instances-phase
+	// violation was invisible: the owned redis through cell passed while its
+	// one-instance arm had already recorded 11 stale reads.
 	c.ad = base
+	base.strictWrong.Add(instancesViolations.Load())
+	base.impossible.Add(instancesImpossible.Load())
 	for _, in := range base.inst {
 		_ = in.Store.Flush(ctx)
 	}

@@ -169,3 +169,45 @@ func firstN(xs []int64, n int) []int64 {
 	}
 	return xs
 }
+
+// checkLedgerMatchesDB asserts the one property every strict conclusion rests on: the
+// ledger's freshness requirement for a key is never AHEAD of the content the database
+// actually holds.
+//
+// It exists because the opposite was observed. An authoritative BYPASS read -- one
+// that consults no cache and runs in a single repeatable-read transaction -- returned
+// a state one and two versions behind the requirement, which no cache mechanism can
+// cause. That means the requirement was wrong, and a cell cannot be judged until this
+// passes (AM-01, finding 3a).
+//
+// A requirement BEHIND a committed-but-unacknowledged state is legitimate and is not
+// counted: that state classifies as ahead.
+func (c *cell) checkLedgerMatchesDB(ctx context.Context, phase string) error {
+	usesVersion := c.d.usesVersion()
+	lc := LedgerCheck{Phase: phase, People: len(c.ds.People), Passed: true}
+	for _, p := range c.ds.People {
+		content, _, err := readPortalSQL(ctx, c.db, c.cat, usesVersion, p.ID)
+		if err != nil {
+			return fmt.Errorf("ledger assertion after %s: %w", phase, err)
+		}
+		dbHash := content.ContentHash()
+		reqHash, reqSeq := c.orc.Required(p.ID)
+		if dbHash == reqHash {
+			continue
+		}
+		if k, _, _, _ := c.orc.Classify(p.ID, dbHash, reqHash, reqSeq); k == KindStale {
+			lc.Mismatches++
+			if len(lc.Examples) < 5 {
+				lc.Examples = append(lc.Examples,
+					fmt.Sprintf("donor %d: the database holds a state the requirement is ahead of (requirement seq %d)", p.ID, reqSeq))
+			}
+		}
+	}
+	lc.Passed = lc.Mismatches == 0
+	c.res.Ledger = append(c.res.Ledger, lc)
+	if !lc.Passed {
+		return fmt.Errorf("LEDGER ASSERTION FAILED after %s: the freshness requirement is ahead of the database for %d donor(s); every strict number from this cell is provisional (%s)",
+			phase, lc.Mismatches, lc.Examples[0])
+	}
+	return nil
+}

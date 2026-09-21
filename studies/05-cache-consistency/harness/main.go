@@ -342,31 +342,59 @@ func (c *cell) runPhase(ctx context.Context, phase, explainPath string, sample i
 
 	case "warm":
 		c.resetWrong("warm")
-		return c.runWarm(ctx)
+		if err := c.runWarm(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "warm")
 
 	case "mixed":
 		c.resetWrong("mixed")
-		return c.runMixed(ctx)
+		if err := c.runMixed(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "mixed")
 
 	case "hotspot":
 		c.resetWrong("hotspot")
-		return c.runHotspot(ctx)
+		if err := c.runHotspot(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "hotspot")
 
 	case "stampede":
 		c.resetWrong("stampede")
-		return c.runStampede(ctx)
+		if err := c.runStampede(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "stampede")
 
 	case "instances":
 		c.resetWrong("instances")
-		return c.runInstances(ctx)
+		if err := c.runInstances(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "instances")
 
 	case "churn":
 		c.resetWrong("churn")
-		return c.runChurn(ctx)
+		if err := c.runChurn(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "churn")
 
 	case "faults":
 		c.resetWrong("faults")
-		return c.runFaults(ctx)
+		if err := c.runFaults(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "faults")
 
 	case "audit":
 		a := auditCell(ctx, c.db, c.cat, c.ds, c.orc, sample)

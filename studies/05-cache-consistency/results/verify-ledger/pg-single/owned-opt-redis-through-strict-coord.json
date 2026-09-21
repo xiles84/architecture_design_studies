@@ -1,0 +1,1758 @@
+{
+  "study": "05-cache-consistency",
+  "scenario": "owned-opt-redis-through-strict-coord",
+  "scenario_short": "o:opt:red:wth:str",
+  "group": "owned",
+  "title": "owned, redis, through, strict",
+  "summary": "A shared Redis with a recorded maxmemory and allkeys-lru policy (approximate LRU, and the report says so). Write-through: the new value is never published before the database commit; the writer tombstones, commits, then republishes only the committed representation. A read that begins after a write to that key was acknowledged must not return an older value; a violation fails the cell. The owned model supplies a monotonic cache_version to fence and validate against.",
+  "risk": "MUST record zero stale-after-ack reads and zero impossible cache values; a single wrong read invalidates the cell for performance conclusions",
+  "dim_model": "owned",
+  "dim_version": "opt",
+  "dim_backend": "redis",
+  "dim_strategy": "through",
+  "dim_freshness": "strict",
+  "dim_writers": "coord",
+  "strict_freshness_policy": "invalidation-only",
+  "topology": "pg-single",
+  "engine": "postgres",
+  "run_id": "verify-ledger",
+  "environment": "host-zenbook-ux5406sa",
+  "repo_commit": "43a299008b47b23d332dd9ab0b39405a2544e326",
+  "repo_describe": "study-05/v1.1-diagnostics-dirty",
+  "repo_dirty": true,
+  "bench_image": "localhost/cachebench:1",
+  "bench_image_id": "ab21cfd658926ebefc5",
+  "started_at": "2026-09-21T15:56:23Z",
+  "finished_at": "2026-09-21T15:57:01Z",
+  "options": {
+    "scale": "small",
+    "seed": 42,
+    "fault_seed": 4242,
+    "workers": 8,
+    "writer_workers": 2,
+    "duration_per_measurement": 2000000000,
+    "warmup": 500000000,
+    "trials": 1,
+    "bounded_retries": 8,
+    "phases": "verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,faults,audit",
+    "logical_instances": 1,
+    "churn_duration": 0,
+    "stampede_readers": 16,
+    "stampede_keys": 8,
+    "hot_keys": 4,
+    "cache_capacity_kib": 256,
+    "cache_capacity_fits_working_set": false,
+    "redis_addr": "ads-redis:6379",
+    "redis_maxmemory_mb": 32,
+    "resource_framing": "db-only",
+    "external_write_fraction_pct": 0
+  },
+  "engine_info": {
+    "version": "postgres",
+    "server_version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+    "effective_isolation": "read committed"
+  },
+  "dataset": {
+    "seed": 42,
+    "charities": 12,
+    "people": 800,
+    "donations": 21336,
+    "serialized_bytes": 288261,
+    "logical_working_set_bytes": 2000000,
+    "mean_payload_bytes": 2500
+  },
+  "load": {
+    "charities": 12,
+    "people": 800,
+    "staged_donations": 21336,
+    "loaded_donations": 21336,
+    "schema_ms": 18,
+    "bulk_copy_ms": 50,
+    "load_statement_ms": 314,
+    "post_load_ms": 53,
+    "has_triggers": false
+  },
+  "gate": {
+    "passed": true,
+    "checks": 14,
+    "statements": [
+      "r_portal_person",
+      "r_portal_recent",
+      "r_charity_recent",
+      "a_outbox_orphans"
+    ]
+  },
+  "cache": {
+    "backend": "redis",
+    "capacity_bytes": 262144,
+    "resident_bytes": 0,
+    "items": 0,
+    "evictions": 0,
+    "evicted_keys_reported_by_backend": 0,
+    "fills": 4141,
+    "fill_errors": 0,
+    "publishes": 3881,
+    "publishes_refused_by_fence": 260,
+    "publish_failures": 2,
+    "invalidations": 0,
+    "tombstones_installed_pre_commit": 5663,
+    "authoritative_version_validations": 0,
+    "cache_bypass_reads": 20,
+    "lease_fallback_reads": 19,
+    "external_writes_bypassing_adapter": 0,
+    "ambiguous_writes_invalidated": 1,
+    "suppressed_invalidations": 0,
+    "unrecorded_committed_states_confirmed": 0,
+    "write_noops_refused_by_owner": 0,
+    "backend_stats": {
+      "corrupt_values": 0,
+      "deletes": 1,
+      "errors": 0,
+      "flushes": 6,
+      "hits": 116117,
+      "lease_acquired": 2435,
+      "lease_contended": 201,
+      "lease_expired_stolen": 0,
+      "misses": 2871,
+      "put_fenced": 260,
+      "puts": 4142
+    },
+    "logical_payload_bytes": 0,
+    "metadata_bytes": 0
+  },
+  "redis_info": {
+    "evicted_keys": "0",
+    "expired_keys": "1",
+    "instantaneous_ops_per_sec": "458",
+    "keyspace_hits": "196580",
+    "keyspace_misses": "15452",
+    "maxmemory": "33554432",
+    "maxmemory_policy": "allkeys-lru",
+    "mem_fragmentation_ratio": "6.23",
+    "redis_version": "7.4.11",
+    "total_commands_processed": "268556",
+    "total_net_input_bytes": "29129115",
+    "total_net_output_bytes": "369026795",
+    "used_cpu_sys": "5.415058",
+    "used_cpu_user": "3.007016",
+    "used_memory": "1561552",
+    "used_memory_peak": "3984272"
+  },
+  "storage_bytes": {
+    "cache_outbox": 24576,
+    "charity": 32768,
+    "donation": 4210688,
+    "load_donation": 2392064,
+    "person": 172032
+  },
+  "warm_reads": [
+    {
+      "name": "warm_read_only",
+      "ops": 15707,
+      "errors": 0,
+      "duration_s": 2.00172884,
+      "ops_per_sec": 7846.717140769176,
+      "latency": {
+        "count": 15707,
+        "min_ms": 0.048358,
+        "mean_ms": 1.0183195036607882,
+        "p50_ms": 0.49159,
+        "p90_ms": 1.05951,
+        "p95_ms": 1.666586,
+        "p99_ms": 13.024494,
+        "p999_ms": 47.719026,
+        "max_ms": 190.588884
+      },
+      "trials_ops_per_sec": [
+        7846.717140769176
+      ]
+    }
+  ],
+  "cacheable_endpoint": [
+    {
+      "name": "cacheable_99_reads",
+      "ops": 16574,
+      "errors": 0,
+      "duration_s": 2.001126689,
+      "ops_per_sec": 8282.334192585446,
+      "latency": {
+        "count": 16574,
+        "min_ms": 0.043706,
+        "mean_ms": 0.9653013909738144,
+        "p50_ms": 0.513084,
+        "p90_ms": 1.204948,
+        "p95_ms": 1.96474,
+        "p99_ms": 9.519044,
+        "p999_ms": 43.827752,
+        "max_ms": 46.98579
+      },
+      "trials_ops_per_sec": [
+        8282.334192585446
+      ]
+    },
+    {
+      "name": "cacheable_90_reads",
+      "ops": 17329,
+      "errors": 0,
+      "duration_s": 2.030405304,
+      "ops_per_sec": 8534.749178334496,
+      "latency": {
+        "count": 17329,
+        "min_ms": 0.056111,
+        "mean_ms": 0.9354662490622656,
+        "p50_ms": 0.515718,
+        "p90_ms": 1.120838,
+        "p95_ms": 1.571917,
+        "p99_ms": 8.209762,
+        "p999_ms": 43.37754,
+        "max_ms": 49.623799
+      },
+      "trials_ops_per_sec": [
+        8534.749178334496
+      ]
+    },
+    {
+      "name": "hotspot_reads",
+      "ops": 19178,
+      "errors": 0,
+      "duration_s": 2.09062196,
+      "ops_per_sec": 9173.346672394086,
+      "latency": {
+        "count": 19178,
+        "min_ms": 0.037791,
+        "mean_ms": 0.8370511541870893,
+        "p50_ms": 0.433941,
+        "p90_ms": 0.962014,
+        "p95_ms": 1.448717,
+        "p99_ms": 5.757252,
+        "p999_ms": 41.89406,
+        "max_ms": 205.087022
+      },
+      "trials_ops_per_sec": [
+        9173.346672394086
+      ]
+    }
+  ],
+  "total_application": [
+    {
+      "name": "app_99_reads",
+      "ops": 19760,
+      "errors": 0,
+      "duration_s": 2.101300682,
+      "ops_per_sec": 9403.69941782563,
+      "latency": {
+        "count": 19760,
+        "min_ms": 0.05028,
+        "mean_ms": 0.820403339979757,
+        "p50_ms": 0.210342,
+        "p90_ms": 0.463493,
+        "p95_ms": 0.761653,
+        "p99_ms": 4.366473,
+        "p999_ms": 176.477775,
+        "max_ms": 223.942878
+      },
+      "trials_ops_per_sec": [
+        9403.69941782563
+      ]
+    },
+    {
+      "name": "app_90_reads",
+      "ops": 8761,
+      "errors": 0,
+      "duration_s": 2.162840272,
+      "ops_per_sec": 4050.69209845007,
+      "latency": {
+        "count": 8761,
+        "min_ms": 0.051819,
+        "mean_ms": 1.8996995616938706,
+        "p50_ms": 0.199931,
+        "p90_ms": 2.636998,
+        "p95_ms": 3.812494,
+        "p99_ms": 12.606677,
+        "max_ms": 219.143991
+      },
+      "trials_ops_per_sec": [
+        4050.69209845007
+      ]
+    }
+  ],
+  "writes": [
+    {
+      "name": "hotspot_writes",
+      "ops": 1320,
+      "errors": 0,
+      "duration_s": 2.001733367,
+      "ops_per_sec": 659.4284842133023,
+      "latency": {
+        "count": 1320,
+        "min_ms": 1.980803,
+        "mean_ms": 3.031683828030303,
+        "p50_ms": 2.632934,
+        "p90_ms": 4.264127,
+        "p95_ms": 5.223705,
+        "p99_ms": 7.77092,
+        "max_ms": 12.601002
+      },
+      "trials_ops_per_sec": [
+        659.4284842133023
+      ]
+    }
+  ],
+  "wrong_reads": [
+    {
+      "phase": "cold_fill",
+      "summary": {
+        "total_reads": 400,
+        "fresh_reads": 400,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 152,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 0,
+        "reads_by_source": {
+          "fill": 248,
+          "hit": 152
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 5,
+          "p50_ms": 198,
+          "p99_ms": 220,
+          "max_ms": 221
+        }
+      }
+    },
+    {
+      "phase": "warm_read_only",
+      "summary": {
+        "total_reads": 19312,
+        "fresh_reads": 19312,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 18600,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 95,
+        "reads_by_source": {
+          "fill": 712,
+          "hit": 18600
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 10,
+          "p50_ms": 167,
+          "p99_ms": 220,
+          "max_ms": 221
+        }
+      }
+    },
+    {
+      "phase": "app_99_reads",
+      "summary": {
+        "total_reads": 20191,
+        "fresh_reads": 20011,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 180,
+        "cache_hits": 19950,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 229,
+          "p50_ms": 3,
+          "p99_ms": 280,
+          "max_ms": 1690
+        },
+        "concurrent_ambiguous_reads": 221,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 118,
+        "reads_by_source": {
+          "fallback": 4,
+          "fill": 237,
+          "hit": 19950
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 78,
+          "p50_ms": 156,
+          "p99_ms": 218,
+          "max_ms": 223
+        }
+      }
+    },
+    {
+      "phase": "cacheable_99_reads",
+      "summary": {
+        "total_reads": 41261,
+        "fresh_reads": 41081,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 180,
+        "cache_hits": 41006,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 238,
+          "p50_ms": 4,
+          "p99_ms": 1055,
+          "max_ms": 1690
+        },
+        "concurrent_ambiguous_reads": 221,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 344,
+        "reads_by_source": {
+          "fallback": 4,
+          "fill": 251,
+          "hit": 41006
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 78,
+          "p50_ms": 156,
+          "p99_ms": 218,
+          "max_ms": 223
+        }
+      }
+    },
+    {
+      "phase": "app_90_reads",
+      "summary": {
+        "total_reads": 49463,
+        "fresh_reads": 48950,
+        "wrong_stale_reads": 32,
+        "ahead_reads": 481,
+        "cache_hits": 48876,
+        "wrong_pct_of_all_reads": 0.0646948223924954,
+        "wrong_pct_of_cache_hits": 0.06547180620345364,
+        "unique_keys_affected": 2,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 32,
+          "p50_ms": 14,
+          "p99_ms": 41,
+          "max_ms": 42
+        },
+        "consecutive_wrong_read_streak_max": 18,
+        "time_to_freshness_after_ack_ms": {
+          "count": 1076,
+          "p50_ms": 6,
+          "p99_ms": 1690,
+          "max_ms": 3525
+        },
+        "concurrent_ambiguous_reads": 607,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 407,
+        "reads_by_source": {
+          "fallback": 19,
+          "fill": 568,
+          "hit": 48876
+        },
+        "wrong_reads_by_cause": {
+          "mixed: cache hit served a superseded entry": 32
+        },
+        "stale_read_samples": [
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 2,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 3,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 4,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 4,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 13,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 13,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 19,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 19,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 19,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 19,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 20,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 20,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 21,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 21,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 22,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 23,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 23,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 23,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 28,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 28,
+            "ExpiredBy": ""
+          }
+        ],
+        "lease_wait_ms": {
+          "count": 161,
+          "p50_ms": 159,
+          "p99_ms": 217,
+          "max_ms": 223
+        }
+      }
+    },
+    {
+      "phase": "cacheable_90_reads",
+      "summary": {
+        "total_reads": 70985,
+        "fresh_reads": 70472,
+        "wrong_stale_reads": 32,
+        "ahead_reads": 481,
+        "cache_hits": 70398,
+        "wrong_pct_of_all_reads": 0.04507994646756357,
+        "wrong_pct_of_cache_hits": 0.04545583681354584,
+        "unique_keys_affected": 2,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 32,
+          "p50_ms": 14,
+          "p99_ms": 41,
+          "max_ms": 42
+        },
+        "consecutive_wrong_read_streak_max": 18,
+        "time_to_freshness_after_ack_ms": {
+          "count": 1135,
+          "p50_ms": 8,
+          "p99_ms": 3063,
+          "max_ms": 7632
+        },
+        "concurrent_ambiguous_reads": 607,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 628,
+        "reads_by_source": {
+          "fallback": 19,
+          "fill": 568,
+          "hit": 70398
+        },
+        "wrong_reads_by_cause": {
+          "mixed: cache hit served a superseded entry": 32
+        },
+        "stale_read_samples": [
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 2,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 3,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 4,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 4,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 13,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 13,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 19,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 19,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 19,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 19,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 20,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 20,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 21,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 21,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 22,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 23,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 23,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 23,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 23,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "85a688a1777c9c771d66f28c0fa1a2704bf65c9fd14324d3c9cd04c2ecb7b6ab",
+            "RequiredSeq": 49,
+            "ReturnedHash": "02c1f8538c5895f56843fca7236a39b6521dff2f85278ff9a50fe2c4178c8f9e",
+            "ReturnedSeq": 48,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 28,
+            "Overlapped": false,
+            "ClaimedVersion": 54,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "mixed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 28,
+            "ExpiredBy": ""
+          }
+        ],
+        "lease_wait_ms": {
+          "count": 161,
+          "p50_ms": 159,
+          "p99_ms": 217,
+          "max_ms": 223
+        }
+      }
+    },
+    {
+      "phase": "hotspot_reads",
+      "summary": {
+        "total_reads": 25894,
+        "fresh_reads": 25894,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 25894,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 371,
+        "reads_by_source": {
+          "hit": 25894
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 14,
+          "p50_ms": 141,
+          "p99_ms": 198,
+          "max_ms": 204
+        }
+      }
+    },
+    {
+      "phase": "hotspot_writes",
+      "summary": {
+        "total_reads": 25894,
+        "fresh_reads": 25894,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 25894,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 371,
+        "reads_by_source": {
+          "hit": 25894
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 14,
+          "p50_ms": 141,
+          "p99_ms": 198,
+          "max_ms": 204
+        }
+      }
+    },
+    {
+      "phase": "stampede",
+      "summary": {
+        "total_reads": 128,
+        "fresh_reads": 128,
+        "wrong_stale_reads": 0,
+        "ahead_reads": 0,
+        "cache_hits": 120,
+        "wrong_pct_of_all_reads": 0,
+        "wrong_pct_of_cache_hits": 0,
+        "unique_keys_affected": 0,
+        "max_versions_behind": 0,
+        "staleness_duration_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "consecutive_wrong_read_streak_max": 0,
+        "time_to_freshness_after_ack_ms": {
+          "count": 0,
+          "p50_ms": 0,
+          "p99_ms": 0,
+          "max_ms": 0
+        },
+        "concurrent_ambiguous_reads": 0,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 0,
+        "reads_by_source": {
+          "fill": 8,
+          "hit": 120
+        },
+        "wrong_reads_by_cause": {},
+        "lease_wait_ms": {
+          "count": 15,
+          "p50_ms": 181,
+          "p99_ms": 211,
+          "max_ms": 223
+        }
+      }
+    },
+    {
+      "phase": "instances_1",
+      "summary": {
+        "total_reads": 27366,
+        "fresh_reads": 27050,
+        "wrong_stale_reads": 39,
+        "ahead_reads": 277,
+        "cache_hits": 26356,
+        "wrong_pct_of_all_reads": 0.14251260688445516,
+        "wrong_pct_of_cache_hits": 0.14797389588708454,
+        "unique_keys_affected": 1,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 39,
+          "p50_ms": 50,
+          "p99_ms": 107,
+          "max_ms": 109
+        },
+        "consecutive_wrong_read_streak_max": 39,
+        "time_to_freshness_after_ack_ms": {
+          "count": 893,
+          "p50_ms": 9,
+          "p99_ms": 2487,
+          "max_ms": 5018
+        },
+        "concurrent_ambiguous_reads": 365,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 134,
+        "reads_by_source": {
+          "fallback": 19,
+          "fill": 991,
+          "hit": 26356
+        },
+        "wrong_reads_by_cause": {
+          "unattributed: cache hit served a superseded entry": 38,
+          "unattributed: the refilling reader published before the write committed": 1
+        },
+        "stale_read_samples": [
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 2,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 2,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 2,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 2,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 2,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 2,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 4,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 4,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 6,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 6,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 6,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 6,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 14,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 15,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 15,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 15,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 16,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 16,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 21,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 21,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 21,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 21,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 2,
+            "RequiredHash": "782c8fcbddfeda4b9d6265c8deccbddd659e1ed61cdc79833d8d2ae5ab870ab1",
+            "RequiredSeq": 459,
+            "ReturnedHash": "119010e36e3fdac15a9ce0565df2aa1d150be692736795c5522404e9728d5737",
+            "ReturnedSeq": 458,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 25,
+            "Overlapped": false,
+            "ClaimedVersion": 504,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 25,
+            "ExpiredBy": ""
+          }
+        ],
+        "lease_wait_ms": {
+          "count": 79,
+          "p50_ms": 168,
+          "p99_ms": 218,
+          "max_ms": 222
+        }
+      }
+    },
+    {
+      "phase": "instances_3",
+      "summary": {
+        "total_reads": 27848,
+        "fresh_reads": 27576,
+        "wrong_stale_reads": 2,
+        "ahead_reads": 270,
+        "cache_hits": 27496,
+        "wrong_pct_of_all_reads": 0.007181844297615628,
+        "wrong_pct_of_cache_hits": 0.007273785277858598,
+        "unique_keys_affected": 1,
+        "max_versions_behind": 1,
+        "staleness_duration_ms": {
+          "count": 2,
+          "p50_ms": 1,
+          "p99_ms": 1,
+          "max_ms": 1
+        },
+        "consecutive_wrong_read_streak_max": 2,
+        "time_to_freshness_after_ack_ms": {
+          "count": 843,
+          "p50_ms": 13,
+          "p99_ms": 2577,
+          "max_ms": 3908
+        },
+        "concurrent_ambiguous_reads": 367,
+        "impossible_cache_values": 0,
+        "expired_hard": 0,
+        "expired_probabilistic": 177,
+        "reads_by_source": {
+          "fallback": 22,
+          "fill": 330,
+          "hit": 27496
+        },
+        "wrong_reads_by_cause": {
+          "unattributed: cache hit served a superseded entry": 2
+        },
+        "stale_read_samples": [
+          {
+            "KeyID": 1,
+            "RequiredHash": "b964c3f7333e0d7af02294dc1aeabd1ad086c7c61ce7231fc120e8b75e62fa9c",
+            "RequiredSeq": 834,
+            "ReturnedHash": "f966830fe0302cbc32cf6cd90aa350c0e05e6e5f0cde0b9ffd58679a020cca1a",
+            "ReturnedSeq": 833,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 0,
+            "Overlapped": false,
+            "ClaimedVersion": 908,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 1,
+            "ExpiredBy": ""
+          },
+          {
+            "KeyID": 1,
+            "RequiredHash": "b964c3f7333e0d7af02294dc1aeabd1ad086c7c61ce7231fc120e8b75e62fa9c",
+            "RequiredSeq": 834,
+            "ReturnedHash": "f966830fe0302cbc32cf6cd90aa350c0e05e6e5f0cde0b9ffd58679a020cca1a",
+            "ReturnedSeq": 833,
+            "Behind": 1,
+            "Kind": "stale",
+            "Source": "hit",
+            "AgeMS": 1,
+            "Overlapped": false,
+            "ClaimedVersion": 908,
+            "EntryFence": 0,
+            "CurrentFence": 0,
+            "EntrySeq": 0,
+            "CurrentSeq": 0,
+            "Cause": "unattributed: cache hit served a superseded entry",
+            "CacheHit": true,
+            "StaleMS": 1,
+            "ExpiredBy": ""
+          }
+        ],
+        "lease_wait_ms": {
+          "count": 82,
+          "p50_ms": 165,
+          "p99_ms": 223,
+          "max_ms": 224
+        }
+      }
+    }
+  ],
+  "stampede": {
+    "readers": 16,
+    "keys": 8,
+    "elapsed_ms": 227,
+    "database_loads": 8,
+    "database_loads_per_key": 1,
+    "lease_acquisitions": 2428,
+    "lease_contended": 200,
+    "fallbacks": 0,
+    "duplicate_fills": 0,
+    "wrong_reads": 0,
+    "impossible_values": 0,
+    "note": "16 readers released together on 8 keys after a full flush; database loads per key is the stampede metric"
+  },
+  "instances": [
+    {
+      "logical_instances": 1,
+      "total_workers": 8,
+      "backend": "redis",
+      "total_application_ops_per_sec": 3677.6068994974767,
+      "total_application_trials_ops_per_sec": [
+        3677.6068994974767
+      ],
+      "total_application_spread_pct": 0,
+      "cacheable_endpoint_ops_per_sec": 7556.9621289759,
+      "wrong_reads": 39,
+      "impossible_values": 0,
+      "cache_bypass_reads": 0,
+      "local_lru_items_final": 0,
+      "note": "shared store: invalidation is visible to every instance"
+    },
+    {
+      "logical_instances": 3,
+      "total_workers": 8,
+      "backend": "redis",
+      "total_application_ops_per_sec": 3690.7201716111067,
+      "total_application_trials_ops_per_sec": [
+        3690.7201716111067
+      ],
+      "total_application_spread_pct": 0,
+      "cacheable_endpoint_ops_per_sec": 8276.61629547725,
+      "wrong_reads": 2,
+      "impossible_values": 0,
+      "cache_bypass_reads": 0,
+      "local_lru_items_final": 0,
+      "note": "shared store: invalidation is visible to every instance"
+    }
+  ],
+  "faults": [
+    {
+      "name": "db-rollback-after-pre-write-tombstone",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "tombstone removed the pre-existing entry; the rolled-back mutation left no cache value (fill -\u003e fill); the next read returned fresh",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "cache-update-failure-after-commit",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "strict: the tombstone installed before the commit survived the failed publish; the read refilled and returned fresh",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "lease-holder-death",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "an abandoned lease blocked a second holder and was stealable after 100ms; no manual intervention required",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "cache-unavailable",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "20 reads during the outage all returned a committed state (20 bypassed the cache, 0 wrong, 0 impossible)",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "cache-aside-fill-races-writer",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "a fill and a write on donor 4 released together; 0 wrong and 0 impossible reads",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    },
+    {
+      "name": "dirty-cache-write-audit-rejects-impossible-version",
+      "reproduced": true,
+      "detail": "",
+      "correctness": "the injected record corresponded to no committed state: the detector classified it impossible directly and the read through the cache returned impossible (source hit)",
+      "wrong_reads_observed": 0,
+      "impossible_values_observed": 0
+    }
+  ],
+  "audits": [
+    {
+      "passed": true,
+      "checks": 26,
+      "portal_content_mismatches": 0,
+      "donation_set_mismatches": 0,
+      "aggregate_mismatches": 0,
+      "recent_slice_mismatches": 0,
+      "design_checks": {
+        "a_outbox_orphans": 0,
+        "a_rolldown_drift": 0
+      }
+    }
+  ],
+  "ledger_assertions": [
+    {
+      "phase": "warm",
+      "people_checked": 800,
+      "mismatches": 0,
+      "passed": true
+    },
+    {
+      "phase": "mixed",
+      "people_checked": 800,
+      "mismatches": 0,
+      "passed": true
+    },
+    {
+      "phase": "hotspot",
+      "people_checked": 800,
+      "mismatches": 0,
+      "passed": true
+    },
+    {
+      "phase": "stampede",
+      "people_checked": 800,
+      "mismatches": 0,
+      "passed": true
+    },
+    {
+      "phase": "instances",
+      "people_checked": 800,
+      "mismatches": 0,
+      "passed": true
+    },
+    {
+      "phase": "faults",
+      "people_checked": 800,
+      "mismatches": 0,
+      "passed": true
+    }
+  ],
+  "strict_contract_violations": 32,
+  "impossible_cache_values": 0,
+  "lease": {
+    "acquisitions": 2433,
+    "contended": 200,
+    "waits": 0,
+    "wait_p50_ms": 0,
+    "wait_p99_ms": 0,
+    "wait_max_ms": 0,
+    "timeouts": 200,
+    "lost": 0,
+    "duplicate_fills": 0,
+    "fallback_reads": 19,
+    "fills_per_key_per_burst": 0,
+    "lease_duration": "100ms",
+    "calibration": "4 x measured p99 fill latency, raised to the 100 ms floor (p99 fill = 3.44ms)"
+  },
+  "expiry_by_age_bucket": {
+    "0-75s": {
+      "hits": 168744,
+      "probabilistic_expiries": 1405
+    }
+  },
+  "error": "STRICT CONTRACT VIOLATED: 32 stale-after-ack read(s); the cell cannot support a performance conclusion"
+}

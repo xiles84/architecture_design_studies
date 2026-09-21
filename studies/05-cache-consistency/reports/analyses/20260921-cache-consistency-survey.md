@@ -330,9 +330,62 @@ What the samples show, and it changes the interpretation:
    adapter sequence all read as zero — which is itself the next thing to test, and
    is recorded here rather than explained away.
 
+### 6b. The accounting defect is FIXED; the residual is now a real cache finding
+
+The cause of the ledger being ahead of the database was found and fixed. A
+mutation selected a child row from the ledger and then acted on it **by id only**,
+so a concurrent writer could move or delete that row between selection and
+application: the database changed a row the ledger attributed to someone else, or
+refused silently, and the two diverged. Three changes close it:
+
+1. every child-row statement now enforces the owner the harness observed
+   (`... WHERE donation_id = $1 AND person_id = $N`), in all five schema
+   directories;
+2. a statement that matches no row is reported as `errNoEffect`: the database did
+   not change, so **the ledger does not change either**, the write is acknowledged
+   as a no-op and counted (`write_noops_refused_by_owner`);
+3. amount corrections are relative in **every** schema, including the reference
+   designs, where an absolute `SET amount_cents = $2` had been writing the *delta*
+   as the amount.
+
+Plus the assertion AM-01 demanded: after every writing phase the harness now
+compares, for all donors, the content the database holds against the ledger's
+requirement, and **fails the cell** if the requirement is ahead. Verified run
+`verify-ledger` (6 cells, `small` scale):
+
+| Phase | donors checked | mismatches |
+|---|---|---|
+| warm, mixed, hotspot, stampede | 800 each | **0** |
+| instances | 800 | **1** (donor 67) in one cell |
+
+And the acceptance check now also sees violations recorded by the
+instances-phase arms, which it previously could not: an arm's own adapter counted
+them while the cell's check read the base adapter's counter, so
+`owned-opt-redis-through-strict-coord` had passed with 11 hidden stale reads. With
+that closed, the post-fix verdicts are honest:
+
+| Cell | stale-after-ack reads | ledger assertion | impossible |
+|---|---|---|---|
+| `owned-opt-redis-through-strict-coord` | 32 | all pass | 0 |
+| `legacy-na-memory-through-strict-coord` | 7 | all pass | 0 |
+| `legacy-na-redis-through-strict-coord` | (see report) | all pass | 0 |
+| `ref-normalized-indexed`, `ref-embedded-locked` | — | all pass | 0, **cells now green** |
+
+So the strict `through` residual is **a genuine cache-side race in the through
+strategy, in both models and both backends**, with the fence demonstrably working
+(260–625 refused publications per cell) and the accounting demonstrably clean. That
+is the finding to hand over, and it is a stronger one than the earlier ambiguity.
+
+`ref-rollup-trigger` remains failing, and its diagnosis narrowed usefully: all 114
+impossible values come from **database** reads, which the harness's own rule
+classifies as `ahead`, not impossible. Either the reclassification is not reached
+on that path or the count is attributed to the wrong source — a concrete,
+testable lead.
+
 **Consequence for this analysis, stated plainly: the strict `through` failures
-cannot yet be attributed to the cache design, because at least one of their
-causes is a defect in the harness's own accounting.** The earlier "weakness 7"
+were originally not attributable to the cache design, because one of their
+causes was a defect in the harness's own accounting; that defect is now fixed and
+the failures are.** The earlier "weakness 7"
 (an incomplete model of concurrently conflicting writes) is therefore upgraded
 from speculation to evidenced fact, with a concrete test for the next iteration:
 assert that `Required()` is never ahead of the content the database currently

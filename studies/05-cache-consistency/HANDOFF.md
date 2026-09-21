@@ -522,8 +522,24 @@ fault: the ledger's freshness requirement was ahead of the database's own state.
 
 **Binding consequence for the next iteration:** before any strict cell is judged, assert that
 `Required()` is never ahead of the content the database currently holds, and fail the cell if it is.
-The strict `away` results and the single-instance relaxed rates are unaffected (aside cells are
+The strict `aside` results and the single-instance relaxed rates are unaffected (aside cells are
 clean; the relaxed rates come from cells that passed every gate).
+
+**AM-02 — outcome, 2026-09-21 (same session).** The assertion is implemented and the defect is
+fixed. Cause: a mutation selected a child row from the ledger and then acted on it BY ID ONLY, so a
+concurrent writer could move or delete that row in between and the database and ledger diverged.
+Fixes: (i) every child-row statement enforces the observed owner in all five schema directories;
+(ii) a statement matching no row is `errNoEffect` — the database did not change, so the ledger does
+not change, the write is an acknowledged no-op and is counted; (iii) corrections are relative in
+every schema, including the reference designs, where an absolute SET had been writing the delta as
+the amount. The assertion now runs after every writing phase: **0 mismatches over 800 donors in
+warm, mixed, hotspot and stampede**, and 1 donor in one cell after `instances`, which is the next
+thing to chase. A second measurement defect was closed with it: violations recorded by the
+instances-phase arms were invisible to the cell's acceptance check (an owned redis through cell had
+passed with 11 hidden stale reads). With both fixed, the strict `through` failures are HONEST and
+real — 7 to 32 stale reads with every ledger assertion passing and the fence refusing 260–625
+publications per cell — so the next iteration should treat them as a cache-design question in the
+through path, not as an accounting one.
 
 #### 4. Decision: the ledger cannot model concurrently conflicting writes of one key
 

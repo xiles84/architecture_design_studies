@@ -240,6 +240,12 @@ func (o *oracle) ApplyDelete(personID int64, donationID int64) []ackToken {
 	if op == nil {
 		return nil
 	}
+	if _, ok := op.donations[donationID]; !ok {
+		// Mirrors the SQL's owner guard: the observed owner no longer owns this row,
+		// so neither the database nor the ledger changes. Reporting no token is what
+		// keeps the two in agreement.
+		return nil
+	}
 	delete(op.donations, donationID)
 	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
 }

@@ -406,7 +406,7 @@ func writeReport(resultsDir, out string) error {
 
 	// ---------------------------------------------------------------- cache stats
 	b.WriteString("## Cache accounting\n\n")
-	kt := markdown.NewTable("Topology", "Scenario", "backend", "capacity B", "resident B", "items", "evictions", "fills", "publishes", "fenced", "publish failures", "invalidations", "tombstone fences", "version validations", "bypass reads", "external writes", "unrecorded states confirmed")
+	kt := markdown.NewTable("Topology", "Scenario", "backend", "capacity B", "resident B", "items", "evictions", "fills", "publishes", "fenced", "publish failures", "invalidations", "tombstone fences", "version validations", "bypass reads", "external writes", "unrecorded states confirmed", "write no-ops")
 	for _, c := range cells {
 		k := c.Cache
 		kt.Row(c.Topology, "`"+c.ScenarioShort+"`", dash(k.Backend), markdown.Bytes(k.CapacityBytes),
@@ -415,7 +415,7 @@ func writeReport(resultsDir, out string) error {
 			fmt.Sprintf("%d", k.PublishFailed), fmt.Sprintf("%d", k.Invalidations),
 			fmt.Sprintf("%d", k.Tombstones), fmt.Sprintf("%d", k.ValidationQueries),
 			fmt.Sprintf("%d", k.BypassReads), fmt.Sprintf("%d", k.ExternalWrites),
-			fmt.Sprintf("%d", k.UnrecordedConfirmed))
+			fmt.Sprintf("%d", k.UnrecordedConfirmed), fmt.Sprintf("%d", k.WriteNoops))
 	}
 	kt.Write(&b)
 
@@ -483,6 +483,32 @@ func writeReport(resultsDir, out string) error {
 			strings.Join(firstLines(c.Gate.Failures), " | "))
 	}
 	gt.Write(&b)
+
+	// ---------------------------------------------------------------- ledger
+	b.WriteString("## Ledger assertion: the requirement must never be ahead of the database\n\n")
+	b.WriteString("After every writing phase the harness compares, for every donor, the content the database\n")
+	b.WriteString("actually holds against the ledger's freshness requirement. A requirement BEHIND a committed\n")
+	b.WriteString("but unacknowledged state is legitimate; a requirement AHEAD of the database is not, and fails\n")
+	b.WriteString("the cell, because a bypass read that returned such a state would be an accounting defect\n")
+	b.WriteString("rather than a design finding.\n\n")
+	lgt := markdown.NewTable("Topology", "Scenario", "Phase", "donors", "mismatches", "passed", "first example")
+	nLedger := 0
+	for _, c := range cells {
+		for _, lc := range c.Ledger {
+			nLedger++
+			ex := ""
+			if len(lc.Examples) > 0 {
+				ex = firstLine(lc.Examples[0])
+			}
+			lgt.Row(c.Topology, "`"+c.ScenarioShort+"`", lc.Phase, fmt.Sprintf("%d", lc.People),
+				fmt.Sprintf("%d", lc.Mismatches), fmt.Sprintf("%t", lc.Passed), ex)
+		}
+	}
+	if nLedger > 0 {
+		lgt.Write(&b)
+	} else {
+		b.WriteString("*No ledger assertion ran in this run.*\n\n")
+	}
 
 	// ---------------------------------------------------------------- limitations
 	b.WriteString("## Limitations stated with the numbers\n\n")

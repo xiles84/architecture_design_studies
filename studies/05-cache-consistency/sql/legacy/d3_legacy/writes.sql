@@ -22,15 +22,15 @@ INSERT INTO donation (donation_id, person_id, charity_id, amount_cents, currency
 VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: w_donation_correct
--- params: donation_id, delta_cents
+-- params: donation_id, delta_cents, owner_id
 -- An amount correction is an UPDATE of the child row in place. It changes the
 -- donated total and possibly the recent-20 slice's content, so every cache
 -- strategy must invalidate or republish the donor's entry.
-UPDATE donation SET amount_cents = amount_cents + $2 WHERE donation_id = $1;
+UPDATE donation SET amount_cents = amount_cents + $2 WHERE donation_id = $1 AND person_id = $3;
 
 -- name: w_donation_delete
--- params: donation_id
-DELETE FROM donation WHERE donation_id = $1;
+-- params: donation_id, owner_id
+DELETE FROM donation WHERE donation_id = $1 AND person_id = $2;
 
 -- name: w_person_update
 -- params: person_id, full_name, email
@@ -39,7 +39,7 @@ DELETE FROM donation WHERE donation_id = $1;
 UPDATE person SET full_name = $2, email = $3 WHERE person_id = $1;
 
 -- name: w_donation_reassign
--- params: donation_id, new_person_id
+-- params: donation_id, new_person_id, owner_id
 -- Moving a donation between people changes TWO portal views, and on the legacy
 -- model the copied charity_id must move with it or the rolldown invariant breaks.
 -- `new_person_id` is validated by the harness against the dataset, and the new
@@ -47,4 +47,4 @@ UPDATE person SET full_name = $2, email = $3 WHERE person_id = $1;
 UPDATE donation d
    SET person_id  = $2,
        charity_id = (SELECT p.charity_id FROM person p WHERE p.person_id = $2)
- WHERE d.donation_id = $1;
+ WHERE d.donation_id = $1 AND d.person_id = $3;

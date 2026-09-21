@@ -17,12 +17,13 @@ INSERT INTO donation (donation_id, person_id, charity_id, amount_cents, currency
 VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: w_donation_correct
--- params: donation_id, amount_cents
-UPDATE donation SET amount_cents = $2 WHERE donation_id = $1;
+-- params: donation_id, delta_cents, owner_id
+UPDATE donation SET amount_cents = amount_cents + $2
+ WHERE donation_id = $1 AND person_id = $3;
 
 -- name: w_donation_delete
--- params: donation_id
-DELETE FROM donation WHERE donation_id = $1;
+-- params: donation_id, owner_id
+DELETE FROM donation WHERE donation_id = $1 AND person_id = $2;
 
 -- name: w_person_update
 -- params: person_id, full_name, email
@@ -33,8 +34,8 @@ DELETE FROM donation WHERE donation_id = $1;
 UPDATE person SET full_name = $2, email = $3 WHERE person_id = $1;
 
 -- name: w_donation_reassign
--- params: donation_id, new_person_id
+-- params: donation_id, new_person_id, owner_id
 UPDATE donation d
    SET person_id  = $2,
        charity_id = (SELECT p.charity_id FROM person p WHERE p.person_id = $2)
- WHERE d.donation_id = $1;
+ WHERE d.donation_id = $1 AND d.person_id = $3;

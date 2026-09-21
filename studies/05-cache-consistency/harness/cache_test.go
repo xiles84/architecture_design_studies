@@ -492,3 +492,36 @@ func TestFenceRefusesAFillThatStartedBeforeAnInvalidation(t *testing.T) {
 		t.Fatal("a fill that began after the invalidation was refused")
 	}
 }
+
+// TestRefusedMutationDoesNotMoveTheRequirement pins the guard that keeps the ledger and
+// the database in agreement: a statement that matched no row (the observed owner no
+// longer owns it) changed nothing, so the ledger's requirement for that key must not
+// move either. Without this the harness invents states the database never held, and a
+// later authoritative read looks stale for the harness's own reason.
+func TestRefusedMutationDoesNotMoveTheRequirement(t *testing.T) {
+	ds := BuildDataset(11, "tiny")
+	orc := newOracle(ds)
+	p := ds.People[0]
+	other := ds.People[1]
+
+	beforeHash, beforeSeq := orc.Required(p.ID)
+	// A refund of a donation this donor does not own: the SQL now refuses it, and the
+	// ledger must be told the same thing.
+	toks := orc.ApplyDelete(other.ID, 999999999)
+	if len(toks) != 0 {
+		t.Fatalf("deleting an unknown donation produced %d ack token(s), expected none", len(toks))
+	}
+	for _, tk := range toks {
+		orc.Ack(tk)
+	}
+	if h, sq := orc.Required(p.ID); h != beforeHash || sq != beforeSeq {
+		t.Fatal("a refused mutation moved the requirement")
+	}
+	// And the same for a correct and a reassign of a donation the donor does not own.
+	if len(orc.ApplyCorrect(other.ID, 999999999, 5)) != 0 {
+		t.Fatal("correcting an unknown donation produced an ack token")
+	}
+	if len(orc.ApplyReassign(999999999, p.ID, other.ID, other.CharityID)) != 0 {
+		t.Fatal("reassigning an unknown donation produced an ack token")
+	}
+}
