@@ -209,3 +209,19 @@ is claimed.
 Coverage gaps recorded rather than implied away: eight of the eighteen designs are unbuilt;
 YugabyteDB topologies, cadence, cardinality crossover, churn, deployment controls and repeated
 conclusion runs are mapped and unrun; no independent model has reviewed this work.
+
+## Step 10 — integration into local main
+
+- Pre-merge checks: benchmark lock free; no benchmark or database container running; `main` still
+  at `df13f2a`, the commit the task branch was cut from; task worktree clean.
+- **EOL-only proof over the main checkout:** `git status --porcelain` reported 1970 modified files,
+  and `git diff --ignore-cr-at-eol --quiet` exited **0** over all of them — every one differed from
+  the index only by a CR at end of line. 0 staged, 0 untracked.
+- **Normalization (owner-authorized):** `git diff --name-only -z | xargs -0 git restore --worktree`
+  in the main checkout. Dirty count 1970 → **0**; `main` still `df13f2a`; `git ls-files --eol`
+  now reports `i/lf w/lf`. No index entry, commit, tag or history was touched.
+- **Merge:** `git merge-base --is-ancestor main study-04/configuration-portal` succeeded, so the
+  integration is a fast-forward over six commits with no merge commit and no concurrent-agent
+  reconciliation to perform. `main` was fast-forwarded; the integrated state is tagged
+  `study-04/v1-integrated`.
+- Nothing was pushed or pulled.

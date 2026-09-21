@@ -722,6 +722,16 @@ server, images, volumes and benchmark-lock state. AM-01 decides that WSL drives 
 initialised — a second engine would carry no shared benchmark lock, which is the failure the lock
 exists to prevent. Recorded in `ESCALATIONS.md`.
 
+**Integration (2026-09-21).** This task's changes merge into local `main` as a **fast-forward**:
+`main` was at `df13f2a` when the task branch was cut from it and did not move, so no merge commit
+and no reconciliation of a concurrent agent's edits were required. The main checkout's working
+tree carried 1970 CRLF-vs-LF phantom modifications on arrival; `git diff --ignore-cr-at-eol --quiet`
+exited 0 over all of them (every differing file differed only by CR at end of line, nothing staged,
+nothing untracked), so the working tree was normalized to its own LF index and `git status` is now
+clean there. No index entry, no commit and no tag was changed by that normalization. The task
+commits `bd2b825`, `8f02c53`, `2e95990`, `5e15abb`, `73eaf14` and `40f3294` are reachable from
+`main`; the integrated state is tagged `study-04/v1-integrated`. Nothing was pushed or pulled.
+
 **Environment:** `host-zenbook-ux5406sa` re-verified live on 2026-09-21 — 8 CPUs,
 16 496 422 912 bytes, kernel `6.6.87.2-microsoft-standard-WSL2`, host ASUS Zenbook S 14 UX5406SA.
 `podman machine inspect` still shows its stale `init` value of 4 CPUs / 2048 MiB; the live guest is
