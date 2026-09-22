@@ -167,13 +167,17 @@ placement pair).
    claimable execution tasks are published (`…-study04-v2-controls`, `…-cardinality-cadence`,
    `…-remaining-designs`); none has run. Verdicts in
    `book/evidence/reviews/20260922-study04-independent-review.json`.
-4. **Study 05 v2** — the v1 review is done; the open work is
-   `task-20260922T025912Z-study05-v2-protocol` (real-TTL churn, medium scale, repeats, cache
-   resource accounting, YugabyteDB/cluster/placement, open-loop demand) plus the review's four
-   added requirements (repeated trials/second machine for the three-instance result, real-TTL
-   churn, equal-total framing, executed placement pair). Verdicts in
+4. **Study 05 v2** — protocol complete 2026-09-22:
+   `studies/05-cache-consistency/HANDOFF-AMENDMENT-01-V2.md` (tag `study-05/v4-handoff`) defines
+   real-TTL churn, medium scale and a tested ceiling, repeated randomized trials, equal-total cache
+   resource accounting, YugabyteDB/cluster/verified placement and open-loop demand. Three separately
+   claimable execution tasks are published (`…-study05-v2-churn-scale`, `…-resources-engines`,
+   `…-open-loop`); none has run. Verdicts in
    `book/evidence/reviews/20260922-study05-independent-review.json`.
-5. **Book v1** — synthesis and independent release review not yet done; no final PDF yet.
+5. **Book v1** — **released 2026-09-22** (tag `repo/data-architecture-book-v1`): the 36-page PDF at
+   `book/dist/data-architecture-reference.pdf` (sha256 `58d61df0…`), synthesised from the 23 active
+   v2 claims and independently reviewed. Remaining book work is future editions and the coverage
+   gaps the protocols below will close; no v1 acceptance check is open.
 
 ## Where the long history lives
 

@@ -578,3 +578,12 @@ impossible value or an audit mismatch. One instance of it *was* fixed properly
 analysis as a harness limitation, with the two honest routes out of it named. HIGH did not
 choose between them because both change what the hotspot phase measures and the choice
 belongs with the next planning iteration.
+
+---
+
+## Amendment 01 (v2 completion)
+
+`HANDOFF-AMENDMENT-01-V2.md` extends this handoff with real-TTL churn, medium scale, repeated
+randomized trials, equal-total cache resource accounting, YugabyteDB/cluster/verified placement and
+open-loop demand, plus the v2 acceptance criteria and the separately claimable execution tasks. It
+does not measure. Read it before running any v2 cell.
