@@ -185,6 +185,14 @@ placement pair).
    (`…-topology-env-harness`, `…-node-replication`, `…-placement-routing`, `…-network-failure`);
    none has run. This study is the path to close `v2-gap-05` and `v2-gap-07`.
 
+7. **Study 06 native models** — protocol complete 2026-09-22: `studies/06-native-models/HANDOFF.md`
+   (tag `study-06/v0-handoff`) compares PostgreSQL 17.11, MongoDB 8.0, ScyllaDB 6.2 and Valkey 8.1
+   (authoritative, not a cache) under identical configuration-domain semantics, operations, resources
+   and correctness gates; v0 is single-node, cluster variants belong to Study 07. Four separately
+   claimable execution tasks are published (`…-native-models-harness`, `…-document-vs-relational`,
+   `…-widecolumn-vs-relational`, `…-keyvalue-vs-relational`); none has run. Path to close
+   `v2-gap-06-native-datastore-families`.
+
 ## Where the long history lives
 
 - Archived `CONTEXT.md` editions: [`docs/history/context/`](docs/history/context/)
