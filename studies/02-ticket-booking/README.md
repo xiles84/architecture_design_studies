@@ -1,6 +1,9 @@
 # Study 02 — Avoiding overbooking: band → event → ticket
 
-**Status:** active
+**Status:** complete for the measured v2 operational-reports runs (phase 3b) and their signed
+analyses; the HIGH validation of that phase is still open as the queue task
+`task-20260922T025912Z-study02-03-v2-validation`. See [CONTEXT.md](../../CONTEXT.md),
+[REPORTS.md](REPORTS.md) and the [report index](reports/).
 **Environment:** [`host-zenbook-ux5406sa`](../../docs/environments/host-zenbook-ux5406sa.md)
 **Engines:** PostgreSQL 17.11 · YugabyteDB 2025.2.6.0 (1 node and 3 nodes, RF=3), with real READ COMMITTED
 **Code:** the shared [`platform/`](../../platform/) module (measurement core, ports, adapters) + this study's harness

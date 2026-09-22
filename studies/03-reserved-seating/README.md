@@ -2,7 +2,9 @@
 
 **venue → event → seat**
 
-**Status:** being built (specification: [Execution Handoff](HANDOFF.md))
+**Status:** complete — the v1 `small` matrix and both repair runs are measured, reported, analysed
+and signed; the v2 operational-reports runs (phase 3b) are measured and analysed. See
+[CONTEXT.md](../../CONTEXT.md), [REPORTS.md](REPORTS.md) and the [report index](reports/).
 **Environment:** [`host-zenbook-ux5406sa`](../../docs/environments/host-zenbook-ux5406sa.md)
 **Engines:** PostgreSQL 17.11 · YugabyteDB 2025.2.6.0 (1 node and 3 nodes, RF=3), with real READ COMMITTED
 **Code:** the shared [`platform/`](../../platform/) module + this study's harness

@@ -25,14 +25,21 @@ writes, storage, load time, and the query plans underneath.
 
 | | |
 |---|---|
-| [`studies/01-charity-tree/`](studies/01-charity-tree/) | **Tree structures.** A `charity → person → donation` hierarchy across 8 schema designs and 3 database topologies. |
-| [`studies/02-ticket-booking/`](studies/02-ticket-booking/) | **Avoiding overbooking.** `band → event → ticket` with events of 10 to 100 000 seats: 14 strategies (pre-created vs created tickets, locks, counters, constraints, extra inventory and reservation tables, two deliberately wrong controls) under sell-out races. |
+| [`studies/01-charity-tree/`](studies/01-charity-tree/) | **Tree structures.** A `charity → person → donation` hierarchy across 8 schema designs and 3 database topologies, plus the recency question (whose last donation falls in a period). |
+| [`studies/02-ticket-booking/`](studies/02-ticket-booking/) | **Avoiding overbooking.** `band → event → ticket` with events of 10 to 100 000 seats: 14 strategies (pre-created vs created tickets, locks, counters, constraints, extra inventory and reservation tables, two deliberately wrong controls) under sell-out races, plus the operational reports and the append-only sale ledger. |
+| [`studies/03-reserved-seating/`](studies/03-reserved-seating/) | **Reserved seating.** `venue → event → seat`: 40-minute holds with expiry, seat-map reads, all-or-nothing multi-seat blocks and transient refusals across 14 designs, plus the operational reports. |
+| [`studies/04-configuration-portal/`](studies/04-configuration-portal/) | **Configuration portal.** `product → installed product → configuration entry`: 18 designs planned (10 implemented), a `small` PostgreSQL matrix measured, with two negative controls. |
+| [`studies/05-cache-consistency/`](studies/05-cache-consistency/) | **External cache.** What a cache buys over a no-cache baseline, what strict freshness costs, how wrong a relaxed cache is, and cache-side invalidation fences — PostgreSQL plus Redis. |
+| [`book/`](docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/) | **The evidence-backed data-architecture book** (Typst, built only in Podman) and its claim-to-evidence registry. Work is queued in [`docs/ai-work/`](docs/ai-work/WORKFLOW.md). |
+| [`docs/ai-work/`](docs/ai-work/WORKFLOW.md) | The durable AI work queue: goals, tasks, immutable events, reviews, escalations, and the `queue` CLI contract. |
+| [`tools/queue/`](tools/queue/README.md) | The Go `queue` CLI — atomic Git-ref claims, leases, recovery, audit and the main-integration lock. |
+| [`docs/history/`](docs/history/) | Archived snapshots of living documents (for example the pre-rewrite `CONTEXT.md`), kept for provenance. |
 | [`platform/`](platform/) | The shared Go benchmark core — measurement, SQL catalogue, provenance — laid out as ports and adapters. |
 | [`docs/methodology.md`](docs/methodology.md) | The rules every study follows, and why. |
 | [`docs/replication.md`](docs/replication.md) | How to reproduce any run. |
 | [`docs/environments/`](docs/environments/) | One page per machine results were produced on, including how that machine can mislead a benchmark. |
-| [`infra/`](infra/) | Podman orchestration: PostgreSQL 1-node, YugabyteDB 1-node, YugabyteDB 3-node RF=3. |
-| [`CONTEXT.md`](CONTEXT.md) | Current project state — what is done, what is running, what is open. |
+| [`infra/`](infra/) | Podman orchestration: PostgreSQL 1-node, YugabyteDB 1-node, YugabyteDB 3-node RF=3, Redis, and the pinned queue image. |
+| [`CONTEXT.md`](CONTEXT.md) | The concise current project state; the full pre-rewrite history is in [`docs/history/`](docs/history/). |
 | [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | Everything that cost time or nearly produced a wrong number. |
 
 ## Study 01 at a glance

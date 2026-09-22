@@ -329,6 +329,19 @@ Rules for analysts:
   report marks that analysis stale. Its conclusions may still hold, but they were not
   drawn from what is there now.
 
+## 11a. Every final report opens with a TL;DR
+
+Reports are long, and the reader who most needs the conclusion is the one least likely to
+read to the end. Both kinds of report therefore start with a TL;DR:
+
+- A **generated report's** TL;DR lists **measured facts selected by fixed rules** — which
+  cells failed, whether negative controls fired, which designs broke an invariant, the
+  highest and lowest valid result per condition. It ranks by the number only and says
+  nothing about which design is better, so the no-interpretation rule still holds.
+- A **signed analysis's** TL;DR is the interpretation: a handful of bullets a reader can act
+  on — the recommendation, when it changes, and the biggest doubt — each backed by a
+  measurement cited in the body.
+
 ## 11b. Keep the final analysis short; publish the reasoning beside it
 
 The final signed analysis is the decision document: TL;DR, scope, recommendations,
@@ -355,19 +368,6 @@ A report describes one run of one code state on one machine. When a study is re-
 the conclusions change, the superseded report moves to `reports/outdated/` — it is never
 deleted and never silently edited. A conclusion must always be traceable to the run that
 produced it.
-
-## 11a. Every final report opens with a TL;DR
-
-Reports are long, and the reader who most needs the conclusion is the one least likely to
-read to the end. Both kinds of report therefore start with a TL;DR:
-
-- A **generated report's** TL;DR lists **measured facts selected by fixed rules** — which
-  cells failed, whether negative controls fired, which designs broke an invariant, the
-  highest and lowest valid result per condition. It ranks by the number only and says
-  nothing about which design is better, so the no-interpretation rule still holds.
-- A **signed analysis's** TL;DR is the interpretation: a handful of bullets a reader can act
-  on — the recommendation, when it changes, and the biggest doubt — each backed by a
-  measurement cited in the body.
 
 ## 12a. Every result names the code that produced it
 

@@ -1,6 +1,8 @@
 # Study 05 — external cache throughput and consistency
 
-**Status:** in progress (see `HANDOFF.md`, `PROGRESS.md`, `ESCALATIONS.md`)
+**Status:** complete for the single-`small`-run evidence set — the all-green run is measured,
+analysed and signed; the independent HIGH review and the v2 completion protocol are open queue
+tasks. See [CONTEXT.md](../../CONTEXT.md) and the [analysis](reports/analyses/).
 **Environment:** [`host-zenbook-ux5406sa`](../../docs/environments/host-zenbook-ux5406sa.md)
 **Engines:** PostgreSQL 17.11 · YugabyteDB 2025.2.6.0 (1 node and 3 nodes, RF=3) · Redis 7.4.11-alpine
 
