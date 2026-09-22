@@ -88,6 +88,21 @@ and final analysis. Methodology sections 4 and 6a explain the sizing and control
 roles chosen through the user's model/effort settings. Record the actual model/tool and
 selected effort when known; never infer an unavailable setting or switch models silently.
 
+### Session capability and queued work
+
+**Owner workflow, 2026-09-22:** at the start of every new repository chat, ask whether
+the session is **HIGH** or **LOW** unless the user already stated it. Record that answer
+as the session capability; do not infer it from a model name. Capability and work role
+are separate: a HIGH session may plan, review, analyse, integrate, or execute a worker
+task, while a LOW session may claim only work whose minimum capability is LOW.
+
+Durable requests, task briefs, attempts, events, escalations, results, and reviews live
+under [`docs/ai-work/`](docs/ai-work/). Once the queue CLI is available, use its atomic
+claim and guard commands before acting. During bootstrap, a task's canonical branch name
+and registered worktree are its exclusive claim: create them from current local `main`,
+and if either already exists, inspect and resume that task rather than starting a second
+copy. `CONTEXT.md` is an overview, never the queue's state authority.
+
 **The objective is to reserve HIGH for work that genuinely benefits from deeper
 reasoning, and let LOW execute as much as possible autonomously.** The preferred pattern
 is **HIGH planning → one long LOW execution → HIGH validation**, not frequent switching.
