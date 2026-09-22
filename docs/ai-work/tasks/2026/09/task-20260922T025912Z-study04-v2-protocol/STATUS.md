@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-study04-v2-protocol` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20260922T194852Z-d22bf2` |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner` |
-| Last event | `event-20260922T194728Z-released` |
-| Updated at | `2026-09-22T19:47:28Z` |
-| Next capability | HIGH |
-| Next work role | planner |
+| Last event | `event-20260922T194852Z-claimed` |
+| Updated at | `2026-09-22T19:48:52Z` |
+| Next capability | LOW |
+| Next work role | executor |
 | Branch | `study-04/v2-completion-protocol` |
 | Worktree | `.worktrees/study04-v2-completion-protocol` |
 
-Released to ready. Release: book v1 shipped; begin protocol planning.
+Claimed by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner until 2026-09-22T21:48:52Z. Worktree `.worktrees/study04-v2-completion-protocol`.
