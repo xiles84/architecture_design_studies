@@ -35,13 +35,13 @@
 ## Verified build (all checks in the pinned image, from a clean `dirty=false` tree)
 
 ```text
-pages:                  29
+pages:                  30
 fonts embedded:         3/3   (Libertinus Serif regular/bold, DejaVu Sans Mono)
 claims indexed:         23/23 (every v2 claim id appears in the rendered text)
 evidence digest in pdf: true  (registry sha256 present on the page)
 uri annotations:        1
-pdf sha256:             53a0815512bf503c1b4426eb4394a3f1f38e415c1bc66cb2f1f8a4a716728dd4
-source commit:          302d19384d2d46280cf7601d5f328f9519a309ea (tree dirty=false)
+pdf sha256:             da433f01436f33238a381d2db2c61f66d9ad887cd4ad2536e4d83a8c1a7379ef
+source commit:          9b044195316b62973520dd8e5d620e8f1141b2e4 (tree dirty=false, built 2026-09-22T19:12:08Z)
 typst image digest:     sha256:032e292249bcd378480cc7c142cfa324b63ef8aadeb88d7e7230320c4c9c422f
 ```
 
