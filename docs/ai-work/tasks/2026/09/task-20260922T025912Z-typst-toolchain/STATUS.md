@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-typst-toolchain` |
-| State | `proposed` |
-| Sequence | `0` |
+| State | `ready` |
+| Sequence | `1` |
 | Active attempt | none |
-| Active worker | none |
-| Last event | none |
-| Updated at | `2026-09-22T02:59:12Z` |
+| Active worker | `model=unknown tool=unknown effort=unknown session=session-20260922T140800Z-high capability=HIGH role=planner` |
+| Last event | `event-20260922T140646Z-released` |
+| Updated at | `2026-09-22T14:06:46Z` |
 | Next capability | LOW |
 | Next work role | executor |
 | Branch | `repo/book-typst-toolchain` |
 | Worktree | `.worktrees/book-typst-toolchain` |
 
-Becomes ready after the evidence registry is submitted.
+Released to ready. Released to ready: the evidence registry is integrated.
