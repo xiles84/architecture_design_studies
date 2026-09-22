@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-hierarchy-model-protocol` |
-| State | `in_progress` |
-| Sequence | `3` |
+| State | `awaiting_review` |
+| Sequence | `4` |
 | Active attempt | `attempt-20260922T204712Z-105ba6` |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner` |
-| Last event | `event-20260922T205015Z-checkpoint` |
-| Updated at | `2026-09-22T20:50:15Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Last event | `event-20260922T205100Z-submitted` |
+| Updated at | `2026-09-22T20:51:00Z` |
+| Next capability | HIGH |
+| Next work role | reviewer |
 | Branch | `repo/hierarchy-model-protocol` |
 | Worktree | `.worktrees/hierarchy-model-protocol` |
 
-Checkpoint 81d58119da0993f3d6f55d998371d5077d8ec61c; claim claim-e23f78318d7f0af8 epoch 1.
+Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/09/task-20260922T025912Z-hierarchy-model-protocol/attempts/attempt-20260922T204712Z-105ba6/RESULT.md`.
