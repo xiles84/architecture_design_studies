@@ -35,10 +35,12 @@
   #line(length: 60%, stroke: 1pt + palette.rule)
   #v(6mm)
   #text(size: 11pt)[#book-edition]
-  #v(60mm)
-  #text(size: 9pt, fill: palette.muted)[
-    Built from commit #raw(describe) (#raw(commit)) — working tree #dirty.\n
-    Typst #typst-version (image #raw(typst-digest)).\n
+  #v(40mm)
+  #align(left)[
+    #set par(justify: false)
+    #set text(size: 9pt, fill: palette.muted)
+    Built from commit #raw(describe) (#raw(commit)) — working tree #dirty. \
+    Typst #typst-version (image #raw(typst-digest)). \
     Evidence registry `book/evidence/v2/claims.json`, digest #raw(evidence-digest).
   ]
 ]
