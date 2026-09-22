@@ -85,13 +85,19 @@ unanswerable in every design, L2 answers the 100k-seat map 4.5-11x the row desig
 and L3's point lookups collapse to 26 ops/s.
 → [Study](studies/03-reserved-seating/) · [reports](studies/03-reserved-seating/reports/)
 
-### Study 04 — configuration portal — **v1 measured; review and v2 protocol open**
+### Study 04 — configuration portal — **v1 measured, independently reviewed; v2 protocol next**
 
 `product → installed product → configuration entry`: 18 designs planned, 10 implemented, measured on
-PostgreSQL (`small`) with two negative controls. Open: the independent HIGH review of the proposed
-book claims, then the v2 completion protocol (which must recover the missing designs and add
-cardinality, cadence/churn, repeated randomized trials, equal-total resources, placement and
-YugabyteDB).
+PostgreSQL (`small`) with two negative controls. The independent HIGH review landed 2026-09-22
+(`task-20260922T025912Z-study04-independent-review`, signed analysis
+`20260921T1215Z-small--deepseek-flash--2026-09-22`): it accepted the 93.7% control loss, the
+15.2-15.8x rollup read gain at a 6.85x write cost, and the deterministic 10.5x document storage
+win; it narrowed the 1.76x lock advantage to an upper bound and found that the ~1.7x identical-SQL
+attribution floor is real but its proposed cell-order cause is not corroborated by the recorded
+order. Next: the v2 completion protocol (`task-20260922T025912Z-study04-v2-protocol`, now unblocked),
+which must recover the missing designs and add cardinality, cadence/churn, repeated randomized
+trials, equal-total resources, placement and YugabyteDB, plus the three controls the review
+requires (repeated-design instrument control, `-retries 1`, writer sweep).
 → [Study](studies/04-configuration-portal/) · [reports](studies/04-configuration-portal/reports/)
 
 ### Study 05 — external cache — **v1 measured; review and v2 protocol open**
@@ -122,8 +128,11 @@ open-loop demand). Open: the independent HIGH review, then the v2 protocol.
    as the book's direct numeric source; the correction package is
    `task-20260922T170845Z-book-evidence-correction-v2`, and the phase-3b claim verdicts it must
    honour are in `book/evidence/reviews/20260922-phase-3b-high-validation.json`.
-3. **Study 04 v2** — missing designs, repeated randomized trials, cardinality, cadence/churn,
-   equal-total resources, placement, YugabyteDB.
+3. **Study 04 v2** — the v1 review is done; the open work is
+   `task-20260922T025912Z-study04-v2-protocol` (missing designs, repeated randomized trials,
+   cardinality, cadence/churn, equal-total resources, placement, YugabyteDB) plus the review's three
+   required controls (repeated-design instrument control, `-retries 1`, writer sweep). Verdicts in
+   `book/evidence/reviews/20260922-study04-independent-review.json`.
 4. **Study 05 v2** — real-TTL churn, medium scale, repeats, cache resource accounting,
    YugabyteDB/cluster/placement, open-loop demand.
 5. **Book v1** — synthesis and independent release review not yet done; no final PDF yet.
