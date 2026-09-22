@@ -200,6 +200,13 @@ placement pair).
    and correctness. Four separately claimable execution tasks are published
    (`…-analytics-harness`, `…-rollup-arms`, `…-search-copy`, `…-columnar-copy`); none has run.
 
+9. **Study 09 hierarchy** — protocol complete 2026-09-22: `studies/09-hierarchy/HANDOFF.md` (tag
+   `repo/hierarchy-study-handoff-v1`) compares adjacency list, materialized path, closure table,
+   nested sets and bounded embedding under identical operations, covering reads, moves, inserts,
+   deletes, storage and concurrency with cycle/orphan/depth-bound controls. Four separately claimable
+   execution tasks are published (`…-hierarchy-harness`, `…-reads-storage`, `…-writes-moves`,
+   `…-concurrency-engine`); none has run.
+
 ## Where the long history lives
 
 - Archived `CONTEXT.md` editions: [`docs/history/context/`](docs/history/context/)
