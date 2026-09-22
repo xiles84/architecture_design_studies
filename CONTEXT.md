@@ -53,11 +53,14 @@ summary, not a second ledger.
 - **Book toolchain:** `book/` holds the modular Typst reader layer, pinned by
   `book/Containerfile` to Typst `0.15.1` (image digest
   `sha256:032e292249bcd378480cc7c142cfa324b63ef8aadeb88d7e7230320c4c9c422f`). `book/build.sh`
-  compiles and verifies the draft in Podman and writes `book/dist/build-manifest.json`; the verified
-  draft is 29 pages, 3/3 fonts embedded, all 23 v2 claim ids indexed and the registry digest present
-  in the text. Chapters and concepts are structural shells: **no scientific prose exists yet**.
-- **Next ready work:** release `book-synthesis-v1` → `book-release-review-v1`, then the six
-  scientific protocol tasks.
+  compiles and verifies the draft in Podman and writes `book/dist/build-manifest.json`; the toolchain
+  build was 30 pages with 3/3 fonts embedded, all 23 v2 claim ids indexed and the registry digest
+  present in the text.
+- **Book draft (synthesis):** `book-synthesis-v1` wrote the v1 prose — six family chapters with the
+  progressive structure, eight concept chapters, variants, comparisons, topologies and scenarios —
+  grounded only in the 23 active v2 claims, with confounds and gaps labelled on the page. It reads
+  `book/evidence/v2/` only. No measurement was performed.
+- **Next ready work:** `book-release-review-v1`, then the six scientific protocol tasks.
 - **Book release tag target:** `repo/data-architecture-book-v1` (not yet created).
 - **Brainstorm concluded** (tag `repo/book-evidence-and-model-brainstorm-v1`):
   `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` — two positions
