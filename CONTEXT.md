@@ -193,6 +193,13 @@ placement pair).
    `…-widecolumn-vs-relational`, `…-keyvalue-vs-relational`); none has run. Path to close
    `v2-gap-06-native-datastore-families`.
 
+8. **Study 08 read models** — protocol complete 2026-09-22:
+   `studies/08-analytics-read-models/HANDOFF.md` (tag `repo/analytics-read-model-handoff-v1`)
+   compares base OLTP, rollup/materialized views, an in-engine search copy and a ClickHouse analytical
+   copy for top-N/dashboard workloads, measuring query gain, refresh/maintenance, staleness, storage
+   and correctness. Four separately claimable execution tasks are published
+   (`…-analytics-harness`, `…-rollup-arms`, `…-search-copy`, `…-columnar-copy`); none has run.
+
 ## Where the long history lives
 
 - Archived `CONTEXT.md` editions: [`docs/history/context/`](docs/history/context/)
