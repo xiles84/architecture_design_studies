@@ -110,6 +110,14 @@ inferred from a model name. `LOW` may claim only tasks whose
 from the work role (`planner`, `executor`, `reviewer`, `analyst`, `integrator`),
 which is carried in every event's actor.
 
+`--capability` and `ADS_QUEUE_CAPABILITY` also accept the case-insensitive
+aliases in `docs/ai-work/WORKFLOW.md`'s capability vocabulary (for example
+`leader` for `HIGH`, `worker` for `LOW`, with legacy compatibility terms
+accepted only as input). Every declaration is normalized immediately; only the
+canonical `HIGH`/`LOW` is stored, compared or emitted, and the raw wording is
+preserved separately as `session_capability_input`. `primary`/`replica` are
+datastore-topology terms and are rejected as capability declarations.
+
 ## Portability
 
 - `git worktree add` writes absolute paths on Git 2.43; the CLI rewrites the

@@ -25,14 +25,15 @@ func newFlagSet(name string) *flag.FlagSet {
 // ---------------------------------------------------------------------------
 
 type sessionRecord struct {
-	SchemaVersion     int    `json:"schema_version"`
-	SessionID         string `json:"session_id"`
-	Model             string `json:"model"`
-	Tool              string `json:"tool"`
-	Effort            string `json:"effort"`
-	SessionCapability string `json:"session_capability"`
-	WorkRole          string `json:"work_role"`
-	StartedAt         string `json:"started_at"`
+	SchemaVersion          int    `json:"schema_version"`
+	SessionID              string `json:"session_id"`
+	Model                  string `json:"model"`
+	Tool                   string `json:"tool"`
+	Effort                 string `json:"effort"`
+	SessionCapability      string `json:"session_capability"`
+	SessionCapabilityInput string `json:"session_capability_input,omitempty"`
+	WorkRole               string `json:"work_role"`
+	StartedAt              string `json:"started_at"`
 }
 
 // cmdSessionStart records the answer to "is this session HIGH or LOW?". The
@@ -57,14 +58,15 @@ func cmdSessionStart(args []string, out io.Writer) error {
 		id.SessionID = "session-" + archive.CompactTime(c.Now) + "-" + randHex(3)
 	}
 	rec := sessionRecord{
-		SchemaVersion:     model.SchemaVersion,
-		SessionID:         id.SessionID,
-		Model:             id.Model,
-		Tool:              id.Tool,
-		Effort:            id.Effort,
-		SessionCapability: id.SessionCapability,
-		WorkRole:          id.WorkRole,
-		StartedAt:         model.FormatTime(c.Now),
+		SchemaVersion:          model.SchemaVersion,
+		SessionID:              id.SessionID,
+		Model:                  id.Model,
+		Tool:                   id.Tool,
+		Effort:                 id.Effort,
+		SessionCapability:      id.SessionCapability,
+		SessionCapabilityInput: id.SessionCapabilityInput,
+		WorkRole:               id.WorkRole,
+		StartedAt:              model.FormatTime(c.Now),
 	}
 	data, err := json.MarshalIndent(rec, "", "  ")
 	if err != nil {
@@ -157,8 +159,9 @@ func cmdList(args []string, out io.Writer) error {
 		list = append(list, r)
 	}
 	eligSet := map[string]bool{}
-	if *eligible || cf.capability != "" {
-		for _, r := range model.Eligible(records, now, cf.capability) {
+	capability := cf.canonicalCapability()
+	if *eligible || capability != "" {
+		for _, r := range model.Eligible(records, now, capability) {
 			eligSet[r.Task.TaskID] = true
 		}
 	}
@@ -172,7 +175,7 @@ func cmdList(args []string, out io.Writer) error {
 		list = filtered
 	}
 	_ = loadErrs
-	rs := rows(list, now, cf.capability)
+	rs := rows(list, now, capability)
 	for i := range rs {
 		rs[i].Eligible = eligSet[rs[i].TaskID]
 	}
@@ -202,8 +205,12 @@ func cmdNext(args []string, out io.Writer) error {
 	if err := fs.Parse(args); err != nil {
 		return failf(2, "%v", err)
 	}
-	if cf.capability == "" {
+	capability := cf.canonicalCapability()
+	if capability == "" {
 		return failf(2, "next: --capability HIGH|LOW is required (or set ADS_QUEUE_CAPABILITY)")
+	}
+	if capability != model.CapHIGH && capability != model.CapLOW {
+		return failf(2, "next: %v", model.Identity{SessionCapability: capability, WorkRole: model.RoleExecutor}.Validate())
 	}
 	c, err := cf.open(out)
 	if err != nil {
@@ -213,7 +220,7 @@ func cmdNext(args []string, out io.Writer) error {
 	if len(loadErrs) > 0 {
 		return fmt.Errorf("cannot compute the queue: %v", loadErrs[0])
 	}
-	rec := model.Next(records, c.Now, cf.capability)
+	rec := model.Next(records, c.Now, capability)
 	if rec == nil {
 		if cf.json {
 			return c.jsonOut(map[string]any{"task_id": nil})
@@ -232,7 +239,7 @@ func cmdNext(args []string, out io.Writer) error {
 	fmt.Fprintf(out, "%s\t%s\t%d\t%s\n", rec.Task.TaskID, rec.State, rec.Task.Priority, rec.Task.Title)
 	if *claimCmd {
 		fmt.Fprintf(out, "claim: queue claim --task %s --capability %s --role %s\n",
-			rec.Task.TaskID, cf.capability, firstNonEmpty(cf.role, model.RoleExecutor))
+			rec.Task.TaskID, capability, firstNonEmpty(cf.role, model.RoleExecutor))
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -177,5 +178,39 @@ func TestIdentityValidation(t *testing.T) {
 	}
 	if err := (Identity{SessionCapability: CapLOW, WorkRole: "wizard"}).Validate(); err == nil {
 		t.Fatal("unknown role must be rejected")
+	}
+}
+
+// TestParseCapability covers every accepted declaration, mixed case and
+// surrounding whitespace, plus the terms the amendment deliberately excludes.
+func TestParseCapability(t *testing.T) {
+	accepted := map[string]string{
+		"HIGH": CapHIGH, "high": CapHIGH, "High": CapHIGH,
+		"leader": CapHIGH, "Leader": CapHIGH, "LEADER": CapHIGH,
+		"master": CapHIGH, "Master": CapHIGH, "  MASTER  ": CapHIGH,
+		"LOW": CapLOW, "low": CapLOW, "Low": CapLOW,
+		"worker": CapLOW, "Worker": CapLOW, "WORKER": CapLOW,
+		"follower": CapLOW, "Follower": CapLOW,
+		"slave": CapLOW, "Slave": CapLOW, "\tworker\n": CapLOW,
+	}
+	for in, want := range accepted {
+		got, ok := ParseCapability(in)
+		if !ok || got != want {
+			t.Errorf("ParseCapability(%q) = %q,%v; want %q,true", in, got, ok, want)
+		}
+	}
+	for _, bad := range []string{"", "   ", "primary", "PRIMARY", "replica", "Replica", "boss", "hi", "higher", "lowest", "leader worker"} {
+		if got, ok := ParseCapability(bad); ok {
+			t.Errorf("ParseCapability(%q) accepted as %q; want rejection", bad, got)
+		}
+	}
+	// A rejected declaration still reports the raw text through Validate, which
+	// names only the preferred words.
+	err := (Identity{SessionCapability: "primary", SessionCapabilityInput: "primary", WorkRole: RoleExecutor}).Validate()
+	if err == nil {
+		t.Fatal("canonical-only Validate must reject a raw declaration")
+	}
+	if strings.Contains(err.Error(), "master") || strings.Contains(err.Error(), "slave") {
+		t.Fatalf("validation message must not emit legacy terms: %v", err)
 	}
 }

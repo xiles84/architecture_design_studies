@@ -618,3 +618,98 @@ func TestAuditFindsOrphanLiveRef(t *testing.T) {
 		t.Fatalf("audit did not name the orphan: %s%s", r.out, r.err)
 	}
 }
+
+// TestCapabilityAliases implements the requirement added by the queue-v1
+// amendment 20260922T101113Z-capability-aliases: every accepted declaration
+// normalizes to canonical HIGH/LOW, the raw input is preserved separately, and
+// the excluded datastore terms are rejected.
+func TestCapabilityAliases(t *testing.T) {
+	cases := []struct{ input, want string }{
+		{"HIGH", model.CapHIGH},
+		{"high", model.CapHIGH},
+		{"Leader", model.CapHIGH},
+		{"  master  ", model.CapHIGH},
+		{"LOW", model.CapLOW},
+		{"worker", model.CapLOW},
+		{"Follower", model.CapLOW},
+		{"SLAVE", model.CapLOW},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(strings.TrimSpace(tc.input), func(t *testing.T) {
+			repo := newRepo(t)
+			id := "task-20260922T100000Z-alias"
+			publishDemo(t, repo, id, "LOW")
+			sid := "session-20260922T100000Z-alias"
+			mustQ(t, "session-start", "--capability", tc.input, "--role", "executor",
+				"--model", "test", "--tool", "gotest", "--session-id", sid, "--repo", repo, "--now", t0)
+
+			data, err := os.ReadFile(filepath.Join(repo, "docs", "ai-work", "sessions", sid+".json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var sr struct {
+				SessionCapability      string `json:"session_capability"`
+				SessionCapabilityInput string `json:"session_capability_input"`
+				WorkRole               string `json:"work_role"`
+			}
+			if err := json.Unmarshal(data, &sr); err != nil {
+				t.Fatal(err)
+			}
+			if sr.SessionCapability != tc.want || sr.SessionCapabilityInput != tc.input {
+				t.Fatalf("session record capability=%q input=%q; want %q and %q",
+					sr.SessionCapability, sr.SessionCapabilityInput, tc.want, tc.input)
+			}
+			if sr.WorkRole != "executor" {
+				t.Fatalf("capability alias changed the work role: %q", sr.WorkRole)
+			}
+
+			r := mustQ(t, "claim", "--task", id, "--capability", tc.input, "--role", "executor",
+				"--model", "test", "--tool", "gotest", "--session-id", sid, "--repo", repo, "--now", t0, "--json")
+			var cl model.Claim
+			if err := json.Unmarshal([]byte(r.out), &cl); err != nil {
+				t.Fatalf("parse claim json: %v\n%s", err, r.out)
+			}
+			if cl.Worker.SessionCapability != tc.want {
+				t.Fatalf("live claim stored capability %q; want canonical %q", cl.Worker.SessionCapability, tc.want)
+			}
+			if cl.Worker.SessionCapabilityInput != tc.input {
+				t.Fatalf("live claim lost the raw declaration: %q vs %q", cl.Worker.SessionCapabilityInput, tc.input)
+			}
+			// Eligibility uses the canonical value: a LOW-eligible task is
+			// claimable by an alias of LOW, not by an alias of HIGH.
+			if got := stateIn(t, repo, id); got != model.StateClaimed {
+				t.Fatalf("state after alias claim: %s", got)
+			}
+		})
+	}
+
+	// Excluded datastore terms are rejected as capability declarations.
+	for _, bad := range []string{"primary", "replica"} {
+		repo := newRepo(t)
+		id := "task-20260922T100000Z-bad"
+		publishDemo(t, repo, id, "LOW")
+		r := qrun("claim", "--task", id, "--capability", bad, "--role", "executor",
+			"--model", "test", "--tool", "gotest", "--session-id", "s", "--repo", repo, "--now", t0)
+		if r.code == 0 {
+			t.Fatalf("capability %q must be rejected", bad)
+		}
+		if !strings.Contains(r.err, "session_capability") {
+			t.Fatalf("rejection for %q should name session_capability: %s", bad, r.err)
+		}
+		if strings.Contains(r.err, "master") || strings.Contains(r.err, "slave") {
+			t.Fatalf("rejection must not emit legacy terms: %s", r.err)
+		}
+	}
+
+	// A HIGH alias may claim a HIGH-only task; work_role stays independent of
+	// the capability declaration.
+	repo := newRepo(t)
+	id := "task-20260922T100000Z-highonly-alias"
+	publishDemo(t, repo, id, "HIGH")
+	mustQ(t, "claim", "--task", id, "--capability", "leader", "--role", "reviewer",
+		"--model", "test", "--tool", "gotest", "--session-id", "s", "--repo", repo, "--now", t0)
+	if got := stateIn(t, repo, id); got != model.StateClaimed {
+		t.Fatalf("HIGH alias failed to claim a HIGH task: %s", got)
+	}
+}

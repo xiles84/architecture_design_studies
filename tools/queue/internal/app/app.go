@@ -139,6 +139,9 @@ commands:
 
 Common flags: --repo, --now, --json, --capability, --role,
               --model, --tool, --effort, --session-id
+
+--capability takes HIGH or LOW; the aliases leader (HIGH) and worker (LOW)
+are accepted and normalized, and only the canonical value is stored.
 `)
 }
 
@@ -174,7 +177,7 @@ func (cf *commonFlags) register(fs *flag.FlagSet, withIdentity bool) {
 	fs.StringVar(&cf.now, "now", "", "freeze the clock at an RFC3339 UTC time (testing)")
 	fs.BoolVar(&cf.json, "json", false, "emit JSON")
 	if withIdentity {
-		fs.StringVar(&cf.capability, "capability", "", "session capability HIGH or LOW (default: $ADS_QUEUE_CAPABILITY)")
+		fs.StringVar(&cf.capability, "capability", "", "session capability HIGH or LOW (leader/worker aliases accepted; default: $ADS_QUEUE_CAPABILITY)")
 		fs.StringVar(&cf.role, "role", "", "work role (default: $ADS_QUEUE_ROLE)")
 		fs.StringVar(&cf.modelID, "model", "", "model id (default: $ADS_QUEUE_MODEL)")
 		fs.StringVar(&cf.tool, "tool", "", "tool id (default: $ADS_QUEUE_TOOL)")
@@ -199,6 +202,21 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
+// canonicalCapability normalizes a session-capability declaration from
+// --capability or ADS_QUEUE_CAPABILITY. It returns "" when none was declared.
+// An unparseable declaration is returned as written so the caller can reject it
+// with a message that names the preferred words.
+func (cf *commonFlags) canonicalCapability() string {
+	raw := firstNonEmpty(cf.capability, os.Getenv("ADS_QUEUE_CAPABILITY"))
+	if raw == "" {
+		return ""
+	}
+	if canonical, ok := model.ParseCapability(raw); ok {
+		return canonical
+	}
+	return raw
+}
+
 // identity resolves flags over environment, using "unknown" for anything the
 // session does not expose.
 func (cf *commonFlags) identity() model.Identity {
@@ -209,14 +227,30 @@ func (cf *commonFlags) identity() model.Identity {
 // recorded worker when the caller did not restate capability or role. A worker
 // that already holds a claim should not have to repeat its identity on every
 // command, and the claim is the authoritative record of who holds the task.
+//
+// The capability declaration is normalized to canonical HIGH/LOW here; the raw
+// declaration is preserved only as SessionCapabilityInput.
 func (cf *commonFlags) actorFrom(def model.Identity) model.Identity {
+	raw := firstNonEmpty(cf.capability, os.Getenv("ADS_QUEUE_CAPABILITY"))
+	canonical := def.SessionCapability
+	input := def.SessionCapabilityInput
+	if raw != "" {
+		input = raw
+		if c, ok := model.ParseCapability(raw); ok {
+			canonical = c
+		} else {
+			// Keep the raw text so Validate rejects it and reports it.
+			canonical = raw
+		}
+	}
 	return model.Identity{
-		Model:             firstNonEmpty(cf.modelID, os.Getenv("ADS_QUEUE_MODEL"), def.Model, "unknown"),
-		Tool:              firstNonEmpty(cf.tool, os.Getenv("ADS_QUEUE_TOOL"), def.Tool, "unknown"),
-		Effort:            firstNonEmpty(cf.effort, os.Getenv("ADS_QUEUE_EFFORT"), def.Effort, "unknown"),
-		SessionCapability: firstNonEmpty(cf.capability, os.Getenv("ADS_QUEUE_CAPABILITY"), def.SessionCapability),
-		WorkRole:          firstNonEmpty(cf.role, os.Getenv("ADS_QUEUE_ROLE"), def.WorkRole),
-		SessionID:         firstNonEmpty(cf.sessionID, os.Getenv("ADS_QUEUE_SESSION_ID"), def.SessionID, "unknown"),
+		Model:                  firstNonEmpty(cf.modelID, os.Getenv("ADS_QUEUE_MODEL"), def.Model, "unknown"),
+		Tool:                   firstNonEmpty(cf.tool, os.Getenv("ADS_QUEUE_TOOL"), def.Tool, "unknown"),
+		Effort:                 firstNonEmpty(cf.effort, os.Getenv("ADS_QUEUE_EFFORT"), def.Effort, "unknown"),
+		SessionCapability:      canonical,
+		SessionCapabilityInput: input,
+		WorkRole:               firstNonEmpty(cf.role, os.Getenv("ADS_QUEUE_ROLE"), def.WorkRole),
+		SessionID:              firstNonEmpty(cf.sessionID, os.Getenv("ADS_QUEUE_SESSION_ID"), def.SessionID, "unknown"),
 	}
 }
 
