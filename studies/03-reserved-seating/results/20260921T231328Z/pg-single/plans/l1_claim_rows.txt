@@ -1,0 +1,615 @@
+# Query plans — study 03-reserved-seating
+
+run_id:      20260921T231328Z
+repo:        run/02-ticket-booking/20260921T205212Z-2-gab1b76e (dirty=false)
+environment: host-zenbook-ux5406sa
+engine:      postgres (pg-single)
+version:     PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+design:      l1_claim_rows (claim-rows)
+captured:    EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS ON)
+keys:        the largest catalogue event, one of its live holds (or its section with the most
+             sold seats), a sold ticket. Write statements run inside transactions that are rolled back.
+
+==============================================================================
+## q01_section_map
+==============================================================================
+
+# The dynamic half of a seat map: non-available seats (1 = held, 2 = sold).
+
+SELECT seat_id,
+       (CASE WHEN expires_at = 'infinity' THEN 2 ELSE 1 END)::SMALLINT AS state
+  FROM seat_claim
+ WHERE event_id = $1
+   AND section_no = $2
+   AND expires_at > now()
+ ORDER BY seat_id
+
+Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..22.75 rows=22 width=6) (actual time=0.008..0.017 rows=41 loops=1)
+  Output: seat_id, (CASE WHEN (expires_at = 'infinity'::timestamp with time zone) THEN 2 ELSE 1 END)::smallint
+  Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.section_no = 68))
+  Filter: (seat_claim.expires_at > now())
+  Rows Removed by Filter: 14
+  Buffers: shared hit=27
+Planning Time: 0.039 ms
+Execution Time: 0.024 ms
+
+==============================================================================
+## q02_event_sections
+==============================================================================
+
+# Seats available per section: capacity minus valid claims.
+
+SELECT s.section_no,
+       (s.capacity - COALESCE(c.claimed, 0))::BIGINT AS available
+  FROM event e
+  JOIN venue_section s ON s.venue_id = e.venue_id
+  LEFT JOIN (SELECT section_no, COUNT(*) AS claimed
+               FROM seat_claim
+              WHERE event_id = $1
+                AND expires_at > now()
+              GROUP BY section_no) c ON c.section_no = s.section_no
+ WHERE e.event_id = $1
+ ORDER BY s.section_no
+
+Merge Left Join  (cost=5.54..1802.43 rows=2 width=12) (actual time=0.229..7.092 rows=100 loops=1)
+  Output: s.section_no, (s.capacity - COALESCE((count(*)), '0'::bigint))
+  Inner Unique: true
+  Merge Cond: (s.section_no = seat_claim.section_no)
+  Buffers: shared hit=38128
+  ->  Sort  (cost=5.13..5.13 rows=2 width=8) (actual time=0.034..0.039 rows=100 loops=1)
+        Output: s.section_no, s.capacity
+        Sort Key: s.section_no
+        Sort Method: quicksort  Memory: 27kB
+        Buffers: shared hit=4
+        ->  Hash Join  (cost=2.50..5.12 rows=2 width=8) (actual time=0.010..0.025 rows=100 loops=1)
+              Output: s.section_no, s.capacity
+              Inner Unique: true
+              Hash Cond: (s.venue_id = e.venue_id)
+              Buffers: shared hit=4
+              ->  Seq Scan on public.venue_section s  (cost=0.00..2.26 rows=126 width=16) (actual time=0.004..0.008 rows=126 loops=1)
+                    Output: s.venue_id, s.section_no, s.capacity
+                    Buffers: shared hit=1
+              ->  Hash  (cost=2.49..2.49 rows=1 width=8) (actual time=0.004..0.005 rows=1 loops=1)
+                    Output: e.venue_id
+                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                    Buffers: shared hit=3
+                    ->  Index Scan using event_pkey on public.event e  (cost=0.28..2.49 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=1)
+                          Output: e.venue_id
+                          Index Cond: (e.event_id = '500'::bigint)
+                          Buffers: shared hit=3
+  ->  GroupAggregate  (cost=0.41..1796.01 rows=100 width=12) (actual time=0.194..7.030 rows=100 loops=1)
+        Output: seat_claim.section_no, count(*)
+        Group Key: seat_claim.section_no
+        Buffers: shared hit=38124
+        ->  Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..1597.23 rows=39556 width=4) (actual time=0.004..5.455 rows=39330 loops=1)
+              Output: seat_claim.event_id, seat_claim.seat_id, seat_claim.section_no, seat_claim.hold_id, seat_claim.customer_id, seat_claim.expires_at, seat_claim.claimed_at
+              Index Cond: (seat_claim.event_id = '500'::bigint)
+              Filter: (seat_claim.expires_at > now())
+              Rows Removed by Filter: 631
+              Buffers: shared hit=38124
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.121 ms
+Execution Time: 7.112 ms
+
+==============================================================================
+## q03_event_available
+==============================================================================
+
+# Seats available for the whole event.
+
+SELECT (v.capacity - (SELECT COUNT(*)
+                        FROM seat_claim
+                       WHERE event_id = $1
+                         AND expires_at > now()))::BIGINT AS available
+  FROM event e
+  JOIN venue v ON v.venue_id = e.venue_id
+ WHERE e.event_id = $1
+
+Nested Loop  (cost=1678.99..1682.33 rows=1 width=8) (actual time=3.521..3.525 rows=1 loops=1)
+  Output: (v.capacity - (InitPlan 1).col1)
+  Inner Unique: true
+  Join Filter: (v.venue_id = e.venue_id)
+  Buffers: shared hit=517
+  InitPlan 1
+    ->  Aggregate  (cost=1678.71..1678.72 rows=1 width=8) (actual time=3.511..3.511 rows=1 loops=1)
+          Output: count(*)
+          Buffers: shared hit=513
+          ->  Seq Scan on public.seat_claim  (cost=0.00..1579.82 rows=39556 width=0) (actual time=0.003..2.378 rows=39330 loops=1)
+                Output: seat_claim.event_id, seat_claim.seat_id, seat_claim.section_no, seat_claim.hold_id, seat_claim.customer_id, seat_claim.expires_at, seat_claim.claimed_at
+                Filter: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.expires_at > now()))
+                Rows Removed by Filter: 21631
+                Buffers: shared hit=513
+  ->  Index Scan using event_pkey on public.event e  (cost=0.28..2.49 rows=1 width=8) (actual time=0.003..0.006 rows=1 loops=1)
+        Output: e.event_id, e.band_id, e.venue_id, e.name, e.starts_at, e.price_cents, e.description
+        Index Cond: (e.event_id = '500'::bigint)
+        Buffers: shared hit=3
+  ->  Seq Scan on public.venue v  (cost=0.00..1.05 rows=5 width=12) (actual time=0.002..0.002 rows=1 loops=1)
+        Output: v.venue_id, v.name, v.capacity
+        Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.077 ms
+Execution Time: 3.539 ms
+
+==============================================================================
+## q04_hold_seats
+==============================================================================
+
+# The basket page: the seats of a hold that is still valid, and when it ends.
+
+SELECT seat_id, expires_at
+  FROM seat_claim
+ WHERE event_id = $1
+   AND section_no = $2
+   AND hold_id = $3
+   AND expires_at > now()
+   AND expires_at <> 'infinity'
+ ORDER BY seat_id
+
+Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..22.76 rows=1 width=12) (actual time=0.017..0.018 rows=1 loops=1)
+  Output: seat_id, expires_at
+  Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.section_no = 68))
+  Filter: ((seat_claim.expires_at <> 'infinity'::timestamp with time zone) AND (seat_claim.hold_id = '813'::bigint) AND (seat_claim.expires_at > now()))
+  Rows Removed by Filter: 54
+  Buffers: shared hit=27
+Planning Time: 0.041 ms
+Execution Time: 0.023 ms
+
+==============================================================================
+## q05_customer_tickets
+==============================================================================
+
+# "My tickets". Same SQL as every other design; the ticket table's extra unique
+# constraint is not on this path.
+
+SELECT ticket_id, event_id, seat_id
+  FROM ticket
+ WHERE customer_id = $1
+ ORDER BY ticket_id
+
+Sort  (cost=681.97..686.85 rows=1954 width=20) (actual time=0.504..0.545 rows=1937 loops=1)
+  Output: ticket_id, event_id, seat_id
+  Sort Key: ticket.ticket_id
+  Sort Method: quicksort  Memory: 124kB
+  Buffers: shared hit=512
+  ->  Bitmap Heap Scan on public.ticket  (cost=18.73..575.16 rows=1954 width=20) (actual time=0.099..0.371 rows=1937 loops=1)
+        Output: ticket_id, event_id, seat_id
+        Recheck Cond: (ticket.customer_id = '1'::bigint)
+        Heap Blocks: exact=509
+        Buffers: shared hit=512
+        ->  Bitmap Index Scan on ticket_customer_idx  (cost=0.00..18.24 rows=1954 width=0) (actual time=0.058..0.058 rows=1937 loops=1)
+              Index Cond: (ticket.customer_id = '1'::bigint)
+              Buffers: shared hit=3
+Planning Time: 0.023 ms
+Execution Time: 0.587 ms
+
+==============================================================================
+## q06_ticket_by_id
+==============================================================================
+
+# Point lookup: the control.
+
+SELECT ticket_id, event_id, seat_id, customer_id
+  FROM ticket
+ WHERE ticket_id = $1;
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md). r03-r05 use the `ticket`
+-- table, which is byte-identical across every design in this study (the
+-- confirmed-sale record); this SQL is therefore the same for all of them.
+-- ---------------------------------------------------------------------------
+
+Index Scan using ticket_pkey on public.ticket  (cost=0.29..2.51 rows=1 width=28) (actual time=0.005..0.006 rows=1 loops=1)
+  Output: ticket_id, event_id, seat_id, customer_id
+  Index Cond: (ticket.ticket_id = '19301'::bigint)
+  Buffers: shared hit=3
+Planning Time: 0.023 ms
+Execution Time: 0.011 ms
+
+==============================================================================
+## r03_section_sales_window
+==============================================================================
+
+# Confirmed sales per section inside a window -- selling pace, section by
+# section.
+
+SELECT section_no, COUNT(*) AS confirmed, COALESCE(SUM(price_cents), 0) AS revenue_cents
+  FROM ticket
+ WHERE event_id = $1 AND sold_at >= $2 AND sold_at < $3
+ GROUP BY section_no
+ ORDER BY section_no
+
+Sort  (cost=1537.11..1537.24 rows=52 width=44) (actual time=2.149..2.151 rows=52 loops=1)
+  Output: section_no, (count(*)), (COALESCE(sum(price_cents), '0'::numeric))
+  Sort Key: ticket.section_no
+  Sort Method: quicksort  Memory: 27kB
+  Buffers: shared hit=532
+  ->  HashAggregate  (cost=1534.98..1535.63 rows=52 width=44) (actual time=2.139..2.144 rows=52 loops=1)
+        Output: section_no, count(*), COALESCE(sum(price_cents), '0'::numeric)
+        Group Key: ticket.section_no
+        Batches: 1  Memory Usage: 24kB
+        Buffers: shared hit=532
+        ->  Seq Scan on public.ticket  (cost=0.00..1513.80 rows=2824 width=12) (actual time=0.045..1.914 rows=2886 loops=1)
+              Output: ticket_id, event_id, section_no, seat_id, customer_id, hold_id, sold_at, price_cents
+              Filter: ((ticket.sold_at >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (ticket.sold_at < '2026-07-31 00:00:00+00'::timestamp with time zone) AND (ticket.event_id = '500'::bigint))
+              Rows Removed by Filter: 53217
+              Buffers: shared hit=532
+Planning Time: 0.034 ms
+Execution Time: 2.163 ms
+
+==============================================================================
+## r04_event_recent_confirmations
+==============================================================================
+
+# The operations feed: the last 50 confirmed sales, newest first.
+
+SELECT ticket_id, seat_id, customer_id, sold_at
+  FROM ticket
+ WHERE event_id = $1
+ ORDER BY sold_at DESC
+ LIMIT 50
+
+Limit  (cost=2461.04..2461.16 rows=50 width=28) (actual time=4.438..4.442 rows=50 loops=1)
+  Output: ticket_id, seat_id, customer_id, sold_at
+  Buffers: shared hit=532
+  ->  Sort  (cost=2461.04..2553.44 rows=36959 width=28) (actual time=4.437..4.439 rows=50 loops=1)
+        Output: ticket_id, seat_id, customer_id, sold_at
+        Sort Key: ticket.sold_at DESC
+        Sort Method: top-N heapsort  Memory: 31kB
+        Buffers: shared hit=532
+        ->  Seq Scan on public.ticket  (cost=0.00..1233.29 rows=36959 width=28) (actual time=0.033..2.386 rows=36803 loops=1)
+              Output: ticket_id, seat_id, customer_id, sold_at
+              Filter: (ticket.event_id = '500'::bigint)
+              Rows Removed by Filter: 19300
+              Buffers: shared hit=532
+Planning Time: 0.033 ms
+Execution Time: 4.450 ms
+
+==============================================================================
+## r05_customers_last_purchase_window
+==============================================================================
+
+# Customers whose LAST purchase falls in the window -- the recency question
+# RECENCY.md section 2 asks of donors, in this domain. Same trap: in the
+# trailing regime "bought in the window" and "last bought in the window"
+# coincide (nothing is newer); the historical regime is where a design that
+# only checked the former would be wrong.
+
+SELECT customer_id, MAX(sold_at) AS last_at
+  FROM ticket
+ GROUP BY customer_id
+HAVING MAX(sold_at) >= $1 AND MAX(sold_at) < $2
+ ORDER BY 2 DESC
+ LIMIT 100;
+
+
+-- ---------------------------------------------------------------------------
+-- Operational reports (study 03 v2, REPORTS.md), r01-r02: this design keeps
+-- a row only for a seat that is HELD or SOLD (seat_claim); a free seat has
+-- no row at all, so "available" is absence, not a status value.
+-- ---------------------------------------------------------------------------
+
+Limit  (cost=1478.47..1478.56 rows=35 width=16) (actual time=7.740..7.748 rows=100 loops=1)
+  Output: customer_id, (max(sold_at))
+  Buffers: shared hit=532
+  ->  Sort  (cost=1478.47..1478.56 rows=35 width=16) (actual time=7.739..7.742 rows=100 loops=1)
+        Output: customer_id, (max(sold_at))
+        Sort Key: (max(ticket.sold_at)) DESC
+        Sort Method: top-N heapsort  Memory: 31kB
+        Buffers: shared hit=532
+        ->  HashAggregate  (cost=1373.54..1477.57 rows=35 width=16) (actual time=7.292..7.679 rows=700 loops=1)
+              Output: customer_id, max(sold_at)
+              Group Key: ticket.customer_id
+              Filter: ((max(ticket.sold_at) >= '2026-07-24 00:00:00+00'::timestamp with time zone) AND (max(ticket.sold_at) < '2026-07-31 00:00:00+00'::timestamp with time zone))
+              Batches: 1  Memory Usage: 1425kB
+              Rows Removed by Filter: 8572
+              Buffers: shared hit=532
+              ->  Seq Scan on public.ticket  (cost=0.00..1093.03 rows=56103 width=16) (actual time=0.005..2.229 rows=56103 loops=1)
+                    Output: ticket_id, event_id, section_no, seat_id, customer_id, hold_id, sold_at, price_cents
+                    Buffers: shared hit=532
+Planning Time: 0.043 ms
+Execution Time: 7.766 ms
+
+==============================================================================
+## r01_holds_expiring_soon
+==============================================================================
+
+# `within` is bound as an absolute cutoff instant (see event_seat's own copy
+# of this comment for why).
+
+SELECT seat_id, hold_id, customer_id, expires_at AS hold_expires_at
+  FROM seat_claim
+ WHERE event_id = $1
+   AND expires_at < 'infinity'
+   AND expires_at <= $2
+ ORDER BY expires_at
+
+Index Scan using seat_claim_expiry_idx on public.seat_claim  (cost=0.29..33.25 rows=647 width=28) (actual time=0.007..0.110 rows=631 loops=1)
+  Output: seat_id, hold_id, customer_id, expires_at
+  Index Cond: ((seat_claim.expires_at < 'infinity'::timestamp with time zone) AND (seat_claim.expires_at <= '2026-09-21 23:54:08.544715+00'::timestamp with time zone))
+  Filter: (seat_claim.event_id = '500'::bigint)
+  Rows Removed by Filter: 302
+  Buffers: shared hit=393
+Planning:
+  Buffers: shared hit=3
+Planning Time: 0.070 ms
+Execution Time: 0.132 ms
+
+==============================================================================
+## r02_seat_status_lookup
+==============================================================================
+
+# Zero rows means the seat is available -- there is no row to return one.
+
+SELECT CASE WHEN expires_at = 'infinity' THEN 'sold' ELSE 'held' END AS status,
+       hold_id, customer_id,
+       CASE WHEN expires_at = 'infinity' THEN claimed_at ELSE expires_at END AS at
+  FROM seat_claim
+ WHERE event_id = $1 AND seat_id = $2
+
+Index Scan using seat_claim_pkey on public.seat_claim  (cost=0.41..2.64 rows=1 width=56) (actual time=0.006..0.007 rows=1 loops=1)
+  Output: CASE WHEN (expires_at = 'infinity'::timestamp with time zone) THEN 'sold'::text ELSE 'held'::text END, hold_id, customer_id, CASE WHEN (expires_at = 'infinity'::timestamp with time zone) THEN claimed_at ELSE expires_at END
+  Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.seat_id = 67766))
+  Buffers: shared hit=4
+Planning Time: 0.027 ms
+Execution Time: 0.012 ms
+
+==============================================================================
+## w_claim_seats
+==============================================================================
+
+# The design. No row: inserted. An expired claim: stolen by the ON CONFLICT branch.
+# A valid claim (or a sale, expires_at = 'infinity'): the conflict branch updates
+# nothing and the seat is missing from RETURNING.
+
+INSERT INTO seat_claim AS c (event_id, seat_id, section_no, hold_id, customer_id, expires_at, claimed_at)
+SELECT $1::BIGINT, s, $2::INT, $3::BIGINT, $4::BIGINT,
+       now() + make_interval(secs => $5::FLOAT8 / 1000.0), now()
+  FROM unnest($6::INT[]) AS s
+ON CONFLICT (event_id, seat_id) DO UPDATE
+   SET hold_id = EXCLUDED.hold_id,
+       customer_id = EXCLUDED.customer_id,
+       expires_at = EXCLUDED.expires_at,
+       claimed_at = EXCLUDED.claimed_at
+ WHERE c.expires_at <= now()
+RETURNING seat_id, now() AS db_now, clock_timestamp() AS db_clock, expires_at
+
+Insert on public.seat_claim c  (cost=0.00..0.02 rows=1 width=48) (actual time=0.013..0.013 rows=0 loops=1)
+  Output: c.seat_id, now(), clock_timestamp(), c.expires_at
+  Conflict Resolution: UPDATE
+  Conflict Arbiter Indexes: seat_claim_pkey
+  Conflict Filter: (c.expires_at <= now())
+  Rows Removed by Conflict Filter: 1
+  Tuples Inserted: 0
+  Conflicting Tuples: 1
+  Buffers: shared hit=5
+  ->  Function Scan on pg_catalog.unnest s  (cost=0.00..0.02 rows=1 width=48) (actual time=0.002..0.002 rows=1 loops=1)
+        Output: '500'::bigint, s.s, 68, '813'::bigint, '1'::bigint, (now() + '00:40:00'::interval), now()
+        Function Call: unnest('{67766}'::integer[])
+Planning Time: 0.027 ms
+Execution Time: 0.021 ms
+
+==============================================================================
+## w_check_hold
+==============================================================================
+
+# "Is my hold still valid?" before paying.
+
+SELECT COUNT(*) = cardinality($4::INT[]) AS valid
+  FROM seat_claim
+ WHERE event_id = $1
+   AND section_no = $2
+   AND seat_id = ANY ($4::INT[])
+   AND hold_id = $3
+   AND expires_at > now()
+   AND expires_at <> 'infinity'
+
+Aggregate  (cost=2.65..2.66 rows=1 width=1) (actual time=0.007..0.008 rows=1 loops=1)
+  Output: (count(*) = 1)
+  Buffers: shared hit=4
+  ->  Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..2.65 rows=1 width=0) (actual time=0.006..0.006 rows=1 loops=1)
+        Output: event_id, seat_id, section_no, hold_id, customer_id, expires_at, claimed_at
+        Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.section_no = 68) AND (seat_claim.seat_id = ANY ('{67766}'::integer[])))
+        Filter: ((seat_claim.expires_at <> 'infinity'::timestamp with time zone) AND (seat_claim.hold_id = '813'::bigint) AND (seat_claim.expires_at > now()))
+        Buffers: shared hit=4
+Planning Time: 0.054 ms
+Execution Time: 0.015 ms
+
+==============================================================================
+## w_confirm_seats
+==============================================================================
+
+# Checked confirmation: a claim of this hold, unexpired now, becomes a sale.
+
+UPDATE seat_claim
+   SET expires_at = 'infinity'
+ WHERE event_id = $1
+   AND section_no = $2
+   AND seat_id = ANY ($4::INT[])
+   AND hold_id = $3
+   AND expires_at > now()
+   AND expires_at <> 'infinity'
+RETURNING seat_id, now() AS db_now, clock_timestamp() AS db_clock
+
+Update on public.seat_claim  (cost=0.41..2.65 rows=1 width=14) (actual time=0.025..0.026 rows=1 loops=1)
+  Output: seat_id, now(), clock_timestamp()
+  Buffers: shared hit=20
+  ->  Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..2.65 rows=1 width=14) (actual time=0.008..0.009 rows=1 loops=1)
+        Output: 'infinity'::timestamp with time zone, ctid
+        Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.section_no = 68) AND (seat_claim.seat_id = ANY ('{67766}'::integer[])))
+        Filter: ((seat_claim.expires_at <> 'infinity'::timestamp with time zone) AND (seat_claim.hold_id = '813'::bigint) AND (seat_claim.expires_at > now()))
+        Buffers: shared hit=6
+Planning Time: 0.035 ms
+Execution Time: 0.034 ms
+
+==============================================================================
+## w_insert_tickets
+==============================================================================
+
+# One ticket per seat; ticket_ids and seat_ids are parallel arrays.
+
+INSERT INTO ticket (ticket_id, event_id, section_no, seat_id, customer_id, hold_id, sold_at, price_cents)
+SELECT t.ticket_id, $2::BIGINT, $3::INT, t.seat_id, $5::BIGINT, $6::BIGINT, now(), $7::BIGINT
+  FROM unnest($1::BIGINT[], $4::INT[]) AS t (ticket_id, seat_id)
+
+Insert on public.ticket  (cost=0.01..0.02 rows=0 width=0) (actual time=0.017..0.017 rows=0 loops=1)
+  Buffers: shared hit=9
+  ->  Function Scan on t  (cost=0.01..0.02 rows=1 width=56) (actual time=0.003..0.003 rows=1 loops=1)
+        Output: t.ticket_id, '500'::bigint, 68, t.seat_id, '1'::bigint, '813'::bigint, now(), '9000'::bigint
+        Function Call: unnest('{1020000000}'::bigint[]), unnest('{67766}'::integer[])
+Planning Time: 0.015 ms
+Trigger RI_ConstraintTrigger_c_17222 for constraint ticket_event_id_fkey: time=0.028 calls=1
+Execution Time: 0.051 ms
+
+==============================================================================
+## w_release_hold
+==============================================================================
+
+# The buyer removes the seats: the claims go.
+
+DELETE FROM seat_claim
+ WHERE event_id = $1
+   AND section_no = $2
+   AND seat_id = ANY ($4::INT[])
+   AND hold_id = $3
+   AND expires_at <> 'infinity'
+RETURNING seat_id, now() AS db_now, clock_timestamp() AS db_clock
+
+Delete on public.seat_claim  (cost=0.41..2.64 rows=1 width=6) (actual time=0.009..0.010 rows=1 loops=1)
+  Output: seat_id, now(), clock_timestamp()
+  Buffers: shared hit=6
+  ->  Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..2.64 rows=1 width=6) (actual time=0.006..0.007 rows=1 loops=1)
+        Output: ctid
+        Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.section_no = 68) AND (seat_claim.seat_id = ANY ('{67766}'::integer[])))
+        Filter: ((seat_claim.expires_at <> 'infinity'::timestamp with time zone) AND (seat_claim.hold_id = '813'::bigint))
+        Buffers: shared hit=4
+Planning Time: 0.028 ms
+Execution Time: 0.016 ms
+
+==============================================================================
+## w_expired_holds
+==============================================================================
+
+# The sweeper's batch: expired claims in expiry order. Only tidying -- an expired
+# claim is already stealable.
+
+SELECT event_id, section_no, seat_id, hold_id, expires_at
+  FROM seat_claim
+ WHERE expires_at <= now()
+ ORDER BY expires_at
+ LIMIT $1
+   FOR UPDATE SKIP LOCKED
+
+Limit  (cost=0.29..4.09 rows=100 width=38) (actual time=0.010..0.064 rows=100 loops=1)
+  Output: event_id, section_no, seat_id, hold_id, expires_at, ctid
+  Buffers: shared hit=142
+  ->  LockRows  (cost=0.29..36.10 rows=943 width=38) (actual time=0.010..0.060 rows=100 loops=1)
+        Output: event_id, section_no, seat_id, hold_id, expires_at, ctid
+        Buffers: shared hit=142
+        ->  Index Scan using seat_claim_expiry_idx on public.seat_claim  (cost=0.29..26.67 rows=943 width=38) (actual time=0.007..0.022 rows=100 loops=1)
+              Output: event_id, section_no, seat_id, hold_id, expires_at, ctid
+              Index Cond: (seat_claim.expires_at <= now())
+              Buffers: shared hit=42
+Planning Time: 0.024 ms
+Execution Time: 0.074 ms
+
+==============================================================================
+## w_release_expired
+==============================================================================
+
+# Guarded again by expiry: never deletes a claim that is still valid.
+
+DELETE FROM seat_claim
+ WHERE event_id = $1
+   AND section_no = $2
+   AND seat_id = ANY ($3::INT[])
+   AND expires_at <= now()
+RETURNING seat_id, now() AS db_now, clock_timestamp() AS db_clock
+
+Delete on public.seat_claim  (cost=0.41..2.64 rows=1 width=6) (actual time=0.004..0.004 rows=0 loops=1)
+  Output: seat_id, now(), clock_timestamp()
+  Buffers: shared hit=4
+  ->  Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..2.64 rows=1 width=6) (actual time=0.004..0.004 rows=0 loops=1)
+        Output: ctid
+        Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.section_no = 68) AND (seat_claim.seat_id = ANY ('{67766}'::integer[])))
+        Filter: (seat_claim.expires_at <= now())
+        Rows Removed by Filter: 1
+        Buffers: shared hit=4
+Planning Time: 0.024 ms
+Execution Time: 0.009 ms
+
+==============================================================================
+## w_cancel_ticket
+==============================================================================
+
+# A refund. No row means the ticket was already refunded.
+
+DELETE FROM ticket
+ WHERE ticket_id = $1
+RETURNING event_id, section_no, seat_id, now() AS db_now, clock_timestamp() AS db_clock
+
+Delete on public.ticket  (cost=0.29..2.51 rows=1 width=6) (actual time=0.011..0.012 rows=1 loops=1)
+  Output: event_id, section_no, seat_id, now(), clock_timestamp()
+  Buffers: shared hit=5
+  ->  Index Scan using ticket_pkey on public.ticket  (cost=0.29..2.51 rows=1 width=6) (actual time=0.007..0.007 rows=1 loops=1)
+        Output: ctid
+        Index Cond: (ticket.ticket_id = '19301'::bigint)
+        Buffers: shared hit=3
+Planning Time: 0.021 ms
+Execution Time: 0.028 ms
+
+==============================================================================
+## w_unsell_seat
+==============================================================================
+
+# The refunded seat becomes free: its sold claim goes.
+
+DELETE FROM seat_claim
+ WHERE event_id = $1
+   AND section_no = $2
+   AND seat_id = $3
+   AND expires_at = 'infinity'
+
+Delete on public.seat_claim  (cost=0.41..2.64 rows=0 width=0) (actual time=0.003..0.003 rows=0 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using seat_claim_section_idx on public.seat_claim  (cost=0.41..2.64 rows=1 width=6) (actual time=0.003..0.003 rows=0 loops=1)
+        Output: ctid
+        Index Cond: ((seat_claim.event_id = '500'::bigint) AND (seat_claim.section_no = 68) AND (seat_claim.seat_id = 67766))
+        Filter: (seat_claim.expires_at = 'infinity'::timestamp with time zone)
+        Rows Removed by Filter: 1
+        Buffers: shared hit=4
+Planning Time: 0.020 ms
+Execution Time: 0.007 ms
+
+==============================================================================
+## w_publish_event
+==============================================================================
+
+# Publishing is one row: the venue already defines the seats.
+
+INSERT INTO event (event_id, band_id, venue_id, name, starts_at, price_cents, description)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+
+Insert on public.event  (cost=0.00..0.01 rows=0 width=0) (actual time=0.045..0.045 rows=0 loops=1)
+  Buffers: shared hit=6
+  ->  Result  (cost=0.00..0.01 rows=1 width=104) (actual time=0.001..0.001 rows=1 loops=1)
+        Output: '6000658'::bigint, '12'::bigint, '5'::bigint, 'explain show'::text, '2026-10-01 20:00:00+00'::timestamp with time zone, '9000'::bigint, 'Explained.'::text
+Planning Time: 0.018 ms
+Trigger RI_ConstraintTrigger_c_17205 for constraint event_band_id_fkey: time=0.084 calls=1
+Trigger RI_ConstraintTrigger_c_17210 for constraint event_venue_id_fkey: time=0.029 calls=1
+Execution Time: 0.165 ms
+
+==============================================================================
+## w_load_sold_claims
+==============================================================================
+
+# Run once by the loader, after the tickets are copied: every loaded sale gets its
+# sold claim. Done in SQL so the 'infinity' marker is written by the database.
+
+INSERT INTO seat_claim (event_id, seat_id, section_no, hold_id, customer_id, expires_at, claimed_at)
+SELECT event_id, seat_id, section_no, hold_id, customer_id, 'infinity', sold_at
+  FROM ticket
+
+NOT CAPTURED: run once by the loader, not by any flow
+
