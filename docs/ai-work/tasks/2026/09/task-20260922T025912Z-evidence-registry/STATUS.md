@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-evidence-registry` |
-| State | `in_progress` |
-| Sequence | `3` |
+| State | `awaiting_review` |
+| Sequence | `4` |
 | Active attempt | `attempt-20260922T135849Z-578160` |
 | Active worker | `model=unknown tool=unknown effort=unknown session=session-20260922T140800Z-high capability=HIGH role=executor` |
-| Last event | `event-20260922T140433Z-checkpoint` |
-| Updated at | `2026-09-22T14:04:33Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Last event | `event-20260922T140534Z-submitted` |
+| Updated at | `2026-09-22T14:05:34Z` |
+| Next capability | HIGH |
+| Next work role | reviewer |
 | Branch | `repo/book-evidence-registry` |
 | Worktree | `.worktrees/book-evidence-registry` |
 
-Checkpoint 93fac91aa91fa12b5a9838e38fac74c2075819eb; claim claim-19292345ab93bc5d epoch 1.
+Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/09/task-20260922T025912Z-evidence-registry/attempts/attempt-20260922T135849Z-578160/RESULT.md`.
