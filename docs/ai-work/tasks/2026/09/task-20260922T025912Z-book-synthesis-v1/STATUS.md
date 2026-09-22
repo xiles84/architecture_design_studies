@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-book-synthesis-v1` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner` |
-| Last event | `event-20260922T191751Z-released` |
-| Updated at | `2026-09-22T19:17:51Z` |
-| Next capability | HIGH |
-| Next work role | analyst |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20260922T191804Z-49e273` |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor` |
+| Last event | `event-20260922T191804Z-claimed` |
+| Updated at | `2026-09-22T19:18:04Z` |
+| Next capability | LOW |
+| Next work role | executor |
 | Branch | `repo/book-synthesis-v1` |
 | Worktree | `.worktrees/book-synthesis-v1` |
 
-Released to ready. Release after the evidence correction integrated and the Typst toolchain landed.
+Claimed by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor until 2026-09-22T21:18:04Z. Worktree `.worktrees/book-synthesis-v1`.
