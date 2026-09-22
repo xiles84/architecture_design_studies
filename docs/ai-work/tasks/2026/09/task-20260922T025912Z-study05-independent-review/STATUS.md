@@ -4,14 +4,14 @@
 |---|---|
 | Task | `task-20260922T025912Z-study05-independent-review` |
 | State | `awaiting_review` |
-| Sequence | `4` |
-| Active attempt | `attempt-20260922T182234Z-b46fb1` |
+| Sequence | `5` |
+| Active attempt | none |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=reviewer` |
-| Last event | `event-20260922T183032Z-submitted` |
-| Updated at | `2026-09-22T18:30:32Z` |
+| Last event | `event-20260922T183056Z-reviewed` |
+| Updated at | `2026-09-22T18:30:56Z` |
 | Next capability | HIGH |
 | Next work role | reviewer |
 | Branch | `repo/study05-independent-review` |
 | Worktree | `.worktrees/study05-independent-review` |
 
-Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/09/task-20260922T025912Z-study05-independent-review/attempts/attempt-20260922T182234Z-b46fb1/RESULT.md`.
+Review `review-20260922T183056Z-bb7a` recorded; next: approve or request-changes.
