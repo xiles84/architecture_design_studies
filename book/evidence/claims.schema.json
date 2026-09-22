@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://architecture-design-studies.local/book/evidence/claims.schema.json",
+  "title": "Book evidence registry",
+  "description": "Claim-to-evidence registry. Every book number must resolve to a claim here, and every claim must resolve to a run, digest, report and signed analysis.",
+  "type": "object",
+  "required": ["schema_version", "claims"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "generated_from": {"type": "string"},
+    "claims": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/claim"}}
+  },
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "required": ["claim_id", "statement", "study", "strength", "trials", "transfer", "comparability", "limits", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {"type": "string", "pattern": "^claim-[a-z0-9][a-z0-9-]*$"},
+        "statement": {"type": "string", "minLength": 10},
+        "study": {"type": "string", "pattern": "^0[1-5]-[a-z0-9-]+$"},
+        "strength": {"enum": ["repeated_controlled", "single_run_directional", "mechanism_supported", "analogy", "gap", "invalid"]},
+        "trials": {"type": "integer", "minimum": 0},
+        "transfer": {"enum": ["direct", "analogy", "not-applicable"]},
+        "comparability": {"enum": ["within-study", "cross-study", "not-applicable"]},
+        "comparability_record": {"type": ["string", "null"]},
+        "supersedes": {"type": ["string", "null"]},
+        "superseded_by": {"type": ["string", "null"]},
+        "limits": {"type": "array", "items": {"type": "string", "minLength": 3}},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["run_id", "environment", "topology", "inputs_digest", "report", "analysis"],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "run_tag": {"type": ["string", "null"]},
+        "environment": {"type": "string", "pattern": "^host-[a-z0-9-]+$"},
+        "topology": {"type": "string", "minLength": 2},
+        "repo_commit": {"type": ["string", "null"]},
+        "inputs_digest": {"type": "string", "pattern": "^[0-9a-f]{8,64}$"},
+        "report": {"type": "string", "minLength": 3},
+        "analysis": {"type": "string", "minLength": 3},
+        "failed_cells": {"type": "integer", "minimum": 0},
+        "cells": {"type": "array", "items": {"$ref": "#/$defs/cell"}},
+        "winner_cells": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "cell": {
+      "type": "object",
+      "required": ["name", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "status": {"enum": ["valid", "failed", "invalid", "control", "reference"]}
+      }
+    }
+  }
+}
