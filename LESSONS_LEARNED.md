@@ -1231,3 +1231,12 @@ Typst ships its default fonts inside the binary, so the PDF embeds Libertinus Se
 Sans Mono with no host font installation. Pinning the image by immutable manifest digest
 (`ghcr.io/typst/typst@sha256:032e…`) fixes version, font set and rendering behaviour together;
 the manifest records the digest so a later reader knows which toolchain produced the page.
+
+### A committed binary artefact must be exempt from the text line-ending rule
+
+The root `.gitattributes` pins `book/** text eol=lf` so sources hash identically across Windows
+and WSL. That rule also caught the generated PDF: git normalised CRLF to LF on commit, so the
+committed blob's sha256 (`a03b54…`) did not equal the PDF's real hash (`da433f…`) that the build
+manifest records. **Exempt binaries explicitly** (`book/dist/**/*.pdf -text`) and verify with
+`git cat-file -p :path | sha256sum` that the stored blob matches the recorded hash — a manifest
+whose hash does not describe the committed bytes is worse than no hash.
