@@ -735,6 +735,20 @@ Evidence: `book/evidence/claims.json`; `studies/01-charity-tree/reports/20260912
 `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions`, tag
 `repo/book-evidence-and-model-brainstorm-v1`.
 
+### Two matched cells can swap identities in prose while every number stays real
+
+The all-green Study 05 analysis prints its three-instance wrong-read table with the legacy and
+owned rows exchanged: 38 749 / 87.81 % belongs to `o:opt:red:wth:rel` (the report's own line) and
+35 287 / 87.24 % to `l:na:red:wth:rel`, but the signed prose attributes them the other way round.
+Both rates, both denominators and both cache-hit counts are measured facts; only the two model
+labels moved, so no numeric check catches it and a reader would conclude the wrong model collapses.
+**When an analysis compares two designs that differ by one dimension, check each row's identity
+against the report's own cell id before quoting a rate** — a derived claim takes the model name
+from the prose, but the report and the result JSON are the only arbiters of which cell produced it.
+Evidence: `studies/05-cache-consistency/reports/analyses/20260921-cache-consistency-allgreen.md`;
+`studies/05-cache-consistency/reports/20260921T-survey3.md`;
+`studies/05-cache-consistency/results/20260921T-survey3/pg-single/{l:na:red:wth:rel,o:opt:red:wth:rel}.json`.
+
 ---
 
 ## Building study 02 (overbooking)

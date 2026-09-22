@@ -100,12 +100,21 @@ trials, equal-total resources, placement and YugabyteDB, plus the three controls
 requires (repeated-design instrument control, `-retries 1`, writer sweep).
 → [Study](studies/04-configuration-portal/) · [reports](studies/04-configuration-portal/reports/)
 
-### Study 05 — external cache — **v1 measured; review and v2 protocol open**
+### Study 05 — external cache — **v1 measured, independently reviewed; v2 protocol next**
 
 Cache-aside/write-through, strict vs relaxed freshness, wrongness of a relaxed cache and cache-side
-invalidation fences, on PostgreSQL + Redis. The single-`small` all-green run is measured and analysed,
-and its limits are explicit (single trial, unmeasured TTL/churn, no YugabyteDB/cluster/placement,
-open-loop demand). Open: the independent HIGH review, then the v2 protocol.
+invalidation fences, on PostgreSQL + Redis (Redis measured as a shared cache, never as an
+authoritative store). The single-`small` all-green run is measured and analysed, and its limits are
+explicit (single trial, unmeasured TTL/churn, no YugabyteDB/cluster/placement, no equal-total
+accounting, open-loop demand absent). The independent HIGH review landed 2026-09-22
+(`task-20260922T025912Z-study05-independent-review`, signed analysis
+`20260921-cache-consistency-allgreen--deepseek-flash--2026-09-22`): it accepted `claim-11`,
+`claim-12` and `claim-gap-02`, and found one material defect — the all-green analysis swaps the
+legacy and owned three-instance wrong-read rows (87.81% belongs to the owned model, 87.24% to the
+legacy model). Verdicts in `book/evidence/reviews/20260922-study05-independent-review.json`. Next:
+the v2 protocol (`task-20260922T025912Z-study05-v2-protocol`, now unblocked) with the review's four
+added requirements (repeated trials/second machine, real-TTL churn, equal-total framing, executed
+placement pair).
 → [Study](studies/05-cache-consistency/) · [reports](studies/05-cache-consistency/reports/)
 
 ### Infrastructure and environment
@@ -133,8 +142,12 @@ open-loop demand). Open: the independent HIGH review, then the v2 protocol.
    cardinality, cadence/churn, equal-total resources, placement, YugabyteDB) plus the review's three
    required controls (repeated-design instrument control, `-retries 1`, writer sweep). Verdicts in
    `book/evidence/reviews/20260922-study04-independent-review.json`.
-4. **Study 05 v2** — real-TTL churn, medium scale, repeats, cache resource accounting,
-   YugabyteDB/cluster/placement, open-loop demand.
+4. **Study 05 v2** — the v1 review is done; the open work is
+   `task-20260922T025912Z-study05-v2-protocol` (real-TTL churn, medium scale, repeats, cache
+   resource accounting, YugabyteDB/cluster/placement, open-loop demand) plus the review's four
+   added requirements (repeated trials/second machine for the three-instance result, real-TTL
+   churn, equal-total framing, executed placement pair). Verdicts in
+   `book/evidence/reviews/20260922-study05-independent-review.json`.
 5. **Book v1** — synthesis and independent release review not yet done; no final PDF yet.
 
 ## Where the long history lives
