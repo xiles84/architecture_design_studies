@@ -60,8 +60,17 @@ summary, not a second ledger.
   progressive structure, eight concept chapters, variants, comparisons, topologies and scenarios —
   grounded only in the 23 active v2 claims, with confounds and gaps labelled on the page. It reads
   `book/evidence/v2/` only. No measurement was performed.
-- **Next ready work:** `book-release-review-v1`, then the six scientific protocol tasks.
-- **Book release tag target:** `repo/data-architecture-book-v1` (not yet created).
+- **Book released (v1):** `book-release-review-v1` reviewed the synthesis, re-validated the registry,
+  audited every number against the 23 active v2 claims (54 numeric tokens, 0 unresolved) and every
+  claim against the prose (23/23 cited), and fixed three reader-visible defects (uncited study
+  coverage gaps, a title-page provenance rendering fault, a blank front-matter page). The released
+  artefact is `book/dist/data-architecture-reference.pdf`, 36 pages, PDF sha256
+  `58d61df0600a46e9b019aa83067475add4e3a2b986345c6041deeea3c8516cb1`, tag
+  `repo/data-architecture-book-v1`. It remains a v1: single-run, single-host evidence, and the two
+  cited coverage gaps are open work.
+- **Next ready work:** the six scientific protocol tasks (`study04-v2-protocol`,
+  `study05-v2-protocol`, `analytics-read-model-protocol`, `hierarchy-model-protocol`,
+  `native-major-model-protocol`, `topology-study-protocol`).
 - **Brainstorm concluded** (tag `repo/book-evidence-and-model-brainstorm-v1`):
   `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` — two positions
   (gpt-5, deepseek-flash), two cross-reviews, one synthesis. It found registry v1 ineligible as the
