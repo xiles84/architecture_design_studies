@@ -369,6 +369,12 @@ func ValidateChain(spec *Spec, events []*Event, now time.Time) []error {
 		if ev.SchemaVersion != SchemaVersion {
 			add("event %s: unsupported schema_version %d", ev.EventID, ev.SchemaVersion)
 		}
+		if strings.TrimSpace(ev.EventID) == "" {
+			add("event %d: event_id is required", i+1)
+		}
+		if strings.TrimSpace(ev.Summary) == "" {
+			add("event %s: summary is required", ev.EventID)
+		}
 		if seenIDs[ev.EventID] {
 			add("duplicate event_id %s", ev.EventID)
 		}
@@ -409,6 +415,7 @@ func ValidateChain(spec *Spec, events []*Event, now time.Time) []error {
 			if stage != StageCollectingPositions || ev.SlotKind != SlotPosition {
 				add("event %s: position submitted during %s", ev.EventID, stage)
 			}
+			validateSubmissionEvent(ev, add)
 			positions++
 			expected = StageCollectingPositions
 			if positions >= spec.PositionTarget {
@@ -418,6 +425,7 @@ func ValidateChain(spec *Spec, events []*Event, now time.Time) []error {
 			if stage != StageCrossReview || ev.SlotKind != SlotCritique {
 				add("event %s: critique submitted during %s", ev.EventID, stage)
 			}
+			validateSubmissionEvent(ev, add)
 			critiques++
 			expected = StageCrossReview
 			if critiques >= spec.CritiqueTarget {
@@ -427,10 +435,19 @@ func ValidateChain(spec *Spec, events []*Event, now time.Time) []error {
 			if stage != StageSynthesis || ev.SlotKind != SlotSynthesis {
 				add("event %s: synthesis submitted during %s", ev.EventID, stage)
 			}
+			validateSubmissionEvent(ev, add)
 			expected = StageConcluded
 		case "tasks_linked":
 			if stage != StageConcluded && stage != StageTasked {
 				add("event %s: tasks linked during %s", ev.EventID, stage)
+			}
+			if len(ev.LinkedTaskIDs) == 0 {
+				add("event %s: tasks_linked has no task ids", ev.EventID)
+			}
+			for _, taskID := range ev.LinkedTaskIDs {
+				if !model.ValidID(taskID, "task-") {
+					add("event %s: invalid linked task id %q", ev.EventID, taskID)
+				}
 			}
 			expected = StageTasked
 		case "cancelled":
@@ -441,6 +458,9 @@ func ValidateChain(spec *Spec, events []*Event, now time.Time) []error {
 		case "superseded":
 			if stage != StageConcluded && stage != StageTasked {
 				add("event %s: superseded during %s", ev.EventID, stage)
+			}
+			if !ValidID(ev.SupersededBy) || ev.SupersededBy == spec.BrainstormID {
+				add("event %s: invalid superseded_by %q", ev.EventID, ev.SupersededBy)
 			}
 			expected = StageSuperseded
 		default:
@@ -459,6 +479,20 @@ func ValidateChain(spec *Spec, events []*Event, now time.Time) []error {
 		prev = ev
 	}
 	return errs
+}
+
+func validateSubmissionEvent(ev *Event, add func(string, ...any)) {
+	if strings.TrimSpace(ev.ContributionID) == "" {
+		add("event %s: contribution_id is required", ev.EventID)
+	}
+	if !regexp.MustCompile("^" + ev.SlotKind + "-[0-9]{2}$").MatchString(ev.SlotID) {
+		add("event %s: invalid slot_id %q", ev.EventID, ev.SlotID)
+	}
+	switch ev.Confidence {
+	case "high", "medium", "low":
+	default:
+		add("event %s: invalid confidence %q", ev.EventID, ev.Confidence)
+	}
 }
 
 // Intent is the deliberately narrow natural-language trigger recognized by

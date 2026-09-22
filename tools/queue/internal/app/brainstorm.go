@@ -390,16 +390,19 @@ func readBrainstormClaim(repo *gitx.Repo, id, slot string) (*bs.Claim, string, e
 	return &cl, oid, nil
 }
 
-func writeBrainstormClaim(repo *gitx.Repo, cl *bs.Claim, oldOID string) error {
+func writeBrainstormClaim(repo *gitx.Repo, cl *bs.Claim, oldOID string) (string, error) {
 	data, err := json.MarshalIndent(cl, "", "  ")
 	if err != nil {
-		return err
+		return "", err
 	}
 	oid, err := repo.WriteBlob(append(data, '\n'))
 	if err != nil {
-		return err
+		return "", err
 	}
-	return repo.CAS(brainstormRef(cl.BrainstormID, cl.SlotID), oid, oldOID, "brainstorm claim "+cl.BrainstormID+" "+cl.SlotID)
+	if err := repo.CAS(brainstormRef(cl.BrainstormID, cl.SlotID), oid, oldOID, "brainstorm claim "+cl.BrainstormID+" "+cl.SlotID); err != nil {
+		return "", err
+	}
+	return oid, nil
 }
 
 func brainstormClaimContextPath(repo *gitx.Repo, id string) string {
@@ -475,7 +478,7 @@ func cmdBrainstormClaim(args []string, out io.Writer) error {
 		cl := &bs.Claim{SchemaVersion: bs.SchemaVersion, BrainstormID: *id, SlotID: slot.ID, SlotKind: slot.Kind,
 			ClaimID: "brainstorm-claim-" + randHex(8), ClaimEpoch: epoch, Worker: actor,
 			ClaimedAt: model.FormatTime(c.Now), HeartbeatAt: model.FormatTime(c.Now), ExpiresAt: model.FormatTime(c.Now.Add(lease)), Stage: r.Stage}
-		if err := writeBrainstormClaim(c.Repo, cl, oid); err != nil {
+		if _, err := writeBrainstormClaim(c.Repo, cl, oid); err != nil {
 			if errors.Is(err, gitx.ErrCASConflict) {
 				continue
 			}
@@ -527,7 +530,7 @@ func resolveBrainstormClaim(c *cmdCtx, id, slot, claimID string, epoch int) (*bs
 		return nil, "", failf(3, "brainstorm claim superseded: live %s epoch %d, caller %s epoch %d", cl.ClaimID, cl.ClaimEpoch, claimID, epoch)
 	}
 	exp, err := model.ParseTime(cl.ExpiresAt)
-	if err != nil || exp.Before(c.Now) {
+	if err != nil || !exp.After(c.Now) {
 		return nil, "", failf(3, "brainstorm claim expired at %s", cl.ExpiresAt)
 	}
 	return cl, oid, nil
@@ -587,7 +590,7 @@ func cmdBrainstormHeartbeat(args []string, out io.Writer) error {
 	}
 	cl.HeartbeatAt = model.FormatTime(c.Now)
 	cl.ExpiresAt = model.FormatTime(c.Now.Add(lease))
-	if err := writeBrainstormClaim(c.Repo, cl, oid); err != nil {
+	if _, err := writeBrainstormClaim(c.Repo, cl, oid); err != nil {
 		return err
 	}
 	_ = saveBrainstormClaimContext(c.Repo, cl)
@@ -636,6 +639,19 @@ func cmdBrainstormSubmit(args []string, out io.Writer) error {
 		return err
 	}
 	defer release()
+	// Revalidate under the archive lock, then extend the claim before writing.
+	// This closes the window in which a lease could expire and be recovered
+	// after the first guard but before the contribution commit.
+	cl, oid, err = resolveBrainstormClaim(c, *id, cl.SlotID, cl.ClaimID, cl.ClaimEpoch)
+	if err != nil {
+		return err
+	}
+	cl.HeartbeatAt = model.FormatTime(c.Now)
+	cl.ExpiresAt = model.FormatTime(c.Now.Add(model.DefaultLease))
+	oid, err = writeBrainstormClaim(c.Repo, cl, oid)
+	if err != nil {
+		return err
+	}
 	r, err := bs.Load(main.Root, *id)
 	if err != nil {
 		return err
@@ -700,17 +716,40 @@ func activeBrainstormRefs(c *cmdCtx, id string) ([]string, error) {
 	return strings.Split(strings.TrimSpace(out), "\n"), nil
 }
 
-func commitAdministrativeEvent(c *cmdCtx, id string, actor model.Identity, kind, summary, replacement string, taskIDs []string) (*bs.Record, error) {
-	if refs, err := activeBrainstormRefs(c, id); err != nil {
-		return nil, err
-	} else if len(refs) > 0 {
-		return nil, failf(1, "brainstorm %s has active contribution claims", id)
+func rejectActiveAndClearExpiredBrainstormClaims(c *cmdCtx, id string) error {
+	refs, err := activeBrainstormRefs(c, id)
+	if err != nil {
+		return err
 	}
+	for _, ref := range refs {
+		slot := strings.TrimPrefix(ref, brainstormLivePrefix+id+"/")
+		cl, oid, err := readBrainstormClaim(c.Repo, id, slot)
+		if err != nil {
+			return err
+		}
+		expires, err := model.ParseTime(cl.ExpiresAt)
+		if err != nil {
+			return err
+		}
+		if expires.After(c.Now) {
+			return failf(1, "brainstorm %s has active contribution claim %s until %s", id, slot, cl.ExpiresAt)
+		}
+		if err := c.Repo.DeleteCAS(ref, oid, "brainstorm clear expired claim "+id+" "+slot); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func commitAdministrativeEvent(c *cmdCtx, id string, actor model.Identity, kind, summary, replacement string, taskIDs []string) (*bs.Record, error) {
 	main, release, err := c.lockBrainstormMain(id, actor)
 	if err != nil {
 		return nil, err
 	}
 	defer release()
+	if err := rejectActiveAndClearExpiredBrainstormClaims(c, id); err != nil {
+		return nil, err
+	}
 	r, err := bs.Load(main.Root, id)
 	if err != nil {
 		return nil, err
@@ -888,6 +927,23 @@ func cmdBrainstormAudit(args []string, out io.Writer) error {
 			issues = append(issues, issue{r.Spec.BrainstormID, err.Error()})
 		}
 		for _, ev := range r.Events {
+			if ev.EventType == "tasks_linked" {
+				for _, taskID := range ev.LinkedTaskIDs {
+					dir, err := archive.TaskDirAbs(main.Root, taskID)
+					if err != nil {
+						issues = append(issues, issue{r.Spec.BrainstormID, "invalid linked task " + taskID + ": " + err.Error()})
+						continue
+					}
+					task, _, err := archive.LoadTask(dir)
+					if err != nil {
+						issues = append(issues, issue{r.Spec.BrainstormID, "missing linked task " + taskID})
+						continue
+					}
+					if task.OriginatingBrainstormID != r.Spec.BrainstormID {
+						issues = append(issues, issue{r.Spec.BrainstormID, "linked task " + taskID + " has a different brainstorm origin"})
+					}
+				}
+			}
 			if ev.ContributionID == "" {
 				continue
 			}

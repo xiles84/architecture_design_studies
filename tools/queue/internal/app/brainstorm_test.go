@@ -208,3 +208,25 @@ func TestBrainstormLinksOnlyCorrelatedPublishedTasks(t *testing.T) {
 	}
 	mustQ(t, "brainstorm-audit", "--repo", repo, "--now", t6)
 }
+
+func TestBrainstormCancelRejectsLiveClaimAndClearsExpiredClaim(t *testing.T) {
+	repo := newRepo(t)
+	startBrainstorm(t, repo, 2, 1)
+	cl := claimBrainstorm(t, repo, t1, "1m")
+	active := qrun("brainstorm-cancel", "--repo", repo, "--now", t1, "--brainstorm", brainstormID,
+		"--capability", "HIGH", "--role", "planner", "--model", "test", "--tool", "gotest", "--session-id", "high")
+	if active.code == 0 || !strings.Contains(active.err, "active contribution claim") {
+		t.Fatalf("active claim did not block cancellation: %#v", active)
+	}
+	cancelled := mustQ(t, "brainstorm-cancel", "--repo", repo, "--now", t3, "--brainstorm", brainstormID,
+		"--capability", "HIGH", "--role", "planner", "--model", "test", "--tool", "gotest", "--session-id", "high")
+	if !strings.Contains(cancelled.out, "State: cancelled") {
+		t.Fatalf("expired claim was not cleared for cancellation:\n%s", cancelled.out)
+	}
+	oldGuard := qrun("brainstorm-guard", "--repo", repo, "--now", t3, "--brainstorm", brainstormID,
+		"--slot", cl.SlotID, "--claim-id", cl.ClaimID, "--claim-epoch", strconv.Itoa(cl.ClaimEpoch))
+	if oldGuard.code == 0 || !strings.Contains(oldGuard.err, "no live claim") {
+		t.Fatalf("cancelled brainstorm retained expired claim: %#v", oldGuard)
+	}
+	mustQ(t, "brainstorm-audit", "--repo", repo, "--now", t3)
+}

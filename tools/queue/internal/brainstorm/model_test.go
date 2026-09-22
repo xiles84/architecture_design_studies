@@ -46,10 +46,10 @@ func TestValidateChainReconstructsStages(t *testing.T) {
 	}
 	events := []*Event{
 		{SchemaVersion: 1, EventID: "e1", Sequence: 1, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "started", ResultingStage: StageCollectingPositions, Summary: "started"},
-		{SchemaVersion: 1, EventID: "e2", PreviousEventID: ptr("e1"), Sequence: 2, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "position_submitted", ResultingStage: StageCollectingPositions, SlotID: "position-01", SlotKind: SlotPosition, Summary: "one"},
-		{SchemaVersion: 1, EventID: "e3", PreviousEventID: ptr("e2"), Sequence: 3, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "position_submitted", ResultingStage: StageCrossReview, SlotID: "position-02", SlotKind: SlotPosition, Summary: "two"},
-		{SchemaVersion: 1, EventID: "e4", PreviousEventID: ptr("e3"), Sequence: 4, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "critique_submitted", ResultingStage: StageSynthesis, SlotID: "critique-01", SlotKind: SlotCritique, Summary: "reviewed"},
-		{SchemaVersion: 1, EventID: "e5", PreviousEventID: ptr("e4"), Sequence: 5, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "synthesis_submitted", ResultingStage: StageConcluded, SlotID: "synthesis-01", SlotKind: SlotSynthesis, Summary: "done"},
+		{SchemaVersion: 1, EventID: "e2", PreviousEventID: ptr("e1"), Sequence: 2, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "position_submitted", ResultingStage: StageCollectingPositions, SlotID: "position-01", SlotKind: SlotPosition, ContributionID: "c2", Confidence: "high", Summary: "one"},
+		{SchemaVersion: 1, EventID: "e3", PreviousEventID: ptr("e2"), Sequence: 3, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "position_submitted", ResultingStage: StageCrossReview, SlotID: "position-02", SlotKind: SlotPosition, ContributionID: "c3", Confidence: "high", Summary: "two"},
+		{SchemaVersion: 1, EventID: "e4", PreviousEventID: ptr("e3"), Sequence: 4, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "critique_submitted", ResultingStage: StageSynthesis, SlotID: "critique-01", SlotKind: SlotCritique, ContributionID: "c4", Confidence: "medium", Summary: "reviewed"},
+		{SchemaVersion: 1, EventID: "e5", PreviousEventID: ptr("e4"), Sequence: 5, BrainstormID: spec.BrainstormID, OccurredAt: model.FormatTime(now), Actor: actor, EventType: "synthesis_submitted", ResultingStage: StageConcluded, SlotID: "synthesis-01", SlotKind: SlotSynthesis, ContributionID: "c5", Confidence: "high", Summary: "done"},
 	}
 	if errs := ValidateChain(spec, events, now); len(errs) != 0 {
 		t.Fatalf("valid chain rejected: %v", errs)

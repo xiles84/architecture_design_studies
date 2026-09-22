@@ -204,6 +204,9 @@ func WriteContribution(r *Record, ev *Event, content []byte) (string, error) {
 	fmt.Fprintf(&b, "| Contribution | `%s` |\n", ev.ContributionID)
 	fmt.Fprintf(&b, "| Slot | `%s` |\n", ev.SlotID)
 	fmt.Fprintf(&b, "| Actor | %s |\n", ev.Actor.Verbose())
+	if ev.Actor.SessionCapabilityInput != "" {
+		fmt.Fprintf(&b, "| Capability input | %s |\n", ev.Actor.SessionCapabilityInput)
+	}
 	fmt.Fprintf(&b, "| Submitted | `%s` |\n", ev.OccurredAt)
 	fmt.Fprintf(&b, "| Confidence | %s |\n", first(ev.Confidence, "not stated"))
 	fmt.Fprintf(&b, "\n## Summary\n\n%s\n", ev.Summary)

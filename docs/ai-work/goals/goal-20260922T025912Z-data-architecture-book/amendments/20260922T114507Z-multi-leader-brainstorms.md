@@ -1,7 +1,9 @@
 # Goal amendment — deliberate multi-leader brainstorms
 
-**Amendment id:** `20260922T114507Z-multi-leader-brainstorms`  
-**Recorded at:** `2026-09-22T11:45:07Z`  
+**Amendment id:** `20260922T114507Z-multi-leader-brainstorms`
+
+**Recorded at:** `2026-09-22T11:45:07Z`
+
 **Owner request:** provide an explicit way for several leader/HIGH sessions to challenge
 an idea, preserve the discussion, distinguish ongoing from concluded work, and report
 when a conclusion is ready for separately authorized task creation.

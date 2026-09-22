@@ -1,10 +1,13 @@
 # Progress — deliberate multi-leader brainstorm workflow v1
 
 **Actor:** model/effort unknown through Codex desktop; session capability HIGH, work role
-executor.  
-**Task:** `task-20260922T114507Z-brainstorm-workflow-v1`.  
+executor.
+
+**Task:** `task-20260922T114507Z-brainstorm-workflow-v1`.
+
 **Claim:** `claim-c402a2572067105e`, epoch 1,
-attempt `attempt-20260922T115147Z-e0514a`.  
+attempt `attempt-20260922T115147Z-e0514a`.
+
 **Branch/worktree:** `repo/brainstorm-workflow-v1` in
 `.worktrees/brainstorm-workflow-v1`.
 
@@ -51,10 +54,17 @@ contract.
    `related.brainstorm_id` from immutable task metadata and chain validation rejects a
    mismatch. Reason: later reviews and corrections must trace back to the deliberation,
    not just a prose brief. Confidence: High. Affects: queue schema and audit.
+8. **Submission refreshes ownership under the archive lock.** The first implementation
+   guarded before waiting for the integration lock, leaving a window in which the slot
+   could expire and a new leader could recover it before the old writer committed.
+   Submission now revalidates the claim and CAS-extends its lease under that lock before
+   writing. Administrative endings reject live claims and CAS-clear expired ones.
+   Confidence: High. Affects: exactly-once contribution ownership and cancellation.
 
 ## Validation so far
 
-- Containerized `gofmt`, `go vet ./...`, and `go test ./...` pass.
+- Containerized `gofmt`, `go vet ./...`, and five consecutive
+  `go test ./...` runs pass.
 - Tests cover deliberate trigger parsing, ordinary-question non-triggering, full default
   lifecycle and terminal output, retained dissent, fresh-clone reconstruction, twenty
   parallel claimers for two distinct slots, epoch rejection, HIGH-only changes,
