@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-study04-independent-review` |
-| State | `in_progress` |
-| Sequence | `3` |
+| State | `awaiting_review` |
+| Sequence | `4` |
 | Active attempt | `attempt-20260922T180431Z-7868ed` |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=reviewer` |
-| Last event | `event-20260922T181643Z-checkpoint` |
-| Updated at | `2026-09-22T18:16:43Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Last event | `event-20260922T182109Z-submitted` |
+| Updated at | `2026-09-22T18:21:09Z` |
+| Next capability | HIGH |
+| Next work role | reviewer |
 | Branch | `repo/study04-independent-review` |
 | Worktree | `.worktrees/study04-independent-review` |
 
-Checkpoint 58174b28fba9b8add49fcbcfa55acbf5798de908; claim claim-13fd21bccfee8d8d epoch 1.
+Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/09/task-20260922T025912Z-study04-independent-review/attempts/attempt-20260922T180431Z-7868ed/RESULT.md`.
