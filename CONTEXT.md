@@ -59,6 +59,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/wsl-podman-bridge` | infra/lib.sh: engine resolver + `podman()` + `winpath()`; studies 01-03 untouched |
 | `repo/open-loop-arrivals` | platform: the open-loop arrival driver cadence experiments need |
 | `repo/data-architecture-book-handoff-v1` | HIGH planning checkpoint for the evidence-backed Typst book and durable AI task queue; queue v1 is the next LOW task |
+| `repo/ai-capability-aliases` | session declarations accept leader/master and worker/follower/slave aliases while queue state remains canonical HIGH/LOW |
 | `study-04/v1-harness` | study 04: 10-design SQL catalogue, harness, gate, ledger, audits, report generator; dev-checked |
 | `run/04-configuration-portal/20260921T1215Z-small` | commit that produced study 04's small `pg-single` matrix |
 | `study-04/v1-measured` | study 04: small matrix measured and reported; both controls fired |
@@ -259,6 +260,12 @@ event validation, and the local-main integration lock. The book, evidence regist
 history import, status reconciliation, reviews, and synthesis remain queued behind it.
 This planning checkpoint started no benchmark and does not itself provide queue CLI or
 book implementation evidence.
+
+Owner amendment `20260922T101113Z-capability-aliases` lets a new chat declare `leader`
+or legacy `master` for HIGH, and `worker`, `follower`, or legacy `slave` for LOW. The
+pipeline normalizes these inputs to canonical `HIGH`/`LOW`; it does not use
+`primary`/`replica`, which remain datastore-topology terms. The queue-v1 task has a
+linked implementation amendment and must include alias parser tests.
 
 ### Task — recency question and operational reports, EH-02 (2026-09-15 → 2026-09-21): **complete, merged into `main`**
 

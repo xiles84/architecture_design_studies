@@ -19,6 +19,19 @@ Every `task.json` contains:
 The task file is immutable after publication. Clarifications live in `amendments/` or in
 a successor task linked by `supersedes`.
 
+## Capability normalization
+
+The persisted capability enum remains `HIGH | LOW`. Session-start input accepts the
+case-insensitive aliases defined by `WORKFLOW.md`: `leader` and legacy `master` normalize
+to `HIGH`; `worker`, `follower`, and legacy `slave` normalize to `LOW`. `primary` and
+`replica` are deliberately excluded because they describe datastore topology here.
+
+Actor and live-claim records use `session_capability` for the canonical value and may use
+`session_capability_input` for the exact user declaration. Eligibility and state-machine
+logic must never compare the raw value. Parsers accept legacy terms but help text,
+generated prompts, events, statuses, and routing instructions emit only canonical
+`HIGH`/`LOW` or the preferred human-facing `leader`/`worker` pair.
+
 ## Event metadata
 
 Each file under `events/` contains:

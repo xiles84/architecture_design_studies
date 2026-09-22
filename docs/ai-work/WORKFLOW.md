@@ -8,8 +8,9 @@ have to copy a prompt from one chat to another.
 ## Start every session
 
 1. Read `AGENTS.md`, `CONTEXT.md`, this file, and the relevant task brief.
-2. If the user has not already said whether this session is HIGH or LOW, ask once before
-   claiming work. Record the answer as `session_capability`; never infer it from a model.
+2. If the user has not already declared a session capability, ask once before claiming
+   work. Normalize an accepted alias to `HIGH` or `LOW` and record the canonical value as
+   `session_capability`; never infer it from a model.
 3. Record the actual model, effort, tool, and session id when exposed. Write `unknown`
    when they are not exposed.
 4. Inspect `git worktree list --porcelain`, the task branch, current queue state, and the
@@ -18,6 +19,23 @@ have to copy a prompt from one chat to another.
 Capability is not a work role. Work roles are `planner`, `executor`, `reviewer`,
 `analyst`, and `integrator`. HIGH may perform any role. LOW may claim only a task whose
 `minimum_capability` is `LOW`.
+
+## Capability vocabulary
+
+Capability declarations are case-insensitive and normalize as follows:
+
+| User declaration | Canonical capability |
+|---|---|
+| `high`, `leader`, `master` | `HIGH` |
+| `low`, `worker`, `follower`, `slave` | `LOW` |
+
+The declaration must be explicit or given in answer to the session-capability question;
+the same words in a database or ordinary-language discussion do not change the session.
+Store the raw declaration as `session_capability_input` when available, but use only the
+canonical value for eligibility, events, live refs, task metadata, and routing. Accept
+`master` and `slave` as legacy input, but never generate or recommend them. Human-facing
+examples prefer `leader` and `worker`. `primary` and `replica` remain datastore-topology
+terms and are not capability aliases.
 
 ## Selecting and claiming work
 
