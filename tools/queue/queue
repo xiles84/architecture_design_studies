@@ -108,6 +108,24 @@ for v in ADS_QUEUE_NOW ADS_QUEUE_CAPABILITY ADS_QUEUE_ROLE ADS_QUEUE_MODEL \
   fi
 done
 
+# Commits made inside the container need an author. The repository's own git
+# identity is the right one, so forward it when the host has git; when it does
+# not, the CLI's own commit fails with git's clear message rather than inventing
+# an author.
+for tool in git git.exe; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    gn="$("$tool" -C "$invoke_root" config --get user.name 2>/dev/null || true)"
+    ge="$("$tool" -C "$invoke_root" config --get user.email 2>/dev/null || true)"
+    if [[ -n "$gn" ]]; then
+      env_args+=(-e "GIT_AUTHOR_NAME=$gn" -e "GIT_COMMITTER_NAME=$gn")
+    fi
+    if [[ -n "$ge" ]]; then
+      env_args+=(-e "GIT_AUTHOR_EMAIL=$ge" -e "GIT_COMMITTER_EMAIL=$ge")
+    fi
+    break
+  fi
+done
+
 # exec cannot run the `podman` shell function from infra/lib.sh, so use the
 # resolved client path directly.
 exec "$ADS_PODMAN" run --rm -i \
