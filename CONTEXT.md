@@ -160,10 +160,12 @@ placement pair).
    `v1-diagnostic` keeps the frozen audit (11/12 claims, 36/43 names) as a regression fixture.
    Correction ledger and synthesis handoff are in `book/evidence/v2/`. The review verdicts the
    correction honoured are in `book/evidence/reviews/`.
-3. **Study 04 v2** — the v1 review is done; the open work is
-   `task-20260922T025912Z-study04-v2-protocol` (missing designs, repeated randomized trials,
-   cardinality, cadence/churn, equal-total resources, placement, YugabyteDB) plus the review's three
-   required controls (repeated-design instrument control, `-retries 1`, writer sweep). Verdicts in
+3. **Study 04 v2** — protocol complete 2026-09-22:
+   `studies/04-configuration-portal/HANDOFF-AMENDMENT-01-V2.md` (tag `study-04/v2-handoff`) defines
+   the three review-mandated controls, the cardinality and cadence phases, repeated randomized
+   trials, the equal-total-resource arm, verified placement and YugabyteDB coverage. Three separately
+   claimable execution tasks are published (`…-study04-v2-controls`, `…-cardinality-cadence`,
+   `…-remaining-designs`); none has run. Verdicts in
    `book/evidence/reviews/20260922-study04-independent-review.json`.
 4. **Study 05 v2** — the v1 review is done; the open work is
    `task-20260922T025912Z-study05-v2-protocol` (real-TTL churn, medium scale, repeats, cache

@@ -740,3 +740,13 @@ fallback for a host where the Windows form is required. The runner therefore rea
 other studies' runners; no new path handling is introduced anywhere.
 
 **Next setting:** **HIGH — execute this handoff using the same DeepSeek HIGH model in WSL.**
+
+---
+
+## Amendment 01 (v2 completion)
+
+`HANDOFF-AMENDMENT-01-V2.md` extends this handoff with the three review-mandated controls
+(repeated-design instrument control, `-retries 1` contention control, writer sweep), the cardinality
+and cadence phases, repeated randomized trials, the equal-total-resource arm, verified placement and
+YugabyteDB coverage. It does not measure; it defines the acceptance criteria and the separately
+claimable execution tasks. Read it before running any v2 cell.
