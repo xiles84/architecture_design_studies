@@ -42,3 +42,14 @@ fenced.
   similar to the ticketing hot row, but none of them was measured here. Use those transfers as
   analogies from the hot-row mechanism, never as separate evidence.
 ]
+
+#heading(level: 2, "Where a scenario stops")
+#gap[
+  Two scenario families are explicitly incomplete, and the book does not fill them with words: the
+  configuration-portal study did not build eight of its eighteen designs and did not measure
+  cardinality, cadence or equal-total resources, and the cache study did not measure real TTL churn,
+  medium scale, repeated trials or cache resource accounting. These are coverage gaps, not null
+  results.
+]
+#registry-card("v2-gap-03-study04-missing-designs")
+#registry-card("v2-gap-04-study05-unmeasured-regimes")
