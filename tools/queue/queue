@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Host wrapper for the AI work queue (queue v1).
+#
+# Its whole job is path resolution and starting the pinned Podman image: all
+# queue semantics and validation live in the Go binary, never here. The
+# repository is mounted at the SAME absolute path the host shell uses, so the
+# relative worktree registrations the CLI writes resolve identically inside and
+# outside the container and across WSL Git and native Windows Git.
+#
+# Usage:
+#   tools/queue/queue <command> [flags]      run the CLI
+#   tools/queue/queue --build                (re)build the pinned image
+#   tools/queue/queue --which                print the image and repo mount
+#
+# The endpoint never starts a database and never measures, so it does not take
+# the benchmark lock.
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$HERE/../.." && pwd)"
+
+# shellcheck source=../../infra/lib.sh
+source "$REPO_ROOT/infra/lib.sh"
+
+: "${QUEUE_IMAGE:?QUEUE_IMAGE is not set (expected in infra/versions.env)}"
+
+# engine_path converts a shell path into the form the Podman engine accepts.
+# Git Bash gets the cygpath form; WSL (no cygpath) gets the C:/ form; native
+# Linux and macOS are unchanged because winpath is a no-op there.
+engine_path() {
+  if command -v cygpath >/dev/null 2>&1; then
+    hostpath "$1"
+  else
+    winpath "$1"
+  fi
+}
+
+build_image() {
+  log "building $QUEUE_IMAGE from tools/queue/Containerfile"
+  podman build -t "$QUEUE_IMAGE" \
+    -f "$(engine_path "$REPO_ROOT/tools/queue/Containerfile")" \
+    "$(engine_path "$REPO_ROOT")"
+}
+
+# common_root is the directory containing the shared `.git`. When the wrapper is
+# invoked from a linked worktree, mounting only that worktree would hide the
+# common object store, refs and per-worktree git dirs, and every git command
+# inside the container would fail. It is resolved from `.git` directly (no git
+# required on the host): a `.git` directory means this is the main checkout; a
+# `.git` file names `<common>/.git/worktrees/<name>`, so `<common>` is three
+# levels up.
+common_root() {
+  local root="$1"
+  local gitfile="$root/.git"
+  local target
+  if [[ -f "$gitfile" ]]; then
+    target="$(sed -n 's/^gitdir: //p' "$gitfile")"
+    if [[ -n "$target" && "$target" != /* && ! "$target" =~ ^[A-Za-z]: ]]; then
+      target="$root/$target"
+    fi
+    if [[ -n "$target" ]]; then
+      (cd "$target/../../.." && pwd) && return
+    fi
+  fi
+  printf '%s' "$root"
+}
+
+# Everything is mounted at the SAME absolute path the shell uses, so relative
+# worktree registrations and absolute WSL paths both resolve inside the
+# container exactly as they do outside it.
+invoke_root="$REPO_ROOT"
+repo_root_common="$(common_root "$invoke_root")"
+
+mount_args=(-v "$(engine_path "$repo_root_common"):$repo_root_common")
+if [[ "$invoke_root" != "$repo_root_common" && "$invoke_root" != "$repo_root_common/"* ]]; then
+  mount_args+=(-v "$(engine_path "$invoke_root"):$invoke_root")
+fi
+
+if [[ "${1:-}" == "--build" || "${1:-}" == "build" ]]; then
+  build_image
+  exit 0
+fi
+
+if [[ "${1:-}" == "--which" ]]; then
+  printf 'image:      %s\n' "$QUEUE_IMAGE"
+  printf 'repository: %s\n' "$invoke_root"
+  printf 'common:     %s\n' "$repo_root_common"
+  printf 'mount:      %s -> %s\n' "$(engine_path "$repo_root_common")" "$repo_root_common"
+  exit 0
+fi
+
+need_podman
+if ! podman image exists "$QUEUE_IMAGE"; then
+  log "image $QUEUE_IMAGE not found locally; building it"
+  build_image
+fi
+
+# Forward the queue's own environment. The CLI also reads its repository from
+# the mounted working directory, but ADS_QUEUE_REPO is set explicitly so a
+# wrapper invoked from anywhere behaves the same.
+env_args=()
+for v in ADS_QUEUE_NOW ADS_QUEUE_CAPABILITY ADS_QUEUE_ROLE ADS_QUEUE_MODEL \
+         ADS_QUEUE_TOOL ADS_QUEUE_EFFORT ADS_QUEUE_SESSION_ID ADS_QUEUE_CLAIM_ID \
+         ADS_QUEUE_GIT ADS_QUEUE_GIT2 ADS_QUEUE_TEST_ROOT ADS_RUN_LOCK_HELD; do
+  if [[ -n "${!v:-}" ]]; then
+    env_args+=(-e "$v=${!v}")
+  fi
+done
+
+# exec cannot run the `podman` shell function from infra/lib.sh, so use the
+# resolved client path directly.
+exec "$ADS_PODMAN" run --rm -i \
+  "${mount_args[@]}" \
+  -w "$invoke_root" \
+  -e "ADS_QUEUE_REPO=$invoke_root" \
+  "${env_args[@]}" \
+  "$QUEUE_IMAGE" "$@"

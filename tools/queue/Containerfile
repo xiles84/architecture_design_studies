@@ -1,0 +1,34 @@
+# Queue CLI image.
+#
+# Build context is the REPOSITORY ROOT so the pinned go.mod is copied exactly,
+# and nothing outside tools/queue is shipped into the image. The image is the
+# only way the queue runs in normal use: the host wrapper tools/queue/queue
+# mounts the repository and starts this image.
+#
+# Tests gate the image. The suite is the reason the state machine can be
+# trusted: it exercises twenty real processes racing one compare-and-swap, the
+# capability and ordering rules, the crash/recovery matrix, lease and epoch
+# rejection, the integration lock, event-chain validation and fresh-clone
+# reconstruction. An image whose tests fail must not exist.
+#
+# The runtime stage is the full Debian-based Go image rather than scratch
+# because the queue drives `git` and needs a real shell-less git binary; no
+# language toolchain is installed on the host.
+
+FROM docker.io/library/golang:1.26-bookworm AS build
+WORKDIR /src
+
+COPY tools/queue/go.mod ./tools/queue/
+RUN cd tools/queue && go mod download
+
+COPY tools/queue/ ./tools/queue/
+
+RUN cd tools/queue && go vet ./... && go test ./... && \
+    CGO_ENABLED=0 GOFLAGS=-trimpath go build -ldflags="-s -w" -o /out/queue .
+
+FROM docker.io/library/golang:1.26-bookworm
+COPY --from=build /out/queue /usr/local/bin/queue
+# The repository is mounted here by the host wrapper, at the same absolute path
+# the host shell sees, so relative worktree registrations resolve identically.
+WORKDIR /src
+ENTRYPOINT ["/usr/local/bin/queue"]

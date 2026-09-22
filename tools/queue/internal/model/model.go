@@ -1,0 +1,517 @@
+// Package model holds the queue's data types and the pure rules that do not
+// touch Git: the state machine, ordering, capability eligibility, leases and
+// durations. Keeping these pure makes them exhaustively unit-testable, which is
+// what lets the state machine be trusted at all.
+package model
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// SchemaVersion is the queue record schema this tool implements.
+const SchemaVersion = 1
+
+// Task states, exactly the set in docs/ai-work/WORKFLOW.md.
+const (
+	StateProposed               = "proposed"
+	StateReady                  = "ready"
+	StateClaimed                = "claimed"
+	StateInProgress             = "in_progress"
+	StateYielded                = "yielded"
+	StateBlockedHigh            = "blocked_high"
+	StateAwaitingReview         = "awaiting_review"
+	StateChangesRequested       = "changes_requested"
+	StateApprovedForIntegration = "approved_for_integration"
+	StateCompleted              = "completed"
+	StateCancelled              = "cancelled"
+	StateSuperseded             = "superseded"
+)
+
+// Capabilities.
+const (
+	CapHIGH = "HIGH"
+	CapLOW  = "LOW"
+)
+
+// Work roles.
+const (
+	RolePlanner    = "planner"
+	RoleExecutor   = "executor"
+	RoleReviewer   = "reviewer"
+	RoleAnalyst    = "analyst"
+	RoleIntegrator = "integrator"
+)
+
+// DefaultLease is the default live-claim lease.
+const DefaultLease = 2 * time.Hour
+
+// HeartbeatInterval is the interval at which a worker should heartbeat.
+const HeartbeatInterval = 15 * time.Minute
+
+// RecoveryGrace is the recovery_pending grace period before a second
+// compare-and-swap may hand the task to a new claimant.
+const RecoveryGrace = 10 * time.Minute
+
+// Identity records who acted. Values that the session does not expose are the
+// literal string "unknown", never guessed.
+type Identity struct {
+	Model             string `json:"model"`
+	Tool              string `json:"tool"`
+	Effort            string `json:"effort"`
+	SessionCapability string `json:"session_capability"`
+	WorkRole          string `json:"work_role"`
+	SessionID         string `json:"session_id"`
+}
+
+// Verbose renders the identity for commit trailers and logs.
+func (i Identity) Verbose() string {
+	parts := []string{}
+	if i.Model != "" {
+		parts = append(parts, "model="+i.Model)
+	}
+	if i.Tool != "" {
+		parts = append(parts, "tool="+i.Tool)
+	}
+	if i.Effort != "" {
+		parts = append(parts, "effort="+i.Effort)
+	}
+	if i.SessionID != "" {
+		parts = append(parts, "session="+i.SessionID)
+	}
+	if i.SessionCapability != "" {
+		parts = append(parts, "capability="+i.SessionCapability)
+	}
+	if i.WorkRole != "" {
+		parts = append(parts, "role="+i.WorkRole)
+	}
+	return strings.Join(parts, " ")
+}
+
+// Validate rejects a malformed actor. The workflow validator is required to
+// reject malformed actors, so these checks are load-bearing.
+func (i Identity) Validate() error {
+	if i.SessionCapability != CapHIGH && i.SessionCapability != CapLOW {
+		return fmt.Errorf("session_capability must be HIGH or LOW, got %q", i.SessionCapability)
+	}
+	if i.WorkRole == "" {
+		return errors.New("work_role is required")
+	}
+	switch i.WorkRole {
+	case RolePlanner, RoleExecutor, RoleReviewer, RoleAnalyst, RoleIntegrator:
+	default:
+		return fmt.Errorf("unknown work_role %q", i.WorkRole)
+	}
+	return nil
+}
+
+// Related links an event or task to runs, digests, tags, escalations, reviews
+// and amendments, so every record traces back to the request that created it.
+type Related struct {
+	OriginatingEventID string `json:"originating_event_id,omitempty"`
+	RunID              string `json:"run_id,omitempty"`
+	Digest             string `json:"digest,omitempty"`
+	Tag                string `json:"tag,omitempty"`
+	EscalationID       string `json:"escalation_id,omitempty"`
+	ReviewID           string `json:"review_id,omitempty"`
+	AmendmentID        string `json:"amendment_id,omitempty"`
+}
+
+// Task is an immutable `task.json`.
+type Task struct {
+	SchemaVersion       int      `json:"schema_version"`
+	TaskID              string   `json:"task_id"`
+	GoalID              string   `json:"goal_id"`
+	RootTaskID          string   `json:"root_task_id"`
+	ParentTaskID        string   `json:"parent_task_id,omitempty"`
+	Title               string   `json:"title"`
+	Kind                string   `json:"kind"`
+	CreatedAt           string   `json:"created_at"`
+	CreatedBy           Identity `json:"created_by"`
+	Priority            int      `json:"priority"`
+	NotBefore           string   `json:"not_before"`
+	MinimumCapability   string   `json:"minimum_capability"`
+	PreferredCapability string   `json:"preferred_capability"`
+	WorkRole            string   `json:"work_role"`
+	Dependencies        []string `json:"dependencies"`
+	SourceRequest       string   `json:"source_request"`
+	SourceHandoff       string   `json:"source_handoff"`
+	CanonicalBranch     string   `json:"canonical_branch"`
+	CanonicalWorktree   string   `json:"canonical_worktree"`
+	OwnedPaths          []string `json:"owned_paths"`
+	ForbiddenPaths      []string `json:"forbidden_paths"`
+	AcceptanceCriteria  []string `json:"acceptance_criteria"`
+	ExpectedArtifacts   []string `json:"expected_artifacts"`
+	Validation          []string `json:"validation"`
+	ReviewPolicy        string   `json:"review_policy"`
+	IntegrationRequired bool     `json:"integration_required"`
+	RequiredTag         string   `json:"required_tag"`
+	BenchmarkRequired   bool     `json:"benchmark_required"`
+	RevalidateAfter     *string  `json:"revalidate_after"`
+	Supersedes          []string `json:"supersedes,omitempty"`
+}
+
+// Validate checks the invariants the schema requires of every task record.
+func (t *Task) Validate() error {
+	if t.SchemaVersion != SchemaVersion {
+		return fmt.Errorf("task %s: schema_version %d unsupported", t.TaskID, t.SchemaVersion)
+	}
+	if !ValidID(t.TaskID, "task-") {
+		return fmt.Errorf("invalid task_id %q", t.TaskID)
+	}
+	if !ValidID(t.GoalID, "goal-") {
+		return fmt.Errorf("task %s: invalid goal_id %q", t.TaskID, t.GoalID)
+	}
+	if !ValidID(t.RootTaskID, "task-") {
+		return fmt.Errorf("task %s: invalid root_task_id %q", t.TaskID, t.RootTaskID)
+	}
+	if t.ParentTaskID != "" && !ValidID(t.ParentTaskID, "task-") {
+		return fmt.Errorf("task %s: invalid parent_task_id %q", t.TaskID, t.ParentTaskID)
+	}
+	if t.Priority < 0 || t.Priority > 100 {
+		return fmt.Errorf("task %s: priority %d outside 0..100", t.TaskID, t.Priority)
+	}
+	if err := t.CreatedBy.Validate(); err != nil {
+		return fmt.Errorf("task %s: created_by: %w", t.TaskID, err)
+	}
+	if _, err := ParseTime(t.CreatedAt); err != nil {
+		return fmt.Errorf("task %s: created_at: %w", t.TaskID, err)
+	}
+	if _, err := ParseTime(t.NotBefore); err != nil {
+		return fmt.Errorf("task %s: not_before: %w", t.TaskID, err)
+	}
+	if t.MinimumCapability != CapHIGH && t.MinimumCapability != CapLOW {
+		return fmt.Errorf("task %s: minimum_capability must be HIGH or LOW, got %q", t.TaskID, t.MinimumCapability)
+	}
+	if t.CanonicalBranch == "" {
+		return fmt.Errorf("task %s: canonical_branch is required", t.TaskID)
+	}
+	if t.CanonicalWorktree == "" {
+		return fmt.Errorf("task %s: canonical_worktree is required", t.TaskID)
+	}
+	return nil
+}
+
+// Event is one immutable `events/*.json` transition.
+type Event struct {
+	SchemaVersion    int      `json:"schema_version"`
+	EventID          string   `json:"event_id"`
+	PreviousEventID  *string  `json:"previous_event_id"`
+	Sequence         int      `json:"sequence"`
+	TaskID           string   `json:"task_id"`
+	GoalID           string   `json:"goal_id"`
+	RootTaskID       string   `json:"root_task_id"`
+	ParentTaskID     string   `json:"parent_task_id,omitempty"`
+	AttemptID        *string  `json:"attempt_id"`
+	ClaimID          *string  `json:"claim_id"`
+	OccurredAt       string   `json:"occurred_at"`
+	Actor            Identity `json:"actor"`
+	EventType        string   `json:"event_type"`
+	ResultingState   string   `json:"resulting_state"`
+	BaseCommit       *string  `json:"base_commit"`
+	CheckpointCommit *string  `json:"checkpoint_commit"`
+	ResultCommit     *string  `json:"result_commit"`
+	Summary          string   `json:"summary"`
+	EvidencePaths    []string `json:"evidence_paths"`
+	Related          Related  `json:"related"`
+	NextCapability   string   `json:"next_capability"`
+	NextWorkRole     string   `json:"next_work_role"`
+}
+
+// Claim is the live coordination blob stored at
+// refs/ads-queue/live/<task-id>. It is not the permanent record; the committed
+// event archive is.
+type Claim struct {
+	SchemaVersion     int      `json:"schema_version"`
+	TaskID            string   `json:"task_id"`
+	State             string   `json:"state"`
+	ClaimID           string   `json:"claim_id"`
+	AttemptID         string   `json:"attempt_id"`
+	ClaimEpoch        int      `json:"claim_epoch"`
+	Worker            Identity `json:"worker"`
+	ClaimedAt         string   `json:"claimed_at"`
+	HeartbeatAt       string   `json:"heartbeat_at"`
+	ExpiresAt         string   `json:"expires_at"`
+	Branch            string   `json:"branch"`
+	Worktree          string   `json:"worktree"`
+	RepoRoot          string   `json:"repo_root"`
+	BaseCommit        string   `json:"base_commit"`
+	CheckpointCommit  string   `json:"checkpoint_commit,omitempty"`
+	TaskSpecDigest    string   `json:"task_spec_digest"`
+	LastEvent         string   `json:"last_event"`
+	NextCapability    string   `json:"next_capability"`
+	NextWorkRole      string   `json:"next_work_role"`
+	BenchmarkRunID    string   `json:"benchmark_run_id,omitempty"`
+	PreviousClaimID   string   `json:"previous_claim_id,omitempty"`
+	RecoveryStartedAt string   `json:"recovery_started_at,omitempty"`
+	RecoveryReadyAt   string   `json:"recovery_ready_at,omitempty"`
+}
+
+// IntegrationLock is the blob stored at
+// refs/ads-queue/locks/main-integration while one worker is updating local
+// `main`.
+type IntegrationLock struct {
+	SchemaVersion int      `json:"schema_version"`
+	TaskID        string   `json:"task_id"`
+	ClaimID       string   `json:"claim_id"`
+	Worker        Identity `json:"worker"`
+	AcquiredAt    string   `json:"acquired_at"`
+	Branch        string   `json:"branch"`
+}
+
+// Transition says whether `from` may become `to` without an intermediate event.
+// It encodes the diagram in WORKFLOW.md, widened only where the command list has
+// no separate command (for example a `yield` from blocked_high once HIGH has
+// resolved an escalation).
+type Transition struct{ From, To string }
+
+var transitions = map[Transition]bool{
+	{StateProposed, StateProposed}: true, // published as proposed (planning only)
+	{StateProposed, StateReady}:    true, // published as ready
+	// Bootstrap/planning allowance. The pre-CLI HIGH planning record
+	// (task-20260922T025912Z-publish-book-pipeline-handoff) runs proposed ->
+	// in_progress -> completed without the worker lifecycle, and that history is
+	// immutable. The command guards still require approved_for_integration
+	// before `complete`; these entries only let the archive validator accept the
+	// existing bootstrap record. No worker command can emit them.
+	{StateProposed, StateInProgress}:                           true, // bootstrap planning task started
+	{StateInProgress, StateCompleted}:                          true, // bootstrap planning task finished
+	{StateReady, StateClaimed}:                                 true, // claim
+	{StateClaimed, StateClaimed}:                               true, // recovery records a new epoch in the committed chain
+	{StateInProgress, StateClaimed}:                            true, // recovery records a new epoch in the committed chain
+	{StateBlockedHigh, StateReady}:                             true, // HIGH resolved; released
+	{StateChangesRequested, StateReady}:                        true, // returned to the pool
+	{StateClaimed, StateInProgress}:                            true, // first checkpoint
+	{StateInProgress, StateInProgress}:                         true, // further checkpoints
+	{StateClaimed, StateReady}:                                 true, // yield
+	{StateInProgress, StateReady}:                              true, // yield
+	{StateClaimed, StateBlockedHigh}:                           true, // escalate
+	{StateInProgress, StateBlockedHigh}:                        true,
+	{StateClaimed, StateAwaitingReview}:                        true, // submit
+	{StateInProgress, StateAwaitingReview}:                     true,
+	{StateInProgress, StateChangesRequested}:                   true, // late correction
+	{StateAwaitingReview, StateAwaitingReview}:                 true, // review recorded
+	{StateAwaitingReview, StateChangesRequested}:               true, // request-changes
+	{StateAwaitingReview, StateApprovedForIntegration}:         true, // approve
+	{StateApprovedForIntegration, StateApprovedForIntegration}: true, // integrate records commit
+	{StateApprovedForIntegration, StateCompleted}:              true, // complete
+	{StateCompleted, StateCompleted}:                           true, // idempotent complete
+	// Re-claim after changes: claim accepts changes_requested directly (logged).
+	{StateChangesRequested, StateClaimed}: true,
+}
+
+// AllowedTransition reports whether from->to is a permitted transition.
+func AllowedTransition(from, to string) bool {
+	if from == "" {
+		from = StateProposed
+	}
+	return transitions[Transition{from, to}]
+}
+
+// Terminal reports whether a state may not be claimed again.
+func Terminal(state string) bool {
+	return state == StateCompleted || state == StateCancelled || state == StateSuperseded
+}
+
+// CapabilityEligible reports whether a session with the given capability may
+// claim a task requiring minimum.
+func CapabilityEligible(sessionCapability, minimum string) bool {
+	if sessionCapability == CapHIGH {
+		return true
+	}
+	return minimum == CapLOW
+}
+
+// TaskRecord binds a task to the state derived from its committed events.
+type TaskRecord struct {
+	Task   *Task
+	Dir    string // absolute task directory
+	State  string
+	Events []*Event
+}
+
+// LastEvent returns the newest event, or nil when the task has none.
+func (r *TaskRecord) LastEvent() *Event {
+	if len(r.Events) == 0 {
+		return nil
+	}
+	return r.Events[len(r.Events)-1]
+}
+
+// AppendEvent adds an emitted event to an in-memory record so a command can
+// continue after emitting.
+func (r *TaskRecord) AppendEvent(ev *Event) {
+	r.Events = append(r.Events, ev)
+	r.State = ev.ResultingState
+}
+
+// Next returns the next eligible task for a session, following the queue order:
+// dependencies complete, not_before reached, capability eligible, priority
+// descending, creation time ascending, task id ascending.
+func Next(tasks []*TaskRecord, now time.Time, capability string) *TaskRecord {
+	byID := map[string]*TaskRecord{}
+	for _, t := range tasks {
+		byID[t.Task.TaskID] = t
+	}
+	var eligible []*TaskRecord
+	for _, t := range tasks {
+		if t.State != StateReady && t.State != StateChangesRequested {
+			continue
+		}
+		if !CapabilityEligible(capability, t.Task.MinimumCapability) {
+			continue
+		}
+		nb, err := ParseTime(t.Task.NotBefore)
+		if err != nil || nb.After(now) {
+			continue
+		}
+		if !dependenciesComplete(t.Task, byID) {
+			continue
+		}
+		eligible = append(eligible, t)
+	}
+	sortRecords(eligible)
+	if len(eligible) == 0 {
+		return nil
+	}
+	return eligible[0]
+}
+
+// Eligible returns every task claimable now, in queue order.
+func Eligible(tasks []*TaskRecord, now time.Time, capability string) []*TaskRecord {
+	byID := map[string]*TaskRecord{}
+	for _, t := range tasks {
+		byID[t.Task.TaskID] = t
+	}
+	var out []*TaskRecord
+	for _, t := range tasks {
+		if t.State != StateReady && t.State != StateChangesRequested {
+			continue
+		}
+		if !CapabilityEligible(capability, t.Task.MinimumCapability) {
+			continue
+		}
+		nb, err := ParseTime(t.Task.NotBefore)
+		if err != nil || nb.After(now) {
+			continue
+		}
+		if !dependenciesComplete(t.Task, byID) {
+			continue
+		}
+		out = append(out, t)
+	}
+	sortRecords(out)
+	return out
+}
+
+func dependenciesComplete(t *Task, byID map[string]*TaskRecord) bool {
+	for _, dep := range t.Dependencies {
+		d, ok := byID[dep]
+		if !ok {
+			return false // an unresolvable dependency is not complete
+		}
+		if d.State != StateCompleted {
+			return false
+		}
+	}
+	return true
+}
+
+func sortRecords(rs []*TaskRecord) {
+	sort.SliceStable(rs, func(i, j int) bool {
+		a, b := rs[i], rs[j]
+		if a.Task.Priority != b.Task.Priority {
+			return a.Task.Priority > b.Task.Priority // priority descending
+		}
+		at, _ := ParseTime(a.Task.CreatedAt)
+		bt, _ := ParseTime(b.Task.CreatedAt)
+		if !at.Equal(bt) {
+			return at.Before(bt) // creation time ascending
+		}
+		return a.Task.TaskID < b.Task.TaskID // task id ascending
+	})
+}
+
+// TaskDigest is the SHA-256 over the task.json bytes with CRLF normalised to
+// LF. Windows checkout must not change a spec digest, or a `guard` after a
+// `claim` would reject a task that never changed.
+func TaskDigest(data []byte) string {
+	normalized := strings.ReplaceAll(string(data), "\r\n", "\n")
+	sum := sha256.Sum256([]byte(normalized))
+	return hex.EncodeToString(sum[:])
+}
+
+var idRe = regexp.MustCompile(`^(task|goal)-[0-9]{8}T[0-9]{6}Z-[a-z0-9][a-z0-9-]*$`)
+
+// ValidID checks the `<prefix><timestamp>-<slug>` id shape.
+func ValidID(id, prefix string) bool {
+	if !strings.HasPrefix(id, prefix) {
+		return false
+	}
+	return idRe.MatchString(id)
+}
+
+// ParseTime parses an RFC3339 UTC timestamp.
+func ParseTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, errors.New("empty timestamp")
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("malformed RFC3339 timestamp %q", s)
+	}
+	return t.UTC(), nil
+}
+
+// FormatTime renders t as RFC3339 UTC with second precision.
+func FormatTime(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
+}
+
+var durRe = regexp.MustCompile(`^([0-9]+)(d|h|m|s)`)
+
+// ParseDuration extends time.ParseDuration with a day unit, because the queue
+// brief speaks in days (`review-candidates --since 7d`). Segments may repeat and
+// combine, e.g. "1d12h".
+func ParseDuration(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, errors.New("empty duration")
+	}
+	var total time.Duration
+	rest := s
+	for rest != "" {
+		m := durRe.FindStringSubmatch(rest)
+		if m == nil {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		n, err := strconv.Atoi(m[1])
+		if err != nil {
+			return 0, fmt.Errorf("invalid duration %q", s)
+		}
+		var unit time.Duration
+		switch m[2] {
+		case "d":
+			unit = 24 * time.Hour
+		case "h":
+			unit = time.Hour
+		case "m":
+			unit = time.Minute
+		case "s":
+			unit = time.Second
+		}
+		total += time.Duration(n) * unit
+		rest = rest[len(m[0]):]
+	}
+	if total <= 0 {
+		return 0, fmt.Errorf("duration must be positive: %q", s)
+	}
+	return total, nil
+}
