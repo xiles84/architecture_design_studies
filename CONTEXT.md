@@ -64,20 +64,25 @@ the recency question (EH-02) is measured and analysed. Repository minimums for f
 tagged `repo/study-comparison-minimums`.
 → [Study](studies/01-charity-tree/) · [reports](studies/01-charity-tree/reports/)
 
-### Study 02 — avoiding overbooking — **complete for v2; HIGH validation open**
+### Study 02 — avoiding overbooking — **complete and HIGH-validated**
 
 `band → event → ticket`, 14 strategies including two deliberately wrong controls. The original
-sell-out race and the v2 operational-reports phase (3b) are measured and analysed. The **only open
-item** is the signed HIGH validation of the phase-3b runs, queued as
-`task-20260922T025912Z-study02-03-v2-validation`; until it lands, the phase-3b claims remain
-*complete but validation-open*.
+sell-out race and the v2 operational-reports phase (3b) are measured, analysed and — as of
+2026-09-22 — **HIGH-validated** (`task-20260922T025912Z-study02-03-v2-validation`; signed
+analyses `20260921T205212Z--deepseek-flash--2026-09-22`, `20260921T231328Z--deepseek-flash--2026-09-22`).
+The validation accepted the ledger's ~2x YugabyteDB race cost at 128 buyers and the refund
+answerability result, left the PostgreSQL race ratio *unsettled by design order*, and required
+three artifact-only corrections (widened `claim-07` range, dropped `claim-05` "8x load", retired
+`claim-gap-04`); verdicts in `book/evidence/reviews/20260922-phase-3b-high-validation.json`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
-### Study 03 — reserved seating — **complete**
+### Study 03 — reserved seating — **complete and HIGH-validated**
 
 `venue → event → seat`: 40-minute holds, seat-map reads, all-or-nothing multi-seat blocks, 14 designs.
 The v1 matrix and both repair runs are measured, reported, analysed and signed; the v2
-operational-reports runs (3b) are measured and analysed.
+operational-reports runs (3b) are measured, analysed and HIGH-validated (2026-09-22): r06 is
+unanswerable in every design, L2 answers the 100k-seat map 4.5-11x the row designs on YugabyteDB,
+and L3's point lookups collapse to 26 ops/s.
 → [Study](studies/03-reserved-seating/) · [reports](studies/03-reserved-seating/reports/)
 
 ### Study 04 — configuration portal — **v1 measured; review and v2 protocol open**
@@ -107,10 +112,16 @@ open-loop demand). Open: the independent HIGH review, then the v2 protocol.
 
 ## Open gaps (current, not historical)
 
-1. **Study 02/03 v2 validation** — the phase-3b runs exist but no signed HIGH validation yet
-   (`task-20260922T025912Z-study02-03-v2-validation`, queued).
-2. **Evidence registry** — the single claim→evidence registry every book number must resolve
-   against (`task-20260922T025912Z-evidence-registry`).
+1. **Study 02/03 v2 validation** — **closed 2026-09-22.** The phase-3b runs passed every
+   AM-03/AM-04 acceptance check; the signed HIGH validation is
+   `task-20260922T025912Z-study02-03-v2-validation` (analyses `20260921T205212Z--deepseek-flash--2026-09-22`
+   and `20260921T231328Z--deepseek-flash--2026-09-22`). Residual, non-blocking gaps named by it:
+   no control fired in the measured runs, the PostgreSQL ledger race ratio is unsettled by design
+   order, and the ledger's load multiplier needs its own repeated load-only cell.
+2. **Evidence registry** — v1 (`repo/book-evidence-registry-v1`) is schema-valid but not eligible
+   as the book's direct numeric source; the correction package is
+   `task-20260922T170845Z-book-evidence-correction-v2`, and the phase-3b claim verdicts it must
+   honour are in `book/evidence/reviews/20260922-phase-3b-high-validation.json`.
 3. **Study 04 v2** — missing designs, repeated randomized trials, cardinality, cadence/churn,
    equal-total resources, placement, YugabyteDB.
 4. **Study 05 v2** — real-TTL churn, medium scale, repeats, cache resource accounting,

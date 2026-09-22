@@ -1104,6 +1104,28 @@ suggested. The guard's letter was satisfied and its spirit was not. **Size a run
 per-tier time budgets measured on the slowest topology, and re-estimate after the first arm
 rather than after the last.**
 
+### A derived claim can be narrower than its own run when a headline is copied across arms
+
+The queue derives each book claim verbatim from a signed analysis headline. Study 02's
+32-buyer arm (`20260921T183722Z`) has a body that states the ledger's YugabyteDB race cost as
+"1.7x to 5.7x", but its headline prints "1.7-2.1x" — which is the *sibling* 128-buyer arm's
+range — and its conclusion-3 cancel figures (575→271, 404→164) are the sibling's too, while
+its own JSON gives 579→270 and 485→157. The derived `claim-07` therefore understated the
+cost by widening nothing, and a reader trusting the headline would have been wrong by 3x at
+the 10-seat tier. **When two arms of the same pair are written in one session, re-derive
+every headline number from the arm's own result JSON before taking it as a claim**; a
+headline is not evidence, the run is.
+
+### A one-shot load measurement is a machine reading, not a design cost
+
+The ledger's `pg-single` load cost was measured at 6410 ms against P3's 826 ms (7.8x) in the
+Study 02 reports run, and at 1062/1106 ms against 881/868 ms (1.2x) in the two sibling runs
+of the same pair, with an empty harness diff between the commits. The storage delta was
+stable (+33-35 %) across all three; the load multiplier moved 6x. **Quote storage and
+schema-shape deltas from a load; do not publish a load-time multiplier from a single cell's
+one-shot load**, and if the load cost matters, measure it in its own repeated load-only
+cell.
+
 ## Building the AI work queue (queue v1)
 
 ### Relative worktree paths are portable, but old Git cannot *list* them
