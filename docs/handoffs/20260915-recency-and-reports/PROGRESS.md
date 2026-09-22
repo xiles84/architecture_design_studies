@@ -613,3 +613,26 @@ resuming at AM-03.10.**
   lessons this iteration cost (ENVIRONMENT.md-style link forms, uncommitted runs, controls
   that cannot fire without a writing phase, cell-order effects, the audit ordering lesson
   AM-04.6 asked LOW to write down).
+
+### LOW iteration 6, closing entry — 3b-4, the analyses, the tags, the reports
+
+- **3b-4** `20260921T231328Z` (study 03 reports matrix, 14 designs × 3 topologies, 5 s):
+  41 cells, 0 failed, gate 65/65 in every cell, no cell error. Digest `2f5b619430c2e7a7`.
+  2 h 31 min against the ~2.0 h estimate. Committed as `e190749`.
+- **Tags created** (all annotated, none moved or deleted): `study-02/v2.1-reports-repaired`
+  and `study-03/v2.1-reports-repaired` on `cb62711`; `study-02/v2-measured` on `ab1b76e`
+  (3b-3's commit, which holds study 02's last report — see the note in `CONTEXT.md` for why
+  that is the reading of AM-03.13 used here) and `study-03/v2-measured` on `e190749`;
+  `study-02/v2-analysis` and `study-03/v2-analysis` after the report regeneration. The
+  runner created the four `run/…` tags.
+- **Four signed analyses and one discussion companion** (`b5f58e6`, `2dbaed9`), all
+  `analyst: deepseek-flash`, each naming the substitution and leaving HIGH's validation
+  open. The two race arms disagree about PostgreSQL and both analyses say so; the pair's
+  discussion companion states the disagreement and the experiment that would settle it.
+- **Reports regenerated** so their analyses indexes resolve (`feb4d5f`): the three study 02
+  reports with the image all three were produced with (`a24c10933bd0`; 3b-1's own image no
+  longer exists, and `git diff 56edc26 dad86d0` over the harness and platform is empty, so
+  the regeneration is faithful), study 03's with `a145af66f330`. Every diff is index-only;
+  no measurement changed.
+- **Nothing is running.** Lock released, all containers removed by the runners; verified
+  with `podman volume inspect ads-run-lock` and `podman ps`.
