@@ -42,19 +42,22 @@ summary, not a second ledger.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
   EH-02 and Studies 03–05 by reference (see [`docs/ai-work/tasks/`](docs/ai-work/tasks/) and the
   archived history) and fixes public status drift.
-- **Next ready work:** `task-20260922T025912Z-history-status-reconcile` (this task). Then
-  `evidence-registry` → the three HIGH reviews + `typst-toolchain` → `book-synthesis-v1` →
-  `book-release-review-v1`, then the six scientific protocol tasks.
+- **Active book evidence source:** `book/evidence/v2/claims.json` (the correction package, tag
+  target `repo/book-evidence-registry-v2`; see [`book/evidence/README.md`](book/evidence/README.md)).
+  v1 (`book/evidence/claims.json`, tag `repo/book-evidence-registry-v1`) is **frozen historical
+  reference only** — its claim-to-cell resolution failed (36 of 43 names resolve nowhere) and no
+  book prose may be written from it. `tools/evidence validate` defaults to v2.
+- **Gate on the next book task:** `book-synthesis-v1` must **not be released** until the correction
+  package (`task-20260922T170845Z-book-evidence-correction-v2`) is completed and integrated into
+  `main`, and the synthesis must read `book/evidence/v2/` only.
+- **Next ready work:** `typst-toolchain`, then (after the correction integrates) release
+  `book-synthesis-v1` → `book-release-review-v1`, then the six scientific protocol tasks.
 - **Book release tag target:** `repo/data-architecture-book-v1` (not yet created).
 - **Brainstorm concluded** (tag `repo/book-evidence-and-model-brainstorm-v1`):
   `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` — two positions
   (gpt-5, deepseek-flash), two cross-reviews, one synthesis. It found registry v1 ineligible as the
-  book's numeric source (11 of 12 numeric claims have at least one declared cell name absent from the
-  report they cite; 36 of 43 names resolve nowhere; `failed_cells: 0` where the report says 2 failed)
-  and decided one versioned, attributed evidence-correction package as the sole active claim source,
-  with the fixed six-family taxonomy kept. No measurement was authorized and **no tasks were
-  created**; the owner's next command is
-  `CREATE TASKS FROM BRAINSTORM brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions`.
+  book's numeric source and decided one versioned, attributed evidence-correction package as the sole
+  active claim source, with the fixed six-family taxonomy kept; the correction task implements it.
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
@@ -133,10 +136,12 @@ placement pair).
    and `20260921T231328Z--deepseek-flash--2026-09-22`). Residual, non-blocking gaps named by it:
    no control fired in the measured runs, the PostgreSQL ledger race ratio is unsettled by design
    order, and the ledger's load multiplier needs its own repeated load-only cell.
-2. **Evidence registry** — v1 (`repo/book-evidence-registry-v1`) is schema-valid but not eligible
-   as the book's direct numeric source; the correction package is
-   `task-20260922T170845Z-book-evidence-correction-v2`, and the phase-3b claim verdicts it must
-   honour are in `book/evidence/reviews/20260922-phase-3b-high-validation.json`.
+2. **Evidence registry** — **closed 2026-09-22.** The active source is `book/evidence/v2/`
+   (tag target `repo/book-evidence-registry-v2`); v1 (`repo/book-evidence-registry-v1`) is frozen
+   historical reference. `tools/evidence validate` reports `23 claims, 0 errors` on v2, and
+   `v1-diagnostic` keeps the frozen audit (11/12 claims, 36/43 names) as a regression fixture.
+   Correction ledger and synthesis handoff are in `book/evidence/v2/`. The review verdicts the
+   correction honoured are in `book/evidence/reviews/`.
 3. **Study 04 v2** — the v1 review is done; the open work is
    `task-20260922T025912Z-study04-v2-protocol` (missing designs, repeated randomized trials,
    cardinality, cadence/churn, equal-total resources, placement, YugabyteDB) plus the review's three
