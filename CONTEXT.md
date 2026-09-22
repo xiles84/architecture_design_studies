@@ -4,7 +4,7 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-21
+**Last updated:** 2026-09-22
 
 ---
 
@@ -58,6 +58,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-04/v0.1-handoff-amendment-01` | study 04: AM-01 executed — WSL reaches the documented Podman engine; phase B bind-mount probe |
 | `repo/wsl-podman-bridge` | infra/lib.sh: engine resolver + `podman()` + `winpath()`; studies 01-03 untouched |
 | `repo/open-loop-arrivals` | platform: the open-loop arrival driver cadence experiments need |
+| `repo/data-architecture-book-handoff-v1` | HIGH planning checkpoint for the evidence-backed Typst book and durable AI task queue; queue v1 is the next LOW task |
 | `study-04/v1-harness` | study 04: 10-design SQL catalogue, harness, gate, ledger, audits, report generator; dev-checked |
 | `run/04-configuration-portal/20260921T1215Z-small` | commit that produced study 04's small `pg-single` matrix |
 | `study-04/v1-measured` | study 04: small matrix measured and reported; both controls fired |
@@ -242,6 +243,22 @@ directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/`
 `run-study.sh`, `results/<run-id>/`, `reports/`.
 
 ## Current state
+
+### Task — data architecture book and durable AI work queue (2026-09-22): **planning published, merged into local `main`**
+
+The owner's request and HIGH interpretation are preserved under
+[`goal-20260922T025912Z-data-architecture-book`](docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/).
+The authoritative operating contract is [`docs/ai-work/WORKFLOW.md`](docs/ai-work/WORKFLOW.md),
+with JSON conventions in [`SCHEMA.md`](docs/ai-work/SCHEMA.md). The publication checkpoint
+is tagged `repo/data-architecture-book-handoff-v1`.
+
+The first executable item is
+[`task-20260922T025912Z-queue-v1`](docs/ai-work/tasks/2026/09/task-20260922T025912Z-queue-v1/),
+now `ready` for a LOW executor. It implements atomic claims, leases, recovery, guards,
+event validation, and the local-main integration lock. The book, evidence registry,
+history import, status reconciliation, reviews, and synthesis remain queued behind it.
+This planning checkpoint started no benchmark and does not itself provide queue CLI or
+book implementation evidence.
 
 ### Task — recency question and operational reports, EH-02 (2026-09-15 → 2026-09-21): **complete, merged into `main`**
 
