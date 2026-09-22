@@ -316,14 +316,14 @@ func cmdPublish(args []string, out io.Writer) error {
 	fs := newFlagSet("publish")
 	var cf commonFlags
 	cf.register(fs, true)
-	spec := fs.String("spec", "", "path to the task.json to publish (required)")
-	brief := fs.String("brief", "", "path to BRIEF.md (required)")
-	state := fs.String("state", model.StateReady, "resulting state: ready or proposed")
+	spec := fs.String("spec", "", "path to the task.json to publish (required unless --release)")
+	brief := fs.String("brief", "", "path to BRIEF.md (required unless --release)")
+	state := fs.String("state", model.StateReady, "resulting state for a new task: ready or proposed")
+	release := fs.Bool("release", false, "release an existing proposed task to ready")
+	taskID := fs.String("task", "", "existing task id (with --release)")
+	summary := fs.String("summary", "", "release summary")
 	if err := fs.Parse(args); err != nil {
 		return failf(2, "%v", err)
-	}
-	if *spec == "" || *brief == "" {
-		return failf(2, "publish: --spec and --brief are required")
 	}
 	if *state != model.StateReady && *state != model.StateProposed {
 		return failf(2, "publish: --state must be ready or proposed")
@@ -333,11 +333,53 @@ func cmdPublish(args []string, out io.Writer) error {
 		return failf(2, "publish: %v", err)
 	}
 	if id.SessionCapability != model.CapHIGH {
-		return failf(2, "publish: only a HIGH session publishes tasks (got %s)", id.SessionCapability)
+		return failf(2, "publish: only a HIGH session publishes or releases tasks (got %s)", id.SessionCapability)
 	}
 	c, err := cf.open(out)
 	if err != nil {
 		return err
+	}
+
+	// Releasing a pre-created `proposed` task is the `proposed -> ready` arrow
+	// of the state machine. Whole delivery tasks are published once, as
+	// proposed, and released when their turn arrives; without this, no command
+	// could move them and the queue could never advance past its first task.
+	if *release {
+		if *taskID == "" {
+			return failf(2, "publish --release: --task is required")
+		}
+		rec, err := c.taskRecord(*taskID)
+		if err != nil {
+			return err
+		}
+		if rec.State != model.StateProposed {
+			return failf(1, "publish --release: task %s is %s, not proposed", *taskID, rec.State)
+		}
+		sum := *summary
+		if sum == "" {
+			sum = fmt.Sprintf("Released to ready by %s.", id.Verbose())
+		}
+		ev, err := c.emitEvent(c.Repo, rec, eventParams{
+			EventType:      "released",
+			State:          model.StateReady,
+			Actor:          id,
+			Summary:        sum,
+			NextCapability: nextCapabilityForTask(rec.Task),
+			NextWorkRole:   rec.Task.WorkRole,
+			StatusNote:     "Released to ready. " + sum,
+		})
+		if err != nil {
+			return err
+		}
+		if cf.json {
+			return c.jsonOut(ev)
+		}
+		fmt.Fprintf(out, "released %s -> ready (%s)\n", *taskID, ev.EventID)
+		return nil
+	}
+
+	if *spec == "" || *brief == "" {
+		return failf(2, "publish: --spec and --brief are required (or use --release --task)")
 	}
 	specPath, err := filepath.Abs(*spec)
 	if err != nil {

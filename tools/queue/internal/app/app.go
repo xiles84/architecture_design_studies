@@ -120,7 +120,7 @@ commands:
   session-start     record this session's capability and role
   list              list tasks with their derived state
   next              print the next eligible task
-  publish           publish a task record (HIGH)
+  publish           publish a task record, or --release a proposed task to ready (HIGH)
   claim             claim a task (atomic; creates its worktree)
   guard             verify this worker's claim is still current
   heartbeat         extend the live lease

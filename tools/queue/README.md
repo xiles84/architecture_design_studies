@@ -31,7 +31,7 @@ and must contain no queue logic of its own.
 | `session-start` | record this session's capability and role under `docs/ai-work/sessions/` |
 | `list` | one row per task with its derived state; `--eligible` filters to what this capability may claim |
 | `next` | the next eligible task in queue order (`--claim-command` prints the claim line) |
-| `publish` | HIGH creates a task from `--spec task.json --brief BRIEF.md`; first event is `published` |
+| `publish` | HIGH creates a task from `--spec task.json --brief BRIEF.md` (first event `published`), or releases a pre-created `proposed` task with `--release --task <id>` (`proposed → ready`) |
 | `claim` | atomic claim; creates the canonical worktree and branch |
 | `guard` | exits non-zero if this worker's claim id/epoch is no longer current |
 | `heartbeat` | extends the lease with a compare-and-swap |

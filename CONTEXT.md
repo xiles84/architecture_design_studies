@@ -294,6 +294,13 @@ tag object once the tag exists. `integrate` and `complete` now resolve and merge
 through `refs/heads/` explicitly (`gitx.BranchOID`), with a regression test; the milestone tag
 is not moved.
 
+Follow-up `repo/queue-v1-release`: the state machine's `proposed -> ready` arrow had no command,
+so the ordered delivery tasks pre-created as `proposed` (history import, evidence registry, Typst
+toolchain) could never become claimable. HIGH may now run
+`queue publish --release --task <id>` to emit a `released` event; a released task appears in
+`queue next` in the normal dependency/priority order. This is a HIGH-only release gate, not a
+change to eligibility.
+
 ### Task — recency question and operational reports, EH-02 (2026-09-15 → 2026-09-21): **complete, merged into `main`**
 
 **Worktree `.worktrees/recency-reports`, branch `repo/recency-and-reports`, from `7123da6`.**

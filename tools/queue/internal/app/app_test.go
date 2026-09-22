@@ -713,3 +713,49 @@ func TestCapabilityAliases(t *testing.T) {
 		t.Fatalf("HIGH alias failed to claim a HIGH task: %s", got)
 	}
 }
+
+// TestPublishReleaseToReady covers the proposed -> ready arrow: a pre-created
+// delivery task is published as proposed and released when its turn arrives.
+func TestPublishReleaseToReady(t *testing.T) {
+	repo := newRepo(t)
+	id := "task-20260922T100000Z-release"
+	tmp := t.TempDir()
+	spec := filepath.Join(tmp, "task.json")
+	brief := filepath.Join(tmp, "BRIEF.md")
+	writeFile(t, spec, specJSON(id, "LOW", "repo/release", ".worktrees/release", "repo/release"))
+	writeFile(t, brief, "# brief\n")
+	mustQ(t, "publish", "--spec", spec, "--brief", brief, "--state", "proposed",
+		"--capability", "HIGH", "--role", "planner", "--model", "test", "--tool", "gotest",
+		"--session-id", "s0", "--repo", repo, "--now", t0)
+	if got := stateIn(t, repo, id); got != model.StateProposed {
+		t.Fatalf("after proposed publish: %s", got)
+	}
+	if r := mustQ(t, "next", "--capability", "LOW", "--repo", repo, "--now", t0); strings.Contains(r.out, id) {
+		t.Fatalf("a proposed task must not be eligible: %s", r.out)
+	}
+
+	// Only HIGH releases.
+	r := qrun("publish", "--release", "--task", id, "--capability", "LOW", "--role", "executor",
+		"--model", "test", "--tool", "gotest", "--session-id", "s", "--repo", repo, "--now", t0)
+	if r.code == 0 {
+		t.Fatal("a LOW session must not release a task")
+	}
+
+	mustQ(t, "publish", "--release", "--task", id,
+		"--capability", "HIGH", "--role", "planner", "--model", "test", "--tool", "gotest",
+		"--session-id", "s0", "--repo", repo, "--now", t1)
+	if got := stateIn(t, repo, id); got != model.StateReady {
+		t.Fatalf("after release: %s", got)
+	}
+	if r := mustQ(t, "next", "--capability", "LOW", "--repo", repo, "--now", t1); !strings.Contains(r.out, id) {
+		t.Fatalf("a released task must be eligible: %s", r.out)
+	}
+	// Releasing a non-proposed task is rejected.
+	r = qrun("publish", "--release", "--task", id,
+		"--capability", "HIGH", "--role", "planner", "--model", "test", "--tool", "gotest",
+		"--session-id", "s0", "--repo", repo, "--now", t1)
+	if r.code == 0 {
+		t.Fatal("re-releasing a ready task must fail")
+	}
+	assertStatusMatchesLastEvent(t, repo, id)
+}
