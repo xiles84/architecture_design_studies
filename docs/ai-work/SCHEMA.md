@@ -15,6 +15,8 @@ Every `task.json` contains:
 - acceptance criteria, expected artifacts, validation, review policy, integration and
   tag requirements;
 - `benchmark_required` and an optional `revalidate_after` timestamp.
+- optional `originating_brainstorm_id` when the owner authorized tasks from a
+  concluded brainstorm.
 
 The task file is immutable after publication. Clarifications live in `amendments/` or in
 a successor task linked by `supersedes`.
@@ -41,6 +43,7 @@ Each file under `events/` contains:
 - `occurred_at`, full actor identity, event type, and resulting state;
 - base, checkpoint, and result commits when applicable;
 - summary, evidence paths, related run/digest/tag/escalation/review/amendment ids;
+- optional related brainstorm and contribution ids;
 - `next_capability` and `next_work_role`.
 
 The validator rejects a missing predecessor, fork, sequence gap, duplicate id, malformed
@@ -71,3 +74,10 @@ Book claims use exactly one of:
 
 Every numeric claim records a controlled comparison, run, inputs digest, producing tag,
 environment, topology, generated report, signed analysis, and relevant valid cells.
+
+## Brainstorm records
+
+Multi-leader deliberations use their own schema under
+[`brainstorms/SCHEMA.md`](brainstorms/SCHEMA.md). They share actor identity,
+UTC timestamp, immutable-event, Git-CAS, and local-main-lock conventions with this
+queue, but their slot lifecycle is not a task lifecycle.

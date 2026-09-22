@@ -48,9 +48,9 @@ The queue order is:
 5. creation time ascending;
 6. task id ascending.
 
-The planned Go queue CLI stores live state in `refs/ads-queue/live/<task-id>` and claims
-it with Git compare-and-swap. Until that CLI is implemented, use the task's exact branch
-name from `task.json` as the bootstrap atomic claim:
+The Go queue CLI stores live state in `refs/ads-queue/live/<task-id>` and claims it
+with Git compare-and-swap. Use `queue next`, `queue claim`, and `queue guard`; the
+claim command creates or reuses the task's exact branch and worktree:
 
 ```text
 git worktree add <canonical-worktree> -b <canonical-branch> main
@@ -59,6 +59,18 @@ git worktree add <canonical-worktree> -b <canonical-branch> main
 Git permits only one creation of that branch. If the branch or registered worktree
 already exists, do not create an alternative name. Inspect `STATUS.md`, events, branch,
 and worktree and either resume the same task or leave it to its current worker.
+
+## Deliberation before tasks
+
+[`brainstorms/WORKFLOW.md`](brainstorms/WORKFLOW.md) defines the explicit HIGH-only
+workflow for asking several leaders to form independent positions, cross-review, and
+synthesize a durable conclusion. Brainstorms are not tasks and ordinary questions do not
+start them. They have separate ongoing/concluded indexes and per-slot CAS claims.
+
+Conclusion never authorizes implementation. Only the owner's later
+`CREATE TASKS FROM BRAINSTORM <id>` command lets the chosen HIGH session publish queue
+tasks. Such tasks declare `originating_brainstorm_id`, and the concluded brainstorm is
+linked to their stable task ids.
 
 ## States
 

@@ -561,6 +561,10 @@ func cmdAudit(args []string, out io.Writer) error {
 			var lock model.IntegrationLock
 			if err := json.Unmarshal(data, &lock); err != nil {
 				report.Issues = append(report.Issues, auditIssue{Severity: "error", Kind: "malformed_integration_lock", Detail: err.Error()})
+			} else if lock.BrainstormID != "" {
+				if !strings.HasPrefix(lock.BrainstormID, "brainstorm-") {
+					report.Issues = append(report.Issues, auditIssue{Severity: "error", Kind: "malformed_integration_lock", Detail: "invalid brainstorm_id " + lock.BrainstormID})
+				}
 			} else if _, ok := byID[lock.TaskID]; !ok {
 				report.Issues = append(report.Issues, auditIssue{TaskID: lock.TaskID, Severity: "error", Kind: "orphan_integration_lock", Detail: "integration lock names no committed task"})
 			}

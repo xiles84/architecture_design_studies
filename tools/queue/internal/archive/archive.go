@@ -160,6 +160,9 @@ func ValidateChain(t *model.Task, events []*model.Event, now time.Time) []error 
 		if ev.TaskID != t.TaskID {
 			add("event %s: task_id %q != %q", ev.EventID, ev.TaskID, t.TaskID)
 		}
+		if t.OriginatingBrainstormID != "" && ev.Related.BrainstormID != t.OriginatingBrainstormID {
+			add("event %s: related brainstorm_id %q != task origin %q", ev.EventID, ev.Related.BrainstormID, t.OriginatingBrainstormID)
+		}
 		if ev.Sequence != i+1 {
 			add("event %s: sequence %d, expected %d (gap or duplicate)", ev.EventID, ev.Sequence, i+1)
 		}

@@ -48,6 +48,28 @@ and must contain no queue logic of its own.
 | `audit` | validates every event chain and live ref; `--json` for machine output |
 | `review-candidates` | `awaiting_review` tasks submitted within `--since` (default `7d`) |
 
+### Deliberate brainstorm commands
+
+| Command | Effect |
+|---|---|
+| `brainstorm-intent` | parse only the documented explicit owner phrases; ordinary questions return no intent |
+| `brainstorm-start` | HIGH creates the question/evidence packet and independent-position round |
+| `brainstorm-list` / `brainstorm-status` | show compact ongoing/concluded state and next action |
+| `brainstorm-claim` | HIGH atomically claims the next ready contribution slot |
+| `brainstorm-guard` / `brainstorm-heartbeat` | verify or extend a slot lease |
+| `brainstorm-submit` | append a position, critique, or synthesis; synthesis emits `BRAINSTORM ENDED` |
+| `brainstorm-cancel` / `brainstorm-supersede` | preserve an administrative ending |
+| `brainstorm-link-tasks` | after explicit owner authorization, verify and link already-published tasks |
+| `brainstorm-audit` | validate specs, event chains, actors, transitions, and contribution files |
+
+The user phrases and content contract are in
+[`docs/ai-work/brainstorms/WORKFLOW.md`](../../docs/ai-work/brainstorms/WORKFLOW.md).
+Brainstorm slot refs use
+`refs/ads-brainstorms/live/<brainstorm-id>/<slot-id>`. Archive writes reuse the
+local-main integration lock. Expired slots are reclaimed by `brainstorm-claim` with a
+higher epoch; there is no separate recover command. A fresh clone reconstructs submitted
+state, but not an unsubmitted contributor draft.
+
 Common flags: `--repo`, `--now` (freeze the clock; used by tests), `--json`,
 `--capability`, `--role`, `--model`, `--tool`, `--effort`, `--session-id`.
 
@@ -157,7 +179,10 @@ epoch, no recovery while the task owns the benchmark lock, exactly one
 integration-lock holder, event forks/gaps/duplicates/malformed actors and
 times/future clocks/impossible transitions, changed task digests, orphan live
 refs, parent/root correlation through the full lifecycle, and fresh-clone
-reconstruction from committed events alone.
+reconstruction from committed events alone. Brainstorm coverage includes explicit
+intent parsing, ordinary-question non-triggering, staged position/critique/synthesis
+transitions, parallel distinct-slot claims, expired-epoch rejection, HIGH-only changes,
+exact terminal output, task-boundary enforcement, audit, and fresh-clone reconstruction.
 
 ## Limits of v1
 

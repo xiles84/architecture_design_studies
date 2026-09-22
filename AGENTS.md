@@ -118,6 +118,32 @@ and registered worktree are its exclusive claim: create them from current local 
 and if either already exists, inspect and resume that task rather than starting a second
 copy. `CONTEXT.md` is an overview, never the queue's state authority.
 
+### Deliberate multi-leader brainstorms
+
+**Owner workflow, 2026-09-22:** brainstorming is opt-in and HIGH-only. Recognize a
+brainstorm action only when the user's first nonblank line starts with one of the exact,
+case-insensitive phrases documented in
+[`docs/ai-work/brainstorms/WORKFLOW.md`](docs/ai-work/brainstorms/WORKFLOW.md):
+`START BRAINSTORM:`, `CONTINUE BRAINSTORM <id>`, `LIST BRAINSTORMS`,
+`BRAINSTORM STATUS <id>`, `CREATE TASKS FROM BRAINSTORM <id>`,
+`CANCEL BRAINSTORM <id>`, or
+`SUPERSEDE BRAINSTORM <old-id> WITH <new-id>`. An ordinary question never starts one.
+
+Use the queue CLI's `brainstorm-*` commands; do not hand-edit a record or another
+leader's contribution. Independent-position authors read only the question/evidence
+packet until that round closes, critique authors read all positions, and the synthesizer
+preserves material dissent rather than forcing agreement. Every user-facing state gives
+a short summary and exact next action. A conclusion says `BRAINSTORM ENDED` and creates
+no task. Publish and link implementation tasks only after the owner separately gives the
+`CREATE TASKS FROM BRAINSTORM` command.
+
+Brainstorm archive commits are a narrow coordination exception to the task-worktree
+rule: the CLI serializes them with the existing local-main integration lock, refuses a
+tracked-dirty `main`, and stages only brainstorm paths. Live slot refs are local
+coordination; committed specs, contributions, conclusions, and events are portable
+history. Put only later, outcome-supported reusable findings in `LESSONS_LEARNED.md`;
+do not copy the deliberation there.
+
 **The objective is to reserve HIGH for work that genuinely benefits from deeper
 reasoning, and let LOW execute as much as possible autonomously.** The preferred pattern
 is **HIGH planning → one long LOW execution → HIGH validation**, not frequent switching.

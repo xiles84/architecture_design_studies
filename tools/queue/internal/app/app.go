@@ -91,6 +91,30 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		err = cmdAudit(rest, stdout)
 	case "review-candidates":
 		err = cmdReviewCandidates(rest, stdout)
+	case "brainstorm-start":
+		err = cmdBrainstormStart(rest, stdout)
+	case "brainstorm-list":
+		err = cmdBrainstormList(rest, stdout)
+	case "brainstorm-status":
+		err = cmdBrainstormStatus(rest, stdout)
+	case "brainstorm-intent":
+		err = cmdBrainstormIntent(rest, stdout)
+	case "brainstorm-claim":
+		err = cmdBrainstormClaim(rest, stdout)
+	case "brainstorm-guard":
+		err = cmdBrainstormGuard(rest, stdout)
+	case "brainstorm-heartbeat":
+		err = cmdBrainstormHeartbeat(rest, stdout)
+	case "brainstorm-submit":
+		err = cmdBrainstormSubmit(rest, stdout)
+	case "brainstorm-cancel":
+		err = cmdBrainstormCancel(rest, stdout)
+	case "brainstorm-supersede":
+		err = cmdBrainstormSupersede(rest, stdout)
+	case "brainstorm-link-tasks":
+		err = cmdBrainstormLinkTasks(rest, stdout)
+	case "brainstorm-audit":
+		err = cmdBrainstormAudit(rest, stdout)
 	case "help", "-h", "--help":
 		usage(stdout)
 		return 0
@@ -136,6 +160,18 @@ commands:
   recover           recover an expired claim (two CAS steps, grace period)
   audit             validate every event chain and live ref
   review-candidates list awaiting_review tasks submitted within --since
+  brainstorm-start create an explicit multi-leader brainstorm (HIGH)
+  brainstorm-list  list ongoing and concluded brainstorm summaries
+  brainstorm-status show one brainstorm's compact current state
+  brainstorm-intent parse a deliberate user trigger without mutating state
+  brainstorm-claim claim the next eligible contribution slot (HIGH)
+  brainstorm-guard verify a contribution claim and epoch
+  brainstorm-heartbeat extend a contribution lease
+  brainstorm-submit append an immutable position, critique or synthesis
+  brainstorm-cancel cancel an ongoing brainstorm (HIGH)
+  brainstorm-supersede preserve and supersede a concluded brainstorm (HIGH)
+  brainstorm-link-tasks link explicitly published implementation tasks (HIGH)
+  brainstorm-audit validate brainstorm specs, chains and contribution files
 
 Common flags: --repo, --now, --json, --capability, --role,
               --model, --tool, --effort, --session-id
@@ -470,6 +506,10 @@ func (c *cmdCtx) emitEvent(repo *gitx.Repo, rec *model.TaskRecord, p eventParams
 	if err != nil {
 		return nil, err
 	}
+	related := p.Related
+	if related.BrainstormID == "" {
+		related.BrainstormID = rec.Task.OriginatingBrainstormID
+	}
 	ev := &model.Event{
 		SchemaVersion:    model.SchemaVersion,
 		EventID:          archive.EventID(p.EventType, c.Now, func(id string) bool { return taken[id] }),
@@ -484,7 +524,7 @@ func (c *cmdCtx) emitEvent(repo *gitx.Repo, rec *model.TaskRecord, p eventParams
 		ResultingState:   p.State,
 		Summary:          p.Summary,
 		EvidencePaths:    p.EvidencePaths,
-		Related:          p.Related,
+		Related:          related,
 		NextCapability:   p.NextCapability,
 		NextWorkRole:     p.NextWorkRole,
 		BaseCommit:       optString(p.BaseCommit),

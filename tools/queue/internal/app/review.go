@@ -236,11 +236,15 @@ func cmdRequestChanges(args []string, out io.Writer) error {
 func (c *cmdCtx) acquireIntegrationLock(taskID, claimID string, worker model.Identity) (string, error) {
 	lock := model.IntegrationLock{
 		SchemaVersion: model.SchemaVersion,
-		TaskID:        taskID,
 		ClaimID:       claimID,
 		Worker:        worker,
 		AcquiredAt:    model.FormatTime(c.Now),
 		Branch:        "main",
+	}
+	if strings.HasPrefix(taskID, "brainstorm-") {
+		lock.BrainstormID = taskID
+	} else {
+		lock.TaskID = taskID
 	}
 	data, err := json.MarshalIndent(lock, "", "  ")
 	if err != nil {

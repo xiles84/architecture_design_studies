@@ -155,40 +155,43 @@ type Related struct {
 	EscalationID       string `json:"escalation_id,omitempty"`
 	ReviewID           string `json:"review_id,omitempty"`
 	AmendmentID        string `json:"amendment_id,omitempty"`
+	BrainstormID       string `json:"brainstorm_id,omitempty"`
+	ContributionID     string `json:"contribution_id,omitempty"`
 }
 
 // Task is an immutable `task.json`.
 type Task struct {
-	SchemaVersion       int      `json:"schema_version"`
-	TaskID              string   `json:"task_id"`
-	GoalID              string   `json:"goal_id"`
-	RootTaskID          string   `json:"root_task_id"`
-	ParentTaskID        string   `json:"parent_task_id,omitempty"`
-	Title               string   `json:"title"`
-	Kind                string   `json:"kind"`
-	CreatedAt           string   `json:"created_at"`
-	CreatedBy           Identity `json:"created_by"`
-	Priority            int      `json:"priority"`
-	NotBefore           string   `json:"not_before"`
-	MinimumCapability   string   `json:"minimum_capability"`
-	PreferredCapability string   `json:"preferred_capability"`
-	WorkRole            string   `json:"work_role"`
-	Dependencies        []string `json:"dependencies"`
-	SourceRequest       string   `json:"source_request"`
-	SourceHandoff       string   `json:"source_handoff"`
-	CanonicalBranch     string   `json:"canonical_branch"`
-	CanonicalWorktree   string   `json:"canonical_worktree"`
-	OwnedPaths          []string `json:"owned_paths"`
-	ForbiddenPaths      []string `json:"forbidden_paths"`
-	AcceptanceCriteria  []string `json:"acceptance_criteria"`
-	ExpectedArtifacts   []string `json:"expected_artifacts"`
-	Validation          []string `json:"validation"`
-	ReviewPolicy        string   `json:"review_policy"`
-	IntegrationRequired bool     `json:"integration_required"`
-	RequiredTag         string   `json:"required_tag"`
-	BenchmarkRequired   bool     `json:"benchmark_required"`
-	RevalidateAfter     *string  `json:"revalidate_after"`
-	Supersedes          []string `json:"supersedes,omitempty"`
+	SchemaVersion           int      `json:"schema_version"`
+	TaskID                  string   `json:"task_id"`
+	GoalID                  string   `json:"goal_id"`
+	RootTaskID              string   `json:"root_task_id"`
+	ParentTaskID            string   `json:"parent_task_id,omitempty"`
+	Title                   string   `json:"title"`
+	Kind                    string   `json:"kind"`
+	CreatedAt               string   `json:"created_at"`
+	CreatedBy               Identity `json:"created_by"`
+	Priority                int      `json:"priority"`
+	NotBefore               string   `json:"not_before"`
+	MinimumCapability       string   `json:"minimum_capability"`
+	PreferredCapability     string   `json:"preferred_capability"`
+	WorkRole                string   `json:"work_role"`
+	Dependencies            []string `json:"dependencies"`
+	SourceRequest           string   `json:"source_request"`
+	SourceHandoff           string   `json:"source_handoff"`
+	CanonicalBranch         string   `json:"canonical_branch"`
+	CanonicalWorktree       string   `json:"canonical_worktree"`
+	OwnedPaths              []string `json:"owned_paths"`
+	ForbiddenPaths          []string `json:"forbidden_paths"`
+	AcceptanceCriteria      []string `json:"acceptance_criteria"`
+	ExpectedArtifacts       []string `json:"expected_artifacts"`
+	Validation              []string `json:"validation"`
+	ReviewPolicy            string   `json:"review_policy"`
+	IntegrationRequired     bool     `json:"integration_required"`
+	RequiredTag             string   `json:"required_tag"`
+	BenchmarkRequired       bool     `json:"benchmark_required"`
+	RevalidateAfter         *string  `json:"revalidate_after"`
+	Supersedes              []string `json:"supersedes,omitempty"`
+	OriginatingBrainstormID string   `json:"originating_brainstorm_id,omitempty"`
 }
 
 // Validate checks the invariants the schema requires of every task record.
@@ -207,6 +210,9 @@ func (t *Task) Validate() error {
 	}
 	if t.ParentTaskID != "" && !ValidID(t.ParentTaskID, "task-") {
 		return fmt.Errorf("task %s: invalid parent_task_id %q", t.TaskID, t.ParentTaskID)
+	}
+	if t.OriginatingBrainstormID != "" && !regexp.MustCompile(`^brainstorm-[0-9]{8}T[0-9]{6}Z-[a-z0-9][a-z0-9-]*$`).MatchString(t.OriginatingBrainstormID) {
+		return fmt.Errorf("task %s: invalid originating_brainstorm_id %q", t.TaskID, t.OriginatingBrainstormID)
 	}
 	if t.Priority < 0 || t.Priority > 100 {
 		return fmt.Errorf("task %s: priority %d outside 0..100", t.TaskID, t.Priority)
@@ -292,7 +298,8 @@ type Claim struct {
 // `main`.
 type IntegrationLock struct {
 	SchemaVersion int      `json:"schema_version"`
-	TaskID        string   `json:"task_id"`
+	TaskID        string   `json:"task_id,omitempty"`
+	BrainstormID  string   `json:"brainstorm_id,omitempty"`
 	ClaimID       string   `json:"claim_id"`
 	Worker        Identity `json:"worker"`
 	AcquiredAt    string   `json:"acquired_at"`
