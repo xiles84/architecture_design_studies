@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-book-synthesis-v1` |
-| State | `proposed` |
-| Sequence | `0` |
+| State | `ready` |
+| Sequence | `1` |
 | Active attempt | none |
-| Active worker | none |
-| Last event | none |
-| Updated at | `2026-09-22T02:59:12Z` |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner` |
+| Last event | `event-20260922T191751Z-released` |
+| Updated at | `2026-09-22T19:17:51Z` |
 | Next capability | HIGH |
 | Next work role | analyst |
 | Branch | `repo/book-synthesis-v1` |
 | Worktree | `.worktrees/book-synthesis-v1` |
 
-Blocked on all evidence reviews and the Typst toolchain.
+Released to ready. Release after the evidence correction integrated and the Typst toolchain landed.
