@@ -69,6 +69,11 @@ contract.
   lifecycle and terminal output, retained dissent, fresh-clone reconstruction, twenty
   parallel claimers for two distinct slots, epoch rejection, HIGH-only changes,
   pre-conclusion task refusal, successful correlated task linking, and audit.
+- `tools/queue/queue --build` passed and produced pinned runtime image digest
+  `9481de7c07cb748ba90b059d3e139f1ac358ccd5d908daf3b840b120530878d4`.
+- Real-archive `queue audit`: 18 tasks, 0 errors, 0 warnings. Real-archive
+  `brainstorm-audit`: 0 records, 0 errors. Changed-document local links and
+  `git diff --check` pass.
 - No database or benchmark was started.
 
 ## Next

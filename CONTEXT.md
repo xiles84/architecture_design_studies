@@ -60,6 +60,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/open-loop-arrivals` | platform: the open-loop arrival driver cadence experiments need |
 | `repo/data-architecture-book-handoff-v1` | HIGH planning checkpoint for the evidence-backed Typst book and durable AI task queue; queue v1 is the next LOW task |
 | `repo/ai-capability-aliases` | session declarations accept leader/master and worker/follower/slave aliases while queue state remains canonical HIGH/LOW |
+| `repo/ai-brainstorm-workflow-v1` | explicit multi-leader deliberation workflow, durable archive, CAS slot claims, summaries, and task correlation |
 | `study-04/v1-harness` | study 04: 10-design SQL catalogue, harness, gate, ledger, audits, report generator; dev-checked |
 | `run/04-configuration-portal/20260921T1215Z-small` | commit that produced study 04's small `pg-single` matrix |
 | `study-04/v1-measured` | study 04: small matrix measured and reported; both controls fired |
@@ -244,6 +245,24 @@ directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/`
 `run-study.sh`, `results/<run-id>/`, `reports/`.
 
 ## Current state
+
+### Task — deliberate multi-leader brainstorm workflow (2026-09-22): **implemented and validated**
+
+[`task-20260922T114507Z-brainstorm-workflow-v1`](docs/ai-work/tasks/2026/09/task-20260922T114507Z-brainstorm-workflow-v1/)
+adds the opt-in HIGH/leader workflow under
+[`docs/ai-work/brainstorms/`](docs/ai-work/brainstorms/WORKFLOW.md). The owner starts it
+with `START BRAINSTORM: <question>`, advances it with
+`CONTINUE BRAINSTORM <id>`, and receives a compact summary at every stage. Three
+independent positions, two cross-reviews, and one synthesis are the defaults. Synthesis
+prints `BRAINSTORM ENDED` and explicitly creates no task; only the later
+`CREATE TASKS FROM BRAINSTORM <id>` instruction authorizes task publication.
+
+The queue CLI implements per-slot Git-CAS claims, leases, guard/heartbeat, expired-epoch
+recovery, immutable contributions/events, separate generated ongoing/concluded indexes,
+fresh-clone reconstruction, task-origin correlation, and audit. The pinned Podman image
+gates it with Go vet and tests; no database or benchmark was started. The task's
+`STATUS.md` is authoritative for review/integration state, and its required milestone
+tag is `repo/ai-brainstorm-workflow-v1`.
 
 ### Task — data architecture book and durable AI work queue (2026-09-22): **planning published, merged into local `main`**
 

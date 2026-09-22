@@ -1124,3 +1124,17 @@ and `TestFreshCloneReconstruction` failed with a missing `task.json`. **When a r
 evidence, commit the evidence in the same step as the record**, and let a test read the
 artifact from a clean checkout rather than from the author's working directory.
 
+## Building durable AI deliberation
+
+### A guard at command entry does not prove ownership at commit
+
+The first brainstorm submission implementation checked its slot claim, then waited for
+the local-main integration lock and wrote the contribution. During that wait the lease
+could expire, another leader could recover the same slot with a higher epoch, and the old
+writer could still commit before its final ref deletion failed. **Revalidate and
+CAS-refresh ownership immediately before the durable mutation, under the mutation's
+serialization lock.** The final implementation extends the slot lease under the archive
+lock before writing, then deletes exactly that refreshed ref after commit. The same
+review found the administrative counterpart: cancellation must reject a live claim but
+CAS-clear an expired one, or an abandoned lease becomes a permanent administrative
+blocker.
