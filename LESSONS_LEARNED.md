@@ -834,6 +834,16 @@ signed file in place — against a rule it had no reason to load. The instructio
 one text. Rules also stopped assuming a vendor: identify the model in commit messages however
 the tool does it, and name vendors only where provenance needs them.
 
+### Human capability labels need one canonical machine value
+
+People use several familiar words for the same AI-pipeline relationship. Letting each
+word become a separate queue value would fragment eligibility checks and historical
+queries, while borrowing `primary`/`replica` would collide with this repository's data
+topology vocabulary. Accept user-facing aliases only in an explicit session declaration,
+normalize them immediately to `HIGH` or `LOW`, and preserve the raw input separately.
+Legacy `master`/`slave` can be parsed for compatibility without being generated or
+recommended; `leader`/`worker` are the preferred human-facing pair.
+
 ### Parallel agents need separate folders and a shared lock
 
 Two sessions in one working folder edited `CONTEXT.md` and `LESSONS_LEARNED.md` at the same

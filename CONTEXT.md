@@ -59,6 +59,7 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/wsl-podman-bridge` | infra/lib.sh: engine resolver + `podman()` + `winpath()`; studies 01-03 untouched |
 | `repo/open-loop-arrivals` | platform: the open-loop arrival driver cadence experiments need |
 | `repo/data-architecture-book-handoff-v1` | HIGH planning checkpoint for the evidence-backed Typst book and durable AI task queue; queue v1 is the next LOW task |
+| `repo/ai-capability-aliases` | session declarations accept leader/master and worker/follower/slave aliases while queue state remains canonical HIGH/LOW |
 | `study-04/v1-harness` | study 04: 10-design SQL catalogue, harness, gate, ledger, audits, report generator; dev-checked |
 | `run/04-configuration-portal/20260921T1215Z-small` | commit that produced study 04's small `pg-single` matrix |
 | `study-04/v1-measured` | study 04: small matrix measured and reported; both controls fired |
@@ -260,24 +261,32 @@ history import, status reconciliation, reviews, and synthesis remain queued behi
 This planning checkpoint started no benchmark and does not itself provide queue CLI or
 book implementation evidence.
 
-### Task — AI task queue v1 (2026-09-22): **implemented on its branch, submitted for HIGH review**
+Owner amendment `20260922T101113Z-capability-aliases` lets a new chat declare `leader`
+or legacy `master` for HIGH, and `worker`, `follower`, or legacy `slave` for LOW. The
+pipeline normalizes these inputs to canonical `HIGH`/`LOW`; it does not use
+`primary`/`replica`, which remain datastore-topology terms. The queue-v1 task has a
+linked implementation amendment and must include alias parser tests.
+
+### Task — AI task queue v1 (2026-09-22): **integrated into local `main`, tagged `repo/ai-task-queue-v1`**
 
 [`task-20260922T025912Z-queue-v1`](docs/ai-work/tasks/2026/09/task-20260922T025912Z-queue-v1/) is
-implemented on branch `repo/ai-task-queue-v1` (worktree `.worktrees/ai-task-queue-v1`, cut from
-`main` at `eef4d81`). The state is `awaiting_review`; **nothing is merged, tagged or pushed**, and
-the required tag `repo/ai-task-queue-v1` is reserved for the integrated state.
-
-The Go CLI lives in [`tools/queue/`](tools/queue/README.md) and runs from the pinned image
+complete: the Go CLI in [`tools/queue/`](tools/queue/README.md) runs from the pinned image
 `localhost/ads-queue:1` (`QUEUE_IMAGE` in `infra/versions.env`; the image build runs
-`go vet ./... && go test ./...` as a gate). All commands in the brief are implemented; live
-coordination is `refs/ads-queue/live/<task-id>` plus
+`go vet ./... && go test ./...` as a gate), and every command in the brief is implemented.
+Live coordination is `refs/ads-queue/live/<task-id>` plus
 `refs/ads-queue/locks/main-integration` written with `git update-ref` compare-and-swap and
-reflogs, and committed `events/*.json` remain the permanent archive. Attempt
-`attempt-20260922T101824Z-e309f5` holds the Decision Log, evidence and residual risks; the task's
-`STATUS.md` and events are authoritative for state. `queue audit` on this repository's archive is
-clean (16 tasks, 0 errors, 0 warnings). Implementation commit `a35de47`, attempt records
-`276872c`, wrapper identity fix `ac2e94e`. HIGH review is the next step; integration and the
-milestone tag come after approval.
+reflogs; committed `events/*.json` remain the permanent archive. Attempt
+`attempt-20260922T101824Z-e309f5` holds the LOW Decision Log, evidence and residual risks;
+its `STATUS.md` and event chain are the authoritative state.
+
+HIGH review accepted the implementation after finding and fixing two defects before
+integration: `STATUS.md` was rendered one event behind its archive, and the concurrent
+capability-aliases amendment's parser was unimplemented. `ParseCapability` now normalizes the
+documented aliases (case-insensitive, whitespace-tolerant) to canonical `HIGH`/`LOW`,
+preserves the raw declaration as `session_capability_input`, rejects `primary`/`replica`, and
+has tests for every alias, mixed case, whitespace, the excluded terms and role independence.
+Implementation `a35de47`, STATUS fix `7226e0e`, alias amendment `1acdba1`; the milestone tag
+is `repo/ai-task-queue-v1`.
 
 ### Task — recency question and operational reports, EH-02 (2026-09-15 → 2026-09-21): **complete, merged into `main`**
 

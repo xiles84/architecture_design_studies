@@ -85,8 +85,9 @@ and final analysis. Methodology sections 4 and 6a explain the sizing and control
 ## Model roles: cost-efficient Execution Handoff, Decision Log and Escalation
 
 **Owner workflow, 2026-09-14, revised 2026-09-17 for cost efficiency:** HIGH and LOW are
-roles chosen through the user's model/effort settings. Record the actual model/tool and
-selected effort when known; never infer an unavailable setting or switch models silently.
+the canonical session-capability values chosen through the user's model/effort settings.
+Record the actual model/tool and selected effort when known; never infer an unavailable
+setting or switch models silently.
 
 ### Session capability and queued work
 
@@ -95,6 +96,20 @@ the session is **HIGH** or **LOW** unless the user already stated it. Record tha
 as the session capability; do not infer it from a model name. Capability and work role
 are separate: a HIGH session may plan, review, analyse, integrate, or execute a worker
 task, while a LOW session may claim only work whose minimum capability is LOW.
+
+The user may declare capability with these case-insensitive aliases when the term is
+clearly a session declaration or an answer to the capability question:
+
+- `HIGH`, `leader`, or `master` -> canonical `HIGH`;
+- `LOW`, `worker`, `follower`, or `slave` -> canonical `LOW`.
+
+`master` and `slave` are accepted as legacy input for compatibility but agents never
+suggest or emit them; prefer `leader` and `worker` in human-facing examples. `primary`
+and `replica` are not AI-capability aliases because this repository uses those words for
+data topology. Persist and compare only canonical `HIGH`/`LOW`; when the schema permits,
+also preserve the user's raw declaration as `session_capability_input`. These aliases do
+not change `work_role`. A term used in database discussion is not a session declaration;
+ask once if the intent is genuinely ambiguous.
 
 Durable requests, task briefs, attempts, events, escalations, results, and reviews live
 under [`docs/ai-work/`](docs/ai-work/). Once the queue CLI is available, use its atomic
@@ -172,7 +187,8 @@ escalation, and re-litigating decisions HIGH already made.
 7. **Every response ends with exactly one routing line:** `NEXT MODEL: HIGH`,
    `NEXT MODEL: LOW`, or `TASK COMPLETE` — plus the concrete model/effort when the task
    has agreed one. If the user states which model/effort is currently active, say
-   explicitly whether they need to switch before continuing.
+   explicitly whether they need to switch before continuing. Routing output remains
+   canonical; the user may answer it with any accepted capability alias.
 
 A model-switch handoff is a checkpoint in the same unfinished task. Commit and tag that
 checkpoint, update context/lessons, and state what remains; do not claim the task is
