@@ -47,7 +47,12 @@
 
 // ------------------------------------------------------- provenance / edition
 #page[
-  #heading("Edition and provenance")
+  // Not a level-1 heading: the chapter heading rule would force a break and
+  // leave this page blank. This page is front matter, excluded from the outline.
+  #text(size: 19pt, weight: "bold", fill: palette.accent)[Edition and provenance]
+  #v(1mm)
+  #line(length: 100%, stroke: 1.2pt + palette.accent)
+  #v(3mm)
   This is a generated artefact: Typst source plus the evidence registry, compiled in a pinned
   Podman image. *Every claim in this book must resolve to a claim in the v2 registry*, and every
   number must resolve to a measured cell in a cited report. Nothing here is hand-entered at build
