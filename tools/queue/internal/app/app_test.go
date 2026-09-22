@@ -179,6 +179,34 @@ func stateIn(t *testing.T, root, id string) string {
 	return rec.State
 }
 
+// assertStatusMatchesLastEvent guards the snapshot against lagging the archive:
+// STATUS.md must name the newest event, its resulting state and its sequence.
+func assertStatusMatchesLastEvent(t *testing.T, root, id string) {
+	t.Helper()
+	rec, err := archive.LoadTaskRecord(taskDirIn(root, id))
+	if err != nil {
+		t.Fatalf("load record: %v", err)
+	}
+	last := rec.LastEvent()
+	if last == nil {
+		t.Fatal("no events")
+	}
+	data, err := os.ReadFile(filepath.Join(taskDirIn(root, id), "STATUS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := string(data)
+	for _, want := range []string{
+		"| State | `" + last.ResultingState + "` |",
+		fmt.Sprintf("| Sequence | `%d` |", last.Sequence),
+		"| Last event | `" + last.EventID + "` |",
+	} {
+		if !strings.Contains(status, want) {
+			t.Fatalf("STATUS.md lags the last event: missing %q in\n%s", want, status)
+		}
+	}
+}
+
 func claimDemo(t *testing.T, repo, id string, now string) model.Claim {
 	t.Helper()
 	r := mustQ(t, "claim", "--task", id, "--capability", "LOW", "--role", "executor",
@@ -222,6 +250,7 @@ func TestFullLifecycle(t *testing.T) {
 	if got := stateIn(t, wt, id); got != model.StateAwaitingReview {
 		t.Fatalf("after submit: %s", got)
 	}
+	assertStatusMatchesLastEvent(t, wt, id)
 
 	tmp := t.TempDir()
 	review := filepath.Join(tmp, "REVIEW.md")
@@ -242,6 +271,7 @@ func TestFullLifecycle(t *testing.T) {
 	if got := stateIn(t, repo, id); got != model.StateCompleted {
 		t.Fatalf("final state on main: %s", got)
 	}
+	assertStatusMatchesLastEvent(t, repo, id)
 	if out := git(t, repo, "rev-parse", "--verify", "refs/tags/repo/demo"); out == "" {
 		t.Fatal("required tag missing")
 	}

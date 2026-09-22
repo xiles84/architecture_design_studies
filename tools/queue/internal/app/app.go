@@ -474,7 +474,14 @@ func (c *cmdCtx) emitEvent(repo *gitx.Repo, rec *model.TaskRecord, p eventParams
 	if err != nil {
 		return nil, err
 	}
-	statusPath, err := archive.WriteStatus(rec.Dir, archive.RenderStatus(rec, c.Now, p.NextCapability, p.NextWorkRole, p.StatusNote))
+	// Render the snapshot from the state *after* this event. Rendering from rec
+	// would leave STATUS.md one event behind (it would still name the previous
+	// event and state), which is exactly the kind of quiet drift the archive is
+	// supposed to make impossible.
+	view := *rec
+	view.Events = append(append([]*model.Event{}, rec.Events...), ev)
+	view.State = ev.ResultingState
+	statusPath, err := archive.WriteStatus(rec.Dir, archive.RenderStatus(&view, c.Now, p.NextCapability, p.NextWorkRole, p.StatusNote))
 	if err != nil {
 		return nil, err
 	}
