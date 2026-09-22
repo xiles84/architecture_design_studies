@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-native-major-model-protocol` |
-| State | `awaiting_review` |
-| Sequence | `5` |
+| State | `approved_for_integration` |
+| Sequence | `6` |
 | Active attempt | none |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=reviewer` |
-| Last event | `event-20260922T203654Z-reviewed` |
-| Updated at | `2026-09-22T20:36:54Z` |
+| Last event | `event-20260922T203708Z-approved` |
+| Updated at | `2026-09-22T20:37:08Z` |
 | Next capability | HIGH |
-| Next work role | reviewer |
+| Next work role | integrator |
 | Branch | `study-06/native-model-protocol` |
 | Worktree | `.worktrees/study06-native-model-protocol` |
 
-Review `review-20260922T203654Z-29a1` recorded; next: approve or request-changes.
+Approved for integration. NEXT: `queue integrate`.
