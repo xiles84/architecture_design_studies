@@ -89,11 +89,18 @@ PDF_SHA256="$(sha256sum "$PDF_PATH" | cut -d' ' -f1)"
 PAGES="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" --entrypoint pdfinfo "$BOOK_IMAGE" "$BOOK_DIR/$OUT_REL" | sed -n 's/^Pages:[[:space:]]*//p')"
 FONTS_RAW="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" --entrypoint pdffonts "$BOOK_IMAGE" "$BOOK_DIR/$OUT_REL")"
 FONTS_TOTAL="$(printf '%s\n' "$FONTS_RAW" | awk 'NR>2 && NF>0' | wc -l | tr -d ' ')"
-FONTS_EMBEDDED="$(printf '%s\n' "$FONTS_RAW" | awk 'NR>2 && $4=="yes"' | wc -l | tr -d ' ')"
+# pdffonts' `emb` column moves with the font type; the embedded triple is the
+# stable marker ("yes yes yes" = embedded, subset, unicode).
+FONTS_EMBEDDED="$(printf '%s\n' "$FONTS_RAW" | awk 'NR>2 && /yes[[:space:]]+yes[[:space:]]+yes/' | wc -l | tr -d ' ')"
 TEXT="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" --entrypoint pdftotext "$BOOK_IMAGE" "$BOOK_DIR/$OUT_REL" -)"
-CLAIM_COUNT="$(printf '%s' "$TEXT" | grep -oE 'v2-[a-z0-9-]+' | sort -u | wc -l | tr -d ' ')"
+TOTAL_CLAIMS="$(jq -r '.claims | length' "$BOOK_DIR/evidence/v2/claims.json")"
+# Count only registry ids that actually render, so the number is a check that the
+# evidence index compiled in, not a count of look-alike tokens.
+CLAIM_COUNT="$(jq -r '.claims[].claim_id' "$BOOK_DIR/evidence/v2/claims.json" | while read -r id; do grep -q "$id" <<<"$TEXT" && echo "$id"; done | wc -l | tr -d ' ')"
 DIGEST_IN_PDF="false"
-if printf '%s' "$TEXT" | grep -q "$EVIDENCE_DIGEST"; then DIGEST_IN_PDF="true"; fi
+# A here-string, not a pipe: grep -q exits on first match, and under pipefail the
+# upstream printf's SIGPIPE would flip the test to false.
+if grep -q "$EVIDENCE_DIGEST" <<<"$TEXT"; then DIGEST_IN_PDF="true"; fi
 LINK_ANNOTS="$(grep -c '/URI' "$PDF_PATH" || true)"
 
 cat > "$BOOK_DIR/$MANIFEST_REL" <<JSON
@@ -115,6 +122,7 @@ cat > "$BOOK_DIR/$MANIFEST_REL" <<JSON
   "pdf_pages": ${PAGES:-0},
   "fonts_total": $FONTS_TOTAL,
   "fonts_embedded": $FONTS_EMBEDDED,
+  "claims_total": $TOTAL_CLAIMS,
   "claims_indexed": $CLAIM_COUNT,
   "evidence_digest_in_pdf": $DIGEST_IN_PDF,
   "uri_annotations": $LINK_ANNOTS,
@@ -127,12 +135,12 @@ printf '  artefact:       %s\n' "$OUT_REL"
 printf '  pdf sha256:     %s\n' "$PDF_SHA256"
 printf '  pages:          %s\n' "${PAGES:-0}"
 printf '  fonts embedded: %s/%s\n' "$FONTS_EMBEDDED" "$FONTS_TOTAL"
-printf '  claims indexed: %s\n' "$CLAIM_COUNT"
+printf '  claims indexed: %s/%s\n' "$CLAIM_COUNT" "$TOTAL_CLAIMS"
 printf '  evidence digest in pdf: %s\n' "$DIGEST_IN_PDF"
 printf '  uri annotations: %s\n' "$LINK_ANNOTS"
 
-if [[ "${PAGES:-0}" -lt 10 || "$FONTS_TOTAL" -eq 0 || "$FONTS_EMBEDDED" -ne "$FONTS_TOTAL" || "$DIGEST_IN_PDF" != "true" ]]; then
-  log "verification FAILED: pages=$PAGES fonts=$FONTS_EMBEDDED/$FONTS_TOTAL digest_in_pdf=$DIGEST_IN_PDF"
+if [[ "${PAGES:-0}" -lt 10 || "$FONTS_TOTAL" -eq 0 || "$FONTS_EMBEDDED" -ne "$FONTS_TOTAL" || "$DIGEST_IN_PDF" != "true" || "$CLAIM_COUNT" -ne "$TOTAL_CLAIMS" ]]; then
+  log "verification FAILED: pages=$PAGES fonts=$FONTS_EMBEDDED/$FONTS_TOTAL digest_in_pdf=$DIGEST_IN_PDF claims=$CLAIM_COUNT/$TOTAL_CLAIMS"
   exit 1
 fi
 log "verified"
