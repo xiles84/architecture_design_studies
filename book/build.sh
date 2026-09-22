@@ -54,7 +54,7 @@ else
   DIRTY="false"
 fi
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-TYPST_VERSION="$(podman run --rm "$BOOK_IMAGE" /bin/typst --version | sed 's/^typst //')"
+TYPST_VERSION="$(podman run --rm "$BOOK_IMAGE" --version | sed 's/^typst //')"
 EVIDENCE_DIGEST="$(sha256sum "$BOOK_DIR/evidence/v2/claims.json" | cut -d' ' -f1)"
 SOURCE_HASH="$(
   find "$BOOK_DIR" -name '*.typ' -type f -print0 \
@@ -70,7 +70,7 @@ podman run --rm \
   -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" \
   -w "$BOOK_DIR" \
   "$BOOK_IMAGE" \
-  /bin/typst compile --root "$BOOK_DIR" \
+  compile --root "$BOOK_DIR" \
     --input "commit=$COMMIT" \
     --input "describe=$DESCRIBE" \
     --input "dirty=$DIRTY" \
@@ -86,11 +86,11 @@ podman run --rm \
 # value these commands actually printed.
 PDF_PATH="$BOOK_DIR/$OUT_REL"
 PDF_SHA256="$(sha256sum "$PDF_PATH" | cut -d' ' -f1)"
-PAGES="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" "$BOOK_IMAGE" pdfinfo "$BOOK_DIR/$OUT_REL" | sed -n 's/^Pages:[[:space:]]*//p')"
-FONTS_RAW="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" "$BOOK_IMAGE" pdffonts "$BOOK_DIR/$OUT_REL")"
+PAGES="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" --entrypoint pdfinfo "$BOOK_IMAGE" "$BOOK_DIR/$OUT_REL" | sed -n 's/^Pages:[[:space:]]*//p')"
+FONTS_RAW="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" --entrypoint pdffonts "$BOOK_IMAGE" "$BOOK_DIR/$OUT_REL")"
 FONTS_TOTAL="$(printf '%s\n' "$FONTS_RAW" | awk 'NR>2 && NF>0' | wc -l | tr -d ' ')"
 FONTS_EMBEDDED="$(printf '%s\n' "$FONTS_RAW" | awk 'NR>2 && $4=="yes"' | wc -l | tr -d ' ')"
-TEXT="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" "$BOOK_IMAGE" pdftotext "$BOOK_DIR/$OUT_REL" -)"
+TEXT="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" --entrypoint pdftotext "$BOOK_IMAGE" "$BOOK_DIR/$OUT_REL" -)"
 CLAIM_COUNT="$(printf '%s' "$TEXT" | grep -oE 'v2-[a-z0-9-]+' | sort -u | wc -l | tr -d ' ')"
 DIGEST_IN_PDF="false"
 if printf '%s' "$TEXT" | grep -q "$EVIDENCE_DIGEST"; then DIGEST_IN_PDF="true"; fi
