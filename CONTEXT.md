@@ -260,6 +260,25 @@ history import, status reconciliation, reviews, and synthesis remain queued behi
 This planning checkpoint started no benchmark and does not itself provide queue CLI or
 book implementation evidence.
 
+### Task — AI task queue v1 (2026-09-22): **implemented on its branch, submitted for HIGH review**
+
+[`task-20260922T025912Z-queue-v1`](docs/ai-work/tasks/2026/09/task-20260922T025912Z-queue-v1/) is
+implemented on branch `repo/ai-task-queue-v1` (worktree `.worktrees/ai-task-queue-v1`, cut from
+`main` at `eef4d81`). The state is `awaiting_review`; **nothing is merged, tagged or pushed**, and
+the required tag `repo/ai-task-queue-v1` is reserved for the integrated state.
+
+The Go CLI lives in [`tools/queue/`](tools/queue/README.md) and runs from the pinned image
+`localhost/ads-queue:1` (`QUEUE_IMAGE` in `infra/versions.env`; the image build runs
+`go vet ./... && go test ./...` as a gate). All commands in the brief are implemented; live
+coordination is `refs/ads-queue/live/<task-id>` plus
+`refs/ads-queue/locks/main-integration` written with `git update-ref` compare-and-swap and
+reflogs, and committed `events/*.json` remain the permanent archive. Attempt
+`attempt-20260922T101824Z-e309f5` holds the Decision Log, evidence and residual risks; the task's
+`STATUS.md` and events are authoritative for state. `queue audit` on this repository's archive is
+clean (16 tasks, 0 errors, 0 warnings). Implementation commit `a35de47`, attempt records
+`276872c`, wrapper identity fix `ac2e94e`. HIGH review is the next step; integration and the
+milestone tag come after approval.
+
 ### Task — recency question and operational reports, EH-02 (2026-09-15 → 2026-09-21): **complete, merged into `main`**
 
 **Worktree `.worktrees/recency-reports`, branch `repo/recency-and-reports`, from `7123da6`.**

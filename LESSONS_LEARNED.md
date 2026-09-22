@@ -1073,3 +1073,44 @@ was applied mechanically before the runs. The runs then took 2 h 49 min, 2 h 09 
 suggested. The guard's letter was satisfied and its spirit was not. **Size a run from
 per-tier time budgets measured on the slowest topology, and re-estimate after the first arm
 rather than after the last.**
+
+## Building the AI work queue (queue v1)
+
+### Relative worktree paths are portable, but old Git cannot *list* them
+
+The repository stores a linked worktree's `.git` link and the
+`.git/worktrees/<name>/gitdir` back-pointer as relative paths, so the same registration
+resolves under WSL Git, native Windows Git and a Podman bind mount. Git reads relative links
+even when it does not write them — `git -C <worktree>` works and Windows Git 2.53 handles
+them — but **WSL Git 2.43 resolves the back-pointer against the current directory in
+`git worktree list`, reports the worktree `prunable`, and prints the path relative**, so a
+tool that checks "is this directory a registered worktree?" through `worktree list` decides
+the worktree does not exist. Detect it from the filesystem and by opening it
+(`git rev-parse --git-common-dir` inside the directory), not from `worktree list`.
+
+### A container that mounts one worktree hides the repository
+
+Mounting only the invoking worktree put `<common>/.git` outside the container, and every git
+command inside failed with `not a git repository: <common>/.git/worktrees/<name>`. Mount the
+**common repository root** at the same absolute path the shell uses. The same check exposes a
+second trap: task records store `canonical_worktree` relative to the common root, so a CLI
+running inside a linked worktree must resolve it against `--git-common-dir`'s parent, not
+the current working tree.
+
+### The container has no git author
+
+A commit made by a CLI inside the pinned image failed with git's "Author identity unknown":
+the repository's `user.name`/`user.email` lived in the host's global config, which the
+container does not see. Forward `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the host repository's
+own identity in the wrapper; do not invent an author inside the tool.
+
+### An event that cites a file must commit the file
+
+The queue's `publish`, `review` and `escalate` wrote `task.json`/`REVIEW.md`/`ESCALATIONS.md`
+and then committed only the event and `STATUS.md`. The files stayed untracked while the event
+claimed they existed, so a fresh clone (and, later, the merge) would have lost them. The test
+suite caught it only because a worktree checks out a *committed* tree: `TestFullLifecycle`
+and `TestFreshCloneReconstruction` failed with a missing `task.json`. **When a record names
+evidence, commit the evidence in the same step as the record**, and let a test read the
+artifact from a clean checkout rather than from the author's working directory.
+
