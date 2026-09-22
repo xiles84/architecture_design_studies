@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-history-status-reconcile` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=unknown tool=unknown effort=unknown session=session-20260922T113300Z-high capability=HIGH role=planner` |
-| Last event | `event-20260922T113709Z-released` |
-| Updated at | `2026-09-22T11:37:09Z` |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20260922T131747Z-cb535f` |
+| Active worker | `model=unknown tool=unknown effort=unknown session=session-20260922T132700Z-high capability=HIGH role=executor` |
+| Last event | `event-20260922T131747Z-claimed` |
+| Updated at | `2026-09-22T13:17:47Z` |
 | Next capability | LOW |
 | Next work role | executor |
 | Branch | `repo/ai-work-history-import` |
 | Worktree | `.worktrees/ai-work-history-import` |
 
-Released to ready. Released to ready: queue v1 is complete, so the history import and status reconciliation may proceed.
+Claimed by model=unknown tool=unknown effort=unknown session=session-20260922T132700Z-high capability=HIGH role=executor until 2026-09-22T15:17:47Z. Worktree `.worktrees/ai-work-history-import`.
