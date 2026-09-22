@@ -46,10 +46,14 @@ summary, not a second ledger.
   `evidence-registry` → the three HIGH reviews + `typst-toolchain` → `book-synthesis-v1` →
   `book-release-review-v1`, then the six scientific protocol tasks.
 - **Book release tag target:** `repo/data-architecture-book-v1` (not yet created).
-- **Brainstorm in progress:** `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions`
-  — deepseek-flash and GPT-5.6 Sol decide the highest-value evidence corrections and model additions
-  for v1 using only the five existing studies. It starts no database, authorizes no measurement and
-  creates no tasks; its findings are not decisions until the owner issues
+- **Brainstorm concluded** (tag `repo/book-evidence-and-model-brainstorm-v1`):
+  `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` — two positions
+  (gpt-5, deepseek-flash), two cross-reviews, one synthesis. It found registry v1 ineligible as the
+  book's numeric source (11 of 12 numeric claims have at least one declared cell name absent from the
+  report they cite; 36 of 43 names resolve nowhere; `failed_cells: 0` where the report says 2 failed)
+  and decided one versioned, attributed evidence-correction package as the sole active claim source,
+  with the fixed six-family taxonomy kept. No measurement was authorized and **no tasks were
+  created**; the owner's next command is
   `CREATE TASKS FROM BRAINSTORM brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions`.
 
 ### Study 01 — charity tree — **complete; recency question analysed**

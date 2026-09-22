@@ -715,6 +715,26 @@ Independent analyses should inspect these definitions before carrying headlines 
 Evidence and database-specific implications are in the
 [GPT-6 Study 01 analysis](studies/01-charity-tree/reports/analyses/20260912-study01--gpt-6--2026-09-12.md).
 
+### A validator that only checks a document against itself cannot detect a wrong identifier
+
+The evidence registry passed `tools/evidence validate` with `0 errors` while its `cells` field
+named designs that do not exist in the reports it cites and its `failed_cells` contradicted them.
+Neither is detectable the way the checks were written: a cell name was compared only against the
+registry's own list, and `failed_cells` against the registry's own selected cells, never against
+the cited run. A computed audit of the twelve numeric claims found 11 with at least one declared
+cell name absent from their report and 36 of 43 names resolving nowhere; the worst mapping is not a
+stale alias but a shifted and partly reversed one (registry `d4-rollup-application` where the
+corpus's D4 is the trigger design), so the declared winner of a headline claim can point a reader
+at a different mechanism. The lesson is not "add more fields": it is that a closed-world check
+proves internal consistency and nothing else. Every identifier that claims to resolve to an
+external artefact needs at least one assertion made **against that artefact**, and a green
+validator must not be read as evidence about the source.
+
+Evidence: `book/evidence/claims.json`; `studies/01-charity-tree/reports/20260912-small.md`;
+`studies/02-ticket-booking/reports/20260913T021206Z.md`; brainstorm
+`brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions`, tag
+`repo/book-evidence-and-model-brainstorm-v1`.
+
 ---
 
 ## Building study 02 (overbooking)
