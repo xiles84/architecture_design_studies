@@ -288,6 +288,12 @@ has tests for every alias, mixed case, whitespace, the excluded terms and role i
 Implementation `a35de47`, STATUS fix `7226e0e`, alias amendment `1acdba1`; the milestone tag
 is `repo/ai-task-queue-v1`.
 
+Post-integration follow-up `repo/queue-v1-ref-fix`: because a task's `required_tag` is usually
+the same as its canonical branch (`repo/<topic>`), a bare `git rev-parse <name>` resolves the
+tag object once the tag exists. `integrate` and `complete` now resolve and merge the branch
+through `refs/heads/` explicitly (`gitx.BranchOID`), with a regression test; the milestone tag
+is not moved.
+
 ### Task — recency question and operational reports, EH-02 (2026-09-15 → 2026-09-21): **complete, merged into `main`**
 
 **Worktree `.worktrees/recency-reports`, branch `repo/recency-and-reports`, from `7123da6`.**

@@ -265,6 +265,21 @@ func (r *Repo) IsAncestor(ancestor, descendant string) bool {
 	return err == nil
 }
 
+// BranchOID returns the commit at the tip of a local branch, resolved through
+// refs/heads explicitly.
+//
+// A bare branch name is ambiguous when a tag of the same name exists, and this
+// repository's tasks routinely set `required_tag` to the canonical branch name
+// (`repo/<topic>`). In that case `git rev-parse <name>` resolves the tag object
+// rather than the branch, so every branch lookup must go through refs/heads.
+func (r *Repo) BranchOID(branch string) (string, error) {
+	out, err := r.Run("rev-parse", "--verify", "refs/heads/"+branch)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
 // TagExists reports whether a tag ref exists.
 func (r *Repo) TagExists(tag string) bool {
 	_, err := r.Run("show-ref", "--verify", "--quiet", "refs/tags/"+tag)

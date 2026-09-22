@@ -342,11 +342,14 @@ func cmdIntegrate(args []string, out io.Writer) error {
 	defer release()
 
 	branch := rec.Task.CanonicalBranch
-	branchOID, err := c.Repo.Run("rev-parse", "--verify", branch)
+	// Resolve the branch through refs/heads and merge that explicit ref: a task
+	// whose required_tag equals its branch name would otherwise make the bare
+	// name ambiguous (rev-parse resolves the tag object, not the branch).
+	branchRef := "refs/heads/" + branch
+	branchOID, err := c.Repo.BranchOID(branch)
 	if err != nil {
 		return failf(1, "integrate: branch %s does not resolve", branch)
 	}
-	branchOID = strings.TrimSpace(branchOID)
 	mainHead, err := main.Head()
 	if err != nil {
 		return err
@@ -355,11 +358,11 @@ func cmdIntegrate(args []string, out io.Writer) error {
 	case main.IsAncestor(branchOID, mainHead):
 		// already integrated
 	case main.IsAncestor(mainHead, branchOID):
-		if _, err := main.Run("merge", "--ff-only", branch); err != nil {
+		if _, err := main.Run("merge", "--ff-only", branchRef); err != nil {
 			return fmt.Errorf("integrate: fast-forward of main failed: %w", err)
 		}
 	default:
-		if _, err := main.Run("merge", "--no-edit", branch); err != nil {
+		if _, err := main.Run("merge", "--no-edit", branchRef); err != nil {
 			_, _ = main.Run("merge", "--abort")
 			return failf(1, "integrate: merging %s into main conflicted; resolve it in the main worktree and retry", branch)
 		}
@@ -448,12 +451,12 @@ func cmdComplete(args []string, out io.Writer) error {
 	if len(reviewDirs(rec)) == 0 {
 		return failf(1, "complete: no reviews/*/REVIEW.md exists for %s", *taskID)
 	}
-	branchOID, err := c.Repo.Run("rev-parse", "--verify", rec.Task.CanonicalBranch)
+	branchOID, err := c.Repo.BranchOID(rec.Task.CanonicalBranch)
 	if err != nil {
 		return failf(1, "complete: branch %s does not resolve", rec.Task.CanonicalBranch)
 	}
 	mainHead, _ := main.Head()
-	if !main.IsAncestor(strings.TrimSpace(branchOID), mainHead) {
+	if !main.IsAncestor(branchOID, mainHead) {
 		return failf(1, "complete: branch %s is not reachable from local main", rec.Task.CanonicalBranch)
 	}
 	if rec.Task.RequiredTag != "" && !main.TagExists(rec.Task.RequiredTag) {
