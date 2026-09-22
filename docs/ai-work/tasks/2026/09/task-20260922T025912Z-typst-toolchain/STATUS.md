@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T025912Z-typst-toolchain` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=unknown tool=unknown effort=unknown session=session-20260922T140800Z-high capability=HIGH role=planner` |
-| Last event | `event-20260922T140646Z-released` |
-| Updated at | `2026-09-22T14:06:46Z` |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20260922T185847Z-3a1c2e` |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor` |
+| Last event | `event-20260922T185847Z-claimed` |
+| Updated at | `2026-09-22T18:58:47Z` |
 | Next capability | LOW |
 | Next work role | executor |
 | Branch | `repo/book-typst-toolchain` |
 | Worktree | `.worktrees/book-typst-toolchain` |
 
-Released to ready. Released to ready: the evidence registry is integrated.
+Claimed by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor until 2026-09-22T20:58:47Z. Worktree `.worktrees/book-typst-toolchain`.
