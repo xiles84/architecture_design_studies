@@ -20,6 +20,15 @@ decisions as Escalation Required. Expected waits remain execution work. Each ite
 names the next role and any agreed model/effort, and context distinguishes a model-switch
 checkpoint from a finished, merged task. These rules now live in AGENTS.md for all studies.
 
+The final review must verify the actual tag targets and main ancestry: a committed
+receipt can only name its own final tag as intended before that tag is created. EH-01's
+receipt retained this forward-looking wording even after integration succeeded. The
+next HIGH review records the observed commit/tag outcome without rewriting that
+historical receipt. When only a documentation merge remains, HIGH can give LOW explicit
+preservation and completion conditions so a routine lock wait does not create another
+unnecessary review cycle. Keep the already merged implementation distinct from any
+new review documents still awaiting integration.
+
 ### Isolation needs an explicit integration step
 
 A completed Study 01 branch contained the results and updated rules while `main`
@@ -30,6 +39,25 @@ current `main` in the task worktree, preserve concurrent contributions when reso
 conflicts, validate, then update `main` and verify commit reachability. Wait before
 changing shared scripts used by a running benchmark. A tagged branch alone is not a
 completed integration; remote pushes and pulls remain separate owner actions.
+
+Check the live lock's branch/worktree labels as well as `git worktree list`. During
+the 2026-09-15 HIGH review, the peer Study 03 matrix still identified the main checkout
+despite the standing isolation rule. Keep working in the owned worktree, leave the
+active run in place, and wait for a safe shared-main update; do not assume another
+agent has already isolated its work merely because the rule exists.
+
+### Worktree isolation prevents collisions; reconciliation prevents a patchwork
+
+Separate worktrees let agents edit independently, but they do not make two completed
+branches read like one project. The agent merging later owns that integration: bring
+current `main` into the task branch, reduce living documents to one current status,
+combine duplicate lessons without losing either session's evidence, and keep rules,
+terminology, READMEs and indexes consistent. Preserve attributed analyses, discussions,
+handoffs, progress logs, escalations, reports, results, manifests, tags and history.
+A real disagreement gets a separate signed response; it is not smoothed away during
+reconciliation. This Study 01 closeout encountered Study 03 first as a running matrix
+and later as a completed signed study; retaining both as current status would have made
+the repository read like stitched session notes. The canonical hard rule is in AGENTS.md.
 
 ### A study-specific finding is not automatically a future-study requirement
 
@@ -342,6 +370,146 @@ lesson: when application code and the database both write into the same column, 
 not agree on formatting, so never build a correctness check on byte equality.
 
 ---
+
+### "Publish only after the commit" does not make cache-aside safe
+
+A reader that begins its cache fill *before* a writer's invalidation holds a state that is committed and
+**superseded**. Publishing it afterwards puts back exactly the value the writer removed. Study 05 measured
+~14 000 stale-after-ack reads in a strict cell whose only rule was "publish after the commit".
+
+What closes it is a per-key **invalidation fence in the cache**: the writer advances the fence and removes
+the value atomically; a fill captures the fence *before* its database snapshot and stamps it on the entry;
+a publish is refused unless the key's fence is unchanged. Two details are load-bearing, and both were found
+by failing cells rather than by reasoning:
+
+* a strict writer must fence **before and after** the commit — one fence leaves a window in which a reader
+  captures the *new* fence and then reads the *pre-mutation* state, so the check passes;
+* the ledger's freshness requirement must move at the **acknowledgement**, not at the commit, because the
+  contract is written against the ack and a strict writer fences before it acks. Treating the commit as the
+  boundary made correct cells look wrong.
+
+Study 05's `publishes_refused_by_fence` (61–85 refusals per cell) is the evidence that the race is real, not
+theoretical. The DB version token is **not** what fixes this; the fence is, and it works for a legacy model
+that cannot be modified. A version token is still what lets a multi-instance *local* cache validate a hit.
+
+### A harness that mis-attributes one write fabricates correctness findings
+
+Study 05's hotspot phase built a mutation and then overwrote its `PersonID` to force it onto a hot donor.
+For a correct/delete/reassign the donation belonged to the donor chosen inside the builder, so the database
+changed a row the ledger attributed to someone else and the two diverged. The gate reported it as an
+**impossible cache value** and failed a fault cell whose own logic was correct.
+
+The general rule: a mutation must be **built for** its target, never adjusted afterwards. The same class of
+bug appeared twice more in the same session — a correction written as an absolute amount made two concurrent
+corrections order-sensitive (fixed by making both the SQL and the ledger relative), and a *single* pending
+state slot lost one of two simultaneously-committed states (fixed with a reference-counted set).
+
+### A cache that was never started looks exactly like a cache that is merely cold
+
+Study 05's runner called `need_redis` for a helper named `needs_redis`, so no cache container was ever
+started — and because a cache error degrades to an authoritative read by design, every cache scenario
+"passed" its phases while measuring nothing but the database. Only the fault that demanded a working lease
+failed, and it looked like a lease bug for four dev iterations.
+
+Two lessons, and the cheap one first: check the helper name you are calling. The durable one: **a scenario
+that needs a cache must prove the cache answers before it measures anything** (a `PING` gate in the cell,
+not a promise in the runner). Absence must never be indistinguishable from a cold start.
+
+### A zero value that means "unset" is a cache that does not exist
+
+`hasCache()` was `backend != "none"`. The zero value of the backend field is `""`, so three reference cells
+that simply did not set it were treated as cache scenarios and panicked on an empty instance list instead of
+running as the no-cache baselines they were. Ask for the backends you support explicitly
+(`backend == memory || backend == redis`); never test a field against one sentinel value when the field has
+a zero value that is neither.
+
+### A phase that measures a different deployment must not leave state behind for the next one
+
+Study 05's three-instance phase measures a different deployment through its own instances. Its writes cannot
+invalidate the base adapter's stores, so entries written before it survived it and a later strict read
+looked like a violation of a deployment that never produced it. The phase now starts and ends cold. Any
+phase that swaps in a different set of components owns the state it leaves.
+
+### Write-phase counters and end-state gauges are not the same reading
+
+Study 05's cache snapshot happens once, at the end of a cell, after the fault phases have flushed — so
+`items` and `resident_bytes` describe an empty cache while `evictions`, `fills` and `publishes` describe the
+whole cell. Both are worth reporting, but a reader who takes the gauge for steady state is misled. Read
+gauges at the moment they mean something, or say in the report which moment that is.
+
+### A bypass read cannot be stale — if one is, the accounting is wrong, not the design
+
+Study 05's strict failures were first read as a cache-design problem. Instrumenting the first few
+stale reads in full showed that some of them came from an **authoritative database read** returning
+a state one and two versions behind the requirement. A bypass read consults no cache and runs in one
+repeatable-read transaction, so no cache mechanism can produce that: the *ledger's* freshness
+requirement was ahead of the database's own state, i.e. the harness was manufacturing violations.
+
+The lesson generalises past caches: **each wrong-read bucket must name a mechanism that could
+physically produce it, and a bucket whose mechanism does not exist in that path is a harness bug.**
+Practically: keep the first few failing observations in full — source, both fences, both sequences,
+versions behind, whether a write overlapped — in the result file. A count tells you a rule failed;
+only the observation tells you which rule, and the source field is what separates "the design is
+wrong" from "the accounting is wrong". Add the assertion that makes the impossible case fail loudly
+(`Required()` must never be ahead of the database) before drawing any conclusion from the counter.
+
+### A mutation must enforce the owner it observed, or the ledger and the database diverge
+
+Study 05 built each write from the ledger's state and then applied it to the child row **by id
+only**. Under deliberately concurrent writes a second writer could move or delete that row in
+between, so the statement acted on a row that belonged to somebody else (or matched nothing and
+succeeded silently) while the ledger applied the change to the person it had observed. The two
+diverged, and the harness then reported impossible cache values and audit mismatches that belonged
+to no design.
+
+Two rules follow, and both are cheap:
+
+* **Every statement that acts on a child row carries the parent it was observed under**
+  (`WHERE donation_id = $1 AND person_id = $2`). A refused write is a *correct* outcome, not an
+  error.
+* **A statement that matched no row means nothing changed** — so the ledger must not change either.
+  Report it as its own outcome (`errNoEffect`), acknowledge it as a no-op, and count it, so a
+  workload that has quietly stopped doing work cannot hide inside a clean run.
+
+One more, from the same repair: when a mutation becomes *relative* in the ledger (a correction is a
+delta), it must become relative in **every** SQL catalogue that pairs with it. Three reference
+schemas still used an absolute `SET amount_cents = $2` and silently wrote the delta as the amount.
+
+### A ledger that disagrees with the database manufactures correctness findings
+
+Study 05's most expensive lesson, because it cost four rounds of investigation and briefly made the study's
+headline a harness artifact. The ledger's history must be appended in the **database's commit order**. Two
+concurrent writers on one key can commit in one order and reach the handler in the other, after which a
+legitimate read looks "one state behind" and a correct design is failed.
+
+Two diagnostics are worth their weight, and both were what finally settled it:
+
+* **A design with NO cache showing the cache's symptom proves the harness is at fault.** The violation
+  reproduced in a plain database-only reference cell, which no cache mechanism can explain.
+* **Separate the sequential case from the concurrent one.** The acknowledgement checker writes and then
+  verifies from a SECOND database session; with one writer it reported zero violations in 150 attempts
+  before and after the fix, which killed "the ack is early" and left "the bookkeeping is out of order".
+  A writer verifying through its own pool can see its own commit and turn a real defect into a clean result.
+
+The fix is small: serialise writes that touch one key (sharded mutexes, never across keys), which leaves
+inter-key parallelism — the thing contention phases measure — untouched.
+
+### The checker can have the bug it is looking for
+
+Study 05's acknowledgement checker captured the freshness requirement *after* its verification read. A
+concurrent writer could therefore move the requirement between the read and the capture, and the checker
+manufactured a violation — repeatedly, and plausibly enough to be believed. The rule it violated is the
+study's own central rule: **capture the requirement at the start of the read, before any I/O**. When you
+write a checker, re-derive its invariants from first principles rather than trusting that it is immune to
+the mistake it detects.
+
+### A negative control is judged by its fault, never by the invariant it breaks
+
+Two defects in one: the unsafe-write control had to lose a *counter* as well as break the version invariant,
+so a run where the invariant visibly broke had the harness refusing to license the guarded designs; and the
+controls were being subjected to the ledger and acknowledgement assertions, which they exist to violate.
+A control's verdict is "did its own fault fire", with the evidence recorded; every other gate must skip it,
+and the skip belongs in the report rather than in a silent branch.
 
 ## Hardware and containers
 

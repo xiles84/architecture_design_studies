@@ -4,7 +4,7 @@ The living state of this repository. Updated whenever a study starts, finishes, 
 changes shape — so that anyone (or any future session) picking this up knows where things
 stand without reading the git log.
 
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-21
 
 ---
 
@@ -38,6 +38,12 @@ OpenAI and others) work in this repository, sometimes at the same time.
   default on 2026-09-14. Resolve conflicts and validate in the task worktree, preserve
   all sessions' work, then integrate into `main` and tag the result. No extra routine
   merge approval is required; pushing and pulling remain the owner's responsibility.
+- **Always assume another AI is active:** work only in the task's own worktree, never
+  disturb another task's branch, files, containers or run, and inspect the shared lock
+  before measurement. The agent merging later reconciles current status, lessons, rules,
+  indexes and terminology so `main` reads as one project while attributed artifacts and
+  disagreements remain intact. The canonical rule is in
+  [AGENTS.md](AGENTS.md#hard-rule-assume-a-concurrent-agent-the-later-merger-reconciles).
 - **One measurement at a time on this machine.** Code and analyses in parallel; dev checks
   and matrices never. Runners take the **benchmark lock** (`run_lock_acquire` in
   `infra/lib.sh`, a podman volume named `ads-run-lock`); a second runner from any worktree
@@ -48,6 +54,14 @@ OpenAI and others) work in this repository, sometimes at the same time.
 
 | Tag | Marks |
 |---|---|
+| `study-04/v0-handoff` | study 04 (configuration portal) Execution Handoff EH-04 rev 1, escalation log, progress log, scoped LF policy |
+| `study-04/v0.1-handoff-amendment-01` | study 04: AM-01 executed — WSL reaches the documented Podman engine; phase B bind-mount probe |
+| `repo/wsl-podman-bridge` | infra/lib.sh: engine resolver + `podman()` + `winpath()`; studies 01-03 untouched |
+| `repo/open-loop-arrivals` | platform: the open-loop arrival driver cadence experiments need |
+| `study-04/v1-harness` | study 04: 10-design SQL catalogue, harness, gate, ledger, audits, report generator; dev-checked |
+| `run/04-configuration-portal/20260921T1215Z-small` | commit that produced study 04's small `pg-single` matrix |
+| `study-04/v1-measured` | study 04: small matrix measured and reported; both controls fired |
+| `study-04/v1-analysis` | study 04: signed analysis and mechanism discussion companion |
 | `study-01/v1` | study 01 code and reports behind its first analysis (`795420b`) |
 | `study-01/v2-second-analysis` | study 01 with the independent GPT-6 analysis and regenerated reports (`918a90f`) |
 | `study-01/v2-before-enhancements` | study 01 before the v3 follow-ups (GPT-6 session) |
@@ -63,6 +77,9 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `repo/study-comparison-minimums` | future-study requirements for calculated sizing, information placement, data colocation and concurrency strategies |
 | `repo/worktree-to-main-workflow` | integrated task workflow: every task uses an isolated worktree and merges completed changes into local main |
 | `study-01/v3-integrated` | integrated Study 01 v3 local enhancements, final analysis and discussion companions |
+| `study-01/v3-high-review` | HIGH acceptance checkpoint for the integrated v3 evidence and EH-02 revision 1 |
+| `study-01/v3-high-review-r2` | amended HIGH checkpoint that preserved the peer's main-checkout reservation through Study 03 step 11 |
+| `study-01/v3-reviewed` | final integrated Study 01 v3 state: accepted HIGH review, reconciled project context and LOW completion receipt |
 | `repo/study01-integration-handoff-v1` | HIGH planning checkpoint for the LOW integration steps and subsequent HIGH review |
 | `study-02/v1.1-counter-discussion` | study 02: discussion companion "counter cost vs index cost" and a dated note in the analysis answering the owner's question |
 | `study-03/v0-handoff` | study 03 (reserved seating) Execution Handoff and escalation log, before any code |
@@ -101,6 +118,11 @@ OpenAI and others) work in this repository, sometimes at the same time.
 | `study-03/v2-measured` | study 03 v2 measured: the reports matrix (digest `2f5b619430c2e7a7`) with its report |
 | `study-02/v2-analysis` | study 02 v2 analysed: four signed analyses (reports, 32 buyers, 128 buyers) and the P3 → X1 discussion companion, report indexes regenerated |
 | `study-03/v2-analysis` | study 03 v2 analysed: the signed analysis of the reports matrix, report index regenerated |
+| `study-05/v0-handoff` | study 05 (external cache) Execution Handoff EH-05 rev 1, escalation log, progress log, scoped LF policy, Redis image pin |
+| `study-05/v1-harness` | study 05: scenario registry, both cache backends, lease, oracle, wrong-read accounting, faults, report, containerised runner |
+| `run/05-cache-consistency/20260921T-survey` | commit that produced study 05's `small` `pg-single` survey (`567778f`) |
+| `study-05/v1-measured` | study 05: `small` survey measured (27 cells: 21 core + 3 reference + controls), reported |
+| `study-05/v1-analysis` | study 05: signed analysis and mechanism companion, including the nine failed cells and the coverage gaps |
 
 Check `git tag -n1` for the authoritative list; this table can lag behind a session that
 has not updated it yet.
@@ -128,20 +150,31 @@ These are prospective requirements; they do not imply that previous runs measure
 every dimension. Context and lessons alone had not made all four requirements mandatory;
 the new AGENTS.md section does so explicitly.
 
-**LOW integration closeout, 2026-09-14 — next HIGH:** the HIGH planning pass incorporated
-local `main` at `025b72f` into `study-01/measurement-enhancements` and published EH-01
-at checkpoint `32aec56`. LOW repeated the mapped preflight: both worktrees were clean,
-no benchmark container was running, the task held the short integration lock, all four
-run tags resolved to their producing commits and the generated report digests/indexes
-matched. It fast-forwarded `main` to `32aec56`. This closeout revision records the final
-integration receipt and is the intended target of the immutable
-`repo/worktree-to-main-workflow` and `study-01/v3-integrated` tags immediately after its
-fast-forward. The
+**Study 01 v3 HIGH review accepted and integrated, 2026-09-20 — complete:**
+EH-01's final local integration is
+verified at `db77fe60b5bfe78b29ec04db9150f33cc1a0bb49`. Both annotated tags,
+`repo/worktree-to-main-workflow` and `study-01/v3-integrated`, resolve to that commit,
+which is an ancestor of current local `main`. The 261 saved cells retain their producing
+commits, images, environment and four report digests. The six expected D9 failures stay
+excluded from performance conclusions. HIGH accepts the existing local enhancements,
+concise final analysis, signed discussions and prospective study requirements.
+
+The task branch incorporated committed main through `7123da6`, including the completed
+and signed Study 03 v1 analysis and the repository-wide concurrent-agent reconciliation
+rule. Its former main-checkout reservation ended with Study 03 step 11. LOW reconciled
+the living documents without changing attributed artifacts, committed merge checkpoint
+`0e7c05fa0b112ab33023b07af032500dab4aae8c`, and fast-forwarded local `main` to it under
+the owned integration lock after the concurrent dev check released the runtime. The
+separate `.worktrees/recency-reports` branch, files, commits and containers were not
+changed or adopted. This completion receipt is the final mapped EH-02 update and is
+tagged `study-01/v3-reviewed`; no further HIGH pass or model switch is required. The
 [Execution Handoff](docs/handoffs/20260914-study01-integration/HANDOFF.md),
 [progress](docs/handoffs/20260914-study01-integration/PROGRESS.md),
 [execution receipt](docs/handoffs/20260914-study01-integration/EXECUTION_RESULT.md) and
 [escalation log](docs/handoffs/20260914-study01-integration/ESCALATIONS.md) preserve the
-iteration. Study 03's ER-02 remains an independent open HIGH decision.
+iteration; the [HIGH review](docs/handoffs/20260914-study01-integration/HIGH_REVIEW.md)
+records the acceptance evidence. Study 03's completed state and decisions remain in its
+own section and logs.
 
 ## Model roles for every study
 
@@ -151,9 +184,11 @@ its mapped steps, unmapped decisions become Escalation Required, and HIGH valida
 analyses. Each iteration names the next model level and any agreed effort. Routine
 waiting remains LOW work. No automatic model change is implied.
 
-Current task: HIGH = the user's high-level model/effort (the planning pass was GPT-6
-via Codex; exact selected effort was not exposed); LOW = GPT-5 via Codex desktop under
-the user-selected low role (exact effort not exposed). LOW completed EH-01; final evidence
+Current task: HIGH planning/review = GPT-6 via Codex (exact selected effort not exposed);
+EH-01's executor recorded GPT-5 via Codex desktop under the user-selected LOW role
+(exact effort not exposed). HIGH accepted EH-01, and GPT-5 completed EH-02's mapped
+reconciliation, safe local-main integration and final tag in the LOW role. This task has
+no remaining model iteration.
 Study 03's existing model/effort mapping below remains specific to that study.
 
 ## What this project is
@@ -208,7 +243,7 @@ directory per design), `diagrams/` (PlantUML sources + rendered SVG), `harness/`
 
 ## Current state
 
-### Task in progress — recency question and operational reports (from 2026-09-15)
+### Task — recency question and operational reports, EH-02 (2026-09-15 → 2026-09-21): **complete, merged into `main`**
 
 **Worktree `.worktrees/recency-reports`, branch `repo/recency-and-reports`, from `7123da6`.**
 Owner's request of 2026-09-15: study 01 gains the question *"which people made their last
@@ -374,13 +409,15 @@ GPT-6's "What I would measure next". The protocol is in
 growth/churn, fixed-reader contention, YB exceptions and deployment controls were
 measured without migrating the original harness. Real network separation needs other hosts.
 
-Implementation is isolated in `.worktrees/study01-v3`, branch
+The implementation was developed in `.worktrees/study01-v3`, branch
 `study-01/measurement-enhancements` (GPT-6 through Codex). D11–D17 and the separate
 `-cmd experiment` / `-cmd report-enhancements` path are implemented. The v3 runner
 creates a run tag, pins the image ID, takes the shared benchmark lock and keeps every
 fresh-load trial. Containerized catalogue/control, scheduler overload and grouping tests
 pass. All seven variants also passed the live PostgreSQL/YugabyteDB gates (14 checks per cell).
-The task integrates this branch into local `main` under the standing completion rule.
+The implementation is already integrated into local `main` at `study-01/v3-integrated`;
+the subsequent HIGH review and LOW completion receipt are integrated at
+`study-01/v3-reviewed`.
 
 **Completed:** `20260913T124917Z-v3`, 14 successful verification cells
 (seven new variants on PostgreSQL and YugabyteDB single-node), run tag
@@ -424,8 +461,9 @@ Final-phase donor-read medians at 256 MiB were D3 4,578.18/s and D6 16,034.40/s;
 at 3 GiB they were D3 25,222.57/s and D6 15,415.07/s. The same dataset now
 supports a memory-configuration-dependent reversal; it does not isolate the container
 ceiling from PostgreSQL memory settings. This run removed its database and released
-its lock. On the 2026-09-14 continuation, the machine lock belongs to Study 03
-`devchecks/dc11-yb3-subset` in the owner's main worktree; do not disturb that run.
+its lock. During the 2026-09-14 continuation, Study 03's historical
+`devchecks/dc11-yb3-subset` held the machine lock; that wait ended and Study 03 v1 later
+completed. Current runtime ownership always comes from the live lock and current context.
 
 **Reporting change:** methodology 11b keeps the final signed analysis concise and moves
 detailed design comparisons and analyst exchanges to signed `reports/discussions/`
@@ -435,8 +473,9 @@ companions, using `docs/templates/DISCUSSION.md`. Original published analyses st
 links four signed [discussion companions](studies/01-charity-tree/reports/discussions/README.md).
 All 261 cells completed across four runs; six expected D9 cache-control failures remain
 invalid for performance conclusions. The final milestone is `study-01/v3-enhancements`;
-source/run tags and digests remain independent of the report/analysis commit. The agent
-merges branch `study-01/measurement-enhancements` locally; the owner controls remote pushes.
+source/run tags and digests remain independent of the report/analysis commit. The branch
+was integrated locally at `db77fe6`; the owner controls remote pushes. HIGH accepted
+the existing evidence on 2026-09-15; EH-02 covers only the later review-document merge.
 The [final artifact validation](studies/01-charity-tree/reports/20260914-v3-artifact-validation.md)
 records provenance/link checks and the preserved editions from report regeneration.
 
@@ -809,6 +848,236 @@ seat being sold twice. The hard parts become:
 - **Experiments:** a hot-drop race with seat choice and deferred confirmers on real
   40-minute holds, and a compressed-time lifecycle with a sweeper outage.
 - **Connections** are spread over all three YugabyteDB nodes.
+
+### Study 04 — configuration portal (product → installed product → configuration entry)
+
+**Status (2026-09-21):** measured and analysed on PostgreSQL single-node. Tagged
+`study-04/v0-handoff`, `study-04/v0.1-handoff-amendment-01`, `study-04/v1-harness`,
+`study-04/v1-measured`, `study-04/v1-analysis`. Nothing is running; the benchmark lock is free. One
+agent, DeepSeek HIGH (`deepseek-flash`; effort and tool identity not exposed by the session),
+planned, implemented, measured, validated and analysed this study — there is no LOW executor and no
+model switch, which the analysis states as a limitation.
+
+**Measured run `20260921T1215Z-small`** (tag `run/04-configuration-portal/20260921T1215Z-small`,
+inputs digest `ab0f6ef5e5500775`): ten designs at scale `small` on `pg-single`, ten cells, none
+failed, both negative controls fired. Headlines, all from
+[the signed analysis](studies/04-configuration-portal/reports/analyses/20260921T1215Z-small--deepseek-flash--2026-09-21.md):
+a lock-before-update delivered 886 ops/s against a version check's 503 at identical correctness,
+with 545 retries and 10 560 conflicts on the optimistic side; the unchecked read-modify-write
+acknowledged 3 416 increments and left the counter at 215 (**3 201 lost updates, 93.7 %**); a parent
+rollup makes the portal overview ~15x faster while the trigger variant costs 6.9x on
+whole-configuration replacement; the same logical configuration is 10.5x smaller as one document.
+**The run's principal weakness**: reads whose SQL is identical across the eight row designs spread
+by 65 %, so no read difference below ~1.7x in this digest is attributable. Clause: ten of the
+eighteen designs are implemented; cadence, churn, deployment controls and repeated trials are
+mapped and not run, and the analysis records them as coverage gaps.
+
+The portal is used by other products: all configuration creation, modification, publication and
+retrieval goes through it and its database. Configuration belongs to an **installed product** (one
+deployment of a **product definition**, in an **environment**, optionally per **business unit**),
+never to the product definition itself; several installations of one definition may share an
+environment.
+
+- Specification: [`studies/04-configuration-portal/HANDOFF.md`](studies/04-configuration-portal/HANDOFF.md)
+  (`EH-04` revision 1). Escalations: `ESCALATIONS.md`; step log: `PROGRESS.md`.
+- **18 designs**: `n0`–`n4` normalized (index control, reference, rolldown, trigger rollup, app
+  rollup); `d1`–`d4` document (one-to-one row, embedded on the parent, section-sharded, JSON path
+  update); `h1` normalized rows plus a materialized read representation; `s1` immutable snapshots
+  with an atomic revision pointer, `s2` append-only history plus materialized current state;
+  `y1`/`y2` colocated vs non-colocated (YugabyteDB only); `c1`/`c2` optimistic vs pessimistic
+  concurrency; `x1`/`x2` the two negative controls (lost update, rollup drift).
+- **INV-1…INV-13** verified in Go from the generated dataset; correctness gates timing.
+- **Cardinality tiers 1, 10, 30, 60, 120, 500** — 60 mandatory — plus a bounded skewed
+  distribution. The controlled comparisons hold total entries, then total serialized bytes,
+  approximately constant while entries per installed product changes; a **fixed fleet** is a
+  separately labelled third scenario.
+- **Cadence is a rate, not a wait:** λ = installed products / period, i.e. 0.0058–500 updates/s for
+  a 500-product fleet. Jittered arrivals and synchronized bursts; every calculated capacity is
+  labelled a projection and never presented as a measured temporal result.
+- This session's measurement scope, agreed with the owner, is **prove the pipeline**: phases A–C
+  plus a reduced phase D (a small `pg-single` matrix). Full-breadth D and phases E–J are mapped in
+  the handoff for a later session.
+
+**04-ER-01 (decided):** the preflight assumed a native WSL `podman`; there is none. The documented
+engine is reachable only through the Windows `podman.exe`, which from WSL already reports the same
+server, images, volumes and benchmark-lock state. AM-01 decides that WSL drives that engine through
+`podman.exe` via an additive resolver in `infra/lib.sh`, and that a WSL-local podman is never
+initialised — a second engine would carry no shared benchmark lock, which is the failure the lock
+exists to prevent. Recorded in `ESCALATIONS.md`.
+
+**Integration (2026-09-21).** This task's changes merge into local `main` as a **fast-forward**:
+`main` was at `df13f2a` when the task branch was cut from it and did not move, so no merge commit
+and no reconciliation of a concurrent agent's edits were required. The main checkout's working
+tree carried 1970 CRLF-vs-LF phantom modifications on arrival; `git diff --ignore-cr-at-eol --quiet`
+exited 0 over all of them (every differing file differed only by CR at end of line, nothing staged,
+nothing untracked), so the working tree was normalized to its own LF index and `git status` is now
+clean there. No index entry, no commit and no tag was changed by that normalization. The task
+commits `bd2b825`, `8f02c53`, `2e95990`, `5e15abb`, `73eaf14` and `40f3294` are reachable from
+`main`; the integrated state is tagged `study-04/v1-integrated`. Nothing was pushed or pulled.
+
+**Environment:** `host-zenbook-ux5406sa` re-verified live on 2026-09-21 — 8 CPUs,
+16 496 422 912 bytes, kernel `6.6.87.2-microsoft-standard-WSL2`, host ASUS Zenbook S 14 UX5406SA.
+`podman machine inspect` still shows its stale `init` value of 4 CPUs / 2048 MiB; the live guest is
+the environment page's 8 CPU / ≈15.36 GiB, and no machine was created, resized or started.
+
+### Study 05 — external cache throughput and consistency (donor portal)
+
+**Question.** For a database-backed donor portal, what does an external cache buy in throughput and latency
+over the same-run no-cache baseline, what does strict freshness cost, how often and how badly is a relaxed
+cache wrong, and what can a *legacy* database model that may not be modified do compared with an owned one
+that may carry a version token and an outbox?
+
+**Where.** `studies/05-cache-consistency/` — EH-05 rev 1 (`HANDOFF.md`), `PROGRESS.md`, `ESCALATIONS.md`
+(two decided items, `05-ER-01`/`05-ER-02`), 21 core scenarios plus 3 database-layout reference cells and 2
+controls, SQL in `sql/{legacy,owned,reference}/`, the Go harness in `harness/`, runners `run-study.sh` and
+`probe-cache.sh`, the cache topology script `infra/redis.sh`.
+
+**Scenario ids are a product of dimensions**, not a family of copies:
+`<model>-<version>-<backend>-<strategy>-<freshness>-<writers>`, e.g.
+`owned-opt-redis-aside-strict-coord` or `legacy-na-memory-through-relaxed-ext20`.
+
+**The run.** `20260921T-survey`: scale `small` (800 donors), PostgreSQL 17.11 `pg-single` plus pinned Redis
+7.4.11, resource framing `db-only` (database 2 CPUs/3 GiB), seed 42, fault seed 4242, code `567778f`,
+inputs digest **`8ff86dc9e5228e86`**, report `reports/20260921T-survey.md`.
+
+**Result, in one line.** Caching added 2.0×–4.4× over the same-run no-cache baseline (3 914 → 15 018 warm
+reads/s for the best cell); strict freshness cost nothing measurable in read throughput in a clean pair;
+a single-instance relaxed cache was wrong for 0.04 %–0.3 % of reads while writes were in flight and for
+none in the warm read-only phase; a **three-instance shared-Redis cache was wrong for ~86 % of reads**, the
+run's headline; and **nine of 27 cells failed their correctness rules** and support no conclusion.
+
+**Correctness regime (the deliverable that matters most).** Content-hash freshness judged by an independent
+Go oracle and an operation ledger, not by re-reading the database on every hit; every payload-producing read
+in one repeatable-read transaction; every fill and refresh under a per-key lease; an exact byte-bounded LRU
+in process and `allkeys-lru` with recorded `maxmemory`/`maxmemory-samples` in Redis; a 300 s hard TTL that is
+never shortened plus probabilistic early expiry verified by fake-clock unit tests at 0/75/150/225/300 s; six
+deterministic fault phases; a stale-read negative control that fires; and a dirty-cache-write audit that
+injects a record from no committed state and requires rejection.
+
+**The finding that changes how caching should be built here:** "publish only after the commit" does *not*
+make cache-aside safe. A reader that begins its fill before a writer's invalidation holds a committed but
+**superseded** state and can republish it. The study closes that with a cache-side per-key **invalidation
+fence** (atomic in both backends, captured before the snapshot, checked on publish) that a strict writer
+advances **before and after** its commit, and by moving the ledger's freshness requirement to the
+**acknowledgement**. `publishes_refused_by_fence` (61–85 per cell) is the evidence that the race is real.
+See `reports/discussions/20260921-cache-fences-and-ledger.md`.
+
+**Do not reuse these numbers without reading the analysis' weakness list.** Single trials; no churn phase
+(so the TTL was never crossed in a measured run); no equal-total framing; no `medium` scale; no YugabyteDB
+or three-node cell, so the colocation requirement is an explicit gap; one laptop, shared cores, no real
+network; and an unresolved ledger limitation for concurrently conflicting writes of the same key.
+
+**One provenance caveat, stated up front:** the three reference cells were re-run after a harness fix, so those
+three were produced by a later code state than the other 24 cells while the manifest records one commit for the
+run. The fix changes `hasCache()` from a comparison against `"none"` to an explicit backend test, which is a
+no-op for every cell whose backend is set — i.e. all 24 others. The analysis repeats this in its weakness list.
+
+**Post-survey repair (same session, after the analysis).** The strict `through` failures were traced
+to a *harness* defect, not a design one: a mutation selected a child row from the ledger and then
+acted on it by id only, so a concurrent writer could move or delete it in between and the database
+and the ledger diverged. Every child-row statement now enforces the owner the harness observed (all
+five schema directories), a statement matching no row is an acknowledged no-op that leaves the
+ledger alone and is counted (`write_noops_refused_by_owner`), and corrections are relative in every
+schema including the reference ones. AM-01's required assertion is implemented — after every writing
+phase the harness compares all 800 donors' database content against the ledger's requirement and
+fails the cell if the requirement is ahead: **0 mismatches in warm, mixed, hotspot and stampede; 1
+donor after `instances`**. A second measurement defect was closed in the same pass: violations
+recorded by the instances-phase arms were invisible to the cell's acceptance check, so one strict
+cell had passed with 11 hidden stale reads. With both fixed, two reference cells
+(`ref-normalized-indexed`, `ref-embedded-locked`) are green again, and the strict `through` residual
+is now a genuine cache-design finding (7–32 stale reads, every assertion passing, 260–625 refused
+publications per cell) rather than an ambiguity. Evidence: `results/verify-ledger/`.
+
+**Corrections after the repair (runs `verify-ledger`, `verify-rollup`).** Two results changed the study's
+reading, and both are in the analysis (§6c/§6d) and AM-03. First, the legacy in-process *aside* strict
+cell — the one the first analysis leaned on as proof that the fence closed the refill race — is **not
+reliably clean**: re-run it recorded 10 stale-after-ack reads per ~53 000 hits in the mixed phase, with
+every ledger assertion passing and zero impossible values. So strict freshness as implemented is **not
+achieved reliably in any strict arm** (aside or through, memory or Redis, legacy or owned); that is now
+the study's single open scientific question. Second, `ref-rollup-trigger`'s 114 "impossible" values were
+a harness artifact of the weaker impossible-value rule; with the source-based rule restored the cell
+fails for the right reason — its own `a_rollup_drift` audit reports 3 mismatches and the stored total is
+2 173 cents above the ledger — so the trigger-maintained rollup is **not covered** by that reference as
+it stands. The two green reference cells (`ref-normalized-indexed`, `ref-embedded-locked`) and both
+controls still behave.
+
+**Residual classified (AM-04).** The few stale reads that survive the fence are, in the legacy
+in-process aside cell, `fill` and `bypass` samples — **database reads**, not cache hits — each exactly
+one state behind the requirement and resolving before the phase-end assertion runs. The next step is
+pinned down: record `(key, ack seq, commit time)` per mutation, compare a stale database read's snapshot
+time with the acknowledgement time, and add "a fresh connection must already see the state the
+requirement moved to, immediately after each ack" as an assertion.
+
+**Resolution (run `20260921T-survey3`, digest `03fac739d0835768`, clean commit `48fe1e3`, tag
+`run/05-cache-consistency/20260921T-survey3`).** The remaining "correctness failures" were four defects in
+the harness, three of which were *manufacturing* findings rather than detecting them: a mutation applied by
+id only (fixed with owner-guarded statements and a distinct no-op outcome), the ledger's history order not
+following the database's commit order (proved by a **no-cache** design showing it, fixed by serialising
+writes that touch one key), the acknowledgement checker capturing its requirement *after* its read, and a
+control judged by the wrong evidence. With all four fixed the full matrix is green: **27 of 27 cells pass
+every gate**, both controls fire, 6 ledger assertions per cell with zero mismatches, 310 acknowledgement
+verifications per cell with zero violations, zero impossible values, zero stale-after-ack reads.
+
+**Final measured results (single run, `small`).** Caching buys 2.2×–3.5× in warm cacheable throughput and
+an order of magnitude in p99 (15.8–27.1 ms → 0.8–2.0 ms). **Strict freshness cost nothing measurable in read
+throughput** in any of the eight controlled pairs (all differences inside the ~20 % noise floor). Every
+single-instance relaxed cell recorded **zero** wrong reads across ~1.2 million measured reads; the only
+wrong reads in the whole matrix are the **three-instance shared-Redis through** cells at **87.2 % and
+87.8 %**, confirmed in two runs and in both database models. The lease gives exactly one database load per
+key under a 16-reader stampede (8 loads, 0 duplicate fills). Under 20 % external writers the legacy cache's
+value collapses to the no-cache baseline (7 664 vs 7 794), and its strict sibling only reaches 8 269 by
+reading authoritatively.
+
+**Coverage gaps, unchanged and explicit:** no sustained-churn phase (the 300 s TTL was never crossed in a
+measured run), no equal-total framing, no `medium` scale, no repeated trials, no YugabyteDB cell, no
+three-node cluster, no colocation evidence, no open-loop SLO work.
+
+**Status: measured, analysed and integrated into `main`.** Findings, coverage gaps and the five leads for a
+second analyst are in `reports/analyses/20260921-cache-consistency-allgreen.md`, which supersedes the
+survey analysis (now in `reports/outdated/`).
+
+### Study 05 — final integration receipt
+
+Branch `study-05/cache-consistency` (worktree `.worktrees/study05-cache-consistency`) was merged into local
+`main` by fast-forward at each milestone; the final state is `main` = the commit carrying this paragraph, with
+every task commit reachable — `fa1a57a`, `92f8d0b`, `91f2ce0`, `567778f`, `cac02f5`, `a1f09a4`, `72bb543`,
+`4a747f5`, `43a2990`, `ead9b18`, `0682f5e`, `f9d9f57`, `48fe1e3` (the code the reported run was produced
+from) and `372f437` (final analysis, lessons, context). Annotated tags: `study-05/v0-handoff`,
+`study-05/v0.1-handoff-amendment-01`, `study-05/v1-harness`, `study-05/v1-measured`, `study-05/v1-analysis`,
+`study-05/v1-integrated`, `study-05/v1.1-diagnostics`, `study-05/v2-owner-guard`,
+`study-05/v2.1-impossible-attribution`, `study-05/v2.2-residual-classified`, `study-05/v3-allgreen`,
+`study-05/v3-analysis`, and the reported runs `run/05-cache-consistency/20260921T-survey` and
+`run/05-cache-consistency/20260921T-survey3`. No tag was moved, deleted or reused; nothing was pushed or
+pulled and no remote was touched. The benchmark lock was released and the study's containers (`pg-single`,
+`ads-redis`) were stopped and removed by the runner after every pass. Post-integration checks on `main`:
+`gofmt -l .` clean; `go vet ./...` clean; `go test ./...` green for the study, in the pinned Go container
+(the platform's timing-sensitive `core/measure` test remains the one caveat recorded above). The nine failed cells, the
+rollup reference drift, the unrun churn/equal-total/topology arms and the three-instance confirmation are
+open and are listed in the analysis (sections 3, 6 and 7). The next session should take those, not re-run
+this matrix unchanged.
+
+### Study 05 — integration receipt
+
+The task worktree `.worktrees/study05-cache-consistency` on branch `study-05/cache-consistency` was merged
+into local `main` by fast-forward at task completion. The task commits are `fa1a57a` (handoff),
+`92f8d0b` (SQL catalogue), `91f2ce0` (harness), `fd599da`, `e5d1e1a`-class dev-check fixes, `567778f`
+(the code the reported run was produced from), `cac02f5` (measured survey, signed analysis, mechanism
+companion, context and lessons) and the receipt commit that carries this paragraph. All are reachable from
+`main`; the integrated state is tagged `study-05/v1-integrated`. The producing run is tagged
+`run/05-cache-consistency/20260921T-survey`. The benchmark lock was released and the study's containers
+(`pg-single`, `ads-redis`) were stopped and removed by the runner; nothing was pushed or pulled, and no tag
+was moved, deleted or reused.
+
+**Post-integration checks re-run on the combined state**, inside the pinned `golang:1.26-bookworm`
+container, against the `main` checkout mounted read-only: `gofmt -l .` clean; `go vet ./...` clean for the
+study; `go test ./...` green for the study (14 tests, including the fake-clock probabilistic-expiry tests at
+0/75/150/225/300 s, the exact-LRU byte bound, the lease rule, the fence rule and the oracle's
+freshness/acknowledgement semantics). The platform is unchanged by this task, so its tests are unchanged
+**with one caveat worth recording**: `go test ./...` across the platform failed once on
+`adsplatform/core/measure` and the same package passed when run alone immediately afterwards. The timing
+tests in that package are sensitive to parallel package execution and to load on this machine — the same
+hazard `LESSONS_LEARNED.md` records for measurement generally. It is study 04's code, it is not part of this
+task, and it is reported here rather than fixed.
 
 ## Decisions taken, and why
 

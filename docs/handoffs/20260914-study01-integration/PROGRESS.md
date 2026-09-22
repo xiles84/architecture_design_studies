@@ -51,3 +51,89 @@ Record partial completion and restart points; do not claim an intended merge occ
   immutable tags. No database benchmark, image build or report regeneration ran.
 
 **Next: HIGH model / high effort — review the execution evidence after closeout.**
+
+## HIGH iteration 2 — 2026-09-15
+
+Reviewer: GPT-6 via Codex desktop, HIGH role; selected effort not exposed.
+
+- Verified EH-01's final closeout `db77fe60b5bfe78b29ec04db9150f33cc1a0bb49`, both
+  annotated integrated tags at that revision, and its containment in current main.
+  The original enhancement and producing-run tags remain unchanged.
+- Recomputed all four result digests from 261 JSON files; verified each cell's manifest
+  commit/image/environment and report index. Rechecked headline medians, matched data,
+  gate counts and the six D9 cache failures. [HIGH_REVIEW.md](HIGH_REVIEW.md) is the
+  validation report and acceptance decision. No new benchmark was needed.
+- Incorporated committed main through `c7d4067e1c870602e9f794d9067c8163018523dd` by
+  fast-forwarding this task worktree only. Main's newer commits concern Study 03 and
+  its context. Its code/settings, results and decisions remain the other task's work.
+- At 2026-09-15 09:43 UTC, main was running Study 03 matrix `20260915T002411Z` with
+  `ads-run-lock` and uncommitted outputs. The new review documentation therefore stays
+  on this task branch until safe integration. No main update or runtime mutation occurred.
+- Corrected living context's stale integration language and incomplete model-role
+  sentence; kept the original handoff/execution receipt and signed analyses intact.
+- An attempted independent subagent audit ended at its usage limit and supplied no
+  review; acceptance is based on the primary HIGH review's checks, not a second sign-off.
+- Published [EH-02](FINALIZATION_HANDOFF.md) for LOW's final documentation merge.
+  Existing scientific conclusions and rules are accepted. The mapped clean integration
+  may close the task without a third HIGH pass; unmapped changes still require escalation.
+
+**Next: LOW model / low effort — execute EH-02 after the benchmark lock and main checkout are free.**
+
+### HIGH amendment — peer checkout reservation
+
+Before ending this review, main advanced to `7a9aea2f5c6921461ea87d67dd54a6bd511b3119`.
+The only change was the peer's CONTEXT.md update: its main checkout is reserved until
+Study 03 step 11 is committed, including inter-run gaps. Integrated that incoming
+session's entry without conflict in this worktree. EH-02 revision 2 requires evidence
+of release/step-11 completion as well as a clean checkout and free runtime; elapsed time
+or a temporary missing lock is insufficient. Its checkpoint is
+`study-01/v3-high-review-r2`; the first HIGH tag stays unchanged. Next remains LOW.
+
+## LOW iteration 2 — 2026-09-20
+
+- Executor: GPT-5 via Codex desktop, LOW role; exact effort not exposed.
+- Rechecked the task worktree at `fe0450c`, clean before integration. Local `main` was
+  clean at `7123da62dc33fe9de351a01281555d306855446e`; Study 03 v1 was complete,
+  signed and tagged. Its former checkout reservation had ended.
+- Confirmed another AI is active in `.worktrees/recency-reports`. That worktree has its
+  own branch and uncommitted Study 02 dev-check output; none of its paths, refs,
+  containers or unpublished findings were touched or adopted.
+- Integrated committed `main` with `git merge --no-ff --no-commit main`; it merged without
+  conflicts. Study 02 and Study 03 match incoming main, while accepted Study 01,
+  infrastructure and platform source remain unchanged.
+- Preserved `repo/concurrent-agents-reconciliation` and reconciled shared documentation:
+  the general context now summarizes the hard rule once, Study 01 shows the pending
+  documentation closeout, and Study 03 has one current completed status rather than the
+  earlier running state plus its final state.
+- Podman inspection found another task starting a YugabyteDB dev check. The lock changed
+  during inspection while `yb-single` and its benchmark client were live. Final main
+  integration remains a mapped LOW wait; no container, lock or other worktree was changed.
+
+**Next: LOW model / low effort — resume EH-02 when the live benchmark and main update checks are clear.**
+
+### LOW iteration 3 — 2026-09-20
+
+- Executor: GPT-5 via Codex desktop, LOW role; exact effort not exposed.
+- The concurrent dev check completed before final integration. At 2026-09-20 23:00 UTC,
+  `ads-run-lock` was absent, `podman ps` was empty, local `main` was clean at
+  `7123da62dc33fe9de351a01281555d306855446e`, and the separate recency worktree was
+  clean at `6566c67`. No path, ref, container or unpublished result in that worktree was
+  changed or adopted.
+- Committed the conflict-free main integration and reconciliation as
+  `0e7c05fa0b112ab33023b07af032500dab4aae8c`, with parents `fe0450c` and `7123da6`.
+  The task worktree was clean afterwards; current main is its ancestor. Incoming
+  Study 02/03 equal `7123da6`, and accepted Study 01, infrastructure and platform source
+  equal `db77fe6`. Relevant local links and explicit-path whitespace checks passed.
+- Rechecked every accepted milestone and producing-run tag recorded by EH-02. The
+  existing tags still resolve to their immutable reviewed targets, and
+  `study-01/v3-reviewed` did not already exist.
+- Acquired the mapped short reservation as `Study 01 HIGH review final integration` from
+  this task worktree at `2026-09-20T22:59:58Z`. The lock labels matched the branch,
+  worktree and holder; no containers were running. Immediately before the update, the
+  task candidate was clean at `0e7c05f` and main remained clean at `7123da6`.
+- Fast-forwarded local `main` from `7123da6` to `0e7c05f` with `--ff-only`. This closeout
+  commit records completion in context and progress; LOW will fast-forward main to this
+  exact commit, create annotated tag `study-01/v3-reviewed` there, verify containment and
+  cleanliness, then release only the owned reservation.
+
+**Next: none — EH-02 is complete after the mapped final fast-forward, tag and lock release.**

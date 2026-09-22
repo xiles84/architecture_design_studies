@@ -1,0 +1,65 @@
+Plans — scenario ref-rollup-trigger, engine postgres
+people=800 scale=small
+A cache hit executes no SQL. These are the statements a miss, a fill and a strict validation run.
+
+=== r_portal_person  (params: person_id)
+Nested Loop  (cost=0.43..4.87 rows=1 width=168) (actual time=0.006..0.008 rows=1 loops=1)
+  Output: p.person_id, p.full_name, p.email, p.joined_at, p.charity_id, c.name, c.country, p.donation_count, p.donation_total_cents
+  Inner Unique: true
+  Buffers: shared hit=7
+  ->  Index Scan using person_pkey on public.person p  (cost=0.28..2.49 rows=1 width=104) (actual time=0.004..0.005 rows=1 loops=1)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donation_count, p.donation_total_cents
+        Index Cond: (p.person_id = '1'::bigint)
+        Buffers: shared hit=5
+  ->  Index Scan using charity_pkey on public.charity c  (cost=0.15..2.37 rows=1 width=72) (actual time=0.001..0.001 rows=1 loops=1)
+        Output: c.charity_id, c.name, c.country, c.founded_on
+        Index Cond: (c.charity_id = p.charity_id)
+        Buffers: shared hit=2
+Planning Time: 0.050 ms
+Execution Time: 0.015 ms
+
+=== r_portal_recent  (params: person_id)
+Limit  (cost=1.50..20.67 rows=20 width=72) (actual time=0.012..0.015 rows=20 loops=1)
+  Output: donation_id, amount_cents, currency, donated_at, note
+  Buffers: shared hit=3
+  ->  Incremental Sort  (cost=1.50..104.03 rows=107 width=72) (actual time=0.012..0.013 rows=20 loops=1)
+        Output: donation_id, amount_cents, currency, donated_at, note
+        Sort Key: donation.donated_at DESC, donation.donation_id DESC
+        Presorted Key: donation.donated_at
+        Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 27kB  Peak Memory: 27kB
+        Buffers: shared hit=3
+        ->  Index Scan using donation_person_time_idx on public.donation  (cost=0.29..100.06 rows=107 width=72) (actual time=0.004..0.007 rows=21 loops=1)
+              Output: donation_id, amount_cents, currency, donated_at, note
+              Index Cond: (donation.person_id = '1'::bigint)
+              Buffers: shared hit=3
+Planning Time: 0.029 ms
+Execution Time: 0.021 ms
+
+=== r_charity_recent  (params: charity_id)
+Limit  (cost=2.53..79.50 rows=50 width=56) (actual time=0.052..0.156 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=519
+  ->  Incremental Sort  (cost=2.53..167.23 rows=107 width=56) (actual time=0.052..0.153 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Sort Key: d.donated_at DESC, d.donation_id DESC
+        Presorted Key: d.donated_at
+        Full-sort Groups: 2  Sort Methods: top-N heapsort, quicksort  Average Memory: 27kB  Peak Memory: 27kB
+        Pre-sorted Groups: 1  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
+        Buffers: shared hit=519
+        ->  Nested Loop  (cost=0.56..163.26 rows=107 width=56) (actual time=0.008..0.128 rows=101 loops=1)
+              Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+              Inner Unique: true
+              Buffers: shared hit=519
+              ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.29..100.06 rows=107 width=32) (actual time=0.005..0.027 rows=101 loops=1)
+                    Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+                    Index Cond: (d.charity_id = '1'::bigint)
+                    Buffers: shared hit=101
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.59 rows=1 width=40) (actual time=0.001..0.001 rows=1 loops=101)
+                    Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.donation_count, p.donation_total_cents
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=361
+Planning Time: 0.061 ms
+Execution Time: 0.166 ms
+
+=== r_person_version
+-- not part of this scenario's catalogue

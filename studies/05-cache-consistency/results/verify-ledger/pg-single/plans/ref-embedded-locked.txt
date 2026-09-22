@@ -1,0 +1,85 @@
+Plans — scenario ref-embedded-locked, engine postgres
+people=800 scale=small
+A cache hit executes no SQL. These are the statements a miss, a fill and a strict validation run.
+
+=== r_portal_person  (params: person_id)
+Nested Loop  (cost=0.43..195.41 rows=1 width=192) (actual time=0.053..0.057 rows=1 loops=1)
+  Output: p.person_id, p.full_name, p.email, p.joined_at, p.charity_id, c.name, c.country, (SubPlan 1), (SubPlan 2)
+  Inner Unique: true
+  Buffers: shared hit=13
+  ->  Index Scan using person_pkey on public.person p  (cost=0.28..2.49 rows=1 width=88) (actual time=0.016..0.019 rows=1 loops=1)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.recent_donations
+        Index Cond: (p.person_id = '1'::bigint)
+        Buffers: shared hit=5
+  ->  Index Scan using charity_pkey on public.charity c  (cost=0.15..2.37 rows=1 width=72) (actual time=0.003..0.003 rows=1 loops=1)
+        Output: c.charity_id, c.name, c.country, c.founded_on
+        Index Cond: (c.charity_id = p.charity_id)
+        Buffers: shared hit=2
+  SubPlan 1
+    ->  Aggregate  (cost=95.26..95.27 rows=1 width=8) (actual time=0.018..0.018 rows=1 loops=1)
+          Output: count(*)
+          Buffers: shared hit=3
+          ->  Bitmap Heap Scan on public.donation d  (cost=2.22..94.99 rows=107 width=0) (actual time=0.011..0.013 rows=25 loops=1)
+                Recheck Cond: (d.person_id = p.person_id)
+                Heap Blocks: exact=1
+                Buffers: shared hit=3
+                ->  Bitmap Index Scan on donation_person_time_idx  (cost=0.00..2.19 rows=107 width=0) (actual time=0.005..0.005 rows=25 loops=1)
+                      Index Cond: (d.person_id = p.person_id)
+                      Buffers: shared hit=2
+  SubPlan 2
+    ->  Aggregate  (cost=95.26..95.27 rows=1 width=32) (actual time=0.009..0.010 rows=1 loops=1)
+          Output: COALESCE(sum(d_1.amount_cents), '0'::numeric)
+          Buffers: shared hit=3
+          ->  Bitmap Heap Scan on public.donation d_1  (cost=2.22..94.99 rows=107 width=8) (actual time=0.003..0.005 rows=25 loops=1)
+                Output: d_1.donation_id, d_1.person_id, d_1.charity_id, d_1.amount_cents, d_1.currency, d_1.donated_at, d_1.note
+                Recheck Cond: (d_1.person_id = p.person_id)
+                Heap Blocks: exact=1
+                Buffers: shared hit=3
+                ->  Bitmap Index Scan on donation_person_time_idx  (cost=0.00..2.19 rows=107 width=0) (actual time=0.002..0.002 rows=25 loops=1)
+                      Index Cond: (d_1.person_id = p.person_id)
+                      Buffers: shared hit=2
+Planning Time: 0.203 ms
+Execution Time: 0.092 ms
+
+=== r_portal_recent  (params: person_id)
+Nested Loop  (cost=0.28..7.49 rows=100 width=72) (actual time=0.044..0.157 rows=20 loops=1)
+  Output: ((e.value ->> 'id'::text))::bigint, ((e.value ->> 'amt'::text))::bigint, ((e.value ->> 'cur'::text))::character(3), ((e.value ->> 'at'::text))::timestamp with time zone, (e.value ->> 'note'::text)
+  Buffers: shared hit=5
+  ->  Index Scan using person_pkey on public.person p  (cost=0.28..2.49 rows=1 width=32) (actual time=0.016..0.110 rows=1 loops=1)
+        Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.recent_donations
+        Index Cond: (p.person_id = '1'::bigint)
+        Buffers: shared hit=5
+  ->  Function Scan on pg_catalog.jsonb_array_elements e  (cost=0.00..1.00 rows=100 width=32) (actual time=0.014..0.015 rows=20 loops=1)
+        Output: e.value
+        Function Call: jsonb_array_elements(p.recent_donations)
+Planning Time: 0.095 ms
+Execution Time: 0.180 ms
+
+=== r_charity_recent  (params: charity_id)
+Limit  (cost=3.09..101.38 rows=50 width=56) (actual time=0.151..0.376 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=519
+  ->  Incremental Sort  (cost=3.09..213.43 rows=107 width=56) (actual time=0.150..0.371 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Sort Key: d.donated_at DESC, d.donation_id DESC
+        Presorted Key: d.donated_at
+        Full-sort Groups: 2  Sort Methods: top-N heapsort, quicksort  Average Memory: 27kB  Peak Memory: 27kB
+        Pre-sorted Groups: 1  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
+        Buffers: shared hit=519
+        ->  Nested Loop  (cost=0.56..209.46 rows=107 width=56) (actual time=0.069..0.325 rows=101 loops=1)
+              Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+              Inner Unique: true
+              Buffers: shared hit=519
+              ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.29..100.06 rows=107 width=32) (actual time=0.054..0.119 rows=101 loops=1)
+                    Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note
+                    Index Cond: (d.charity_id = '1'::bigint)
+                    Buffers: shared hit=101
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..1.02 rows=1 width=40) (actual time=0.001..0.001 rows=1 loops=101)
+                    Output: p.person_id, p.charity_id, p.full_name, p.email, p.joined_at, p.recent_donations
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=361
+Planning Time: 0.181 ms
+Execution Time: 0.409 ms
+
+=== r_person_version
+-- not part of this scenario's catalogue

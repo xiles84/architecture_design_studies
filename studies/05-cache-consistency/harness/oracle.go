@@ -1,0 +1,440 @@
+package main
+
+import (
+	"math/rand"
+	"sort"
+	"time"
+)
+
+func nowMS() int64 { return time.Now().UnixNano() / int64(time.Millisecond) }
+
+// The oracle: an independent model of every committed state of every key, built in
+// Go from the generated dataset and the operations the client saw acknowledged.
+//
+// It is the reason this study can report a wrong-read rate without validating each
+// cache hit with a hidden database read. Two things make it exact:
+//
+//  1. Every committed state of a key is recorded as the CONTENT HASH of that state,
+//     in publication order. Freshness is therefore a statement about the data, not
+//     about a version number two components might disagree about -- which matters
+//     because the legacy model has no version number at all.
+//  2. A read captures its requirement at the instant it begins: the hash of the
+//     latest acknowledged write to that key before the read started. A value older
+//     than that is a wrong read; a value newer than that is not (a read may
+//     legitimately see a write that committed while it was in flight).
+//
+// The oracle is measurement metadata. The cache adapter never reads it, and no
+// database schema is changed to give it a token: on the legacy model the oracle
+// "version" exists only inside this file.
+
+type stateStamp struct {
+	Seq  int64
+	Hash string
+	// AtMS is when this state became the committed one, used for the
+	// time-to-freshness measurement.
+	AtMS int64
+}
+
+type oraclePerson struct {
+	charityID int64
+	joinedAt  string
+	fullName  string
+	email     string
+	donations map[int64]Donation
+	seq       int64
+	curHash   string
+	// pending holds the states produced by writes that have committed but are not yet
+	// acknowledged. It is a MAP, not a single slot: two writers can commit before
+	// either acknowledges, and a single slot loses one of their states -- which then
+	// looks impossible when a reader serves it from the cache.
+	pending map[string]int
+	// pendingHash is the state a committed but not yet ACKNOWLEDGED write produced.
+	// The protocol's requirement is defined at the acknowledgement, not at the commit
+	// ("a read that begins after a write to that key was acknowledged"), and a cache
+	// writer is required to leave the cache invalidated before it acknowledges. A
+	// value matching pendingHash is therefore legitimately ahead of the read's
+	// requirement, not impossible.
+	pendingHash string
+	history     []stateStamp
+}
+
+type oracle struct {
+	ds     *Dataset
+	people map[int64]*oraclePerson
+	mu     chanMutex
+}
+
+// chanMutex is a mutex that also gives the oracle a single lock-ordering point.
+// A plain sync.Mutex would do; this keeps the locking explicit at every call site
+// that spans more than one field read.
+type chanMutex struct{ ch chan struct{} }
+
+func newChanMutex() chanMutex { return chanMutex{ch: make(chan struct{}, 1)} }
+func (m chanMutex) Lock()     { m.ch <- struct{}{} }
+func (m chanMutex) Unlock()   { <-m.ch }
+
+func newOracle(ds *Dataset) *oracle {
+	o := &oracle{ds: ds, people: make(map[int64]*oraclePerson, len(ds.People)), mu: newChanMutex()}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	for _, p := range ds.People {
+		op := &oraclePerson{
+			charityID: p.CharityID,
+			joinedAt:  p.JoinedAt.UTC().Format(time.RFC3339Nano),
+			fullName:  p.FullName,
+			email:     p.Email,
+			donations: map[int64]Donation{},
+		}
+		for _, d := range ds.Donations[p.ID] {
+			op.donations[d.ID] = d
+		}
+		op.curHash = o.hashLocked(p.ID, op)
+		op.history = []stateStamp{{Seq: 0, Hash: op.curHash, AtMS: nowMS()}}
+		o.people[p.ID] = op
+	}
+	return o
+}
+
+// recentDescLocked returns the newest 20 donations in the study's deterministic
+// order: (donated_at DESC, donation_id DESC).
+func recentDescLocked(m map[int64]Donation) []Donation {
+	out := make([]Donation, 0, len(m))
+	for _, d := range m {
+		out = append(out, d)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if !out[i].DonatedAt.Equal(out[j].DonatedAt) {
+			return out[i].DonatedAt.After(out[j].DonatedAt)
+		}
+		return out[i].ID > out[j].ID
+	})
+	if len(out) > 20 {
+		out = out[:20]
+	}
+	return out
+}
+
+func (o *oracle) contentLocked(personID int64, op *oraclePerson) PortalContent {
+	c, _ := o.ds.Charity(op.charityID)
+	var total int64
+	for _, d := range op.donations {
+		total += d.AmountCents
+	}
+	recent := recentDescLocked(op.donations)
+	recs := make([]PortalDonation, 0, len(recent))
+	for _, d := range recent {
+		recs = append(recs, PortalDonation{
+			ID:          d.ID,
+			AmountCents: d.AmountCents,
+			Currency:    d.Currency,
+			DonatedAt:   d.DonatedAt.UTC().Format(time.RFC3339Nano),
+			Note:        d.Note2(),
+		})
+	}
+	return PortalContent{
+		PersonID:           personID,
+		FullName:           op.fullName,
+		Email:              op.email,
+		JoinedAt:           op.joinedAt,
+		CharityID:          op.charityID,
+		CharityName:        c.Name,
+		CharityCountry:     c.Country,
+		DonationCount:      int64(len(op.donations)),
+		DonationTotalCents: total,
+		Recent:             recs,
+	}
+}
+
+func (o *oracle) hashLocked(personID int64, op *oraclePerson) string {
+	return o.contentLocked(personID, op).ContentHash()
+}
+
+// markPendingLocked records that this key has reached a new committed state that has
+// not been acknowledged yet. The DATA is committed; the freshness REQUIREMENT does not
+// move until Ack, because that is what the protocol's contract is written against.
+func (o *oracle) markPendingLocked(personID int64) string {
+	op := o.people[personID]
+	if op == nil {
+		return ""
+	}
+	h := o.hashLocked(personID, op)
+	if op.pending == nil {
+		op.pending = map[string]int{}
+	}
+	op.pending[h]++
+	return h
+}
+
+// ackToken names one committed state of one key that is about to be acknowledged.
+type ackToken struct {
+	KeyID int64
+	Hash  string
+}
+
+// Ack moves the requirement. Every write path calls it at the point where it would
+// acknowledge the write to the caller -- which for a strict writer is AFTER the cache
+// has been fenced, and for a relaxed writer after its best-effort update. A write that
+// was never acknowledged never moves the requirement.
+func (o *oracle) Ack(t ackToken) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[t.KeyID]
+	if op == nil || t.Hash == "" {
+		return
+	}
+	if n := op.pending[t.Hash]; n > 1 {
+		op.pending[t.Hash] = n - 1
+	} else {
+		delete(op.pending, t.Hash)
+	}
+	if op.curHash == t.Hash {
+		return
+	}
+	op.seq++
+	op.curHash = t.Hash
+	op.history = append(op.history, stateStamp{Seq: op.seq, Hash: t.Hash, AtMS: nowMS()})
+}
+
+// ---------------------------------------------------------------- mutations
+//
+// The harness calls exactly one of these after a mutation's database transaction
+// has committed, with the values it committed. A mutation that rolled back, or
+// whose COMMIT outcome was ambiguous and which was therefore rolled back, is
+// applied through RollbackMutation instead.
+
+func (o *oracle) ApplyInsert(personID int64, d Donation) []ackToken {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return nil
+	}
+	op.donations[d.ID] = d
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
+}
+
+func (o *oracle) ApplyCorrect(personID int64, donationID, deltaCents int64) []ackToken {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return nil
+	}
+	d, ok := op.donations[donationID]
+	if !ok {
+		return nil
+	}
+	// Relative, to match the SQL: two concurrent corrections to one donation then
+	// produce the same total whichever order they commit in, so the ledger and the
+	// database cannot disagree about an aggregate for a reason that belongs to the
+	// harness rather than to a design.
+	d.AmountCents += deltaCents
+	op.donations[donationID] = d
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
+}
+
+func (o *oracle) ApplyDelete(personID int64, donationID int64) []ackToken {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return nil
+	}
+	if _, ok := op.donations[donationID]; !ok {
+		// Mirrors the SQL's owner guard: the observed owner no longer owns this row,
+		// so neither the database nor the ledger changes. Reporting no token is what
+		// keeps the two in agreement.
+		return nil
+	}
+	delete(op.donations, donationID)
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
+}
+
+func (o *oracle) ApplyPersonUpdate(personID int64, fullName, email string) []ackToken {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return nil
+	}
+	op.fullName = fullName
+	op.email = email
+	return []ackToken{{KeyID: personID, Hash: o.markPendingLocked(personID)}}
+}
+
+// ApplyReassign moves a donation between two people. Both keys reach a new
+// committed state, so both are bumped -- which is why reassignment is the mutation
+// that breaks caches which only ever think about one key.
+func (o *oracle) ApplyReassign(donationID, fromPerson, toPerson, newCharityID int64) []ackToken {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	from := o.people[fromPerson]
+	to := o.people[toPerson]
+	if from == nil || to == nil {
+		return nil
+	}
+	d, ok := from.donations[donationID]
+	if !ok {
+		return nil
+	}
+	delete(from.donations, donationID)
+	d.PersonID = toPerson
+	d.CharityID = newCharityID
+	to.donations[donationID] = d
+	return []ackToken{
+		{KeyID: fromPerson, Hash: o.markPendingLocked(fromPerson)},
+		{KeyID: toPerson, Hash: o.markPendingLocked(toPerson)},
+	}
+}
+
+// ExtBump records an acknowledged EXTERNAL write: one that bypassed the cache
+// adapter and committed to the database. The adapter cannot see it; the oracle
+// must, or the strict contract would be judged against an incomplete ledger.
+func (o *oracle) ExtBump(personID int64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	_ = o.markPendingLocked(personID)
+}
+
+// ---------------------------------------------------------------- reads
+
+// Required returns the freshness requirement for a read that begins now: the hash
+// and sequence of the latest acknowledged write to this key.
+func (o *oracle) Required(personID int64) (hash string, seq int64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return "", 0
+	}
+	return op.curHash, op.seq
+}
+
+func (o *oracle) CurrentSeq(personID int64) int64 {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if op := o.people[personID]; op != nil {
+		if len(op.pending) > 0 {
+			return op.seq + 1
+		}
+		return op.seq
+	}
+	return 0
+}
+
+// Classify turns a returned content hash into the study's read vocabulary.
+//
+//	fresh      the value is the required committed state (or the content is
+//	           identical to it, whatever publication it came from)
+//	ahead      the value is a LATER committed state than the read required, which
+//	           happens legitimately when a write commits while the read is in
+//	           flight. It is not a wrong read.
+//	stale      the value is an EARLIER committed state than the read required --
+//	           the violation the strict contract forbids
+//	impossible the value corresponds to no committed state this key ever had
+func (o *oracle) Classify(personID int64, returnedHash string, reqHash string, reqSeq int64) (kind string, returnedSeq int64, behind int64, atMS int64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return KindImpossible, -1, 0, 0
+	}
+	if returnedHash == reqHash {
+		return KindFresh, reqSeq, 0, 0
+	}
+	if op.pending[returnedHash] > 0 {
+		// Committed, not yet acknowledged: legitimately ahead of the requirement.
+		return KindAhead, op.seq + 1, 0, 0
+	}
+	_ = op
+	for i := len(op.history) - 1; i >= 0; i-- {
+		if op.history[i].Hash == returnedHash {
+			s := op.history[i].Seq
+			if s > reqSeq {
+				return KindAhead, s, 0, op.history[i].AtMS
+			}
+			return KindStale, s, reqSeq - s, op.history[i].AtMS
+		}
+	}
+	return KindImpossible, -1, 0, 0
+}
+
+// ---------------------------------------------------------------- audit views
+
+// ExpectedContent is the oracle's view of a key's committed state, used by the
+// audit phase to compare the database against something computed independently.
+func (o *oracle) ExpectedContent(personID int64) (PortalContent, bool) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return PortalContent{}, false
+	}
+	return o.contentLocked(personID, op), true
+}
+
+func (o *oracle) ExpectedDonationIDs(personID int64) []int64 {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return nil
+	}
+	out := make([]int64, 0, len(op.donations))
+	for id := range op.donations {
+		out = append(out, id)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+func (o *oracle) ExpectedRecentIDs(personID int64) []int64 {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil {
+		return nil
+	}
+	recent := recentDescLocked(op.donations)
+	out := make([]int64, 0, len(recent))
+	for _, d := range recent {
+		out = append(out, d.ID)
+	}
+	return out
+}
+
+func (o *oracle) Person(personID int64) (Person, bool) { return o.ds.Person(personID) }
+
+// PickDonation chooses one of a donor's CURRENT donations from the oracle's state.
+// The workload uses it to decide what to correct, delete or reassign, so the
+// operation always names a row the ledger believes exists.
+func (o *oracle) PickDonation(personID int64, r *rand.Rand) (Donation, bool) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	op := o.people[personID]
+	if op == nil || len(op.donations) == 0 {
+		return Donation{}, false
+	}
+	idx := r.Intn(len(op.donations))
+	i := 0
+	for _, d := range op.donations {
+		if i == idx {
+			return d, true
+		}
+		i++
+	}
+	return Donation{}, false
+}
+
+// PendingHash exposes the committed-but-unacknowledged state for the unit tests that
+// pin the acknowledgement semantics.
+func (o *oracle) PendingHash(personID int64) string {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if op := o.people[personID]; op != nil && len(op.pending) > 0 {
+		for h := range op.pending {
+			return h
+		}
+	}
+	return ""
+}
