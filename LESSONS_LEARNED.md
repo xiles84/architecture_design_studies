@@ -1194,3 +1194,40 @@ lock before writing, then deletes exactly that refreshed ref after commit. The s
 review found the administrative counterpart: cancellation must reject a live claim but
 CAS-clear an expired one, or an abandoned lease becomes a permanent administrative
 blocker.
+
+## Building the book toolchain (Typst)
+
+### A schema-valid registry can still resolve to nothing
+
+`tools/evidence validate` on registry v1 reported 0 errors while 36 of its 43 declared cell
+names appeared nowhere in the reports they cited. Schema validation checked two internal lists
+against each other, not the claim against the corpus. **A validator earns its keep only when
+its subject resolves to something outside itself.** The v2 resolver requires each support key's
+token to appear verbatim in the cited report, and the old failure is pinned as a regression
+fixture (`v1-diagnostic` must print 12/11/43/36) so it cannot return silently.
+
+### `grep -q` in a pipe under `pipefail` can invert a true match
+
+The book build tested whether the evidence digest appeared in the PDF text with
+`printf '%s' "$TEXT" | grep -q "$DIGEST"` under `set -o pipefail`. The text was larger than the
+pipe buffer, `grep -q` exited on the first match, `printf` took SIGPIPE, and the pipeline's
+non-zero status made the test false — the digest *was* on the page while the manifest said
+`false`. **Use a here-string (`grep -q "$needle" <<<"$haystack"`) for presence tests in
+`pipefail` scripts**, and verify a build artefact by reading it, not by trusting the exit code
+of the thing that produced it.
+
+### A verification claim must be computed, not asserted
+
+The first build reported "3 fonts" and "0 embedded" because `pdffonts`' `emb` column moves with
+the font type (CID Type 0C inserts two extra fields). The fix was to match the stable embedded
+triple (`yes yes yes`). The same run counted 26 "claim tokens" for a 23-claim registry because
+the regex matched tags and prose (`v2-protocol`). **When a manifest states a number, derive it
+from the artefact and make the build fail when it disagrees** — the count is then a check, not a
+decoration.
+
+### Pin the renderer, and let it carry its fonts
+
+Typst ships its default fonts inside the binary, so the PDF embeds Libertinus Serif and DejaVu
+Sans Mono with no host font installation. Pinning the image by immutable manifest digest
+(`ghcr.io/typst/typst@sha256:032e…`) fixes version, font set and rendering behaviour together;
+the manifest records the digest so a later reader knows which toolchain produced the page.

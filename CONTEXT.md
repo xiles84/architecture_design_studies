@@ -47,11 +47,17 @@ summary, not a second ledger.
   v1 (`book/evidence/claims.json`, tag `repo/book-evidence-registry-v1`) is **frozen historical
   reference only** — its claim-to-cell resolution failed (36 of 43 names resolve nowhere) and no
   book prose may be written from it. `tools/evidence validate` defaults to v2.
-- **Gate on the next book task:** `book-synthesis-v1` must **not be released** until the correction
-  package (`task-20260922T170845Z-book-evidence-correction-v2`) is completed and integrated into
-  `main`, and the synthesis must read `book/evidence/v2/` only.
-- **Next ready work:** `typst-toolchain`, then (after the correction integrates) release
-  `book-synthesis-v1` → `book-release-review-v1`, then the six scientific protocol tasks.
+- **Gate on the next book task:** the correction package is integrated (tag
+  `repo/book-evidence-registry-v2`), so `book-synthesis-v1` may now be released; it must read
+  `book/evidence/v2/` only.
+- **Book toolchain:** `book/` holds the modular Typst reader layer, pinned by
+  `book/Containerfile` to Typst `0.15.1` (image digest
+  `sha256:032e292249bcd378480cc7c142cfa324b63ef8aadeb88d7e7230320c4c9c422f`). `book/build.sh`
+  compiles and verifies the draft in Podman and writes `book/dist/build-manifest.json`; the verified
+  draft is 29 pages, 3/3 fonts embedded, all 23 v2 claim ids indexed and the registry digest present
+  in the text. Chapters and concepts are structural shells: **no scientific prose exists yet**.
+- **Next ready work:** release `book-synthesis-v1` → `book-release-review-v1`, then the six
+  scientific protocol tasks.
 - **Book release tag target:** `repo/data-architecture-book-v1` (not yet created).
 - **Brainstorm concluded** (tag `repo/book-evidence-and-model-brainstorm-v1`):
   `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` — two positions

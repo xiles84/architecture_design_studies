@@ -67,6 +67,12 @@
     ]
     #v(2pt)
     #text(size: 8pt, fill: rgb("#5b6470"))[Limits: #c.limits.join("; ")]
+    #v(2pt)
+    #text(size: 7.5pt, fill: rgb("#5b6470"))[
+      Source: #c.anchors.at(0).report
+      · run #c.anchors.at(0).run_id
+      · tag #(if c.anchors.at(0).run_tag == none { "none (legacy)" } else { c.anchors.at(0).run_tag })
+    ]
   ]
 }
 

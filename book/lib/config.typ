@@ -81,6 +81,18 @@
     #set text(size: 11.5pt, weight: "bold", fill: palette.muted)
     #it
   ]
+  // Accessible code: monospace, generous leading, a labelled surface, and no
+  // forced hyphenation of commands. `raw` is the only block code the book uses.
+  show raw.where(block: true): it => block(
+    width: 100%,
+    inset: 8pt,
+    radius: 3pt,
+    stroke: 0.5pt + palette.rule,
+    fill: palette.surface,
+  )[
+    #set text(font: mono-font, size: 9pt, hyphenate: false)
+    #it
+  ]
   body
 }
 
