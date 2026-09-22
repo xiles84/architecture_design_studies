@@ -178,6 +178,12 @@ placement pair).
    `book/dist/data-architecture-reference.pdf` (sha256 `58d61df0…`), synthesised from the 23 active
    v2 claims and independently reviewed. Remaining book work is future editions and the coverage
    gaps the protocols below will close; no v1 acceptance check is open.
+6. **Study 07 topology** — protocol complete 2026-09-22: `studies/07-topology/HANDOFF.md` (tag
+   `repo/topology-study-handoff-v1`) separates node count, replication, placement, routing, resource
+   budget, network and failure; it requires independent hosts and balanced endpoints, and defines
+   correctness and negative controls. Four separately claimable execution tasks are published
+   (`…-topology-env-harness`, `…-node-replication`, `…-placement-routing`, `…-network-failure`);
+   none has run. This study is the path to close `v2-gap-05` and `v2-gap-07`.
 
 ## Where the long history lives
 
