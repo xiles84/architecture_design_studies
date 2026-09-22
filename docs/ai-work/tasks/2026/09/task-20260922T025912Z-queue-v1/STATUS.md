@@ -6,13 +6,12 @@
 | State | `ready` |
 | Sequence | `1` |
 | Active attempt | none |
-| Active worker | none |
+| Active worker | `model=unknown tool=Codex desktop effort=unknown session=unknown capability=HIGH role=planner` |
 | Last event | `event-20260922T031927Z-published-ready` |
-| Updated at | `2026-09-22T03:19:27Z` |
+| Updated at | `2026-09-22T10:18:24Z` |
 | Next capability | LOW |
 | Next work role | executor |
 | Branch | `repo/ai-task-queue-v1` |
 | Worktree | `.worktrees/ai-task-queue-v1` |
 
-The planning-publication dependency is complete. This is the first executable task for a
-LOW executor; its HIGH review remains a separate later transition.
+Claimed by model=deepseek-flash tool=unknown effort=unknown session=session-20260922T102600Z-deepseek-flash capability=LOW role=executor until 2026-09-22T12:18:24Z. Worktree `.worktrees/ai-task-queue-v1`.
