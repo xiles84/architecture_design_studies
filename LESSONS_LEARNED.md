@@ -1294,3 +1294,14 @@ threshold the document is inline in the tuple, so rewriting it is nearly free. *
 about size-dependent cost must be tested at the size the mechanism needs**, and a negative result at
 the wrong scale is a statement about the scale, not about the design. The d1 ↔ d2 pair now exists;
 the amplification test belongs at the 500-entry tier and the large value regime.
+
+### Crossing a TTL boundary in time is not the same as observing the TTL expire an entry
+
+Study 05 v2 churn ran 600 s and 1800 s under load, crossing 2.00 and 6.00 real 300 s TTL boundaries
+with zero wrong reads in up to 2.88M reads. But `expired_hard` was **0** in every cell: only
+probabilistic early expiry fired (11.3k–37.1k), because the designs refresh or evict entries before
+their hard deadline. The duration-based counter (`boundaries crossed = elapsed/300`) and the
+event-based counter (`hard expiries fired`) measure different things, and a report that quotes only
+the first would overclaim. **When a phase proves a time span, check whether the event it is named for
+actually fired**; a zero is a finding, and the cell that would exercise it (no refresh on a subset,
+or early expiry disabled) is the follow-up.

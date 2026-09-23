@@ -185,12 +185,17 @@ placement pair).
    negative result. The other seven (`d3`, `d4`, `h1`, `s1`, `s2`, `y1`, `y2`) are recorded as
    coverage gaps with the harness change each needs, alongside the equal-total arm and placement
    verification. Verdicts in `book/evidence/reviews/20260922-study04-independent-review.json`.
-4. **Study 05 v2** — protocol complete 2026-09-22:
-   `studies/05-cache-consistency/HANDOFF-AMENDMENT-01-V2.md` (tag `study-05/v4-handoff`) defines
+4. **Study 05 v2** — protocol complete; **real-TTL churn run 2026-09-23** (tag
+   `study-05/v2-churn-scale`). `HANDOFF-AMENDMENT-01-V2.md` (tag `study-05/v4-handoff`) defines
    real-TTL churn, medium scale and a tested ceiling, repeated randomized trials, equal-total cache
-   resource accounting, YugabyteDB/cluster/verified placement and open-loop demand. Three separately
-   claimable execution tasks are published (`…-study05-v2-churn-scale`, `…-resources-engines`,
-   `…-open-loop`); none has run. Verdicts in
+   resource accounting, YugabyteDB/cluster/verified placement and open-loop demand. The churn task
+   measured 600 s write-through, 600 s write-aside and 1800 s write-through cells that crossed
+   **2.00 and 6.00 real 300 s TTL boundaries** with **0 wrong reads** in 1.37M–2.88M reads each.
+   Two caveats are recorded: the **hard-expiry path fired 0 times** (only probabilistic early expiry
+   did, 11.3k–37.1k), and refreshes are not recorded. The 5×-for-120 s burst (no write-rate knob)
+   and the 8k/80k/800k donor scales (harness maximum is 3,000 people) are gaps. Signed analysis
+   `20260923T1100Z-churn--deepseek-flash--2026-09-23`. Remaining published tasks:
+   `…-study05-v2-resources-engines`, `…-study05-v2-open-loop` (both proposed). Verdicts in
    `book/evidence/reviews/20260922-study05-independent-review.json`.
 5. **Book v1** — **released 2026-09-22** (tag `repo/data-architecture-book-v1`): the 36-page PDF at
    `book/dist/data-architecture-reference.pdf` (sha256 `58d61df0…`), synthesised from the 23 active
