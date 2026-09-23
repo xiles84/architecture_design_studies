@@ -173,9 +173,13 @@ placement pair).
    design first and last in a phase) and **derived-state staleness/rollup lag** (the harness records
    scheduling lag, not derived-value age). Signed analyses
    `20260923T00116Z-controls--deepseek-flash--2026-09-23`,
-   `20260923T0030Z-cardinality-cadence--deepseek-flash--2026-09-23`. Remaining published task:
-   `…-study04-v2-remaining-designs` (proposed). Verdicts in
-   `book/evidence/reviews/20260922-study04-independent-review.json`.
+   `20260923T0030Z-cardinality-cadence--deepseek-flash--2026-09-23`. The third task
+   (`…-study04-v2-remaining-designs`, tag `study-04/v2-remaining-designs`) built and measured **one**
+   of the eight unbuilt designs: `d2_doc_on_parent` — its predicted W6 metadata amplification did
+   **not** appear at small cardinality (1651 vs 1673 ops/s, publication 866 vs 859), an honest
+   negative result. The other seven (`d3`, `d4`, `h1`, `s1`, `s2`, `y1`, `y2`) are recorded as
+   coverage gaps with the harness change each needs, alongside the equal-total arm and placement
+   verification. Verdicts in `book/evidence/reviews/20260922-study04-independent-review.json`.
 4. **Study 05 v2** — protocol complete 2026-09-22:
    `studies/05-cache-consistency/HANDOFF-AMENDMENT-01-V2.md` (tag `study-05/v4-handoff`) defines
    real-TTL churn, medium scale and a tested ceiling, repeated randomized trials, equal-total cache

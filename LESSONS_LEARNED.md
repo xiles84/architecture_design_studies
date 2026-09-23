@@ -1283,3 +1283,14 @@ old a rollup was when a reader saw it. The protocol asked for staleness and roll
 had no field for it. **Delivering the measured half and naming the missing field is the honest
 result** — a delivery rate is not a staleness distribution, and "quiet/steady/burst" describes the
 update cadence, not the age of the answer. Closing it needs a harness change, not a bigger matrix.
+
+### A predicted maintenance amplification can be absent below the size the mechanism needs
+
+Study 04's `d2_doc_on_parent` embeds the JSON document in the parent row. The design catalogue
+predicted that an ordinary metadata update (`w06_update_metadata`) would then rewrite the TOASTed
+document and cost more than d1's short-row update. Measured at `scale small`: publication 865.9 vs
+858.8 ops/s and metadata 1651.0 vs **1672.7** ops/s — no amplification at all. Below the TOAST
+threshold the document is inline in the tuple, so rewriting it is nearly free. **A design hypothesis
+about size-dependent cost must be tested at the size the mechanism needs**, and a negative result at
+the wrong scale is a statement about the scale, not about the design. The d1 ↔ d2 pair now exists;
+the amplification test belongs at the 500-entry tier and the large value regime.
