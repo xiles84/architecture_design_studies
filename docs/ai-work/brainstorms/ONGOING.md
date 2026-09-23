@@ -5,9 +5,9 @@ Generated from immutable brainstorm records; do not hand-edit.
 ## `brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies` — Visual explanations for book and studies
 
 - State/stage: `ongoing` / `cross_review`
-- Summary: Curate mechanism diagrams with source and revision contracts; pin Podman rendering and make book figure bytes part of provenance. Pilot four figures and audit existing diagrams before reuse.
-- Progress: positions 3/3; critiques 0/2; synthesis pending
-- Disagreements: Scope of initial figure set and whether book imports study SVGs directly or via deterministic export remain open.
+- Summary: Separate diagram form from evidence status; audit semantic drift, then pilot two figures before expanding.
+- Progress: positions 3/3; critiques 1/2; synthesis pending
+- Disagreements: Direct reuse versus generated export, final figure count, byte-identity gating, and reader benefit remain open; position-01's zero-sequence premise is falsified.
 - Next: `CONTINUE BRAINSTORM brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies`
 
 ## `brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control` — Cache strategy coverage by schema control
