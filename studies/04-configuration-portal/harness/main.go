@@ -106,6 +106,13 @@ type CadenceResult struct {
 	Compressed bool                  `json:"rate_compressed"`
 	Schedule   measure.ArrivalResult `json:"schedule"`
 	Note       string                `json:"note"`
+	// RollupLag is the time from a child change's commit to the design's own
+	// parent aggregate reflecting it. It is present only for designs that
+	// maintain an aggregate; a design with no aggregate has no staleness window
+	// to measure. Timeouts are recorded separately, never folded into the stats.
+	RollupLag         *measure.LatencyStats `json:"rollup_lag_ms,omitempty"`
+	RollupLagTimeouts []string              `json:"rollup_lag_timeouts,omitempty"`
+	RollupLagNote     string                `json:"rollup_lag_note,omitempty"`
 }
 
 type Result struct {
@@ -561,10 +568,24 @@ func runCadence(ctx context.Context, res *Result, d Design, cat *catalogue, ds *
 	if compressed {
 		note = "rate compressed for the run duration; the offered rate is a calculation and this is a compressed-time validation, not a temporal result"
 	}
-	res.Cadence = append(res.Cadence, CadenceResult{
+	cr := CadenceResult{
 		Regime: res.Options.Cadence, Period: period.String(), Fleet: len(ds.Installations),
 		OfferedRate: rate, Compressed: compressed, Schedule: ar, Note: note,
-	})
+	}
+	// A maintained aggregate gets its staleness window measured; a design with no
+	// aggregate has none to measure, and saying so is better than a missing field.
+	if d.Rollup == RollupTrigger || d.Rollup == RollupApp {
+		stats, timeouts, err := c.stalenessProbe(ctx, res.Options.Sample)
+		if err != nil {
+			return fmt.Errorf("rollup staleness probe: %w", err)
+		}
+		cr.RollupLag = &stats
+		cr.RollupLagTimeouts = timeouts
+		cr.RollupLagNote = fmt.Sprintf(
+			"time from a child change's commit to this design's own aggregate reflecting it, %d sample(s); trigger and application maintenance are both inside the publishing transaction",
+			stats.Count)
+	}
+	res.Cadence = append(res.Cadence, cr)
 	return nil
 }
 
