@@ -28,6 +28,11 @@ summary, not a second ledger.
 - **Capability vocabulary.** Canonical `HIGH`/`LOW`; aliases `leader`/`master`→HIGH and
   `worker`/`follower`/`slave`→LOW are accepted as input only. `primary`/`replica` are datastore
   terms, not capability declarations. See [`AGENTS.md`](AGENTS.md).
+- **Work runs on the owner's current machine.** A task that needs a resource this machine does not
+  have (a second host, an engine image that is not local) is **not** expected work. Those tasks stay
+  `proposed` with a `DEFERRED.md` in their directory and are listed in
+  [`docs/optional-todos.md`](docs/optional-todos.md), to revisit only if the resource appears. No
+  agent releases a deferred task by itself.
 
 ## Current state
 
@@ -196,7 +201,9 @@ placement pair).
    budget, network and failure; it requires independent hosts and balanced endpoints, and defines
    correctness and negative controls. Four separately claimable execution tasks are published
    (`…-topology-env-harness`, `…-node-replication`, `…-placement-routing`, `…-network-failure`);
-   none has run. This study is the path to close `v2-gap-05` and `v2-gap-07`.
+   **none may run on this machine** — it needs a second host, so the four tasks are deferred
+   ([`docs/optional-todos.md`](docs/optional-todos.md)); this study is the path to close
+   `v2-gap-05` and `v2-gap-07` when such hosts exist.
 
 7. **Study 06 native models** — protocol complete 2026-09-22: `studies/06-native-models/HANDOFF.md`
    (tag `study-06/v0-handoff`) compares PostgreSQL 17.11, MongoDB 8.0, ScyllaDB 6.2 and Valkey 8.1
@@ -204,14 +211,17 @@ placement pair).
    and correctness gates; v0 is single-node, cluster variants belong to Study 07. Four separately
    claimable execution tasks are published (`…-native-models-harness`, `…-document-vs-relational`,
    `…-widecolumn-vs-relational`, `…-keyvalue-vs-relational`); none has run. Path to close
-   `v2-gap-06-native-datastore-families`.
+   `v2-gap-06-native-datastore-families`. **Deferred**: the engine images (MongoDB, ScyllaDB,
+   Valkey) are not on this machine; see [`docs/optional-todos.md`](docs/optional-todos.md).
 
 8. **Study 08 read models** — protocol complete 2026-09-22:
    `studies/08-analytics-read-models/HANDOFF.md` (tag `repo/analytics-read-model-handoff-v1`)
    compares base OLTP, rollup/materialized views, an in-engine search copy and a ClickHouse analytical
    copy for top-N/dashboard workloads, measuring query gain, refresh/maintenance, staleness, storage
    and correctness. Four separately claimable execution tasks are published
-   (`…-analytics-harness`, `…-rollup-arms`, `…-search-copy`, `…-columnar-copy`); none has run.
+   (`…-analytics-harness`, `…-rollup-arms`, `…-search-copy`, `…-columnar-copy`); none may run on
+   this machine — they need ClickHouse and a search engine image, so they are deferred
+   ([`docs/optional-todos.md`](docs/optional-todos.md)).
 
 9. **Study 09 hierarchy** — protocol complete 2026-09-22: `studies/09-hierarchy/HANDOFF.md` (tag
    `repo/hierarchy-study-handoff-v1`) compares adjacency list, materialized path, closure table,
