@@ -4,10 +4,10 @@
 BRAINSTORM STATUS
 ID: brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control
 State: ongoing
-Stage: collecting_positions
+Stage: cross_review
 Summary:
-  Map cache choices across schema control, writer control, placement/update pattern, and freshness contract. Explain why versions and tombstones can help but do not by themselves remove cache fences or every lock.
-  Progress: positions 2/3; critiques 0/2; synthesis pending
-Disagreements: Version-only coordination, TTL-only legacy behavior, and the value of a measured soft-delete pair remain open; exact book scope depends on reviewed evidence.
+  Map cache choices by source schema and writer control, then cache topology. Versions order known publications but do not alone prove currentness; Study 05 supports scoped warm-read and multi-instance findings.
+  Progress: positions 3/3; critiques 0/2; synthesis pending
+Disagreements: Whether versions and tombstones can avoid shared coordination, and how newer unregistered v2 evidence should enter the book.
 Next action: CONTINUE BRAINSTORM brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control
 ```
