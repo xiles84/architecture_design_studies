@@ -193,9 +193,18 @@ placement pair).
    **2.00 and 6.00 real 300 s TTL boundaries** with **0 wrong reads** in 1.37M–2.88M reads each.
    Two caveats are recorded: the **hard-expiry path fired 0 times** (only probabilistic early expiry
    did, 11.3k–37.1k), and refreshes are not recorded. The 5×-for-120 s burst (no write-rate knob)
-   and the 8k/80k/800k donor scales (harness maximum is 3,000 people) are gaps. Signed analysis
-   `20260923T1100Z-churn--deepseek-flash--2026-09-23`. Remaining published tasks:
-   `…-study05-v2-resources-engines`, `…-study05-v2-open-loop` (both proposed). Verdicts in
+   and the 8k/80k/800k donor scales (harness maximum is 3,000 people) are gaps. The resources/engines
+   task then ran (tag `study-05/v2-resources-engines`): the **equal-total arm is labelled** (warm
+   10,837 vs 8,027 db-only; mixed arms within ~1.03x), the **strict/relaxed pair ran on yb-single
+   RF=1 and yb-cluster3 RF=3** with all three endpoints spread (strict 514 vs relaxed 596 app-99 on
+   one node; strict 942 vs relaxed 846 on three), and the **colocated/non-colocated pair** favours
+   colocated ~1.3–1.5x. A blocking harness defect was fixed: a comma-separated DSN list reached one
+   pgx pool, failing every cluster cell; `pgxdb.OpenSpread` now spreads operations over endpoints and
+   `connection_nodes` is recorded. The **tablet/leader distribution is still not evidenced** (the
+   placement file holds only the server list), and one host is not colocation evidence. Signed
+   analyses `20260923T1100Z-churn--deepseek-flash--2026-09-23`,
+   `20260923T1215Z-resources-engines--deepseek-flash--2026-09-23`. Remaining published task:
+   `…-study05-v2-open-loop` (proposed). Verdicts in
    `book/evidence/reviews/20260922-study05-independent-review.json`.
 5. **Book v1** — **released 2026-09-22** (tag `repo/data-architecture-book-v1`): the 36-page PDF at
    `book/dist/data-architecture-reference.pdf` (sha256 `58d61df0…`), synthesised from the 23 active

@@ -1305,3 +1305,14 @@ event-based counter (`hard expiries fired`) measure different things, and a repo
 the first would overclaim. **When a phase proves a time span, check whether the event it is named for
 actually fired**; a zero is a finding, and the cell that would exercise it (no refresh on a subset,
 or early expiry disabled) is the follow-up.
+
+### A comma-separated DSN list is not a DSN
+
+Study 05's runner hands a multi-node cell `postgres://…yb-n1…,postgres://…yb-n2…,postgres://…yb-n3…`.
+A single `pgxpool.ParseConfig` rejects it (`failed to configure TLS (sslmode is invalid)`), so **every**
+YugabyteDB 3-node cell failed at connect and the cluster arm looked like a broken study. The tempting
+one-line "fix" — use the first endpoint — would connect every client to one node's SQL layer and then
+report the result as a cluster number, which is exactly what a multi-node study must not do. Study 03
+already solved this with one pool per endpoint and a round-robin wrapper; the reusable version now
+lives in `platform/adapters/pgxdb` (`OpenSpread`) and every result records `connection_nodes`. **A
+multi-endpoint study must prove it spread its connections, or say it did not.**
