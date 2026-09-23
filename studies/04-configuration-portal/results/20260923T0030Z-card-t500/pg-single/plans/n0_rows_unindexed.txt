@@ -1,0 +1,148 @@
+Read and write plans — design n0_rows_unindexed, engine postgres
+installations=60 entries_per_installation=500 value_regime=small
+
+=== r01_effective_config
+-- declared parameters: installed_product_id
+Nested Loop  (cost=0.56..221.81 rows=224 width=72) (actual time=0.008..0.144 rows=500 loops=1)
+  Output: c.key, c.value, ip.current_revision
+  Buffers: shared hit=399
+  ->  Index Scan using config_entry_pkey on public.config_entry c  (cost=0.41..216.64 rows=224 width=72) (actual time=0.005..0.067 rows=500 loops=1)
+        Output: c.installed_product_id, c.key, c.value, c.version, c.updated_at
+        Index Cond: (c.installed_product_id = '1'::bigint)
+        Buffers: shared hit=397
+  ->  Materialize  (cost=0.15..2.37 rows=1 width=16) (actual time=0.000..0.000 rows=1 loops=500)
+        Output: ip.current_revision, ip.id
+        Buffers: shared hit=2
+        ->  Index Scan using installed_product_pkey on public.installed_product ip  (cost=0.15..2.37 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=1)
+              Output: ip.current_revision, ip.id
+              Index Cond: (ip.id = '1'::bigint)
+              Buffers: shared hit=2
+Planning Time: 0.026 ms
+Execution Time: 0.160 ms
+
+=== r02_read_key
+-- declared parameters: installed_product_id, key
+Nested Loop  (cost=0.56..5.01 rows=1 width=40) (actual time=0.009..0.010 rows=1 loops=1)
+  Output: c.value, ip.current_revision
+  Buffers: shared hit=6
+  ->  Index Scan using config_entry_pkey on public.config_entry c  (cost=0.41..2.63 rows=1 width=40) (actual time=0.007..0.007 rows=1 loops=1)
+        Output: c.installed_product_id, c.key, c.value, c.version, c.updated_at
+        Index Cond: ((c.installed_product_id = '1'::bigint) AND (c.key = 'db.pool_size_000'::text))
+        Buffers: shared hit=4
+  ->  Index Scan using installed_product_pkey on public.installed_product ip  (cost=0.15..2.37 rows=1 width=16) (actual time=0.001..0.001 rows=1 loops=1)
+        Output: ip.id, ip.product_definition_id, ip.environment_id, ip.business_unit_id, ip.display_name, ip.current_revision, ip.updated_at
+        Index Cond: (ip.id = '1'::bigint)
+        Buffers: shared hit=2
+Planning Time: 0.033 ms
+Execution Time: 0.016 ms
+
+=== r03_revision_check
+-- declared parameters: installed_product_id, known_revision
+Index Scan using installed_product_pkey on public.installed_product ip  (cost=0.15..2.37 rows=1 width=9) (actual time=0.004..0.005 rows=1 loops=1)
+  Output: current_revision, (current_revision > '0'::bigint)
+  Index Cond: (ip.id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.017 ms
+Execution Time: 0.009 ms
+
+=== r04_list_installations
+-- declared parameters: 
+GroupAggregate  (cost=5.69..5552.29 rows=44730 width=128) (actual time=0.532..14.850 rows=60 loops=1)
+  Output: ip.id, pd.name, e.name, bu.name, count(c.key), ip.current_revision, ip.updated_at
+  Group Key: ip.id, pd.name, e.name, bu.name
+  Buffers: shared hit=24037
+  ->  Incremental Sort  (cost=5.69..4545.87 rows=44730 width=152) (actual time=0.264..12.843 rows=30000 loops=1)
+        Output: ip.id, pd.name, e.name, bu.name, c.key, ip.current_revision, ip.updated_at
+        Sort Key: ip.id, pd.name, e.name, bu.name
+        Presorted Key: ip.id
+        Full-sort Groups: 60  Sort Method: quicksort  Average Memory: 30kB  Peak Memory: 30kB
+        Pre-sorted Groups: 60  Sort Method: quicksort  Average Memory: 68kB  Peak Memory: 68kB
+        Buffers: shared hit=24037
+        ->  Merge Left Join  (cost=1.02..2690.99 rows=44730 width=152) (actual time=0.030..6.261 rows=30000 loops=1)
+              Output: ip.id, pd.name, e.name, bu.name, c.key, ip.current_revision, ip.updated_at
+              Merge Cond: (ip.id = c.installed_product_id)
+              Buffers: shared hit=24037
+              ->  Nested Loop Left Join  (cost=0.60..496.98 rows=850 width=120) (actual time=0.018..0.143 rows=60 loops=1)
+                    Output: ip.id, ip.current_revision, ip.updated_at, pd.name, e.name, bu.name
+                    Inner Unique: true
+                    Buffers: shared hit=322
+                    ->  Nested Loop  (cost=0.45..339.31 rows=850 width=92) (actual time=0.014..0.111 rows=60 loops=1)
+                          Output: ip.id, ip.current_revision, ip.updated_at, ip.business_unit_id, pd.name, e.name
+                          Inner Unique: true
+                          Buffers: shared hit=242
+                          ->  Nested Loop  (cost=0.30..181.64 rows=850 width=64) (actual time=0.010..0.074 rows=60 loops=1)
+                                Output: ip.id, ip.current_revision, ip.updated_at, ip.environment_id, ip.business_unit_id, pd.name
+                                Inner Unique: true
+                                Buffers: shared hit=122
+                                ->  Index Scan using installed_product_pkey on public.installed_product ip  (cost=0.15..26.10 rows=850 width=36) (actual time=0.004..0.020 rows=60 loops=1)
+                                      Output: ip.id, ip.product_definition_id, ip.environment_id, ip.business_unit_id, ip.display_name, ip.current_revision, ip.updated_at
+                                      Buffers: shared hit=2
+                                ->  Index Scan using product_definition_pkey on public.product_definition pd  (cost=0.15..0.18 rows=1 width=36) (actual time=0.000..0.000 rows=1 loops=60)
+                                      Output: pd.id, pd.name, pd.product_version
+                                      Index Cond: (pd.id = ip.product_definition_id)
+                                      Buffers: shared hit=120
+                          ->  Index Scan using environment_pkey on public.environment e  (cost=0.15..0.19 rows=1 width=36) (actual time=0.000..0.000 rows=1 loops=60)
+                                Output: e.id, e.name
+                                Index Cond: (e.id = ip.environment_id)
+                                Buffers: shared hit=120
+                    ->  Index Scan using business_unit_pkey on public.business_unit bu  (cost=0.15..0.19 rows=1 width=36) (actual time=0.000..0.000 rows=1 loops=60)
+                          Output: bu.id, bu.name
+                          Index Cond: (bu.id = ip.business_unit_id)
+                          Buffers: shared hit=80
+              ->  Index Only Scan using config_entry_pkey on public.config_entry c  (cost=0.41..1632.77 rows=44730 width=40) (actual time=0.010..4.351 rows=30000 loops=1)
+                    Output: c.installed_product_id, c.key
+                    Heap Fetches: 30000
+                    Buffers: shared hit=23715
+Planning:
+  Buffers: shared hit=2
+Planning Time: 0.209 ms
+Execution Time: 14.889 ms
+
+=== r05_search_key
+-- declared parameters: scope_kind, scope_id, key
+Sort  (cost=31.19..31.20 rows=1 width=40) (actual time=0.030..0.031 rows=6 loops=1)
+  Output: c.installed_product_id, c.value
+  Sort Key: c.installed_product_id
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=25
+  ->  Nested Loop  (cost=0.41..31.18 rows=1 width=40) (actual time=0.013..0.027 rows=6 loops=1)
+        Output: c.installed_product_id, c.value
+        Inner Unique: true
+        Buffers: shared hit=25
+        ->  Seq Scan on public.installed_product ip  (cost=0.00..20.62 rows=4 width=8) (actual time=0.005..0.007 rows=6 loops=1)
+              Output: ip.id, ip.product_definition_id, ip.environment_id, ip.business_unit_id, ip.display_name, ip.current_revision, ip.updated_at
+              Filter: (ip.product_definition_id = 1)
+              Rows Removed by Filter: 54
+              Buffers: shared hit=1
+        ->  Index Scan using config_entry_pkey on public.config_entry c  (cost=0.41..2.63 rows=1 width=40) (actual time=0.003..0.003 rows=1 loops=6)
+              Output: c.installed_product_id, c.key, c.value, c.version, c.updated_at
+              Index Cond: ((c.installed_product_id = ip.id) AND (c.key = 'db.pool_size_000'::text))
+              Buffers: shared hit=24
+Planning Time: 0.061 ms
+Execution Time: 0.038 ms
+
+=== w03_delete_key
+-- declared parameters: installed_product_id, key
+Delete on public.config_entry  (cost=0.41..2.63 rows=0 width=0) (actual time=0.015..0.015 rows=0 loops=1)
+  Buffers: shared hit=5
+  ->  Index Scan using config_entry_pkey on public.config_entry  (cost=0.41..2.63 rows=1 width=6) (actual time=0.007..0.007 rows=1 loops=1)
+        Output: ctid
+        Index Cond: ((config_entry.installed_product_id = '1'::bigint) AND (config_entry.key = 'db.pool_size_000'::text))
+        Buffers: shared hit=4
+Planning Time: 0.033 ms
+Execution Time: 0.062 ms
+
+=== w05_replace_clear
+-- declared parameters: installed_product_id
+Delete on public.config_entry  (cost=4.35..206.81 rows=0 width=0) (actual time=0.145..0.146 rows=0 loops=1)
+  Buffers: shared hit=517
+  ->  Bitmap Heap Scan on public.config_entry  (cost=4.35..206.81 rows=224 width=6) (actual time=0.023..0.051 rows=499 loops=1)
+        Output: ctid
+        Recheck Cond: (config_entry.installed_product_id = '1'::bigint)
+        Heap Blocks: exact=11
+        Buffers: shared hit=18
+        ->  Bitmap Index Scan on config_entry_pkey  (cost=0.00..4.29 rows=224 width=0) (actual time=0.013..0.013 rows=500 loops=1)
+              Index Cond: (config_entry.installed_product_id = '1'::bigint)
+              Buffers: shared hit=7
+Planning Time: 0.016 ms
+Execution Time: 0.164 ms

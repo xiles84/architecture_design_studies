@@ -1274,3 +1274,12 @@ the ~1.6x identical-SQL spread seen within the v1 run, so that larger spread is 
 — it is a within-run position/order effect, and it remains unmeasured because the runner cannot
 place one design first and last in a single phase without overwriting its own result file.
 **Measure the effect in the position domain before naming its mechanism.**
+
+### A cadence arm that records delivery is not a staleness measurement
+
+Study 04's cadence phase proves the scheduler fired (offered == started == completed, queue depth
+within bound) and gives scheduling lag, but it does not stamp derived values, so it cannot say how
+old a rollup was when a reader saw it. The protocol asked for staleness and rollup lag; the harness
+had no field for it. **Delivering the measured half and naming the missing field is the honest
+result** — a delivery rate is not a staleness distribution, and "quiet/steady/burst" describes the
+update cadence, not the age of the answer. Closing it needs a harness change, not a bigger matrix.

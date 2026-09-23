@@ -160,16 +160,21 @@ placement pair).
    `v1-diagnostic` keeps the frozen audit (11/12 claims, 36/43 names) as a regression fixture.
    Correction ledger and synthesis handoff are in `book/evidence/v2/`. The review verdicts the
    correction honoured are in `book/evidence/reviews/`.
-3. **Study 04 v2** — protocol complete, **controls run 2026-09-23** (tag `study-04/v2-controls`).
-   `HANDOFF-AMENDMENT-01-V2.md` (tag `study-04/v2-handoff`) defines the controls, cardinality,
-   cadence, equal-total, placement and YugabyteDB work. The controls measured: identical SQL
-   reproduces within 0.9%–6.7% across fresh-load phases; the lock's advantage at 16 writers is
-   1.19x against a retries-disabled optimistic design and 1.57x against default; the writer sweep
-   gives c2/c1 = 0.89 / 1.26 / 1.58 / 1.60 at 1/4/16/64 writers with 0 lost updates. The
-   **within-run identical-SQL position effect the v1 review named is still unmeasured** (the runner
-   cannot place one design first and last in a phase). Signed analysis
-   `20260923T00116Z-controls--deepseek-flash--2026-09-23`. Remaining published tasks:
-   `…-study04-v2-cardinality-cadence`, `…-study04-v2-remaining-designs` (both proposed). Verdicts in
+3. **Study 04 v2** — protocol complete; **controls and cardinality/cadence run 2026-09-23** (tags
+   `study-04/v2-controls`, `study-04/v2-cardinality-cadence`). `HANDOFF-AMENDMENT-01-V2.md` (tag
+   `study-04/v2-handoff`) defines all the work. Measured so far: identical SQL reproduces within
+   0.9%–6.7% across fresh-load phases; the lock's advantage at 16 writers is 1.19x against a
+   retries-disabled optimistic design and 1.57x against default; the writer sweep gives
+   c2/c1 = 0.89 / 1.26 / 1.58 / 1.60 at 1/4/16/64 writers with 0 lost updates; across cardinality
+   tiers 1–500 the row designs collapse 62x on `r04_list_installations` (11.8k → 188 ops/s) while
+   the rollups stay flat (13.9k–14.7k, ~74x apart at 500), and the trigger's `w05_replace_all` is
+   10–11 ops/s against the application rollup's 413–448 across quiet/steady/burst cadences. Two
+   named gaps remain: the **within-run identical-SQL position effect** (the runner cannot place one
+   design first and last in a phase) and **derived-state staleness/rollup lag** (the harness records
+   scheduling lag, not derived-value age). Signed analyses
+   `20260923T00116Z-controls--deepseek-flash--2026-09-23`,
+   `20260923T0030Z-cardinality-cadence--deepseek-flash--2026-09-23`. Remaining published task:
+   `…-study04-v2-remaining-designs` (proposed). Verdicts in
    `book/evidence/reviews/20260922-study04-independent-review.json`.
 4. **Study 05 v2** — protocol complete 2026-09-22:
    `studies/05-cache-consistency/HANDOFF-AMENDMENT-01-V2.md` (tag `study-05/v4-handoff`) defines
