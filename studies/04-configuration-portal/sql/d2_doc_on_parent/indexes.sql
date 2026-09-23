@@ -1,0 +1,5 @@
+-- Built after the load. The document design has no secondary index to build: the
+-- primary key is the only lookup, and the cross-installation search (r05) is
+-- answered by a containment test on the document rather than by an index. That
+-- is a property of the design, and it is why r05 is expected to be the slowest
+-- read here.

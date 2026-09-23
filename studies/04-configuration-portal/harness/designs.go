@@ -153,6 +153,14 @@ var designs = []Design{
 			sAuditKeys, sAuditRev, sAuditCount, "a_document_revision_mismatches", "a_content_hash_mismatches", "w_load_documents"},
 	},
 	{
+		ID: "d2_doc_on_parent", Short: "d2", Title: "document embedded in the parent row",
+		Family: "document", Kind: Doc, Rollup: RollupNone, Pair: "d1_doc_row",
+		Summary: "The same statements as d1, but the document lives as a column on installed_product instead of a separate row. The publication is the same size; the metadata update (W6) now rewrites the document too.",
+		Risk:    "same guard as d1, plus W6 amplification: an ordinary metadata write rewrites TOASTed configuration",
+		Needs: []string{sR01, sR02, sR03, sR04, sR05, sRevBump, sW06, "wd1_read_doc", "wd1_write_doc",
+			sAuditKeys, sAuditRev, sAuditCount, "a_document_revision_mismatches", "a_content_hash_mismatches", "w_load_documents"},
+	},
+	{
 		ID: "c1_optimistic_version", Short: "c1", Title: "optimistic version check with bounded retries",
 		Family: "concurrency", Kind: Rows, Rollup: RollupNone, Conc: ConcOptimistic,
 		ReadModifyWrite: true, Pair: "c2_pessimistic_lock",

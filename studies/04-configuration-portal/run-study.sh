@@ -85,7 +85,7 @@ ENVIRONMENT="${BENCH_ENVIRONMENT:-host-zenbook-ux5406sa}"
 OUT="$STUDY_DIR/results/$RUN_ID"
 mkdir -p "$OUT"
 
-ALL_DESIGNS="n0_rows_unindexed n1_rows_indexed n2_rows_rolldown n3_rollup_trigger n4_rollup_app d1_doc_row c1_optimistic_version c2_pessimistic_lock x1_lost_update_control x2_rollup_drift_control"
+ALL_DESIGNS="n0_rows_unindexed n1_rows_indexed n2_rows_rolldown n3_rollup_trigger n4_rollup_app d1_doc_row d2_doc_on_parent c1_optimistic_version c2_pessimistic_lock x1_lost_update_control x2_rollup_drift_control"
 
 # ---------------------------------------------------------------------------
 # Repository version. "Dirty" means uncommitted changes in the code that can
