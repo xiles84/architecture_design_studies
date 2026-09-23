@@ -3,7 +3,12 @@
 // fails to a visible error string rather than a silent empty table, so a build
 // with a missing registry is obvious on the page.
 
-#let registry-path = "/evidence/v2/claims.json"
+// A path without a leading slash is resolved against THIS file, so the book
+// compiles whether the Typst root is `book/` (as build.sh sets) or the
+// repository (as an editor's language server defaults to). A leading-slash path
+// is root-relative, which made preview fail with "file not found (searched at
+// <repo>/evidence/v2/claims.json)" before this change.
+#let registry-path = "../evidence/v2/claims.json"
 
 #let loaded = {
   // `json` needs the file to exist at compile time; the build copies the book
