@@ -39,6 +39,10 @@ type Options struct {
 	// it off to measure the unserialised behaviour, and say so when you do.
 	SerializeKeys bool `json:"serialize_writes_per_key"`
 	ExtFraction   int  `json:"external_write_fraction_pct"`
+	// ConnectionNodes is how many database endpoints the runner supplied. A
+	// multi-node cell spreads its operations over all of them; a single endpoint
+	// silently standing in for balanced cluster access is what this records.
+	ConnectionNodes int `json:"connection_nodes"`
 }
 
 type EngineInfo struct {

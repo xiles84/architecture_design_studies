@@ -211,14 +211,24 @@ func runCell(ctx context.Context, res *CellResult, d Design, dsn, explainPath st
 	openCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	db, err := pgxdb.Open(openCtx, pgxdb.Config{
-		DSN: dsn, MaxConns: 48, StatementTimeoutMS: stmtTO,
-		ApplicationName: "study05-" + d.Short,
-	})
+	// A multi-node topology arrives as a comma-separated DSN list. Opening one pool
+	// per endpoint and spreading operations over them is what makes a 3-node cell a
+	// measurement of the cluster rather than of one node's SQL layer; a single
+	// endpoint is passed through unchanged.
+	endpoints := splitList(dsn)
+	cfgs := make([]pgxdb.Config, 0, len(endpoints))
+	for _, one := range endpoints {
+		cfgs = append(cfgs, pgxdb.Config{
+			DSN: one, MaxConns: 48, StatementTimeoutMS: stmtTO,
+			ApplicationName: "study05-" + d.Short,
+		})
+	}
+	db, err := pgxdb.OpenSpread(openCtx, cfgs)
 	if err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
 	defer db.Close()
+	res.Options.ConnectionNodes = len(endpoints)
 
 	res.EngineInfo = probeEngine(ctx, db, res.Engine)
 	res.StrictPolicy = string(strictPolicyFor(d, res.Options.Instances))
@@ -663,4 +673,16 @@ func probeRedisCapabilities(ctx context.Context, addr, out string) (map[string]a
 func fatal(err error) {
 	fmt.Fprintln(os.Stderr, "fatal:", err)
 	os.Exit(1)
+}
+
+// splitList splits a comma-separated flag value (a DSN list, a phase list) into
+// its non-empty, trimmed parts.
+func splitList(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
