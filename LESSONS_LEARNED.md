@@ -1240,3 +1240,37 @@ committed blob's sha256 (`a03b54…`) did not equal the PDF's real hash (`da433f
 manifest records. **Exempt binaries explicitly** (`book/dist/**/*.pdf -text`) and verify with
 `git cat-file -p :path | sha256sum` that the stored blob matches the recorded hash — a manifest
 whose hash does not describe the committed bytes is worse than no hash.
+
+## Running the Study 04 v2 controls (2026-09-23)
+
+### A shared-ledger harness needs its full phase sequence
+
+The contention phase audits the design against one ledger built for the whole cell. Running
+`--phases verify,explain,contention` (skipping `read,write`) makes that ledger expect a state the
+skipped phases would have produced, so the audit fails with
+`INV-3/INV-10: installation N is missing key …`, the runner records the cell as **failed**, and the
+contention numbers are unusable. The failure is a harness-ordering artefact, not a design defect:
+re-running with `verify,read,write,contention` passed every cell. **When a harness keeps one ledger
+per cell, a reduced phase set must be a supported mode, not an accident** — either prepare the ledger
+for the reduced sequence or refuse to run the subset. The five failed runs are kept in `results/`
+and excluded from the analysis.
+
+### The runner's dirty check counts generated reports, so later runs are not tagged
+
+`run-study.sh` computes "dirty" with `git status --porcelain -- platform infra studies/<id>
+:!studies/*/results :!studies/*/reports`. The pathspec exclusions do not suppress untracked
+`reports/*.md` files, so after the first run every later run reports `repo_dirty: true` and the
+runner **silently skips `--tag`**. No tracked code changed — `git status --porcelain
+--untracked-files=no` over the code paths is empty — but the runs lose their automatic tags. The
+tags were recreated by hand on the same commit. **A provenance check must not treat its own
+generated artefacts as a dirty tree**, and a runner that declines to tag must fail loudly rather
+than continue quietly. Studies 01–03 use the same pattern and should be audited.
+
+### Identical SQL reproduces within ~7% across phases; a larger within-run spread has another cause
+
+Running the same design (`n1_rows_indexed`) alone in three fresh-load phases reproduced every read
+within 0.9%–6.7% (most ≤2%). That is the cross-phase instrument floor on this host. It is far below
+the ~1.6x identical-SQL spread seen within the v1 run, so that larger spread is not run-to-run drift
+— it is a within-run position/order effect, and it remains unmeasured because the runner cannot
+place one design first and last in a single phase without overwriting its own result file.
+**Measure the effect in the position domain before naming its mechanism.**
