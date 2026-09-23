@@ -343,7 +343,13 @@ for topo in ${TOPOLOGIES//,/ }; do
       for d in $ORDER; do
         run_cell yb-cluster3 yugabyte "postgres://yugabyte@yb-n1:5433/yugabyte?sslmode=disable,postgres://yugabyte@yb-n2:5433/yugabyte?sslmode=disable,postgres://yugabyte@yb-n3:5433/yugabyte?sslmode=disable" "$d"
       done
-      podman exec yb-n1 bash -lc "bin/yb-admin --master_addresses=yb-n1:7100,yb-n2:7100,yb-n3:7100 list_tablets ysql.yugabyte.donation 2>/dev/null" \
+      # Real placement evidence: the tablet-to-node mapping for the study's own
+      # database. The earlier command named `ysql.yugabyte.donation`, a table
+      # Study 01 has and Study 05 does not, so it returned nothing and the file
+      # held only the server list -- not a distribution (LESSONS_LEARNED, Study 05
+      # v2 resources/engines, 2026-09-23). Listing every table in the keyspace
+      # records where the data actually is.
+      podman exec yb-n1 bash -lc "bin/yb-admin --master_addresses=yb-n1:7100,yb-n2:7100,yb-n3:7100 list_tablets ysql.yugabyte 2>/dev/null" \
         > "$OUT/yb-cluster3/placement-evidence.txt" 2>&1 || true
       podman exec yb-n1 bash -lc "ysqlsh -h yb-n1 -p 5433 -U yugabyte -d yugabyte -Atc 'SELECT host, count(*) FROM yb_servers() GROUP BY host'" \
         >> "$OUT/yb-cluster3/placement-evidence.txt" 2>&1 || true
