@@ -4,10 +4,10 @@ Generated from immutable brainstorm records; do not hand-edit.
 
 ## `brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies` — Visual explanations for book and studies
 
-- State/stage: `ongoing` / `collecting_positions`
-- Summary: Use a small set of question-led structure and sequence figures, with detailed study sources and readable book adaptations. Pin rendering and include diagram assets in PDF provenance; validate visual legibility and factual alignment.
-- Progress: positions 2/3; critiques 0/2; synthesis pending
-- Disagreements: Figure count, direct SVG reuse versus book adaptations, and PlantUML versus an alternative renderer remain open until PDF and reader checks.
+- State/stage: `ongoing` / `cross_review`
+- Summary: Curate mechanism diagrams with source and revision contracts; pin Podman rendering and make book figure bytes part of provenance. Pilot four figures and audit existing diagrams before reuse.
+- Progress: positions 3/3; critiques 0/2; synthesis pending
+- Disagreements: Scope of initial figure set and whether book imports study SVGs directly or via deterministic export remain open.
 - Next: `CONTINUE BRAINSTORM brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies`
 
 ## `brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control` — Cache strategy coverage by schema control
