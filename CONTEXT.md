@@ -175,8 +175,11 @@ placement pair).
    the rollups stay flat (13.9k–14.7k, ~74x apart at 500), and the trigger's `w05_replace_all` is
    10–11 ops/s against the application rollup's 413–448 across quiet/steady/burst cadences. Two
    named gaps remain: the **within-run identical-SQL position effect** (the runner cannot place one
-   design first and last in a phase) and **derived-state staleness/rollup lag** (the harness records
-   scheduling lag, not derived-value age). Signed analyses
+   design first and last in a phase) and — until 2026-09-23 — **derived-state staleness/rollup lag**,
+   which the staleness task then measured (tag `study-04/v2-staleness-field`): n3 (trigger) p50
+   4.30 ms / max 6.88, n4 (application) p50 4.01 / max 4.34, 12 probes each, 0 timeouts, so both
+   atomic designs have **no window above the probe's ~5 ms resolution**; their difference is write
+   cost, not freshness. Analysis `20260923T1305Z-staleness--deepseek-flash--2026-09-23`. Signed analyses
    `20260923T00116Z-controls--deepseek-flash--2026-09-23`,
    `20260923T0030Z-cardinality-cadence--deepseek-flash--2026-09-23`. The third task
    (`…-study04-v2-remaining-designs`, tag `study-04/v2-remaining-designs`) built and measured **one**

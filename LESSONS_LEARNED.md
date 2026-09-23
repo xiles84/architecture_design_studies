@@ -1316,3 +1316,13 @@ report the result as a cluster number, which is exactly what a multi-node study 
 already solved this with one pool per endpoint and a round-robin wrapper; the reusable version now
 lives in `platform/adapters/pgxdb` (`OpenSpread`) and every result records `connection_nodes`. **A
 multi-endpoint study must prove it spread its connections, or say it did not.**
+
+### A probe's resolution is the smallest finding it can report
+
+Study 04's new staleness probe polls the design's aggregate every 2 ms until it reflects an
+acknowledged child change. It measured p50 ~4 ms for both trigger- and application-maintained
+rollups — but that figure is mostly the poll interval plus one round trip, not the design's window.
+The defensible statement is "no window above roughly 5 ms", and the analysis says exactly that. **A
+measurement can only be as precise as the instrument, and an instrument built to answer "is there a
+window?" cannot answer "how long is it?" below its own sampling period.** When the expected effect is
+near the resolution, say the bound, not the number.
