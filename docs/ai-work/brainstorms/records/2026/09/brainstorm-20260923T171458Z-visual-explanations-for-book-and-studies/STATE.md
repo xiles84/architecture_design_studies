@@ -4,10 +4,10 @@
 BRAINSTORM STATUS
 ID: brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies
 State: ongoing
-Stage: cross_review
+Stage: synthesis
 Summary:
-  Separate diagram form from evidence status; audit semantic drift, then pilot two figures before expanding.
-  Progress: positions 3/3; critiques 1/2; synthesis pending
-Disagreements: Direct reuse versus generated export, final figure count, byte-identity gating, and reader benefit remain open; position-01's zero-sequence premise is falsified.
+  Corrected existing sequence-diagram inventory; converged on a small audited proof set, pinned rendering, asset provenance, and reader checks.
+  Progress: positions 3/3; critiques 2/2; synthesis pending
+Disagreements: Initial figure count and direct import versus deterministic export remain to be tested; a structure figure remains contested.
 Next action: CONTINUE BRAINSTORM brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies
 ```
