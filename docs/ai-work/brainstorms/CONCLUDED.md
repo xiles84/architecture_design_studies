@@ -10,3 +10,11 @@ Generated from immutable brainstorm records; do not hand-edit.
 - Disagreements: Preserved: a human-facing narrative audit is admissible only as the correction ledger of the one active evidence version; answerability-first is editorial ordering, not a measured ranking; the block is a claim-to-cell resolution failure, not a claim that v1's statements are false; physical placement is undocumented to today's standard, not proven uncolocated; and this synthesis was written by the session that authored position-02 and critique-01, so the owner's later review should weigh that reduced independence. The mechanical count that critique-02 asked for is now computed: 11 of 12 claims affected, 36 of 43 names unresolved, and the corrected tag count is 9 of 12.
 - Next: `Review linked task progress`
 - Linked tasks: `task-20260922T170845Z-book-evidence-correction-v2`
+
+## `brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies` — Visual explanations for book and studies
+
+- State/stage: `concluded` / `concluded`
+- Summary: Adopt a small audited provenance-gated visual layer with one canonical PlantUML source per figure, pinned rendering, and asset bytes in the book build. Audit the 30 existing sources first (the D3 heap wording is the first correction), label form and evidence status separately, and pilot 3-4 figures before expanding.
+- Progress: positions 3/3; critiques 2/2; synthesis complete
+- Disagreements: Preserved: whether one book-level structure figure earns its maintenance; byte-identity versus normalized drift gate; direct import versus generated book/assets export; how much caption detail.
+- Next: `CREATE TASKS FROM BRAINSTORM brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies`

@@ -3,11 +3,11 @@
 ```text
 BRAINSTORM STATUS
 ID: brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies
-State: ongoing
-Stage: synthesis
+State: concluded
+Stage: concluded
 Summary:
-  Corrected existing sequence-diagram inventory; converged on a small audited proof set, pinned rendering, asset provenance, and reader checks.
-  Progress: positions 3/3; critiques 2/2; synthesis pending
-Disagreements: Initial figure count and direct import versus deterministic export remain to be tested; a structure figure remains contested.
-Next action: CONTINUE BRAINSTORM brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies
+  Adopt a small audited provenance-gated visual layer with one canonical PlantUML source per figure, pinned rendering, and asset bytes in the book build. Audit the 30 existing sources first (the D3 heap wording is the first correction), label form and evidence status separately, and pilot 3-4 figures before expanding.
+  Progress: positions 3/3; critiques 2/2; synthesis complete
+Disagreements: Preserved: whether one book-level structure figure earns its maintenance; byte-identity versus normalized drift gate; direct import versus generated book/assets export; how much caption detail.
+Next action: CREATE TASKS FROM BRAINSTORM brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies
 ```
