@@ -212,7 +212,11 @@ placement pair).
 5. **Book v1** — **released 2026-09-22** (tag `repo/data-architecture-book-v1`): the 36-page PDF at
    `book/dist/data-architecture-reference.pdf` (sha256 `58d61df0…`), synthesised from the 23 active
    v2 claims and independently reviewed. Remaining book work is future editions and the coverage
-   gaps the protocols below will close; no v1 acceptance check is open.
+   gaps the protocols below will close; no v1 acceptance check is open. The sources were then made
+   **root-independent** (tag `repo/book-preview-paths-v1`, commit `89d8a0d`): `lib/evidence.typ`
+   used a root-relative path that broke editor preview when the language server rooted at the
+   repository instead of `book/`. The rebuilt artefact (sha256 `379b31f9…`, still 36 pages, 4/4
+   fonts, 23/23 claims) is the current build; the released v1 PDF remains available at its tag.
 6. **Study 07 topology** — protocol complete 2026-09-22: `studies/07-topology/HANDOFF.md` (tag
    `repo/topology-study-handoff-v1`) separates node count, replication, placement, routing, resource
    budget, network and failure; it requires independent hosts and balanced endpoints, and defines

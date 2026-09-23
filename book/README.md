@@ -35,6 +35,15 @@ version and image digest, the evidence-registry digest, a hash over every `.typ`
 sha256, the page count, the embedded-font count, the number of claims indexed and whether the
 evidence digest appears in the rendered text.
 
+## Previewing
+
+The sources compile under **any** Typst root: every file path is resolved against the file that
+names it, not against the root. That matters for editors whose language server (tinymist, typst-lsp)
+roots the project at the repository rather than at `book/` — with a root-relative path the preview
+failed immediately with `file not found (searched at <repo>/evidence/v2/claims.json)`. If your
+editor still shows that error, set its root to this directory (`book/`), but it should not be
+necessary. `book/build.sh` continues to pass `--root book`, so the built artefact is unaffected.
+
 The build **fails** if the PDF is implausibly short, if any font is not embedded, or if the
 evidence digest does not appear on the page. A green build means the registry compiled into the
 artefact, not merely that Typst exited zero.

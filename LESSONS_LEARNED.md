@@ -1326,3 +1326,14 @@ The defensible statement is "no window above roughly 5 ms", and the analysis say
 measurement can only be as precise as the instrument, and an instrument built to answer "is there a
 window?" cannot answer "how long is it?" below its own sampling period.** When the expected effect is
 near the resolution, say the bound, not the number.
+
+### A root-relative path compiles only under one root
+
+The book's evidence module read `/evidence/v2/claims.json`. A leading slash makes a Typst path
+**root-relative**, so the book compiled with `book/build.sh` (which passes `--root book`) and failed
+everywhere else: an editor's language server roots the project at the repository, where the same path
+becomes `<repo>/evidence/v2/claims.json` and the import dies in milliseconds
+(`file not found (searched at …/evidence/v2/claims.json)`). A path **without** a leading slash is
+resolved against the file that names it, so it works under either root. **A build script that
+happens to set the right root hides a source that only works under that root**; make paths
+file-relative unless there is a reason to be root-relative, and test the book from both roots.
