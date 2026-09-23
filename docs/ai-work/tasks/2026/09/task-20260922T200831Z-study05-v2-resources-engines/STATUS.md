@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T200831Z-study05-v2-resources-engines` |
-| State | `in_progress` |
-| Sequence | `4` |
+| State | `awaiting_review` |
+| Sequence | `5` |
 | Active attempt | `attempt-20260923T111955Z-b1e692` |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor` |
-| Last event | `event-20260923T120916Z-checkpoint` |
-| Updated at | `2026-09-23T12:09:16Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Last event | `event-20260923T121111Z-submitted` |
+| Updated at | `2026-09-23T12:11:11Z` |
+| Next capability | HIGH |
+| Next work role | reviewer |
 | Branch | `study-05/v2-resources-engines` |
 | Worktree | `.worktrees/study05-v2-resources-engines` |
 
-Checkpoint 64c0689d1497b4fd7c9f1f131cbc5b460e2affa2; claim claim-434ba2982ca22c00 epoch 1.
+Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/09/task-20260922T200831Z-study05-v2-resources-engines/attempts/attempt-20260923T111955Z-b1e692/RESULT.md`.
