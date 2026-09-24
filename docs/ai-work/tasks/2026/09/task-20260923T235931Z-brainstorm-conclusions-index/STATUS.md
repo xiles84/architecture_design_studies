@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260923T235931Z-brainstorm-conclusions-index` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=deepseek-flash tool=unknown effort=unknown session=session-20260923T174300Z-deepseek-flash capability=HIGH role=planner` |
-| Last event | `event-20260924T000238Z-published` |
-| Updated at | `2026-09-24T00:02:38Z` |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20260924T021737Z-87cb8f` |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=integrator` |
+| Last event | `event-20260924T021737Z-claimed` |
+| Updated at | `2026-09-24T02:17:37Z` |
 | Next capability | LOW |
-| Next work role | integrator |
+| Next work role | executor |
 | Branch | `repo/context-brainstorm-index` |
 | Worktree | `.worktrees/context-brainstorm-index` |
 
-Published by model=deepseek-flash tool=unknown effort=unknown session=session-20260923T174300Z-deepseek-flash capability=HIGH role=planner. The immutable event files are authoritative for history.
+Claimed by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=integrator until 2026-09-24T04:17:37Z. Worktree `.worktrees/context-brainstorm-index`.
