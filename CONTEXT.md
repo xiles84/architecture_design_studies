@@ -75,6 +75,17 @@ summary, not a second ledger.
   from publication fencing, and names the `wrong_reads` counter as a strict-comparator count. Measured
   effect on the rendered text: orphan-hyphen fragment lines fall from 99 (worst page 33, 17 on the
   page) to 30 (worst page 34, 3), and the chapter shrinks by three pages.
+- **External-review remediation queue (2026-09-24):** two tasks are complete and integrated —
+  `task-20260924T102917Z-book-evidence-v4` (v4 package, retired gaps, single registry path, build
+  gates; tag `repo/book-evidence-registry-v4`) and `task-20260924T105000Z-book-cache-chapter-v2`
+  (mechanism cards replacing the collapsed table, plus the cache terminology fixes; tag
+  `repo/data-architecture-book-cache-chapter-v2`). Four are **published and ready** for a LOW
+  executor: `task-20260924T110000Z-book-text-pass-v2` (R05-R12, R19-R22, R25, R29),
+  `task-20260924T110001Z-book-figures-v2` (R26-R28, and it clears the two waivers in
+  `book/evidence/check-waivers.txt`), `task-20260924T110002Z-book-pedagogy-v2` (R23-R25 and the
+  visual tranches), and `task-20260924T110003Z-book-v2-release` (rebuild `book/dist`, tag
+  `repo/data-architecture-book-v2`), which depends on the other three. The tracked PDF in
+  `book/dist/` is still the Edition 1 build until that release task runs.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in

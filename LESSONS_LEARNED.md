@@ -1449,3 +1449,14 @@ aesthetic: 99 before, with 17 on the worst page; 30 after, worst page 3. **Never
 column whose cells hold sentences**, and prefer cards to a wide table when each row needs four or five
 labelled fields — the labels then sit beside their content instead of in a column header the reader
 has to look back for.
+
+### The queue CLI can leave a stale git lock behind on WSL + Windows podman
+
+Four queue commands in a row failed with "Another git process seems to be running", naming a
+`.git/index.lock` that no process held. The queue CLI runs in a podman container and drives git
+against the shared working tree; in this WSL + Windows-podman setup its commit step can leave the lock
+file behind, and the next command refuses to start. The publish event chain of the first task had to
+be committed by hand for that reason. **Check `ps -ef | grep git` and `podman ps` before removing a
+lock** — an empty lock with no git process and no running container is stale — then remove it and
+retry. Do not conclude that a concurrent agent is holding it without that check, and do not widen the
+habit into removing locks that a live process owns.
