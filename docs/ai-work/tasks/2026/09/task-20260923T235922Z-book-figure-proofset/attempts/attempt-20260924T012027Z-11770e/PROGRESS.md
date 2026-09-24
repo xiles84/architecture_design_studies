@@ -4,7 +4,7 @@
 **Branch:** `book/figure-proofset`
 **Attempt:** `attempt-20260924T012027Z-11770e` (claim `claim-a77de8b930a34624`, epoch 1)
 **Capability/role:** HIGH session executing the task / analyst (model `deepseek-flash`)
-**Required tag:** `repo/book-figure-proofset-v1`
+**Required tag:** `repo/book-figures-v1`
 
 Authorship and build. No database started, no benchmark lock taken, no measurement.
 

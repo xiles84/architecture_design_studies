@@ -2,7 +2,7 @@
 
 **Task:** `task-20260923T235922Z-book-figure-proofset`
 **Branch:** `book/figure-proofset`
-**Required tag:** `repo/book-figure-proofset-v1`
+**Required tag:** `repo/book-figures-v1`
 **Capability:** HIGH session executing the task / analyst (model `deepseek-flash`)
 **Benchmark:** none — authorship and build only
 
