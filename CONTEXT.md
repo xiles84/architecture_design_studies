@@ -149,13 +149,14 @@ trials, equal-total resources, placement and YugabyteDB, plus the three controls
 requires (repeated-design instrument control, `-retries 1`, writer sweep).
 → [Study](studies/04-configuration-portal/) · [reports](studies/04-configuration-portal/reports/)
 
-### Study 05 — external cache — **v1 measured, independently reviewed; v2 protocol next**
+### Study 05 — external cache — **v1 reviewed; v2 runs landed (churn/scale, resources/engines, open-loop)**
 
 Cache-aside/write-through, strict vs relaxed freshness, wrongness of a relaxed cache and cache-side
 invalidation fences, on PostgreSQL + Redis (Redis measured as a shared cache, never as an
 authoritative store). The single-`small` all-green run is measured and analysed, and its limits are
 explicit (single trial, unmeasured TTL/churn, no YugabyteDB/cluster/placement, no equal-total
-accounting, open-loop demand absent). The independent HIGH review landed 2026-09-22
+accounting, open-loop demand absent) — the v2 runs have since addressed churn, equal-total and
+engines/placement, and open-loop demand (see item 4). The independent HIGH review landed 2026-09-22
 (`task-20260922T025912Z-study05-independent-review`, signed analysis
 `20260921-cache-consistency-allgreen--deepseek-flash--2026-09-22`): it accepted `claim-11`,
 `claim-12` and `claim-gap-02`, and found one material defect — the all-green analysis swaps the
@@ -233,9 +234,15 @@ placement pair).
    `connection_nodes` is recorded. The **tablet/leader distribution is still not evidenced** (the
    placement file holds only the server list), and one host is not colocation evidence. Signed
    analyses `20260923T1100Z-churn--deepseek-flash--2026-09-23`,
-   `20260923T1215Z-resources-engines--deepseek-flash--2026-09-23`. Remaining published task:
-   `…-study05-v2-open-loop` (proposed). Verdicts in
-   `book/evidence/reviews/20260922-study05-independent-review.json`.
+   `20260923T1215Z-resources-engines--deepseek-flash--2026-09-23`. The **open-loop demand phase then
+   ran 2026-09-23** (tag `study-05/v2-open-loop`, run `20260923T0255Z-openloop`, digest
+   `50d5a426c89e96cf`): the harness gained an `openloop` phase on the platform's `measure.RunOpenLoop`,
+   and the canonical cell offered **5,000 ops/s → 4,969 delivered (99.4%, 0 dropped)** and
+   **30,000 ops/s → 15,599 delivered with 141,710 of 300,004 arrivals (47.2%) never attempted**. The
+   client's bounded buffer, not the server, was the first limit (closed-loop floor 21,175 ops/s in
+   the same cell), so 15,599/s is a client-limited lower bound; 0 wrong reads in both regimes.
+   Analysis `20260923T0255Z-openloop--deepseek-flash--2026-09-23`. No published task remains; verdicts
+   in `book/evidence/reviews/20260922-study05-independent-review.json`.
 5. **Book v1** — **released 2026-09-22** (tag `repo/data-architecture-book-v1`): the 36-page PDF at
    `book/dist/data-architecture-reference.pdf` (sha256 `58d61df0…`), synthesised from the 23 active
    v2 claims and independently reviewed. Remaining book work is future editions and the coverage
