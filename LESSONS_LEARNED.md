@@ -1437,3 +1437,15 @@ Every worktree builds the same `localhost/ads-book:1` image, so two concurrent b
 tag even though neither touches a database. `book/build.sh` now takes an `ads-book-build-lock`
 podman volume (the same atomic-create pattern as the benchmark lock) and never touches
 `ads-run-lock`, which stays reserved for measurement.
+
+### A table column sized `auto` beside prose will eat the page
+
+`book/concepts/cache-consistency.typ` declared five mechanisms in a table with
+`columns: (auto, 1fr, auto)`. The long evidence-status cells claimed almost the whole text width, the
+`1fr` middle column collapsed to a sliver, and Typst hyphenated the prose into vertical fragments —
+`se - ri - alises`, `asyn - chro - nous` — for five pages, in the book's most conceptual section.
+Counting orphan-hyphen lines in the extracted page text makes the defect measurable rather than
+aesthetic: 99 before, with 17 on the worst page; 30 after, worst page 3. **Never put `auto` on a
+column whose cells hold sentences**, and prefer cards to a wide table when each row needs four or five
+labelled fields — the labels then sit beside their content instead of in a column header the reader
+has to look back for.

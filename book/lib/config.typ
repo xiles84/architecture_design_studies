@@ -115,6 +115,51 @@
 #let analogy(body) = callout("Analogy — not measured here", palette.analogy, body)
 #let gap(body) = callout("Coverage gap", palette.gap, body)
 
+// A mechanism card: one named coordination mechanism, with the race it closes kept
+// separate from what it does not solve.
+//
+// Why a card and not a table row: Edition 1 put five mechanisms in a three-column
+// table declared as `columns: (auto, 1fr, auto)`. The long evidence-status cell
+// claimed almost the whole text width, the middle column collapsed to a sliver, and
+// five pages of hyphenated fragments — "se - ri - alises", "asyn - chro - nous" —
+// carried the book's most important conceptual section. A card cannot collapse that
+// way, and the mandatory `not-solved` line stops "this mechanism" being read as
+// "this problem is solved".
+#let mechanism-card(name, closes, how, guarantee, not-solved, evidence) = block(
+  width: 100%,
+  inset: 8pt,
+  radius: 3pt,
+  stroke: 0.5pt + palette.rule,
+  fill: palette.surface,
+  above: 0.7em,
+  below: 0.7em,
+)[
+  #set text(size: 9pt)
+  #text(weight: "bold", size: 10.5pt, fill: palette.accent)[#name]
+  #v(3pt)
+  #grid(
+    columns: (56pt, 1fr),
+    row-gutter: 3pt,
+    column-gutter: 8pt,
+    align: (left, left),
+    text(size: 8pt, fill: palette.muted)[Race closed], closes,
+    text(size: 8pt, fill: palette.muted)[Mechanism], how,
+    text(size: 8pt, fill: palette.muted)[Guarantee], guarantee,
+    text(size: 8pt, fill: palette.muted)[Does not solve], not-solved,
+  )
+  #v(3pt)
+  #text(size: 8pt, fill: palette.muted)[Evidence: #evidence]
+]
+
+// Mechanisms fall into two layers, and conflating them is how "the database lock
+// makes the cache consistent" gets written. A source mechanism arbitrates the
+// mutation; a copy mechanism orders what leaves the transaction boundary.
+#let mechanism-group(title-text, note) = block(above: 1em, below: 0.1em)[
+  #text(weight: "bold", size: 11pt)[#title-text]
+  #v(1pt)
+  #text(size: 8.5pt, fill: palette.muted)[#note]
+]
+
 // A family / variant / topology / scenario marker used at the head of a section.
 #let marker(kind, name) = block(below: 0.6em)[
   #set text(size: 8.5pt, tracking: 0.8pt, fill: palette.muted)
