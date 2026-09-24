@@ -23,7 +23,7 @@
 #let mono-font = "DejaVu Sans Mono"
 
 #let book-title = "Data Architecture Reference"
-#let book-edition = "Edition 1 (draft)"
+#let book-edition = "Edition 2 (draft)"
 
 // ---- page geometry and running matter --------------------------------
 

@@ -103,6 +103,12 @@ while [[ "$i" -lt "$COUNT" ]]; do
   # a change has not been committed yet — and a manifest written in a dirty tree
   # records a revision that --check can never reproduce, because by then the commit
   # exists. Record the committed blob only when it actually describes the file.
+  # Purely informational: which commit last carried this content, or uncommitted.
+  # It is deliberately excluded from the staleness comparison below, because the
+  # question "is this asset stale?" is answered by content hashes (source_sha256,
+  # asset_sha256) and by the renderer and postprocess identity. A revision is a
+  # property of the repository, not of the artefact, and using it here made a
+  # manifest written before its own commit fail the check after it.
   src_rev="$(git -C "$REPO_ROOT" rev-parse "HEAD:$src" 2>/dev/null || echo uncommitted)"
   if [[ "$src_rev" != "uncommitted" ]] && [[ "$(git -C "$REPO_ROOT" hash-object "$src_abs")" != "$src_rev" ]]; then
     src_rev="uncommitted"
@@ -145,8 +151,8 @@ if [[ "$MODE" == "--write" ]]; then
 fi
 
 [[ -f "$MANIFEST" ]] || die "figure manifest missing: book/assets/figure-manifest.json (run book/assets/export.sh --write)"
-if ! diff -q <(jq -S '.figures' "$MANIFEST") <(jq -S '.figures' "$FRESH") >/dev/null; then
-  diff -u <(jq -S '.figures' "$MANIFEST") <(jq -S '.figures' "$FRESH") >&2 || true
+if ! diff -q <(jq -S '.figures | map(del(.source_revision))' "$MANIFEST") <(jq -S '.figures | map(del(.source_revision))' "$FRESH") >/dev/null; then
+  diff -u <(jq -S '.figures | map(del(.source_revision))' "$MANIFEST") <(jq -S '.figures | map(del(.source_revision))' "$FRESH") >&2 || true
   die "figure manifest is out of date (run book/assets/export.sh --write)"
 fi
 

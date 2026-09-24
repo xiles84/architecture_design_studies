@@ -168,6 +168,15 @@ summary, not a second ledger.
   written definition fails the build instead of going unlisted. The placement ladder no longer calls the
   cache "the fastest read" or "the only step that adds a consistency contract"; copy-out is the step that
   crosses the transaction boundary. A lease-versus-fence figure (V8's companion) joins the cache chapter.
+- **Edition 2 released (2026-09-24, task `book-v2-release`):** `book/dist/data-architecture-reference.pdf`
+  and its manifest are rebuilt from fully merged sources and committed. 54 pages, 29/29 claims indexed,
+  6/6 fonts embedded, evidence digest present, no unverified banner, no unresolved template tokens, and
+  the manifest's edition now appears on the page (asserted by the build). The tracked PDF is the artefact
+  the external reviewer asked for; the previous 49-page Edition 1 build is replaced, and its state is
+  recoverable from the tag `repo/data-architecture-book-v1`-era history rather than from this file.
+  Two release blockers were found and fixed while producing it: the manifest hard-coded `Edition 1` beside
+  a title page reading Edition 2, and the figure manifest's `source_revision` field made staleness depend
+  on repository state, so the staleness comparison now uses content hashes only.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in

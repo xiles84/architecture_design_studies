@@ -1618,3 +1618,27 @@ table, and a kind with no description panics with the missing name. A future pac
 fifth kind therefore cannot ship a page that lists four: the build stops, and the message says which
 definition is missing. Where a page explains data, derive the list from the data and write only the
 explanation.
+
+### The provenance record is an artefact too, and it drifts first
+
+The release manifest reported `"edition": "Edition 1 (draft)"` while the title page of the PDF it described
+said Edition 2. The field was a hand-written copy of a value that lives in `lib/config.typ`, and nothing
+compared the two — the build checked pages, fonts, claim ids, digests and tokens, and every one of those
+passed on a manifest whose edition was wrong.
+
+Two habits come out of it. **Derive every field of a provenance record from the same source the artefact
+itself uses**, and then **assert the derived value is actually in the output** — `build.sh` now reads the
+edition from `config.typ` and fails if that string does not appear in the extracted page text. A manifest
+is the one file a reader trusts to describe what they are holding; it cannot be the file nobody checks.
+
+### Staleness must depend on content, not on repository state
+
+`figure-manifest.json` carried `source_revision`, the commit that last changed each figure source. Running
+`--write` before the commit recorded `uncommitted`; running `--check` after it recorded a hash, and the
+build failed on a figure nobody had touched. Earlier in the same project the same field had failed the
+other way round, when it recorded the *previous* commit's blob.
+
+The field is useful and stays, as documentation of when the content arrived. What changed is the
+comparison: staleness is now decided by the content hash of the source, the content hash of the asset, the
+renderer identity and the postprocess step — every one a property of the artefact. **If a field describes
+the repository rather than the artefact, keep it out of the equality test.**

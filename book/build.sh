@@ -42,6 +42,12 @@ OUT_REL="dist/data-architecture-reference.pdf"
 MANIFEST_REL="dist/build-manifest.json"
 REGISTRY_VERSION="v5"
 
+# The edition is stated once, in lib/config.typ, and read here. A second copy in this
+# script is how the manifest came to say "Edition 1" beside a title page that said
+# "Edition 2". The assertion below then checks that the value really reaches the page.
+EDITION="$(sed -nE 's/^#let book-edition = "(.*)"$/\1/p' "$BOOK_DIR/lib/config.typ")"
+[[ -n "$EDITION" ]] || die "could not read book-edition from lib/config.typ"
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --out) OUT_REL="$2"; shift 2 ;;
@@ -197,6 +203,9 @@ LINK_ANNOTS="$(grep -c '/URI' "$PDF_PATH" || true)"
 # evaluator does not run: inside backticks (raw text), or inside a plain string
 # argument. Edition 2's draft read "Evidence registry #registry-label" on page 2
 # for exactly that reason, so this is fatal rather than a warning.
+EDITION_IN_PDF="false"
+if grep -qF "$EDITION" <<<"$TEXT"; then EDITION_IN_PDF="true"; fi
+
 UNRESOLVED_IN_PDF="false"
 UNRESOLVED_SEEN=""
 for tok in '#registry-' '#build-' '#source-' '${' '{{' 'UNKNOWN_PLACEHOLDER'; do
@@ -214,7 +223,7 @@ cat > "$BOOK_DIR/$MANIFEST_REL" <<JSON
 {
   "artefact": "$OUT_REL",
   "book": "Data Architecture Reference",
-  "edition": "Edition 1 (draft)",
+  "edition": "$EDITION",
   "release": true,
   "source_commit": "$COMMIT",
   "source_describe": "$DESCRIBE",
@@ -241,6 +250,7 @@ cat > "$BOOK_DIR/$MANIFEST_REL" <<JSON
   "evidence_digest_in_pdf": $DIGEST_IN_PDF,
   "unverified_banner_in_pdf": $PREVIEW_IN_PDF,
   "unresolved_tokens_in_pdf": $UNRESOLVED_IN_PDF,
+  "edition_in_pdf": $EDITION_IN_PDF,
   "uri_annotations": $LINK_ANNOTS,
   "build_command": "book/build.sh (typst compile --root book main.typ --input commit=$COMMIT ... --input registry_version=$REGISTRY_VERSION --input release=1)"
 }
@@ -255,10 +265,15 @@ printf '  claims indexed: %s/%s\n' "$CLAIM_COUNT" "$TOTAL_CLAIMS"
 printf '  evidence digest in pdf: %s\n' "$DIGEST_IN_PDF"
 printf '  unverified banner in pdf: %s\n' "$PREVIEW_IN_PDF"
 printf '  unresolved tokens in pdf: %s%s\n' "$UNRESOLVED_IN_PDF" "${UNRESOLVED_SEEN:+ ($UNRESOLVED_SEEN)}"
+printf '  edition on page: %s (%s)\n' "$EDITION_IN_PDF" "$EDITION"
 printf '  uri annotations: %s\n' "$LINK_ANNOTS"
 
 if [[ "${PAGES:-0}" -lt 10 || "$FONTS_TOTAL" -eq 0 || "$FONTS_EMBEDDED" -ne "$FONTS_TOTAL" || "$DIGEST_IN_PDF" != "true" || "$CLAIM_COUNT" -ne "$TOTAL_CLAIMS" ]]; then
   log "verification FAILED: pages=$PAGES fonts=$FONTS_EMBEDDED/$FONTS_TOTAL digest_in_pdf=$DIGEST_IN_PDF claims=$CLAIM_COUNT/$TOTAL_CLAIMS"
+  exit 1
+fi
+if [[ "$EDITION_IN_PDF" != "true" ]]; then
+  log "verification FAILED: the manifest edition \"$EDITION\" does not appear in the PDF"
   exit 1
 fi
 if [[ "$UNRESOLVED_IN_PDF" != "false" ]]; then
