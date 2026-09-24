@@ -10,7 +10,7 @@
 
 // The one canonical value. build.sh passes it; the default keeps an editor
 // preview compiling against the committed active package.
-#let registry-version = sys.inputs.at("registry_version", default: "v4")
+#let registry-version = sys.inputs.at("registry_version", default: "v5")
 
 // The source-relative path `json` needs. A path without a leading slash is
 // resolved against THIS file, so the book compiles whether the Typst root is

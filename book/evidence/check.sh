@@ -48,6 +48,14 @@ waiver_note() {
     sed -E 's/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+—[[:space:]]*//'
 }
 
+# The rule below compares scanned paths against an exclusion list, so the scan root
+# must be absolute: a relative --book silently changed which files the rule applied
+# to and produced 26 spurious failures the first time it was run that way.
+# The exemption is the whole evidence directory by decision: the frozen packages and
+# their ledgers own their version strings, and so do the checker, its waivers and the
+# review records under evidence/reviews/.
+BOOK_DIR="$(cd "$BOOK_DIR" 2>/dev/null && pwd || printf '%s' "$BOOK_DIR")"
+
 printf 'check: book sources against %s\n' "book/evidence/$REGISTRY_VERSION/claims.json"
 
 # --- registry-literal ----------------------------------------------------
@@ -62,7 +70,8 @@ while IFS= read -r hit; do
     continue
   fi
   failure "registry-literal" "$hit names a fixed registry version; derive it from the build input instead"
-done < <(grep -rEn 'evidence/v[0-9]' "$BOOK_DIR" --include='*.typ' --include='*.md' --include='*.sh' 2>/dev/null | grep -v '^'"$HERE"'/' || true)
+done < <(grep -rEn 'evidence/v[0-9]' "$BOOK_DIR" --include='*.typ' --include='*.md' --include='*.sh' 2>/dev/null |
+  grep -v '^'"$HERE"'/' || true)
 
 # --- quoted claim ids ----------------------------------------------------
 # Every id a chapter renders must exist in the active package and must not be

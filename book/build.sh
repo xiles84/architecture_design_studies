@@ -40,7 +40,7 @@ TYPST_IMAGE="ghcr.io/typst/typst@${TYPST_DIGEST}"
 
 OUT_REL="dist/data-architecture-reference.pdf"
 MANIFEST_REL="dist/build-manifest.json"
-REGISTRY_VERSION="v4"
+REGISTRY_VERSION="v5"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

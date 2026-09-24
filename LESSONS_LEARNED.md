@@ -1482,3 +1482,29 @@ The lesson is wider than Typst: **when a generator interpolates a value into pro
 generated output, never on the generator's source.** Every earlier gate in this book checked structure
 (claims indexed, fonts embedded, digest present) and all of them passed while the page said
 `#registry-label`.
+
+### A registry re-scope does not fix prose that paraphrases the retired wording
+
+v5 removed "at no measurable cost" from `v2-10` and the write-path cost from `v2-16`, and the cards
+re-rendered from the registry immediately. The book's **prose** did not: two chapters still repeated the
+retired sentences, and a reader would have found the claim corrected beside prose asserting it. Fixing a
+claim and fixing what the book says about that claim are two jobs, and the second one has no generator.
+
+**Search the prose for the wording you removed, by phrase, as part of the same task.** The check that
+would catch it mechanically is a lint over each supersession ledger's "before" strings against the book
+sources; until that exists, the phrase search is the control. This is the same shape as the earlier
+lesson that a superseding claim must retire the gap it closes — the artefact was updated and the thing
+that quotes it was not.
+
+### A checker whose scope depends on how it is invoked is not a checker
+
+`book/evidence/check.sh` excluded hits under its own directory by comparing scanned paths against an
+absolute `$HERE`. Run with a relative `--book`, the scanned paths were relative too, the comparison
+failed, and the rule reported 26 failures that were all its own documentation. The rule's *scope* had
+silently changed with the invocation, which is worse than a wrong rule: two agents running the same
+check would have disagreed about the same tree.
+
+Two fixes came out of it, both worth copying: **canonicalise the scan root before comparing paths with
+it**, and **verify a checker's exclusion with a negative control** — the first attempt at the fix looked
+correct and suppressed the very control it was supposed to catch, because the exclusion pattern was
+matching the *content* of the matched line rather than its path.

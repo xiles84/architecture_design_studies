@@ -47,14 +47,30 @@ summary, not a second ledger.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
   EH-02 and Studies 03–05 by reference (see [`docs/ai-work/tasks/`](docs/ai-work/tasks/) and the
   archived history) and fixes public status drift.
-- **Active book evidence source:** `book/evidence/v4/claims.json` (retires the two stale
-  placement/endpoint gaps; tag target `repo/book-evidence-registry-v4`; see
-  [`book/evidence/README.md`](book/evidence/README.md)). v4 carries every still-active v3 claim
+- **Active book evidence source:** `book/evidence/v5/claims.json` (re-scopes five claims whose
+  statements or limits asserted more than their own evidence supported; tag target
+  `repo/book-evidence-registry-v5`; see
+  [`book/evidence/README.md`](book/evidence/README.md)). v4 retired the two stale placement/endpoint
+  gaps, and in doing so carries every still-active v3 claim
   forward content-identically and adds claim lifecycle metadata (`status`, `gap_kind`,
   `superseded_by`, `closed_dimensions`, `remaining_dimensions`). v3
   (`book/evidence/v3/`, tag `repo/book-evidence-registry-v3`), v2 and v1 are **frozen historical
   reference**; v1's claim-to-cell resolution failed (36 of 43 names resolve nowhere).
-  `tools/evidence validate` defaults to v4; `validate-v4/-v3/-v2` pin a package explicitly.
+  `tools/evidence validate` defaults to v5; `validate-v5/-v4/-v3/-v2` pin a package explicitly.
+- **Claim-versus-limit audit (2026-09-24, task `book-evidence-v5-consistency`):** all 29 active
+  claims were audited for the class "the statement asserts more than its limits, trials or
+  anchors support". Five were re-scoped and 24 passed unchanged: `v2-10` dropped an
+  unsupported "at no measurable cost", `v2-16` dropped a write-path cost its own limit
+  disclaims, `v2-07`'s limit no longer cites three runs the claim cannot show, `v2-14`'s limit
+  is scoped to its range, and `v3-06` keeps its statement with corrected limits because the
+  study's `PRIMARY KEY ((person_id) HASH, ...)` makes the mapping a configuration fact. v5
+  adds a repetition-versus-trials lint; `book/evidence/v5/SUPERSESSION_LEDGER.md` and
+  `ANALYSIS.md` record every change and the per-claim verdict table.
+- **Warning for whoever takes the delta tasks:** re-scoping a claim does not fix prose that
+  paraphrases the old wording. `book/concepts/expiry-and-clock-authority.typ` and
+  `book/chapters/minor-variants.typ` still repeat phrasing v5 retired, and
+  `book/concepts/cache-consistency.typ` carries the `v2-16` sentence. Owned by
+  `book-cache-chapter-v3` and `book-review2-delta`.
 - **External review of the Edition 1 draft (2026-09-24, GPT-5.6 Sol, high effort):** verified
   against the committed PDF, manifest and registry by the `book-evidence-v4` session. Accepted:
   **R04** (the active registry held two gaps contradicted by newer evidence in the same package) and

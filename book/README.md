@@ -16,7 +16,7 @@ book/
                            topologies, scenarios, evidence and reproduction)
   concepts/*.typ           8 concepts (placement, indexes, concurrency, derived state,
                            expiry, cache consistency, distributed placement, reading benchmarks)
-  evidence/                the frozen v1/v2/v3 packages, the active v4 package, and check.sh
+  evidence/                the frozen v1-v4 packages, the active v5 package, and check.sh
   assets/                  generated figures, their canonical .puml sources and the manifest
   Containerfile            pinned Typst image (by immutable manifest digest)
   build.sh                 builds and verifies the PDF, writes dist/build-manifest.json
