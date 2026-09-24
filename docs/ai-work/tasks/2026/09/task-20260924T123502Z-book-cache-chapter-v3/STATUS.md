@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260924T123502Z-book-cache-chapter-v3` |
-| State | `ready` |
-| Sequence | `1` |
+| State | `approved_for_integration` |
+| Sequence | `6` |
 | Active attempt | none |
-| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner` |
-| Last event | `event-20260924T122817Z-published` |
-| Updated at | `2026-09-24T12:28:17Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=reviewer` |
+| Last event | `event-20260924T152154Z-approved` |
+| Updated at | `2026-09-24T15:21:54Z` |
+| Next capability | HIGH |
+| Next work role | integrator |
 | Branch | `book/cache-chapter-v3` |
 | Worktree | `.worktrees/book-cache-chapter-v3` |
 
-Published by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner. The immutable event files are authoritative for history.
+Approved for integration. NEXT: `queue integrate`.
