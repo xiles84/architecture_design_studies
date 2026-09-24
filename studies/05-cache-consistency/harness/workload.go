@@ -454,6 +454,10 @@ func (c *cell) runWarm(ctx context.Context) error {
 func (c *cell) runOpenLoop(ctx context.Context) error {
 	for _, rate := range c.opts.OpenLoopRates {
 		name := fmt.Sprintf("openloop_%g_ops_s", rate)
+		// Reset per rate: the wrong-read log is cumulative within a phase, and a
+		// second rate must not inherit the first rate's reads in the denominator it
+		// is reported against.
+		c.resetWrong(name)
 		res := measure.RunOpenLoop(ctx, measure.Schedule{
 			Rate:     rate,
 			Duration: c.opts.OpenLoopFor,
