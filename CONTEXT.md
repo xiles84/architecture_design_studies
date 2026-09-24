@@ -110,6 +110,19 @@ summary, not a second ledger.
   `#build-`, `#source-`, `${`, `{{` or `UNKNOWN_PLACEHOLDER`, and `book/evidence/check.sh` fails on a
   backticked `#` token or a build-input token inside a string. The review exchange behind this is
   recorded at `book/evidence/reviews/20260924-edition-2-review-response--deepseek-flash.md`.
+- **Cache chapter corrected (2026-09-24, task `book-cache-chapter-v3`):** the mechanism cards no longer
+  overclaim. The database lock card is split into *pessimistic lock + invariant recheck* (the lock
+  serialises; rejecting the loser is the recheck's contribution) and *conditional update /
+  compare-and-set* (the expectation goes into the write). The fill lease now says duplicate fills are
+  suppressed only while a lease is valid and honoured, the TTL bounds *eligibility to serve* rather than
+  refill load, and the outbox is a conditional prerequisite for asynchronously published coherence
+  rather than a universal one. The purpose matrix gained a *Change observation* column, so durable
+  observation is no longer filed under mutation correctness. "Relaxed" is now presented as a family of
+  weakenings with bounded staleness as one member, and the study's measured cells are labelled
+  unbounded-relaxed. §15.7's causal "only because" became an observation plus the mechanism those cells
+  are consistent with, and the `v2-16` write-path sentence is a labelled mechanism note the claim does
+  not quantify. Verified: 51 pages, 29/29 claims, 6/6 fonts, no banner, no unresolved tokens, orphan
+  hyphenated fragment lines 29 (worst page 3).
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in

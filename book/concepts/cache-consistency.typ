@@ -30,15 +30,28 @@ that does not close the race. This is the concept the external-read-copies famil
   [*4. Choose topology and the publication protocol.* Process-local versus shared decides the
    coordination domain; cache-aside versus write-through decides who fills or republishes. State the
    ordering proof — one of the named mechanisms below.],
-  [*5. Add performance controls separately.* A bounded fill lease suppresses duplicate fills; TTL and
-   early expiry bound residency and load. Neither supplies currentness.],
+  [*5. Add performance controls separately.* A bounded fill lease suppresses duplicate fills while it
+   is held; a hard TTL bounds how long an entry is *eligible to serve* and probabilistic early expiry
+   spreads the refill work. None of these supplies currentness.],
 )
 
 *Forbidden is separate from stale.* A value that is impossible or was never committed is a defect
-under every contract, not a relaxation of one. *Relaxed* means only "may serve a committed value that
-is older than the strict comparator would allow, for a bounded window" — it never means dirty, torn
-or uncommitted. Every measured cell here recorded zero impossible values; that is the negative control
-on this sentence.
+under every contract, not a relaxation of one. *Relaxed* is a family of weakenings rather than one
+contract, so which member is in force has to be named:
+
+#list(
+  [*Strict after acknowledgement* — the contract the comparator below enforces.],
+  [*Session / read-your-writes* — a client can see its own committed writes.],
+  [*Bounded staleness* (≤ Δ) — a hit may lag the latest commit by at most a declared Δ.],
+  [*Eventual freshness* — convergence is required; no distance or deadline is declared.],
+  [*Best effort* — nothing beyond a valid committed value is promised.],
+)
+
+None of these permits a dirty, torn or uncommitted value, and every measured cell here recorded zero
+impossible values — that is the negative control on this sentence. The study's measured relaxed cells
+are **unbounded-relaxed**: they permit committed-but-older values relative to the strict comparator
+without declaring a maximum staleness. They are therefore not bounded-staleness contracts, and their
+violation count says nothing about a Δ window.
 
 #heading(level: 2, "The strict contract, written down")
 
@@ -59,35 +72,49 @@ Every other contract is a weakening of that line, and the weakening must be name
 harness count below is measured against — a "wrong read" is a read that violates this line, not a read
 that returns something impossible.
 
-#heading(level: 2, "The named mechanisms, one per race")
+#heading(level: 2, "The named mechanisms, one primary failure mode each")
 
-A mechanism is not a synonym for freshness. Each one closes exactly one race, and the "does not solve"
-line matters as much as the guarantee: five of these can be present and the contract still be broken.
+A mechanism is not a synonym for freshness. Each one addresses one primary failure mode or control
+objective, and the "does not solve" line matters as much as the guarantee: several of these can be
+present and the contract still be broken.
 
 #mechanism-group("Source correctness — arbitrating the mutation itself",
   [These protect the authoritative row. They decide *who wins* a contended update; they say nothing
    about a copy that has already left the transaction.])
 
 #mechanism-card(
-  "Database mutation lock",
+  "Pessimistic lock + invariant recheck",
   [two database writers updating the same row],
-  [a pessimistic `SELECT … FOR UPDATE` serialises them before the update, and a conditional update
-   (`WHERE … AND status = …`) refuses the loser],
-  [at most one of the two writers commits the contended transition],
+  [`SELECT … FOR UPDATE` serialises the writers, and the writer re-reads the row under the lock and
+   rechecks the transition's precondition before applying it],
+  [serialisation: the two writers do not interleave. Rejecting the obsolete operation is the
+   *recheck's* contribution, not the lock's — a lock alone guarantees neither],
   [a stale read in another connection, a lost write outside the lock's scope, or any copy of the row],
-  [active registered claim — `v2-12`, `v2-06`],
+  [active registered claim — `v2-12`],
+)
+
+#mechanism-card(
+  "Conditional update / compare-and-set",
+  [an update applied to a row whose state has already moved on],
+  [the expected state or version goes into the write itself (`WHERE … AND status = …`); a zero-row
+   update reports that another writer got there first],
+  [the transition applies only while the row still satisfies the expectation, so the loser is rejected
+   rather than merely serialised],
+  [the retry cost the loser now pays, and any copy of the row],
+  [active registered claim — `v2-06`],
 )
 
 #mechanism-group("Copy correctness — ordering what leaves the transaction",
-  [These protect the cache. Only one of them closes the stale-fill race, and only one of them is a
-   performance control that proves nothing about freshness.])
+  [These protect the cache. One of them closes the stale-fill race; two of them — the fill lease and
+   the TTL — are load controls that prove nothing about freshness.])
 
 #mechanism-card(
   "Invalidation",
   [an entry that is still resident after its source changed],
   [the writer removes or marks the entry stale after committing],
-  [the entry stops being served *from that moment on* — call it what it is: a deletion with a message
-   attached],
+  [once the invalidation has been applied, subsequent lookups of that cache entry miss or see it
+   marked stale — call it what it is: a deletion with a message attached. Reads and fills already in
+   flight are outside this guarantee],
   [the stale-fill race. A reader that snapshotted S0 before the invalidation can still publish S0
    afterwards; deletion orders nothing about a fill already in flight],
   [mechanism used by every measured write-through cell; on its own it never made a shared relaxed
@@ -100,9 +127,11 @@ line matters as much as the guarantee: five of these can be present and the cont
    invalidates],
   [before publishing, verify that the source generation still equals the generation the reader
    observed; refuse the fill if it moved],
-  [the stale-fill race specifically — "publish after commit" is necessary and *not* sufficient, so a
-   strict writer fences before and after the commit and treats the acknowledgement, not the commit,
-   as the contract boundary],
+  [the stale-fill race specifically — "publish after commit" is necessary and *not* sufficient. In
+   the measured strict writer protocol the writer fences before and after the commit and treats the
+   acknowledgement, not the commit, as the contract boundary; a strict contract can also be
+   established without writer-side fencing, by synchronous source validation or an authoritative
+   read],
   [an unobserved writer, a dirty source read, or an indefinitely stale hit that is never revalidated],
   [active registered claim — `v2-15`],
 )
@@ -112,7 +141,9 @@ line matters as much as the guarantee: five of these can be present and the cont
   [a hit that never consults the source version],
   [every hit compares the entry's version against the source's current version and misses on a
    mismatch],
-  [a process-local cache can be answerable: the hit carries its own proof],
+  [a process-local cache can be answerable: the hit carries its own proof — *provided* every
+   relevant mutation advances the token atomically, including deletes, recreates and writers outside
+   the application, and the validating read is authoritative enough for the declared contract],
   [the read cost it adds, and a shared relaxed cache that never consults the token — an unconsulted
    token is decoration, not a guarantee],
   [mechanism demonstrated — the owned process-local arms of `20260921T-survey3`; no registered rate
@@ -123,7 +154,9 @@ line matters as much as the guarantee: five of these can be present and the cont
   "Fill lease",
   [duplicate concurrent fills of the same key — a stampede],
   [a bounded lease lets one filler work while the others wait, fall back or time out],
-  [one filler at a time, so a cold key does not multiply its own load],
+  [Effect: duplicate fills are suppressed *while a valid lease is held*. Duplicate work can reappear
+   if the lease expires or ownership is lost before the first filler finishes — which is exactly why a
+   lease is not a fence],
   [*any* freshness question. It is a load control; it guarantees nothing about the value filled],
   [newer signed but unregistered evidence — the 2026-09-23 Study 05 churn cell demonstrates the lease
    path (`20260923T1100Z-churn1800-through`); no registry claim states a lease rate],
@@ -132,10 +165,12 @@ line matters as much as the guarantee: five of these can be present and the cont
 #mechanism-card(
   "TTL and early expiry",
   [an entry that would otherwise live forever, and the thundering herd that follows a mass expiry],
-  [a hard TTL bounds residency; probabilistic early expiry spreads the refill before the deadline],
-  [bounded residency, and a bound on refill load],
+  [a hard TTL bounds how long an entry is *eligible to serve*; probabilistic early expiry spreads the
+   refill work before many entries reach the same deadline],
+  [Effect: logical validity is bounded, and refill work is spread. Neither is a hard upper bound on
+   refill traffic],
   [currentness. An entry inside its TTL is *permitted* to be stale, which is the opposite of a
-   freshness proof],
+   freshness proof, and early expiry does not by itself cap refill load],
   [active registered claim — `v3-01`, `v3-02`; hard expiry has still never been observed to fire],
 )
 
@@ -144,33 +179,40 @@ line matters as much as the guarantee: five of these can be present and the cont
   [a change lost between the commit and its asynchronous notification],
   [the change is written in the same transaction as the mutation and consumed by the publisher, so
    the notification is durable and ordered after the commit],
-  [a committed change cannot disappear before it is observed, and the delivery path is recoverable],
-  [freshness. An outbox is a *prerequisite* for a strict cache, not a guarantee of one: strict
-   after-acknowledgement hits still need an acknowledgement policy, a validation rule at the hit
-   boundary, or an authoritative read that closes the window],
+  [a committed change cannot disappear between the commit and its notification, and the delivery
+   path is recoverable],
+  [freshness, and it is not universally required. *When* coherence depends on asynchronous
+   publication, an outbox is what makes the committed change durably observable; strictness can also
+   be established by synchronous source validation or an authoritative read, with no asynchronous step
+   to protect. Even with an outbox, strict after-acknowledgement hits still need an acknowledgement
+   policy and a read protocol that closes the window],
   [proposed / unmeasured — no committed measurement exists],
 )
 
 #heading(level: 2, "What each mechanism is actually for")
 
-The dimensions are the point: a mechanism can be correct at the source, neutral for freshness, and
-decisive for load — and reading a table like this is faster than holding five paragraphs in your head.
+The dimensions are the point, and the header is short so no word breaks in a narrow column:
+*mutation* is whether the mechanism makes the source transition correct, *observation* whether a
+committed change is durably seen, *freshness* whether a read is proved current, *load* whether it
+changes how much work the system does, and *recovery* whether it helps reconcile after a failure.
+Reading a table like this is faster than holding eight cards in your head.
 
 #table(
-  columns: (1.5fr, 1.1fr, 1.1fr, 1fr, 0.9fr),
+  columns: (1.4fr, 1fr, 1.05fr, 1.1fr, 0.95fr, 0.8fr),
   stroke: 0.4pt + palette.rule,
   inset: 4pt,
-  align: (left, center, center, center, center),
+  align: (left, center, center, center, center, center),
   table.header(
-    [*Mechanism*], [*Source correctness*], [*Freshness proof*], [*Load control*], [*Recovery*],
+    [*Mechanism*], [*Mutation*], [*Observation*], [*Freshness*], [*Load*], [*Recovery*],
   ),
-  [Database mutation lock], [yes], [—], [sometimes a cost], [—],
-  [Invalidation], [—], [partial: clears, does not fence], [—], [—],
-  [Publication fence / CAS], [—], [yes, for the stale fill], [—], [—],
-  [Source version at hit boundary], [—], [yes], [read overhead], [—],
-  [Fill lease], [—], [—], [yes], [—],
-  [TTL / early expiry], [—], [bounds residency, not proof], [yes], [fallback only],
-  [Transactional outbox], [durable observation], [prerequisite], [—], [yes],
+  [Pessimistic lock + recheck], [yes], [—], [—], [may cost], [—],
+  [Conditional update / CAS], [yes], [—], [—], [may cost], [—],
+  [Invalidation], [—], [partial: clears, does not fence], [partial], [—], [—],
+  [Publication fence / CAS], [—], [—], [yes, race-specific], [—], [—],
+  [Source version at hit boundary], [—], [—], [yes], [read cost], [—],
+  [Fill lease], [—], [—], [—], [yes, while held], [—],
+  [TTL / early expiry], [—], [—], [bounds eligibility, not proof], [yes], [fallback only],
+  [Transactional outbox], [—], [yes], [prerequisite in async designs], [—], [yes],
 )
 
 #text(size: 8.5pt, fill: palette.muted)[*Evidence status.* _Active registered claim_: the active
@@ -181,8 +223,10 @@ number. _Proposed / unmeasured_: no committed measurement exists.]
 
 #heading(level: 2, "Freshness is a contract, not a speed knob")
 Every controlled strict/relaxed pair differed by −14.2% to +12.3% in read throughput — inside the
-run's single-trial noise. The visible cost of strictness is on the write path, where a strict protocol
-adds fences. Never restate this as "strict freshness is free".
+run's single-trial noise. Mechanically a strict protocol adds write-path fencing, but the claim beside
+this paragraph measures read throughput only and does not quantify that cost, so quote no write-path
+figure from it. What the read result does forbid is the other direction: never restate this as "strict
+freshness is free".
 #registry-card("v2-16-strict-freshness-read-cost")
 
 #heading(level: 2, "The gain, and the framing it does not have")
@@ -210,9 +254,12 @@ about staleness when the contract is bounded and the window is known.
 The process-local arms are the trap. The legacy process-local arms' zero wrong reads are a *bypass*
 result, not safety: they served *0* cache hits across 15,578–21,756 reads, so the cache was
 effectively absent (`reports/20260921T-survey3.md`, the anchor of the registered claim). The owned
-process-local arms did serve hits and stayed correct only because they validated a source version at
-the hit boundary. A private in-memory lease cannot coordinate instances; a source version token that
-is never consulted at the hit or publication boundary does not make a shared relaxed cache strict.
+process-local arms did serve hits and validated the source version at the hit boundary; those cells
+recorded no strict-comparator violations. Validation at the hit boundary is what *can* supply that
+proof — but whether it is the only thing that could is not tested here, because no unvalidated owned
+arm was run. Read it as the mechanism these cells are consistent with, not as an ablation. A private
+in-memory lease cannot coordinate instances; a source version token that is never consulted at the hit
+or publication boundary does not make a shared relaxed cache strict.
 
 #figure-evidence(
   "../assets/fig-cache-stale-fill.svg",

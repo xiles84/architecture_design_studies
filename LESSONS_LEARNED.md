@@ -1508,3 +1508,20 @@ Two fixes came out of it, both worth copying: **canonicalise the scan root befor
 it**, and **verify a checker's exclusion with a negative control** — the first attempt at the fix looked
 correct and suppressed the very control it was supposed to catch, because the exclusion pattern was
 matching the *content* of the matched line rather than its path.
+
+### A one-sentence summary of a mechanism will overclaim before the mechanism does
+
+The cache chapter's cards began with "Each one closes exactly one race" and "only one of them is a
+performance control that proves nothing about freshness". Both were false as written — two mechanisms
+are load controls, and a TTL closes no race at all — and neither sentence was in the original table.
+They were introduced by the *summarising* pass, not by the content, and a card format makes a
+summary sentence look authoritative because it sits in the same block as the guarantees.
+
+The same pass merged two mechanisms into one card and gave them one guarantee: a pessimistic lock and a
+conditional update are not interchangeable, because a lock serialises writers while rejection belongs to
+the recheck (or to the predicate in the write). A card that carries two mechanisms ends up asserting
+what only their combination provides.
+
+**Check a summary sentence against every item it summarises, and give each mechanism its own card.**
+When a sentence has a "only", "always", "exactly" or "at most", it is a claim about the set, not about
+the row in front of it, and it needs the same evidence test as the numbers.
