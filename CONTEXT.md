@@ -66,6 +66,15 @@ summary, not a second ledger.
   `0.15.1 (unknown commit)` version string. The residual is real and now hardened: an input-less
   compile renders an *Unverified development build* banner, and `build.sh` fails if that banner
   reaches a release PDF.
+- **Cache chapter rebuilt (R01, 2026-09-24):** `book/concepts/cache-consistency.typ` no longer holds the
+  three-column mechanism table whose collapsed middle column produced five pages of hyphenated
+  fragments. The mechanisms are now cards (`mechanism-card` in `book/lib/config.typ`), grouped into
+  source correctness and copy correctness, each with Race closed / Mechanism / Guarantee / Does not
+  solve / Evidence, followed by a purpose matrix across correctness, freshness, load and recovery.
+  The chapter also states the strict-after-acknowledgement contract formally, separates invalidation
+  from publication fencing, and names the `wrong_reads` counter as a strict-comparator count. Measured
+  effect on the rendered text: orphan-hyphen fragment lines fall from 99 (worst page 33, 17 on the
+  page) to 30 (worst page 34, 3), and the chapter shrinks by three pages.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in
