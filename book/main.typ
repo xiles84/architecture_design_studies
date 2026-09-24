@@ -46,7 +46,7 @@
       #set text(size: 9pt, fill: palette.muted)
       Built from commit #raw(describe) (#raw(commit)) — working tree #dirty. \
       Typst #typst-version (image #raw(typst-digest)). \
-      Evidence registry `#registry-label`, digest #raw(evidence-digest).
+      Evidence registry #raw(registry-label), digest #raw(evidence-digest).
     ]
   ] else [
     #callout("Unverified development build", palette.gap)[
@@ -88,7 +88,7 @@
     [Built at (UTC)], [#raw(built-at)],
     [Typst version], [#typst-version],
     [Typst image digest], [#raw(typst-digest)],
-    [Evidence registry], [`#registry-label`],
+    [Evidence registry], [#raw(registry-label)],
     [Evidence digest], [#raw(evidence-digest)],
     [Source tree hash], [#raw(pdf-source-hash)],
   )
@@ -146,8 +146,8 @@
 #pagebreak()
 // The heading names the registry from the single derived value, so a version bump
 // cannot leave one page claiming a different package from the cover.
-#heading("Evidence registry (active #registry-version claims)")
+#heading("Evidence registry (active " + registry-version + " claims)")
 The active registry holds #active-claims().len() claims that may be cited as evidence. This index is
-rendered from `#registry-label` at build time; the digest above identifies its content.
+rendered from #raw(registry-label) at build time; the digest above identifies its content.
 
 #evidence-index()

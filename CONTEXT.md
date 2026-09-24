@@ -86,6 +86,14 @@ summary, not a second ledger.
   visual tranches), and `task-20260924T110003Z-book-v2-release` (rebuild `book/dist`, tag
   `repo/data-architecture-book-v2`), which depends on the other three. The tracked PDF in
   `book/dist/` is still the Edition 1 build until that release task runs.
+- **Template-token guard (2026-09-24, task `book-template-guard`):** Edition 2's draft rendered raw
+  `#registry-label` / `#registry-version` tokens on the title page, the provenance page, the Chapter 18
+  heading, the index prose, Chapter 8 and §15.4, because the tokens were written inside backticks (Typst
+  raw text is not evaluated) and inside a plain string argument. All six sites now use `#raw(...)` or
+  string concatenation. `book/build.sh` fails when the extracted page text contains `#registry-`,
+  `#build-`, `#source-`, `${`, `{{` or `UNKNOWN_PLACEHOLDER`, and `book/evidence/check.sh` fails on a
+  backticked `#` token or a build-input token inside a string. The review exchange behind this is
+  recorded at `book/evidence/reviews/20260924-edition-2-review-response--deepseek-flash.md`.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in
