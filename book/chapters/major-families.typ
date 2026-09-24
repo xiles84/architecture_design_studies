@@ -53,7 +53,7 @@ for the stale copy; operations must backfill after a schema change.
 #registry-card("v2-05-d3-read-advantage-repeated")
 #heading(level: 3, "Boundaries and reproduction")
 One family contrast is not a general law. The copied-key package is confounded (`conf-01`), and
-placement is unverified (`v2-gap-05`).
+physical placement is unverified (`v4-gap-01`).
 
 // ---------------------------------------------------------------- 3
 #heading(level: 2, "Rollups / materialized aggregates")

@@ -1,10 +1,10 @@
 #import "../lib/config.typ": *
-#import "../lib/evidence.typ": registry-card
+#import "../lib/evidence.typ": registry-card, registry-label
 
 #heading("Evidence and reproduction")
 
 #marker("chapter", "evidence and reproduction")
-Every number in this book resolves to a claim in `book/evidence/v2/claims.json`, and every claim to
+Every number in this book resolves to a claim in `#registry-label`, and every claim to
 a measured cell in a cited report. This chapter explains the confidence cards, the run-tag
 provenance model, and how to reproduce a run in Podman.
 #heading(level: 2, "The provenance model")

@@ -1374,3 +1374,66 @@ scheduling lag exceeds one arrival slot. At 5,000 ops/s offered the cell deliver
 counts (`dropped`, `offered` vs `completed`), not the boolean: `client_saturated = true` with
 `dropped = 0` and `delivered ≈ offered` is a scheduler-jitter artefact, not a saturated client.
 
+## Retiring evidence gaps and single-sourcing the registry (2026-09-24)
+
+### A superseding claim must retire the gap it closes, in the same version
+
+v3 of the book evidence registry added `v3-06-colocated-vs-noncolocated-locality` (the Study 05
+key-locality pair, executed) and `v3-05-yb-cluster3-strict-relaxed` (three-node cells whose client
+spreads over all three endpoints) while carrying `v2-gap-05` and `v2-gap-07` forward
+**byte-identical** from v2. The two active gaps then said "Study 05's placement pair was never
+executed" and "balanced client access across cluster endpoints is not proven", and the book printed
+them beside the claims that contradicted them. v3's own `coverage.json` **had** been updated for the
+endpoint spread, so two files in one package disagreed and only one of them reached the page.
+**When a new run closes part of an existing gap, retire or narrow that gap in the same change**, and
+record which clause closed (`closed_dimensions`) and which successor owns the rest. v4 enforces the
+mechanical part: a claim in `claims[]` is active or partially superseded, a retired claim may not
+also be active, and a gap must declare its kind. The judgement call — *does this new evidence close
+that old sentence?* — stays human, and that is precisely where v3 failed.
+
+### A gap must say what sort of gap it is
+
+"A gap callout is missing evidence" collapsed four different findings into one badge:
+a **schema limitation** (no representation can answer the question at any speed — the hold funnel),
+a **coverage gap** (nobody ran that regime), an **instrument gap** (the runner cannot take the
+measurement — tablet/leader distribution) and an **unstable measurement** (measured, not
+publishable). They imply different next actions: the first cannot be fixed by running anything, the
+second and third can, and the fourth needs more trials. The registry now carries `gap_kind` and the
+book badges from it.
+
+### An artefact review must read the manifest before asserting missing provenance
+
+An external review of the 49-page draft raised, as a release blocker, that every provenance field
+said `unknown`. The committed PDF renders real values for commit, describe, dirty state, build
+clock, image digest, evidence digest and source-tree hash, and `book/dist/build-manifest.json` — in
+the same directory — records all of them. The only literal `unknown` was inside Typst's own
+`0.15.1 (unknown commit)` version string. **Check the primary artefact and its manifest before
+reporting a provenance failure**; a review that asserts from a lossy text extraction repeats the
+error it is reviewing for. The residual was real and is now hardened: a compile without the build
+script's inputs renders a visible *Unverified development build* banner, and `build.sh` fails if
+that banner appears in a release PDF.
+
+### A count gate over the rendered page catches layout defects a compile cannot
+
+`build.sh` counts how many registry claim ids actually appear in the extracted PDF text. Adding the
+lifecycle note to each evidence card made one card's meta text long enough to squeeze the id column,
+so `v3-gap-01-study05-remaining-regimes` broke across a line and the gate reported 28/29. The
+compile was perfectly happy; the page was not. **A count derived from the rendered artefact is a
+layout check as well as a content check** — keep ids on their own line, and keep the gate.
+
+### Static source checks turn a "we must remember" rule into a build failure
+
+The stale registry path in prose was a one-line mistake that survived a whole release. It is now a
+rule the build runs before compiling (`book/evidence/check.sh`): one active registry path, no
+retired claim rendered as evidence, every quoted id resolved, every gap declared. Where a rule
+cannot hold yet, the exception goes in `check-waivers.txt` with an owner and a reason, and the
+checker prints it — a waiver is visible debt, not a silent bypass. The Typst loader is the second
+line of defence and names the successor of a retired claim, because that is the string an author
+needs.
+
+### A shared image tag needs its own lock
+
+Every worktree builds the same `localhost/ads-book:1` image, so two concurrent builds race on the
+tag even though neither touches a database. `book/build.sh` now takes an `ads-book-build-lock`
+podman volume (the same atomic-create pattern as the benchmark lock) and never touches
+`ads-run-lock`, which stays reserved for measurement.

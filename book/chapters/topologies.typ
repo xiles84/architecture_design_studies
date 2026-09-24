@@ -23,9 +23,10 @@ directions for two access patterns.
 
 #heading(level: 2, "Open topology gaps")
 #gap[
-  Physical colocation is unverified (`v2-gap-05`); balanced endpoint routing is unproven
-  (`v2-gap-07`); there is no real network between "cluster" nodes. Multi-node results here are
-  placement experiments, not distributed-systems results.
+  Physical placement is unverified (`v4-gap-01`) and endpoint distribution is measured only for the
+  2026-09-23 Study 05 three-node cells (`v4-gap-02`); the earlier multi-node cells reach the cluster
+  through a single endpoint, and there is no real network between "cluster" nodes. Multi-node results
+  here are placement experiments, not distributed-systems results.
 ]
 
 #heading(level: 2, "Boundaries")

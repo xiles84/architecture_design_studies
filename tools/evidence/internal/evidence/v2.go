@@ -34,6 +34,9 @@ type V2Family struct {
 type V2Retired struct {
 	ClaimID string `json:"claim_id"`
 	Reason  string `json:"reason"`
+	// v4 adds the successor ids and the specific clauses the retirement closes.
+	SupersededBy     []string `json:"superseded_by"`
+	ClosedDimensions []string `json:"closed_dimensions"`
 }
 
 type V2Claim struct {
@@ -55,6 +58,14 @@ type V2Claim struct {
 	LegacyProvenanceIncomplete bool        `json:"legacy_provenance_incomplete"`
 	Supersedes                 *string     `json:"supersedes"`
 	Review                     V2Review    `json:"review"`
+	// v4 lifecycle metadata. v2 and v3 files do not carry these keys; the
+	// zero values mean "not declared", which is why the v4 lifecycle rules live
+	// in ValidateV4 rather than in the shared resolver.
+	Status              string   `json:"status"`
+	GapKind             []string `json:"gap_kind"`
+	SupersededBy        []string `json:"superseded_by"`
+	ClosedDimensions    []string `json:"closed_dimensions"`
+	RemainingDimensions []string `json:"remaining_dimensions"`
 }
 
 type V2Trials struct {

@@ -121,35 +121,6 @@
   #upper(kind) · #upper(name)
 ]
 
-// An evidence card names a v2 claim and is the only way a number may enter the
-// prose. `strength` and `family` must match the registry; the validator does not
-// check the book's copies, so writers copy them by hand *and* cite the id.
-#let evidence-card(id, family, strength, statement, limits: (), confounds: ()) = block(
-  width: 100%,
-  inset: 9pt,
-  radius: 3pt,
-  stroke: 0.6pt + palette.rule,
-  fill: palette.surface,
-)[
-  #set text(size: 9pt)
-  #grid(
-    columns: (1fr, auto),
-    align: (left, right),
-    [#text(weight: "bold", fill: palette.accent)[#id]],
-    [#text(size: 8pt, fill: palette.muted)[#family · #strength]],
-  )
-  #v(2pt)
-  #statement
-  #if limits.len() > 0 [
-    #v(3pt)
-    #text(size: 8pt, fill: palette.muted)[Limits: #limits.join("; ")]
-  ]
-  #if confounds.len() > 0 [
-    #v(2pt)
-    #text(size: 8pt, fill: palette.gap)[Confounds: #confounds.join(", ")]
-  ]
-]
-
 #let source(url, label: none) = link(url)[#if label == none { url } else { label }]
 
 // A book figure. Every figure carries TWO independent labels — its form

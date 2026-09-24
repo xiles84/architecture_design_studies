@@ -2,10 +2,12 @@
 //
 // Build: book/build.sh (Podman only). The build passes provenance through
 // --input so the title and provenance pages state actual values, never
-// hand-written ones.
+// hand-written ones. A build that does not pass them (an editor preview, or a
+// hand-run typst compile) renders the UNVERIFIED banner instead of a provenance
+// page full of placeholders.
 
 #import "lib/config.typ": *
-#import "lib/evidence.typ": evidence-index, active-claims, registry-card
+#import "lib/evidence.typ": evidence-index, active-claims, registry-card, registry-label, registry-version
 
 #let input(key, default: "unknown") = sys.inputs.at(key, default: default)
 
@@ -17,6 +19,8 @@
 #let typst-digest = input("typst_digest")
 #let evidence-digest = input("evidence_digest")
 #let pdf-source-hash = input("source_hash")
+// build.sh sets release=1 only for a build that passed every input above.
+#let release = input("release", default: "0") == "1"
 
 #set document(
   title: book-title,
@@ -27,7 +31,7 @@
 
 // ---------------------------------------------------------------- title page
 #page(header: none, footer: none)[
-  #v(30mm)
+  #v(24mm)
   #text(size: 32pt, weight: "bold", fill: palette.accent)[#book-title]
   #v(4mm)
   #text(size: 14pt, fill: palette.muted)[A measured reference for data architecture and state design]
@@ -35,13 +39,21 @@
   #line(length: 60%, stroke: 1pt + palette.rule)
   #v(6mm)
   #text(size: 11pt)[#book-edition]
-  #v(40mm)
-  #align(left)[
-    #set par(justify: false)
-    #set text(size: 9pt, fill: palette.muted)
-    Built from commit #raw(describe) (#raw(commit)) — working tree #dirty. \
-    Typst #typst-version (image #raw(typst-digest)). \
-    Evidence registry `book/evidence/v3/claims.json`, digest #raw(evidence-digest).
+  #v(28mm)
+  #if release [
+    #align(left)[
+      #set par(justify: false)
+      #set text(size: 9pt, fill: palette.muted)
+      Built from commit #raw(describe) (#raw(commit)) — working tree #dirty. \
+      Typst #typst-version (image #raw(typst-digest)). \
+      Evidence registry `#registry-label`, digest #raw(evidence-digest).
+    ]
+  ] else [
+    #callout("Unverified development build", palette.gap)[
+      Reproducibility metadata is incomplete: this PDF was compiled without the build script's
+      provenance inputs. It is a preview. *Do not cite a measured value from this document.* \
+      Rebuild with `book/build.sh` for a release-grade artefact.
+    ]
   ]
 ]
 
@@ -58,6 +70,14 @@
   number must resolve to a measured cell in a cited report. Nothing here is hand-entered at build
   time; the fields below are injected from the build script.
 
+  #if not release [
+    #v(3mm)
+    #gap[
+      *This is an unverified development build.* The fields below are placeholders because the
+      document was not compiled by `book/build.sh`. Do not cite its numbers.
+    ]
+  ]
+
   #set text(size: 9.5pt)
   #table(
     columns: (auto, 1fr),
@@ -68,7 +88,7 @@
     [Built at (UTC)], [#raw(built-at)],
     [Typst version], [#typst-version],
     [Typst image digest], [#raw(typst-digest)],
-    [Evidence registry], [`book/evidence/v3/claims.json`],
+    [Evidence registry], [`#registry-label`],
     [Evidence digest], [#raw(evidence-digest)],
     [Source tree hash], [#raw(pdf-source-hash)],
   )
@@ -124,8 +144,10 @@
 
 // -------------------------------------------------------------- evidence index
 #pagebreak()
-#heading("Evidence registry (active v3 claims)")
-The active registry holds #active-claims().len() claims. This index is rendered from the registry
-file at build time; the digest above identifies its content.
+// The heading names the registry from the single derived value, so a version bump
+// cannot leave one page claiming a different package from the cover.
+#heading("Evidence registry (active #registry-version claims)")
+The active registry holds #active-claims().len() claims that may be cited as evidence. This index is
+rendered from `#registry-label` at build time; the digest above identifies its content.
 
 #evidence-index()

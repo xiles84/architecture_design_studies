@@ -1,5 +1,5 @@
 #import "../lib/config.typ": *
-#import "../lib/evidence.typ": registry-card
+#import "../lib/evidence.typ": registry-card, registry-label
 
 #heading("Cache consistency")
 
@@ -69,7 +69,7 @@ on this sentence.
 )
 
 #text(size: 8.5pt, fill: palette.muted)[*Evidence status.* _Active registered claim_: the active
-`book/evidence/v3/claims.json` states it. _Newer signed but unregistered evidence_: a signed
+`#registry-label` states it. _Newer signed but unregistered evidence_: a signed
 2026-09-23 study analysis demonstrates the mechanism, but no registry claim states a rate for it.
 _Mechanism demonstrated_: the harness or study demonstrates the mechanism without a registered
 number. _Proposed / unmeasured_: no committed measurement exists.]
