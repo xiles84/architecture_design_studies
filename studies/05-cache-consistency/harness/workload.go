@@ -444,6 +444,30 @@ func (c *cell) runWarm(ctx context.Context) error {
 	return nil
 }
 
+// runOpenLoop offers the cacheable portal read at each configured fixed arrival
+// rate using the platform's open-loop driver. Unlike the closed-loop phases, the
+// offered stream does not slow down when the server does: arrivals the generator
+// could not attempt are counted (Dropped), the scheduling lag is reported, and
+// ClientSaturated says whether the client, rather than the server, was the limit.
+// The wrong-read account for the phase is recorded beside the delivered rate, so a
+// throughput number never travels without its correctness contract.
+func (c *cell) runOpenLoop(ctx context.Context) error {
+	for _, rate := range c.opts.OpenLoopRates {
+		name := fmt.Sprintf("openloop_%g_ops_s", rate)
+		res := measure.RunOpenLoop(ctx, measure.Schedule{
+			Rate:     rate,
+			Duration: c.opts.OpenLoopFor,
+			Workers:  c.opts.Workers,
+			Queue:    c.opts.OpenLoopQueue,
+			Jitter:   true,
+			Seed:     c.opts.Seed,
+		}, name, c.readOp())
+		c.res.OpenLoop = append(c.res.OpenLoop, res)
+		c.phaseWrong(name)
+	}
+	return nil
+}
+
 func (c *cell) runMixed(ctx context.Context) error {
 	for _, pct := range []int{99, 90} {
 		name := fmt.Sprintf("app_%d_reads", pct)

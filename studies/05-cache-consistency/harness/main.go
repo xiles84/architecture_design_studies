@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,9 +44,12 @@ func main() {
 		warmup       = flag.Duration("warmup", 0, "discarded warmup per phase (0 = scale default)")
 		trials       = flag.Int("trials", 1, "trials per measurement; throughput is the median")
 		retries      = flag.Int("retries", 8, "bounded retries for the optimistic version CAS")
-		phases       = flag.String("phases", "verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,churn,faults,ackcheck,audit", "phases for -cmd full")
+		phases       = flag.String("phases", "verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,churn,openloop,faults,ackcheck,audit", "phases for -cmd full")
 		instances    = flag.Int("instances", 1, "logical application instances")
 		churnFor     = flag.Duration("churn-duration", 0, "sustained churn duration (0 = skip; the 300 s TTL is never shortened)")
+		openLoopRates = flag.String("openloop-rates", "", "comma-separated fixed offered arrival rates (ops/s) for the open-loop phase; empty skips it")
+		openLoopFor   = flag.Duration("openloop-duration", 10*time.Second, "offered window per open-loop rate")
+		openLoopQueue = flag.Int("openloop-queue", 0, "open-loop arrival buffer depth (0 = 4x workers)")
 		stampede     = flag.Int("stampede-readers", 16, "readers released together in the stampede phase")
 		stampedeN    = flag.Int("stampede-keys", 8, "keys in the stampede burst")
 		hotKeys      = flag.Int("hot-keys", 4, "keys the hotspot phase targets")
@@ -108,6 +112,11 @@ func main() {
 		fatal(fmt.Errorf("scenario %s is YugabyteDB only", d.ID))
 	}
 
+	rates, err := parseRates(*openLoopRates)
+	if err != nil {
+		fatal(err)
+	}
+
 	opts := Options{
 		Scale: *scale, Seed: *seed, FaultSeed: *faultSeed, Workers: *conns,
 		Writers: *writeConns, Duration: *duration, Warmup: *warmup, Trials: *trials,
@@ -115,6 +124,7 @@ func main() {
 		Stampede: *stampede, StampedeN: *stampedeN, HotKeys: *hotKeys,
 		CapacityKB: *capacityKB, CacheFit: *fits, RedisAddr: *redisAddr,
 		RedisMaxMB: *redisMB, ResourceFrame: *frame, SerializeKeys: *serialKeys,
+		OpenLoopRates: rates, OpenLoopFor: *openLoopFor, OpenLoopQueue: *openLoopQueue,
 	}
 	applyScale(&opts)
 
@@ -132,7 +142,7 @@ func main() {
 		Options:   opts,
 	}
 
-	err := runCell(context.Background(), &res, d, *dsn, *explainOut, *stmtTO, *sample, *duration == 0)
+	err = runCell(context.Background(), &res, d, *dsn, *explainOut, *stmtTO, *sample, *duration == 0)
 	if err != nil {
 		res.Error = err.Error()
 	}
@@ -154,6 +164,25 @@ func orNone(s string) string {
 		return "-"
 	}
 	return s
+}
+
+// parseRates turns "2000,8000" into the open-loop offered arrival rates. A
+// malformed rate is refused rather than silently dropped: a run that did not offer
+// what the protocol says it offered is not evidence about demand.
+func parseRates(s string) ([]float64, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	var out []float64
+	for _, part := range strings.Split(s, ",") {
+		v, err := strconv.ParseFloat(strings.TrimSpace(part), 64)
+		if err != nil || v <= 0 {
+			return nil, fmt.Errorf("invalid open-loop rate %q: want a positive number of operations per second", part)
+		}
+		out = append(out, v)
+	}
+	return out, nil
 }
 
 // applyScale turns a named scale into concrete sizes and defaults. `tiny` exists so
@@ -398,6 +427,20 @@ func (c *cell) runPhase(ctx context.Context, phase, explainPath string, sample i
 		}
 		// The assertion the strict conclusions rest on, checked while nothing writes.
 		return c.checkLedgerMatchesDB(ctx, "churn")
+
+	case "openloop":
+		// Open-loop demand: fixed offered arrival rates, no closed-loop
+		// backpressure. Skipped when no rate was requested, so the phase can sit
+		// in the default list without changing a closed-loop run.
+		if len(c.opts.OpenLoopRates) == 0 {
+			return nil
+		}
+		c.resetWrong("openloop")
+		if err := c.runOpenLoop(ctx); err != nil {
+			return err
+		}
+		// The assertion the strict conclusions rest on, checked while nothing writes.
+		return c.checkLedgerMatchesDB(ctx, "openloop")
 
 	case "ackcheck":
 		// A negative control exists to break an invariant, so the acknowledgement and

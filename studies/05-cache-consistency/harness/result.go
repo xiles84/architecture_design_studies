@@ -43,6 +43,14 @@ type Options struct {
 	// multi-node cell spreads its operations over all of them; a single endpoint
 	// silently standing in for balanced cluster access is what this records.
 	ConnectionNodes int `json:"connection_nodes"`
+	// OpenLoopRates are the fixed offered arrival rates, in operations per second,
+	// for the open-loop demand phase (platform measure.RunOpenLoop). Empty skips
+	// the phase. The offered rate is a property of the fleet; what the server
+	// delivered is measured, and arrivals the generator could not attempt are
+	// counted rather than absorbed.
+	OpenLoopRates []float64     `json:"open_loop_rates_per_sec,omitempty"`
+	OpenLoopFor   time.Duration `json:"open_loop_duration,omitempty"`
+	OpenLoopQueue int           `json:"open_loop_queue,omitempty"`
 }
 
 type EngineInfo struct {
@@ -239,6 +247,12 @@ type CellResult struct {
 	AppMix []measure.Result `json:"total_application,omitempty"`
 	Writes []measure.Result `json:"writes,omitempty"`
 	Wrong  []PhaseWrong     `json:"wrong_reads,omitempty"`
+
+	// OpenLoop holds the open-loop arrival results: what was offered, what the
+	// server delivered, what the generator could not attempt, and the latency
+	// percentiles, per offered rate. Closed-loop numbers are floors and are never
+	// reused as open-loop.
+	OpenLoop []measure.ArrivalResult `json:"open_loop,omitempty"`
 
 	Stampede  *StampedeResult  `json:"stampede,omitempty"`
 	Churn     *ChurnResult     `json:"churn,omitempty"`

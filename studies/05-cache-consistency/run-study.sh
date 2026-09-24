@@ -55,7 +55,12 @@ FAULT_SEED="4242"
 SAMPLE="12"
 TOPOLOGIES="pg-single"
 DESIGNS=""
-PHASES="verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,churn,faults,ackcheck,audit"
+PHASES="verify,explain,calibrate,warm,mixed,hotspot,stampede,instances,churn,openloop,faults,ackcheck,audit"
+# Open-loop demand (amendment 01 section 6): fixed offered arrival rates, no
+# closed-loop backpressure. Empty rates skip the phase entirely.
+OPENLOOP_RATES=""
+OPENLOOP_DURATION="10s"
+OPENLOOP_QUEUE="0"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 TAG="no"
 EXTRA=""
@@ -71,6 +76,9 @@ while [[ $# -gt 0 ]]; do
     --trials) TRIALS="$2"; shift 2 ;;
     --instances) INSTANCES="$2"; shift 2 ;;
     --churn-duration) CHURN_DURATION="$2"; shift 2 ;;
+    --openloop-rates) OPENLOOP_RATES="$2"; shift 2 ;;
+    --openloop-duration) OPENLOOP_DURATION="$2"; shift 2 ;;
+    --openloop-queue) OPENLOOP_QUEUE="$2"; shift 2 ;;
     --stampede-readers) STAMPEDE="$2"; shift 2 ;;
     --stampede-keys) STAMPEDE_KEYS="$2"; shift 2 ;;
     --hot-keys) HOT_KEYS="$2"; shift 2 ;;
@@ -198,6 +206,9 @@ ALL_DESIGNS="$(podman run --rm "$BENCH_IMAGE" -cmd list | awk '{print $1}' | tr 
   echo "  trials: $TRIALS"
   echo "  logical_instances: $INSTANCES"
   echo "  churn_duration: $CHURN_DURATION"
+  echo "  open_loop_rates_per_sec: ${OPENLOOP_RATES:-<none offered>}"
+  echo "  open_loop_duration: $OPENLOOP_DURATION"
+  echo "  open_loop_queue: $OPENLOOP_QUEUE"
   echo "  stampede_readers: $STAMPEDE"
   echo "  stampede_keys: $STAMPEDE_KEYS"
   echo "  hot_keys: $HOT_KEYS"
@@ -254,6 +265,7 @@ run_cell() {
       -scale "$SCALE" -seed "$SEED" -fault-seed "$FAULT_SEED" \
       -conns "$CONNS" -write-conns "$WRITE_CONNS" -trials "$TRIALS" \
       -instances "$INSTANCES" -churn-duration "$CHURN_DURATION" \
+      -openloop-rates "$OPENLOOP_RATES" -openloop-duration "$OPENLOOP_DURATION" -openloop-queue "$OPENLOOP_QUEUE" \
       -stampede-readers "$STAMPEDE" -stampede-keys "$STAMPEDE_KEYS" -hot-keys "$HOT_KEYS" \
       -cache-capacity-kib "$CAPACITY_KB" -redis-maxmemory-mb "$REDIS_MAXMEMORY_MB" \
       -redis-addr "ads-redis:6379" -resource-frame "$FRAME" -sample "$SAMPLE" \

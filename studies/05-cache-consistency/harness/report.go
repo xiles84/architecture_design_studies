@@ -223,6 +223,34 @@ func writeReport(resultsDir, out string) error {
 	}
 	tt.Write(&b)
 
+	// ---------------------------------------------------------------- open loop
+	if hasOpenLoop(cells) {
+		b.WriteString("## Open-loop demand (fixed offered rate, no closed-loop backpressure)\n\n")
+		b.WriteString("The offered rate is what the client scheduled; the delivered rate is what the database completed.\n")
+		b.WriteString("`dropped` counts offered operations the generator could not attempt, and `client saturated` means the\n")
+		b.WriteString("client — not the server — was the limit, which invalidates a claim about the server. The wrong-read\n")
+		b.WriteString("count is the same phase's, so no delivered rate is shown without its correctness contract. Closed-loop\n")
+		b.WriteString("results elsewhere in this report are floors and are never reused as open-loop.\n\n")
+		ot := markdown.NewTable("Topology", "Scenario", "Phase", "offered ops/s", "delivered ops/s", "offered", "started", "completed", "rejected", "errors", "dropped", "client saturated", "p50 ms", "p99 ms", "max ms", "sched lag p99 ms", "wrong reads", "wrong % of reads")
+		for _, c := range cells {
+			for _, r := range c.OpenLoop {
+				wrong, _, rate := wrongForPhase(c, r.Name)
+				sat := "no"
+				if r.ClientSaturated {
+					sat = "YES — " + r.SaturationReason
+				}
+				ot.Row(c.Topology, "`"+c.ScenarioShort+"`", r.Name,
+					fmt.Sprintf("%.0f", r.OfferedRate), fmt.Sprintf("%.0f", r.DeliveredRate),
+					fmt.Sprintf("%d", r.Offered), fmt.Sprintf("%d", r.Started), fmt.Sprintf("%d", r.Completed),
+					fmt.Sprintf("%d", r.Rejected), fmt.Sprintf("%d", r.Errors), fmt.Sprintf("%d", r.Dropped),
+					sat, markdown.MS(r.Latency.P50MS), markdown.MS(r.Latency.P99MS), markdown.MS(r.Latency.MaxMS),
+					markdown.MS(r.SchedulingLagMS.P99MS),
+					fmt.Sprintf("%d", wrong), fmt.Sprintf("%.2f%%", rate))
+			}
+		}
+		ot.Write(&b)
+	}
+
 	// ---------------------------------------------------------------- writes
 	if hasWrites(cells) {
 		b.WriteString("## Writes (isolated per operation, then the hotspot race)\n\n")
@@ -519,9 +547,10 @@ func writeReport(resultsDir, out string) error {
 	b.WriteString("  would across availability zones; EXPLAIN (ANALYZE, DIST) RPC counts are the portable signal.\n")
 	b.WriteString("- All containers run on one WSL2 machine. This is NOT evidence of data colocation or of network\n")
 	b.WriteString("  behaviour; the placement pair reports engine evidence and physical colocation remains untested.\n")
-	b.WriteString("- The workloads are closed-loop per operation within a phase (measure.Run). Deep tails are therefore\n")
-	b.WriteString("  optimistic floors and are compared between scenarios, never quoted as SLO figures. The open-loop\n")
-	b.WriteString("  scheduler is used only where the report says so.\n")
+	b.WriteString("- The workloads are closed-loop per operation within a phase (measure.Run), except the open-loop demand\n")
+	b.WriteString("  phase, which schedules fixed arrival rates with measure.RunOpenLoop and reports the offered rate,\n")
+	b.WriteString("  dropped arrivals, scheduling lag and whether the client saturated. Closed-loop results are therefore\n")
+	b.WriteString("  optimistic floors and are compared between scenarios, never quoted as SLO figures.\n")
 	b.WriteString("- A single trial has no error bar. Where trials were repeated the spread is shown per measurement, and\n")
 	b.WriteString("  no conclusion may rest on a difference below the measured noise floor.\n")
 	b.WriteString("- One DeepSeek HIGH agent planned, built, measured and analysed this study. There is no independent\n")
@@ -584,6 +613,32 @@ func highestWrongRate(cells []CellResult) (wrongRate, bool) {
 		}
 	}
 	return best, found
+}
+
+// hasOpenLoop reports whether any cell ran the open-loop demand phase.
+func hasOpenLoop(cells []CellResult) bool {
+	for _, c := range cells {
+		if len(c.OpenLoop) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// wrongForPhase returns the wrong-read account recorded for exactly one phase, so
+// an open-loop rate is never shown without the correctness of its own phase.
+func wrongForPhase(c CellResult, phase string) (wrong, total int64, rate float64) {
+	for _, pw := range c.Wrong {
+		if pw.Phase != phase {
+			continue
+		}
+		wrong += pw.Summary.WrongReads
+		total += pw.Summary.TotalReads
+	}
+	if total > 0 {
+		rate = 100 * float64(wrong) / float64(total)
+	}
+	return wrong, total, rate
 }
 
 func totalWrong(c CellResult) struct {
