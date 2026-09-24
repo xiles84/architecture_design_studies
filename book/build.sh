@@ -56,11 +56,27 @@ fi
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 TYPST_VERSION="$(podman run --rm "$BOOK_IMAGE" --version | sed 's/^typst //')"
 EVIDENCE_DIGEST="$(sha256sum "$BOOK_DIR/evidence/v3/claims.json" | cut -d' ' -f1)"
+
+# ---- figure provenance gate ---------------------------------------------
+# Every embedded figure is a generated asset exported from one canonical study
+# .puml source. This aborts the build on a missing asset, a source that changed
+# without a re-export, or an asset that no longer matches a fresh pinned render.
+FIGURES_JSON="$BOOK_DIR/assets/figures.json"
+FIGURES_MANIFEST="$BOOK_DIR/assets/figure-manifest.json"
+[[ -f "$FIGURES_JSON" ]] || { log "figure registry missing: $FIGURES_JSON"; exit 1; }
+bash "$BOOK_DIR/assets/export.sh" --check
+FIGURES_TOTAL="$(jq '.figures | length' "$FIGURES_JSON")"
+FIGURES_MANIFEST_SHA="$(sha256sum "$FIGURES_MANIFEST" | cut -d' ' -f1)"
+
+# The source-tree hash covers the Typst sources, the whole figure layer
+# (registry, manifest, assets) and each referenced canonical figure source, so a
+# changed figure source cannot leave the hash unchanged.
 SOURCE_HASH="$(
-  find "$BOOK_DIR" -name '*.typ' -type f -print0 \
-    | sort -z \
-    | xargs -0 sha256sum \
-    | sha256sum | cut -d' ' -f1
+  {
+    find "$BOOK_DIR" -name '*.typ' -type f
+    find "$BOOK_DIR/assets" -type f
+    jq -r '.figures[].source' "$FIGURES_JSON" | while read -r src; do printf '%s\n' "$REPO_ROOT/$src"; done
+  } | sort -u | xargs sha256sum | sha256sum | cut -d' ' -f1
 )"
 
 log "compiling $OUT_REL (typst $TYPST_VERSION, commit ${COMMIT:0:12}, tree dirty=$DIRTY)"
@@ -117,6 +133,10 @@ cat > "$BOOK_DIR/$MANIFEST_REL" <<JSON
   "typst_image_digest": "$TYPST_DIGEST",
   "evidence_registry": "book/evidence/v3/claims.json",
   "evidence_digest_sha256": "$EVIDENCE_DIGEST",
+  "figure_registry": "book/assets/figures.json",
+  "figure_manifest": "book/assets/figure-manifest.json",
+  "figure_manifest_sha256": "$FIGURES_MANIFEST_SHA",
+  "figures_total": $FIGURES_TOTAL,
   "source_tree_hash_sha256": "$SOURCE_HASH",
   "pdf_sha256": "$PDF_SHA256",
   "pdf_pages": ${PAGES:-0},

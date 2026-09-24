@@ -63,6 +63,14 @@ summary, not a second ledger.
   compiles and verifies the draft in Podman and writes `book/dist/build-manifest.json`; the toolchain
   build was 30 pages with 3/3 fonts embedded, all 23 v2 claim ids indexed and the registry digest
   present in the text.
+- **Book figure layer:** `book/FIGURES.md` settles the import mechanism (a generated, read-only
+  `book/assets/` export chosen by a two-variant pilot) and `book/assets/export.sh` renders each
+  canonical study `.puml` with the pinned PlantUML renderer into `book/assets/`, writing
+  `book/assets/figure-manifest.json` (source revision + SHA-256, renderer digest, embedded-bytes
+  SHA-256). `book/build.sh` runs `export.sh --check` before compiling and fails on a missing asset, a
+  changed source or a stale render; `source_tree_hash_sha256` covers the figure layer and the
+  referenced sources. One pilot figure is registered; the real proof set lands with
+  `book-figure-proofset`.
 - **Book draft (synthesis):** `book-synthesis-v1` wrote the v1 prose — six family chapters with the
   progressive structure, eight concept chapters, variants, comparisons, topologies and scenarios —
   grounded only in the 23 active v2 claims, with confounds and gaps labelled on the page. It reads
