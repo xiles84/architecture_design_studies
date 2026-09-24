@@ -10,7 +10,7 @@ Written by `infra/diagram-render.sh`; do not edit by hand.
 | Renderer version | PlantUML version 1.2026.8 / 149874a [2026-09-05 15:59:17 UTC] |
 | Format | `svg` |
 | Sources | 20 (`*.puml`, excluding `_`-prefixed includes) |
-| Rendered at (UTC) | 2026-09-24T00:39:29Z |
+| Rendered at (UTC) | 2026-09-24T01:02:29Z |
 
 Output lives in `rendered/`. The image is pinned once in `infra/versions.env`
 (entry `PLANTUML_IMAGE`); the digest above is what this render actually used.

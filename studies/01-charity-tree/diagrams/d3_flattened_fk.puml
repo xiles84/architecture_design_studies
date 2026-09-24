@@ -39,9 +39,15 @@ note bottom of d
   charity_id on donation is pure redundancy — it is
   always equal to the donation's person's charity_id.
   Buying with that redundancy:
-   * six of twelve queries lose a join
-   * "total donated to a charity" becomes an
-     index-only scan, never touching the heap
+   * three of the current sixteen queries drop a join
+     (q02, q08, q15 in sql/d3_flattened_fk/queries.sql)
+   * q08 can be answered by an index-only scan on
+     donation_charity_amount_idx. Zero heap fetches is a
+     PREPARED-READ result, not a property of the index:
+     in run 20260913T125342Z-v3 the covering plan visited
+     1,756 / 31,293 entries with 0 fetches under explicit
+     VACUUM, while its ANALYZE-only diagnostic still
+     started at 31,293 fetches on trial 1.
 
   Paying with it:
    * a wider row and another index to maintain

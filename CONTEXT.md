@@ -71,6 +71,13 @@ summary, not a second ledger.
   changed source or a stale render; `source_tree_hash_sha256` covers the figure layer and the
   referenced sources. One pilot figure is registered; the real proof set lands with
   `book-figure-proofset`.
+- **Diagram fidelity audit (2026-09-23):** all 30 committed study diagram sources were classified
+  against their SQL/harness/plans and the audit is recorded per study in
+  `studies/0{1,2,3}-*/diagrams/FIDELITY.md`. Three annotations were corrected: D3's "six of twelve
+  queries lose a join" (now the current three of sixteen) and its unscoped "never touching the heap"
+  (now a named prepared-read result with the 1,756 / 31,293 zero-fetch and 31,293-fetch trial-1
+  caveat), and D10's unsupported "per 30 s" corruption window (now per concurrent split, citing
+  `20260913-d9-cache-race`). Corrected sources were re-rendered with the pinned helper.
 - **Book draft (synthesis):** `book-synthesis-v1` wrote the v1 prose — six family chapters with the
   progressive structure, eight concept chapters, variants, comparisons, topologies and scenarios —
   grounded only in the 23 active v2 claims, with confounds and gaps labelled on the page. It reads
