@@ -1,21 +1,14 @@
 #!/usr/bin/env bash
-# Regenerate rendered/*.svg from the .puml sources.
-#
-# Runs PlantUML in a container, so no Java and no PlantUML install is needed on
-# the host -- same rule as the rest of this repository.
+# Regenerate rendered/*.svg from the .puml sources with the repository-pinned
+# renderer. All renderer logic lives in infra/diagram-render.sh (pinned image,
+# bind-mount path handling, provenance record); this script only points it at
+# this study's diagrams, so no host Java or PlantUML install is needed.
 #
 # Usage: ./render.sh [svg|png]
 set -euo pipefail
-export MSYS_NO_PATHCONV=1
 
-FMT="${1:-svg}"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE="docker.io/plantuml/plantuml:latest"
-source "$DIR/../../../infra/lib.sh"
-
-mkdir -p "$DIR/rendered"
-# _style.puml is an include, not a diagram, so it is listed explicitly nowhere.
-mapfile -t files < <(cd "$DIR" && ls *.puml | grep -v '^_')
-
-podman run --rm -v "$(hostpath "$DIR"):/data" -w /data "$IMAGE" "-t$FMT" -o /data/rendered "${files[@]}"
-echo "rendered ${#files[@]} diagrams to $DIR/rendered as .$FMT"
+exec "$DIR/../../../infra/diagram-render.sh" \
+  --format "${1:-svg}" \
+  --record "$DIR/RENDERER.md" \
+  "$DIR"

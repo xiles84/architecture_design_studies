@@ -151,6 +151,10 @@ placement pair).
   can mislead a benchmark. All current results come from `host-zenbook-ux5406sa`.
 - Podman orchestration: [`infra/`](infra/) — PostgreSQL 1-node, YugabyteDB 1-node and 3-node RF=3,
   Redis, and the pinned queue image `localhost/ads-queue:1`.
+- Diagram renderer: `infra/diagram-render.sh` renders every study's `diagrams/*.puml` with
+  `PLANTUML_IMAGE` from [`infra/versions.env`](infra/versions.env), pinned by digest
+  (`sha256:9b9ee6af…`, PlantUML 1.2026.8); the three study `diagrams/render.sh` scripts delegate to
+  it and each study's `diagrams/RENDERER.md` records the digest actually used.
 - Replication: [`docs/replication.md`](docs/replication.md). Methodology: [`docs/methodology.md`](docs/methodology.md).
 
 ## Open gaps (current, not historical)
