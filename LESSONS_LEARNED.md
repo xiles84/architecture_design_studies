@@ -1460,3 +1460,25 @@ be committed by hand for that reason. **Check `ps -ef | grep git` and `podman ps
 lock** — an empty lock with no git process and no running container is stale — then remove it and
 retry. Do not conclude that a concurrent agent is holding it without that check, and do not widen the
 habit into removing locks that a live process owns.
+
+### A template token inside backticks renders literally, and only a page-text gate catches it
+
+Replacing a hard-coded registry path with an interpolated one looked like the right fix, and it shipped
+a draft whose page 2 read **Evidence registry `#registry-label`**, whose Chapter 18 heading read
+**Evidence registry (active `#registry-version` claims)**, and which leaked the same tokens in two more
+chapters. Six sites, two causes: Typst does not evaluate inside backticks (raw text is not evaluated),
+and it does not evaluate a `#name` inside a plain string argument. Both read as correct source to
+anyone reviewing the diff, which is why the diff-level review missed them and a reviewer reading the
+rendered page did not.
+
+**A rendered-artefact assertion is the only thing that catches this class.** `check.sh` now fails a
+backticked `#` token or a build-input token inside a string, but the gate that would have caught every
+occurrence is the one that reads the page: `build.sh` greps the extracted text for `#registry-`,
+`#build-`, `#source-`, `${`, `{{` and `UNKNOWN_PLACEHOLDER` and aborts the build. Both were verified by
+negative control: a backticked token fails the source rule, and a literal `{{` — which the source rule
+deliberately does not look for — fails the build with the offending token named.
+
+The lesson is wider than Typst: **when a generator interpolates a value into prose, assert on the
+generated output, never on the generator's source.** Every earlier gate in this book checked structure
+(claims indexed, fonts embedded, digest present) and all of them passed while the page said
+`#registry-label`.

@@ -95,6 +95,20 @@ while IFS= read -r id; do
   failure "gap-kind" "$id is a gap with no gap_kind"
 done < <(jq -r '.claims[] | select(.strength == "gap") | select((.gap_kind // []) | length == 0) | .claim_id' "$REGISTRY")
 
+# --- template-interpolation ----------------------------------------------
+# A backticked token starting with `#` renders literally: Typst raw text is not
+# evaluated. The same is true of `#name` inside a plain string argument, which is how
+# the Chapter 18 heading leaked. Both forms are fatal here, before a compile costs
+# anyone a minute; build.sh re-checks the rendered page afterwards.
+while IFS= read -r hit; do
+  [[ -z "$hit" ]] && continue
+  failure "template-interpolation" "$hit backticks a # token, which renders literally instead of evaluating"
+done < <(grep -rnE '`#[a-zA-Z]' "$BOOK_DIR" --include='*.typ' 2>/dev/null || true)
+while IFS= read -r hit; do
+  [[ -z "$hit" ]] && continue
+  failure "template-interpolation" "$hit writes a build-input token inside a string argument, which Typst does not evaluate"
+done < <(grep -rnE '"[^"]*#(registry|typst|evidence|source|built|commit|describe|dirty|release)[a-zA-Z_-]*' "$BOOK_DIR" --include='*.typ' 2>/dev/null || true)
+
 # --- figure ownership ----------------------------------------------------
 # Typst owns figure numbering. An asset that draws its own "Figure 3" produces
 # two competing numbers on one page, which is what Edition 1 shipped.

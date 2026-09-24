@@ -193,6 +193,19 @@ LINK_ANNOTS="$(grep -c '/URI' "$PDF_PATH" || true)"
 # A release build passes every provenance input, so the unverified-build banner
 # must not be on the page. This is what stops a preview build from being
 # mistaken for a release artefact.
+# A template token on the page means a source wrote `#name` somewhere the
+# evaluator does not run: inside backticks (raw text), or inside a plain string
+# argument. Edition 2's draft read "Evidence registry #registry-label" on page 2
+# for exactly that reason, so this is fatal rather than a warning.
+UNRESOLVED_IN_PDF="false"
+UNRESOLVED_SEEN=""
+for tok in '#registry-' '#build-' '#source-' '${' '{{' 'UNKNOWN_PLACEHOLDER'; do
+  if grep -qF "$tok" <<<"$TEXT"; then
+    UNRESOLVED_IN_PDF="true"
+    UNRESOLVED_SEEN="${UNRESOLVED_SEEN}${UNRESOLVED_SEEN:+ }${tok}"
+  fi
+done
+
 UNVERIFIED_BANNER="Unverified development build"
 PREVIEW_IN_PDF="false"
 if grep -q "$UNVERIFIED_BANNER" <<<"$TEXT"; then PREVIEW_IN_PDF="true"; fi
@@ -227,6 +240,7 @@ cat > "$BOOK_DIR/$MANIFEST_REL" <<JSON
   "claims_indexed": $CLAIM_COUNT,
   "evidence_digest_in_pdf": $DIGEST_IN_PDF,
   "unverified_banner_in_pdf": $PREVIEW_IN_PDF,
+  "unresolved_tokens_in_pdf": $UNRESOLVED_IN_PDF,
   "uri_annotations": $LINK_ANNOTS,
   "build_command": "book/build.sh (typst compile --root book main.typ --input commit=$COMMIT ... --input registry_version=$REGISTRY_VERSION --input release=1)"
 }
@@ -240,10 +254,15 @@ printf '  fonts embedded: %s/%s\n' "$FONTS_EMBEDDED" "$FONTS_TOTAL"
 printf '  claims indexed: %s/%s\n' "$CLAIM_COUNT" "$TOTAL_CLAIMS"
 printf '  evidence digest in pdf: %s\n' "$DIGEST_IN_PDF"
 printf '  unverified banner in pdf: %s\n' "$PREVIEW_IN_PDF"
+printf '  unresolved tokens in pdf: %s%s\n' "$UNRESOLVED_IN_PDF" "${UNRESOLVED_SEEN:+ ($UNRESOLVED_SEEN)}"
 printf '  uri annotations: %s\n' "$LINK_ANNOTS"
 
 if [[ "${PAGES:-0}" -lt 10 || "$FONTS_TOTAL" -eq 0 || "$FONTS_EMBEDDED" -ne "$FONTS_TOTAL" || "$DIGEST_IN_PDF" != "true" || "$CLAIM_COUNT" -ne "$TOTAL_CLAIMS" ]]; then
   log "verification FAILED: pages=$PAGES fonts=$FONTS_EMBEDDED/$FONTS_TOTAL digest_in_pdf=$DIGEST_IN_PDF claims=$CLAIM_COUNT/$TOTAL_CLAIMS"
+  exit 1
+fi
+if [[ "$UNRESOLVED_IN_PDF" != "false" ]]; then
+  log "verification FAILED: unresolved template token(s) rendered in the PDF: ${UNRESOLVED_SEEN}"
   exit 1
 fi
 if [[ "$PREVIEW_IN_PDF" != "false" ]]; then
