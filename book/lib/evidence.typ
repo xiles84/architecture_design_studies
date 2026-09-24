@@ -1,3 +1,4 @@
+#import "config.typ": typeset-ranges
 // The book reads exactly one evidence registry: the active versioned package
 // under book/evidence/<version>/. This module loads it and renders an index of
 // the claims that are allowed to appear as evidence.
@@ -128,11 +129,11 @@
       ]
     ]
     #v(2pt)
-    #c.statement
+    #typeset-ranges(c.statement)
     #if claim-status(c) == "partially_superseded" [
       #v(3pt)
       #text(size: 8pt, fill: rgb("#5b6470"))[
-        Still open: #c.remaining_dimensions.join("; ")
+        Still open: #typeset-ranges(c.remaining_dimensions.join("; "))
       ]
     ]
     #v(3pt)
@@ -144,7 +145,7 @@
       #text(size: 8pt, fill: rgb("#9a2f3b"))[Confounds: #c.confounds.join(", ")]
     ]
     #v(2pt)
-    #text(size: 8pt, fill: rgb("#5b6470"))[Limits: #c.limits.join("; ")]
+    #text(size: 8pt, fill: rgb("#5b6470"))[Limits: #typeset-ranges(c.limits.join("; "))]
     #v(2pt)
     #text(size: 7.5pt, fill: rgb("#5b6470"))[
       Source: #c.anchors.at(0).report

@@ -31,8 +31,12 @@ counter-row design was 4–8x slower than pre-created seats and blocked unrelate
 
 #heading(level: 2, "Step 3 — decide who maintains derived state")
 For every rollup or copy, name the maintainer and the failure it must never have. A trigger makes
-the guarantee structural; application maintenance keeps writes cheap but must be atomic with its
-publication. The measured trigger cost was 6.85x on whole-configuration replacement.
+the guarantee structural. Application maintenance keeps writes cheap, and its obligation is stated
+against where the derived state lives: when the base fact and the rollup are in the same database,
+update both in one transaction; when they cannot share one atomic transaction, name the delivery,
+idempotency and reconciliation mechanism that keeps the derived state recoverable. Only that second
+case is *publication*, because only there does a copy cross the authoritative transaction boundary.
+The measured trigger cost was 6.85x on whole-configuration replacement.
 
 #heading(level: 2, "Step 4 — state the evidence level and the gap")
 Every recommendation carries a claim id, its strength, its confounds and its coverage gap. A

@@ -99,7 +99,14 @@ while [[ "$i" -lt "$COUNT" ]]; do
   postprocess_svg "$rendered"
 
   src_sha="$(sha256sum "$src_abs" | cut -d' ' -f1)"
+  # HEAD:$src is the blob at the last commit, which is not the file's content when
+  # a change has not been committed yet — and a manifest written in a dirty tree
+  # records a revision that --check can never reproduce, because by then the commit
+  # exists. Record the committed blob only when it actually describes the file.
   src_rev="$(git -C "$REPO_ROOT" rev-parse "HEAD:$src" 2>/dev/null || echo uncommitted)"
+  if [[ "$src_rev" != "uncommitted" ]] && [[ "$(git -C "$REPO_ROOT" hash-object "$src_abs")" != "$src_rev" ]]; then
+    src_rev="uncommitted"
+  fi
   svg_sha="$(sha256sum "$rendered" | cut -d' ' -f1)"
   bytes="$(wc -c < "$rendered" | tr -d ' ')"
 

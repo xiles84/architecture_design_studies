@@ -133,6 +133,20 @@ summary, not a second ledger.
   the two `figure-number` waivers are deleted, and the marker tracking dropped from 0.8pt to 0.3pt.
   Both figure rules were verified by negative control. `check.sh`'s own registry default also moved to
   v5 — it had been left at v4, so a standalone run checked the frozen package.
+- **Text and terminology pass (2026-09-24, task `book-text-pass-v2`):** page 3 now defines the evidence
+  system the book actually uses — direct, mechanism, analogy, the four `gap_kind` values, partially
+  superseded and retired — and scopes "the same progressive structure" to major-family sections.
+  Normalization no longer implies it prevents double-selling; application-maintained rollups are
+  described as transactional first and "published" only when a copy crosses the authoritative
+  boundary; append-only history claims better *answerability*, not better correctness; the topology
+  chapter scopes its consensus claim to the measured RF=3 topology and calls the seat-map result a
+  layout *package* rather than "one topology change"; `read score` is defined at first use; and the
+  trial vocabulary distinguishes an in-run repeat from an independent replication. Numeric ranges in
+  the generated cards are typeset with en dashes by `typeset-ranges` in `lib/config.typ`, so prose and
+  cards agree while the registry text stays verbatim ASCII.
+  Also fixed: `book/assets/export.sh` recorded `source_revision` as the blob at HEAD, which a `--write`
+  in a dirty tree stores as a value `--check` can never reproduce; it now records the committed blob
+  only when that blob describes the file, else `uncommitted`.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in

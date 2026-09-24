@@ -66,7 +66,10 @@ relaxed cells recorded zero wrong reads, and the legacy process-local arms' zero
   configuration-portal study did not build eight of its eighteen designs and did not measure
   cardinality or cadence, and the cache study still owes its hard TTL expiry, medium scale,
   tablet/leader placement and open-loop demand. The cache study *did* measure real TTL churn,
-  repeated in-run trials and equal-total cache accounting on 2026-09-23, so those are no longer gaps.
+  in-run repeats and equal-total cache accounting on 2026-09-23, so those are no longer gaps. The
+  vocabulary is worth fixing here: an *in-run repeat* is another measurement window inside one
+  benchmark process, which reduces within-run noise but is not an independent run replication —
+  where the cards say `Trials: 1`, they mean one whole-run replication and no more.
   These are coverage gaps, not null results.
 ]
 #registry-card("v2-gap-03-study04-missing-designs")

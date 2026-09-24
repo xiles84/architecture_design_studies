@@ -1551,3 +1551,27 @@ OK. Two agents could have run "the same check" against the same tree and validat
 The rule this project keeps relearning: when a value becomes a build input, every script that keeps its own
 copy of it must move in the same commit — and a checker run standalone deserves the same acceptance test as
 the checker run by the build.
+
+### Typeset the data, do not edit it
+
+The registry is a JSON file, so its numeric ranges use ASCII hyphens; the page typesets a range with an
+en dash. Prose and cards therefore disagreed on the same number, and the tempting fixes were both wrong:
+regenerating the evidence text with typographic characters would put presentation into the evidence
+record, and rewriting each sentence by hand would drift the moment a claim changed.
+
+The fix sits at the boundary: `typeset-ranges` converts a hyphen between digits to an en dash **as the
+card renders**, so the registry stays verbatim and the page reads consistently. The same rule applies to
+any generated text in this repository — transform at render, keep the source a faithful record, and let a
+gate (here `validate`, which resolves the registry text against its report) keep the source honest.
+
+### A provenance field that names the last commit is not stable until the commit exists
+
+`book/assets/export.sh` recorded `source_revision` as `git rev-parse HEAD:<source>`. Run with `--write`
+while the source change was still uncommitted, it stored the *previous* blob; the next `--check`, after
+the commit existed, computed a different value and failed the build on a figure nobody had touched. The
+manifest was not wrong about the file — it was answering a question ("what does HEAD say?") instead of the
+one that matters ("does this hash describe this content?").
+
+It now records the committed blob only when that blob matches the file's content, and `uncommitted`
+otherwise. **Prefer a field that describes the artefact to a field that describes the repository state**,
+and test a manifest by writing it dirty and checking it clean — which is exactly how this surfaced.

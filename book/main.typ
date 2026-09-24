@@ -107,12 +107,22 @@
 
   #heading("How to read a number here")
   #list(
-    [Every family, variant, topology and scenario section follows the same progressive structure:
-      quick choice, where it thrives and perishes, common scenarios, mechanism, evidence and
-      reproduction.],
-    [A #text(weight: "bold")[direct] callout is measured in the cited run. An
-      #text(weight: "bold")[analogy] callout is a labelled transfer to a family that was *not*
-      measured. A #text(weight: "bold")[gap] callout is missing evidence.],
+    [Every *major-family* section follows the same progressive structure: quick choice, where it
+      thrives and perishes, common scenarios, mechanism, costs, evidence and reproduction.
+      Variant, scenario and concept chapters use the shape their role needs, because a case study
+      and a reusable explanation are not the same thing.],
+    [*Direct evidence* is measured in the cited run. *Mechanism evidence* demonstrates how
+      something works without establishing a rate. *Analogy* is a labelled transfer to a family
+      that was not measured. A #text(weight: "bold")[gap] callout is not one thing: each card
+      names its own kind.],
+    [The four kinds of gap, because they close differently: a *schema limitation* means the
+      representation cannot answer the question, so no run would; a *coverage gap* means a
+      relevant regime has not been measured yet; an *instrument gap* means the property could not
+      be observed with the tools the study had; an *unstable measurement* means the number moved
+      between runs with no code change.],
+    [A claim can also be *partially superseded* — part of it has been replaced, the card names what
+      moved to which successor, and the dimensions still open stay listed. A *retired* claim is no
+      longer active and is not cited at all.],
     [Gaps are never null results: "not measured" must not be read as "would not change this".],
     [No cross-study numeric ranking appears anywhere; no comparability record exists.],
   )

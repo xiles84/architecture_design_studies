@@ -14,10 +14,14 @@ cell is throttled to a documented per-node budget, and every manifest records it
 therefore "per-node budget", not "equal total budget".
 
 #heading(level: 2, "What topology does to a design")
-Replication turns a write into a consensus write, so write-heavy designs move differently from
-read-heavy ones. The section-sharded seat map collapsed point lookups to 26 ops/s on YugabyteDB,
-while the same family's whole-map read was 4.5–11x a row design — one topology change, opposite
-directions for two access patterns.
+In the measured YugabyteDB RF=3 topology, replication puts consensus work on the foreground write
+path, so write-heavy designs move differently from read-heavy ones there; asynchronous replication
+would not necessarily impose that. The section-document experiment shows that one *layout package*
+can affect two access patterns in opposite directions: the sharded variant answered the 100k-seat
+whole-map read 4.5–11x faster than a row design while collapsing point lookups to 26 ops/s. Because
+that package changes representation and placement together, it isolates no pure topology effect; the
+lesson is that a layout has to be measured again under each topology and access pattern you care
+about.
 
 #registry-card("v2-11-section-seat-map")
 

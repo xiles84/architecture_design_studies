@@ -203,3 +203,13 @@
   heading(level: depth, "Reusable mechanism")
   heading(level: depth, "Evidence and reproduction")
 }
+
+// The registry is data, so its prose keeps ASCII hyphens in numeric ranges, as a
+// JSON file should. The page typesets a range with an en dash. This converts one to
+// the other at render time, so the chapter prose and the generated cards agree
+// without editing the evidence: the registry stays the verbatim record, and nothing
+// here changes a digit.
+#let typeset-ranges(t) = t.replace(
+  regex("([0-9])-([0-9])"),
+  m => m.captures.at(0) + "–" + m.captures.at(1),
+)

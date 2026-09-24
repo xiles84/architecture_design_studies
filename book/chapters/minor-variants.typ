@@ -9,6 +9,10 @@ the rest are named with their evidence status so a reader can tell the differenc
 
 #heading(level: 2, "Measured controlled pairs")
 #heading(level: 3, "Index selection")
+*Read score* — used from here on — is this corpus's blended within-run composite of a family's read
+queries. It compares variants inside one run and nothing else: it is not the throughput or the
+latency of any single query, and it must not be quoted across runs.
+
 Adding the query index was the first large read win in the charity tree (D2 indexed, 13.3x the
 minimal design's read score); flattening the foreign key reached 20.5x.
 #registry-card("v2-01-normalized-index-first")

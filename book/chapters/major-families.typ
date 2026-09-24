@@ -4,8 +4,9 @@
 #heading("Major families")
 
 #marker("chapter", "major families")
-A family is a way of deciding where a fact lives. The six here are fixed by the goal; each section
-follows the same progressive structure, and the mechanism chapters carry the reusable explanations.
+A family is a way of deciding where a fact lives. The six here are fixed by the goal; each major-family
+section follows the same progressive structure, and the mechanism chapters carry the reusable
+explanations.
 Every cost below is a measured claim, labelled *direct* when it comes from the cited run or
 *analogy* when it is a transfer.
 
@@ -18,13 +19,16 @@ question says otherwise.
 Thrives when questions are answerable from the rows themselves and writes are spread across many
 parents. Perishes on a hot row, or when the required question was never modelled.
 #heading(level: 3, "Common scenarios")
-Order lines, ticket sales, configuration entries — anything that must never overbook or double-sell.
+Order lines, ticket sales, configuration entries — the canonical transactional facts. Normalization
+decides *where those facts live*; it does not by itself prevent overbooking or double-selling, which
+needs a declared constraint plus a concurrency strategy that acts on it.
 #heading(level: 3, "Mechanism")
 See the *indexes and hot rows* concept and the *concurrency control* concept. Indexes answer expressible questions; arbitration
 answers contended rows.
 #heading(level: 3, "Costs")
-Reads pay per query; writes are cheap; storage is the baseline; correctness depends on the
-constraint you actually declared; operations are ordinary.
+Reads pay per query; writes are cheap *in the measured cells of this corpus*, not as a law;
+storage is the baseline; correctness depends on the constraint you actually declared; operations are
+ordinary.
 #heading(level: 3, "Direct evidence")
 #registry-card("v2-01-normalized-index-first")
 #registry-card("v2-06-hot-drop-designs")
@@ -115,8 +119,10 @@ Refund reporting, audit trails, last-purchase questions after a cancellation.
 See the *derived state and history* concept and the *expiry and clock authority* concept.
 #heading(level: 3, "Costs")
 Reads need a report over history; writes append and fence; storage grows (about 33–35% more in the
-ticketing ledger); correctness *improves* — this family is the answerability fix; operations need
-retention.
+ticketing ledger); *answerability improves* — this family is the answerability fix, because history
+keeps enough information to answer across refunds, cancellations and corrections. Append-only storage
+does not by itself settle concurrency, event ordering, duplicates, invalid events or atomicity;
+operations need retention.
 #heading(level: 3, "Direct evidence")
 #registry-card("v2-07-refund-answerability-and-storage")
 #registry-card("v2-08-ledger-race-cost-128-buyers")
