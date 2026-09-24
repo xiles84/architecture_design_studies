@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260924T110003Z-book-v2-release` |
-| State | `approved_for_integration` |
-| Sequence | `7` |
+| State | `completed` |
+| Sequence | `8` |
 | Active attempt | none |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=integrator` |
-| Last event | `event-20260924T155953Z-integrated` |
-| Updated at | `2026-09-24T15:59:53Z` |
-| Next capability | HIGH |
-| Next work role | integrator |
+| Last event | `event-20260924T160011Z-completed` |
+| Updated at | `2026-09-24T16:00:11Z` |
+| Next capability |  |
+| Next work role |  |
 | Branch | `repo/book-v2-release` |
 | Worktree | `.worktrees/book-v2-release` |
 
-Integrated into local `main`. NEXT: `queue complete`.
+Task complete. The immutable event files remain the record.
