@@ -13,11 +13,12 @@ Generated from immutable brainstorm records; do not hand-edit.
 
 ## `brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies` — Visual explanations for book and studies
 
-- State/stage: `concluded` / `concluded`
-- Summary: Adopt a small audited provenance-gated visual layer with one canonical PlantUML source per figure, pinned rendering, and asset bytes in the book build. Audit the 30 existing sources first (the D3 heap wording is the first correction), label form and evidence status separately, and pilot 3-4 figures before expanding.
+- State/stage: `tasked` / `tasked`
+- Summary: Published and linked implementation tasks: task-20260923T235910Z-diagram-renderer-pin, task-20260923T235916Z-diagram-fidelity-audit, task-20260923T235913Z-book-figure-provenance, task-20260923T235922Z-book-figure-proofset, task-20260923T235931Z-brainstorm-conclusions-index.
 - Progress: positions 3/3; critiques 2/2; synthesis complete
 - Disagreements: Preserved: whether one book-level structure figure earns its maintenance; byte-identity versus normalized drift gate; direct import versus generated book/assets export; how much caption detail.
-- Next: `CREATE TASKS FROM BRAINSTORM brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies`
+- Next: `Review linked task progress`
+- Linked tasks: `task-20260923T235910Z-diagram-renderer-pin`, `task-20260923T235913Z-book-figure-provenance`, `task-20260923T235916Z-diagram-fidelity-audit`, `task-20260923T235922Z-book-figure-proofset`, `task-20260923T235931Z-brainstorm-conclusions-index`
 
 ## `brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control` — Cache strategy coverage by schema control
 
