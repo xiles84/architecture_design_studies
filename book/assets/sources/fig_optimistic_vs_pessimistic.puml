@@ -1,0 +1,39 @@
+@startuml fig_optimistic_vs_pessimistic
+!include _style.puml
+' Book figure — optimistic version-checking vs pessimistic lock-before-update.
+' Form: sequence. Evidence status: conceptual illustration; it draws v2-12's mechanism and
+' asserts no rate. The point is that the invariant recheck, not the lock, rejects an
+' operation that has become invalid.
+title the invariant recheck is what rejects an invalidated operation
+
+participant "reader/writer R1" as R1
+participant "reader/writer R2" as R2
+database "row (version = 5)" as DB
+
+group optimistic — check the version, retry on a mismatch
+  R1 -> DB : 1 read → version 5
+  R2 -> DB : 2 read → version 5
+  R1 -> DB : 3 UPDATE … WHERE version = 5
+  DB --> R1 : 4 one row updated · version → 6
+  R2 -> DB : 5 UPDATE … WHERE version = 5
+  DB --> R2 : 6 zero rows — rejected
+  R2 -> DB : 7 re-read, retry
+end
+
+group pessimistic — lock before update
+  R1 -> DB : 1 SELECT … FOR UPDATE
+  DB --> R1 : 2 lock acquired
+  R2 -> DB : 3 SELECT … FOR UPDATE
+  note over R2, DB : waits for the lock
+  R1 -> R1 : 4 recheck the invariant
+  R1 -> DB : 5 update · commit
+  DB --> R2 : 6 lock acquired
+  R2 -> R2 : 7 recheck the invariant → decide
+end
+
+note over R1, DB
+  A lock serialises the writers; it does not prove the business condition.
+  In both panels it is the invariant recheck that rejects the operation which
+  has become invalid.
+end note
+@enduml

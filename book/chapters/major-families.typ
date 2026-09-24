@@ -124,6 +124,18 @@ A reservation's seat map, a configuration file rendered whole.
 #heading(level: 3, "Mechanism")
 See the *information placement* concept. A section document answered a 100k-seat map 4.5–11x faster than
 per-seat rows on YugabyteDB; a sharded variant collapsed point lookups to 26 ops/s.
+
+#figure-evidence(
+  "../assets/fig-embedded-vs-normalized.svg",
+  "structure",
+  "conceptual illustration",
+  "Normalized child rows beside a bounded child collection inside the parent.",
+  [Left, normalized child rows: the parent and its children are independent rows, so the whole aggregate
+   and each single child are both addressable, at the cost of a join or an aggregate read. Right, the
+   same bounded collection stored inside the parent row: reading the whole aggregate is local to one row,
+   while querying or updating one independent child is less convenient and an unbounded collection is
+   dangerous. The figure contrasts the placements and asserts no rate.],
+)
 #heading(level: 3, "Costs")
 Reads of the whole child set improve; point access to one child can get much worse; storage is
 similar; correctness needs a bounded-growth rule; operations can be awkward for partial updates.

@@ -20,6 +20,19 @@ validation*, which checks a served value against authoritative state at the hit 
 "invalidation is a fence" makes the fence sound like a deletion, and the deletion is the part that does
 not close the race. This is the concept the external-read-copies family exists to hold.
 
+#figure-evidence(
+  "../assets/fig-cache-read-copy.svg",
+  "structure",
+  "conceptual illustration",
+  "The cache is a non-authoritative read copy beside the authoritative database.",
+  [A client reaches the application, which talks to the authoritative source database and to a cache.
+   Mutation and source reads belong to the database; *source correctness* is decided by the mutation
+   itself (a lock plus invariant recheck, or a conditional update). The cache holds a
+   *non-authoritative read copy*: *copy correctness* is decided by propagation, publication or hit
+   validation, and the declared freshness contract says what a hit is allowed to mean. The figure is the
+   architecture the races below take place in, and it asserts no rate.],
+)
+
 #heading(level: 2, "The flow: contract first, pattern last")
 
 #list(

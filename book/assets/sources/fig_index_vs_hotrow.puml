@@ -1,0 +1,39 @@
+@startuml fig_index_vs_hotrow
+!include _style.puml
+' Book figure — an index changes how many rows are touched; a hot row changes who may touch one.
+' Form: structure. Evidence status: conceptual illustration; asserts no rate.
+title two different tools: the index narrows the scan, the hot row serialises the writers
+top to bottom direction
+skinparam nodesep 16
+skinparam ranksep 24
+
+rectangle "INDEX — how many rows the engine touches" as P1 #FBFBF6 {
+  rectangle "query\na donor's donations" as Q
+  rectangle "index on donor_id" as I <<derived>>
+  rectangle "few matching rows" as R <<authoritative>>
+  Q --> I : lookup
+  I --> R : narrow path
+}
+note bottom of P1
+  The index is a copy of an ordering; it taxes
+  every write to the indexed column.
+end note
+
+rectangle "HOT ROW — who may touch one row at once" as P2 #FBFBF6 {
+  rectangle "writer 1" as W1
+  rectangle "writer 2" as W2
+  rectangle "writer 3" as W3
+  rectangle "one contended row\n(e.g. a counter or stock row)" as HR <<authoritative>>
+  W1 --> HR
+  W2 --> HR
+  W3 --> HR
+}
+note bottom of P2
+  Every writer serialises on the same row.
+  Arbitration - a conditional update, a lock
+  plus recheck, or pre-created units - is the
+  design question, not structure.
+end note
+
+R -[hidden]down-> W1
+@enduml

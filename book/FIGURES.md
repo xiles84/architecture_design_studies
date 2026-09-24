@@ -37,23 +37,28 @@ and its **evidence status** (`conceptual illustration` / `implemented design con
 control` / `observed result`) — plus an adjacent text equivalent in the prose. The rule is
 [methodology 15](../docs/methodology.md).
 
-The table is in document order (Typst owns the numbers). Figures 2, 3, 6, 7, 10, 11 and 12 were added
-or redrawn by the 2026-09-24 revision A.
+The table is in document order (Typst owns the numbers). Revision A added or redrew figures 2, 3, 6, 7,
+10, 11 and 12; revision B added the embedded-vs-normalized, index-vs-hot-row, optimistic-vs-pessimistic
+and cache-read-copy figures. Numbers shifted after each insertion, so the table is by name.
 
 | Figure | Source | Form | Evidence status | Placed in |
 |---|---|---|---|---|
 | 1 — the decision path | `assets/sources/fig_decision_tree.puml` (book) | decision tree | conceptual illustration | `chapters/how-to-choose.typ` |
 | 2 — normalized, rolldown, rollup | `assets/sources/fig_families_er.puml` (book) | structure | conceptual illustration | `chapters/major-families.typ` |
 | 3 — rolldown vs rollup | `assets/sources/fig_rollup_vs_rolldown.puml` (book) | structure | conceptual illustration | `chapters/major-families.typ` |
-| 4 — two buyers, same marked seats | `studies/03-reserved-seating/diagrams/s_arbitration.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `chapters/scenarios.typ` |
-| 5 — placement and ownership | `assets/sources/fig_placement_ownership.puml` (book) | structure | conceptual illustration | `concepts/information-placement.typ` |
-| 6 — derived state vs retained history | `assets/sources/fig_derived_vs_history.puml` (book) | structure | conceptual illustration | `concepts/derived-state-and-history.typ` |
-| 7 — current state vs retained history | `assets/sources/fig_history_vs_current.puml` (book) | structure | conceptual illustration | `concepts/derived-state-and-history.typ` |
-| 8 — when an abandoned hold returns its seat | `studies/03-reserved-seating/diagrams/e_expiry.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `concepts/expiry-and-clock-authority.typ` |
-| 9 — the strict-after-acknowledgement timeline | `assets/sources/fig_freshness_timeline.puml` (book) | timeline | conceptual illustration | `concepts/cache-consistency.typ` |
-| 10 — a lease, a fencing token, a source generation | `assets/sources/fig_lease_vs_fence.puml` (book) | sequence | conceptual illustration | `concepts/cache-consistency.typ` |
-| 11 — the stale-fill race and source-generation validation | `assets/sources/fig_cache_stale_fill.puml` (book) | sequence | observed result (illustrates `v2-15`; embeds no rate) | `concepts/cache-consistency.typ` |
-| 12 — logical topologies inside one physical host | `assets/sources/fig_topology_physical_boundary.puml` (book) | structure | conceptual illustration | `concepts/distributed-placement.typ` |
+| 4 — normalized child rows vs embedding | `assets/sources/fig_embedded_vs_normalized.puml` (book) | structure | conceptual illustration | `chapters/major-families.typ` |
+| 5 — two buyers, same marked seats | `studies/03-reserved-seating/diagrams/s_arbitration.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `chapters/scenarios.typ` |
+| 6 — placement and ownership | `assets/sources/fig_placement_ownership.puml` (book) | structure | conceptual illustration | `concepts/information-placement.typ` |
+| 7 — index vs hot row | `assets/sources/fig_index_vs_hotrow.puml` (book) | structure | conceptual illustration | `concepts/indexes-and-hot-rows.typ` |
+| 8 — optimistic vs pessimistic | `assets/sources/fig_optimistic_vs_pessimistic.puml` (book) | sequence | conceptual illustration | `concepts/concurrency-control.typ` |
+| 9 — derived state vs retained history | `assets/sources/fig_derived_vs_history.puml` (book) | structure | conceptual illustration | `concepts/derived-state-and-history.typ` |
+| 10 — current state vs retained history | `assets/sources/fig_history_vs_current.puml` (book) | structure | conceptual illustration | `concepts/derived-state-and-history.typ` |
+| 11 — when an abandoned hold returns its seat | `studies/03-reserved-seating/diagrams/e_expiry.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `concepts/expiry-and-clock-authority.typ` |
+| 12 — the cache as a non-authoritative read copy | `assets/sources/fig_cache_read_copy.puml` (book) | structure | conceptual illustration | `concepts/cache-consistency.typ` |
+| 13 — the strict-after-acknowledgement timeline | `assets/sources/fig_freshness_timeline.puml` (book) | timeline | conceptual illustration | `concepts/cache-consistency.typ` |
+| 14 — a lease, a fencing token, a source generation | `assets/sources/fig_lease_vs_fence.puml` (book) | sequence | conceptual illustration | `concepts/cache-consistency.typ` |
+| 15 — the stale-fill race and source-generation validation | `assets/sources/fig_cache_stale_fill.puml` (book) | sequence | observed result (illustrates `v2-15`; embeds no rate) | `concepts/cache-consistency.typ` |
+| 16 — logical topologies inside one physical host | `assets/sources/fig_topology_physical_boundary.puml` (book) | structure | conceptual illustration | `concepts/distributed-placement.typ` |
 
 `pilot-00-overview` is the import-mechanism pilot and remains registered but is not a book figure.
 

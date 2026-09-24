@@ -7,6 +7,17 @@
 Two different tools get confused because both look like "make the query fast". An index changes how
 many rows the engine touches; a hot-row decision changes who may touch one row at the same time.
 
+#figure-evidence(
+  "../assets/fig-index-vs-hotrow.svg",
+  "structure",
+  "conceptual illustration",
+  "An index narrows the scan; a hot row serialises the writers.",
+  [Left, the index panel: a query follows a narrow index path to a small subset of rows, so the engine
+   touches less — the index is a copy of an ordering and taxes every write to the indexed column. Right,
+   the hot-row panel: several writers converge on one contended row, so they serialise and the design
+   question is arbitration, not structure. The figure separates the two tools and asserts no rate.],
+)
+
 #heading(level: 2, "Indexes")
 An index answers a question the schema can already express, at the cost of every write to the
 indexed column. In the charity tree the first index was the first large read win, and flattening
