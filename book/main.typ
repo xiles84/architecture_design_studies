@@ -142,7 +142,16 @@
 
 // -------------------------------------------------------------------- concepts
 #pagebreak()
-#heading("Concepts")
+#heading("Part II — Concepts")
+The first part measured what each family does under this corpus's workloads. This part explains the
+mechanisms those results came from, in the order the decisions bind: where information is placed,
+what the indexes cost, who arbitrates a contended row, what derived state owes its maintainer, who
+owns expiry, what a cache must prove, and where a cluster actually puts the data. The last chapter is
+the checklist for reading any number in the first part.
+
+#text(size: 9.5pt, fill: palette.muted)[Each concept names the claim cards that measured it, and the
+glossary at the end of the book is the single definition site for every term used here.]
+
 #include "concepts/information-placement.typ"
 #include "concepts/indexes-and-hot-rows.typ"
 #include "concepts/concurrency-control.typ"
@@ -151,6 +160,10 @@
 #include "concepts/cache-consistency.typ"
 #include "concepts/distributed-placement.typ"
 #include "concepts/reading-benchmarks.typ"
+
+// ------------------------------------------------------------------- glossary
+#pagebreak()
+#include "glossary.typ"
 
 // -------------------------------------------------------------- evidence index
 #pagebreak()

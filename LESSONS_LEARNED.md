@@ -1575,3 +1575,23 @@ one that matters ("does this hash describe this content?").
 It now records the committed blob only when that blob matches the file's content, and `uncommitted`
 otherwise. **Prefer a field that describes the artefact to a field that describes the repository state**,
 and test a manifest by writing it dirty and checking it clean — which is exactly how this surfaced.
+
+### A glossary is the one place where duplication is not a defect
+
+The same twenty-odd terms were defined in passing across nine concept chapters, each definition slightly
+different, and two of them were three registry versions out of date. The glossary does not remove those
+sentences; it gives every term **one** site a reader can be sent to, which is what makes the in-place
+definitions safe to keep short.
+
+Two details are worth copying. The glossary names the registry field where a term is also a field
+(`gap_kind`, `trials`, `resource_framing`), so the vocabulary and the schema cannot drift apart silently.
+And it was written against the *registry's* vocabulary rather than the prose's — that is how
+`retired` and `partially superseded` came to have definitions at all.
+
+### A figure that asserts a number is a claim without a card
+
+The two tranche-1 figures assert none: the decision path orders the book's own recommendations, and the
+freshness timeline draws the strict contract at the point where it binds. Both carry a form and
+evidence-status label and a text equivalent beside them, which is the rule from the figures task applied
+to figures that carry no measurement — the label is what tells a reader whether to look for a claim card.
+A conceptual figure may place the numbers a claim provides; it may not introduce one.

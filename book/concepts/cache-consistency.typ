@@ -72,6 +72,18 @@ Every other contract is a weakening of that line, and the weakening must be name
 harness count below is measured against — a "wrong read" is a read that violates this line, not a read
 that returns something impossible.
 
+#figure-evidence(
+  "../assets/fig-freshness-timeline.svg",
+  "timeline",
+  "conceptual illustration",
+  "The strict-after-acknowledgement contract, and the point on the timeline where it binds.",
+  [A writer commits `W1`, the acknowledgement is observed, and a later read begins. The contract
+   binds at `begin(R1) > ack(W1)`: the read must not return a version older than `W1` unless a later
+   write supersedes it. Everything the book calls relaxed is a named weakening of that line, and a
+   bounded-staleness contract adds a declared delta the measured cells do not declare. The figure
+   draws the contract; the rates beside it are the registry's.],
+)
+
 #heading(level: 2, "The named mechanisms, one primary failure mode each")
 
 A mechanism is not a synonym for freshness. Each one addresses one primary failure mode or control

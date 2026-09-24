@@ -7,6 +7,19 @@
 This chapter is the decision path. It front-loads the two questions that dominate every later
 trade-off: what must the schema be able to answer, and who arbitrates the contended row.
 
+#figure-evidence(
+  "../assets/fig-decision-tree.svg",
+  "decision tree",
+  "conceptual illustration",
+  "The decision path, in the order the decisions bind.",
+  [What must the schema answer — after an undo, a cancellation or a correction? If the current
+   representation cannot answer it, change the representation before the speed. If a row is
+   contended, arbitrate it: a conditional update, a lock plus an invariant recheck, or pre-created
+   rows. If it is not, leave the row canonical and index the question. Name the maintainer of any
+   derived read. State the evidence level and the gap before quoting a number. The figure orders the
+   chapters' recommendations and asserts no measured value of its own.],
+)
+
 #heading(level: 2, "Step 0 — answerability before performance")
 #direct[
   Write down the questions the data must answer *after* an undo, a cancellation or a correction.

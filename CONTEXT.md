@@ -147,6 +147,17 @@ summary, not a second ledger.
   Also fixed: `book/assets/export.sh` recorded `source_revision` as the blob at HEAD, which a `--write`
   in a dirty tree stores as a value `--check` can never reproduce; it now records the committed blob
   only when that blob describes the file, else `uncommitted`.
+- **Reader-facing framework added (2026-09-24, task `book-pedagogy-v2`):** the Concepts divider is now
+  a real part opener ("Part II — Concepts") with a two-sentence lead and a pointer to the glossary, which
+  is new (`book/glossary.typ`) and is the single definition site for 26 canonical terms: claim, strength
+  values, direct/mechanism/analogy, the four `gap_kind` values, partially superseded and retired, run /
+  replication / trial / in-run repeat, `read_score`, `wrong_reads`, the strict contract and the relaxed
+  family, resource framing, colocation, rollup/rolldown/embedding, source vs copy correctness,
+  invalidation vs fence, confound, and family/variant/scenario. Tranche 1 of the review's visuals is in:
+  a book-owned decision-path figure in Chapter 2 (V1) and a freshness-timeline figure in Chapter 15
+  (V7), both with a form and evidence-status label and an adjacent text equivalent; the benchmark-reading
+  checklist (V11) is a table. The book is 56 pages with seven registered figures, and the chapter-17
+  "floor, not an SLO" wording is scoped in the same file.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in
