@@ -123,6 +123,16 @@ summary, not a second ledger.
   are consistent with, and the `v2-16` write-path sentence is a labelled mechanism note the claim does
   not quantify. Verified: 51 pages, 29/29 claims, 6/6 fonts, no banner, no unresolved tokens, orphan
   hyphenated fragment lines 29 (worst page 3).
+- **Figures re-exported and de-duplicated (2026-09-24, task `book-figures-v2`):** Typst is now the only
+  owner of figure numbering — the two book-owned PlantUML sources no longer draw "Figure 1/3" in their
+  titles, so the page shows one number per figure (verified: Figures 1-4, captions only). The
+  letter-spaced labels are fixed at the export step rather than per figure: PlantUML emits `textLength`
+  and `lengthAdjust="spacing"` on every `<text>`, Typst honours them, and **all five** assets carried
+  them, so `book/assets/export.sh` now strips both and records `postprocess: strip-textlength-v1` per
+  figure in `figure-manifest.json` (schema_version 2). `check.sh` gained a fatal `figure-stretch` rule,
+  the two `figure-number` waivers are deleted, and the marker tracking dropped from 0.8pt to 0.3pt.
+  Both figure rules were verified by negative control. `check.sh`'s own registry default also moved to
+  v5 — it had been left at v4, so a standalone run checked the frozen package.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in

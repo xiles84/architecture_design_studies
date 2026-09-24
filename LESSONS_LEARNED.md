@@ -1525,3 +1525,29 @@ what only their combination provides.
 **Check a summary sentence against every item it summarises, and give each mechanism its own card.**
 When a sentence has a "only", "always", "exactly" or "at most", it is a claim about the set, not about
 the row in front of it, and it needs the same evidence test as the numbers.
+
+### A renderer's output attributes are part of your build contract
+
+Every SVG in the book carried `textLength` and `lengthAdjust="spacing"` on each `<text>` element. PlantUML
+emits them to place text at a guessed width, Typst honours them faithfully, and every label was therefore
+stretched to the renderer's estimate instead of laid out in the real font. The symptom looked like a
+per-figure problem — one long-labelled diagram was obviously letter-spaced while the short ones looked
+acceptable — and it was not: all five assets had it, and a fix aimed at the visible figure would have left
+the other four subtly wrong.
+
+Two things follow. **Fix it where the artefact is generated**, and record the fix as a build input the way
+the renderer digest is recorded: `export.sh` now strips the attributes and writes
+`postprocess: strip-textlength-v1` into the figure manifest, so changing the step invalidates every asset
+exactly as a new renderer does. And **gate the property, not the figure**: `check.sh` fails any asset
+carrying either attribute, which is what stops the next re-export from quietly reintroducing it.
+
+### A default copied into a second script is a defect waiting for an excuse
+
+Moving the book to registry v5 meant changing the default in `build.sh` and in `lib/evidence.typ`. A third
+copy lived in `book/evidence/check.sh`, and nothing failed: `build.sh` passes the version explicitly, so
+every build was correct while a standalone `check.sh` run checked the **frozen v4 package** and reported
+OK. Two agents could have run "the same check" against the same tree and validated different registries.
+
+The rule this project keeps relearning: when a value becomes a build input, every script that keeps its own
+copy of it must move in the same commit — and a checker run standalone deserves the same acceptance test as
+the checker run by the build.

@@ -15,7 +15,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOK_DIR="$(cd "$HERE/.." && pwd)"
-REGISTRY_VERSION="v4"
+REGISTRY_VERSION="v5"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -117,6 +117,15 @@ while IFS= read -r hit; do
   [[ -z "$hit" ]] && continue
   failure "template-interpolation" "$hit writes a build-input token inside a string argument, which Typst does not evaluate"
 done < <(grep -rnE '"[^"]*#(registry|typst|evidence|source|built|commit|describe|dirty|release)[a-zA-Z_-]*' "$BOOK_DIR" --include='*.typ' 2>/dev/null || true)
+
+# --- figure-stretch -------------------------------------------------------
+# PlantUML emits textLength and lengthAdjust="spacing" on every <text> element and
+# Typst honours them, so a label is stretched to the renderer's guessed width. The
+# export step strips them; this catches an asset that arrived around it.
+while IFS= read -r hit; do
+  [[ -z "$hit" ]] && continue
+  failure "figure-stretch" "$hit carries textLength/lengthAdjust, which stretches text in the PDF; re-export with book/assets/export.sh --write"
+done < <(grep -rlE 'textLength=|lengthAdjust=' "$BOOK_DIR/assets" --include='*.svg' 2>/dev/null || true)
 
 # --- figure ownership ----------------------------------------------------
 # Typst owns figure numbering. An asset that draws its own "Figure 3" produces

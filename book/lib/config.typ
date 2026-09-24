@@ -162,7 +162,7 @@
 
 // A family / variant / topology / scenario marker used at the head of a section.
 #let marker(kind, name) = block(below: 0.6em)[
-  #set text(size: 8.5pt, tracking: 0.8pt, fill: palette.muted)
+  #set text(size: 8.5pt, tracking: 0.3pt, fill: palette.muted)
   #upper(kind) · #upper(name)
 ]
 

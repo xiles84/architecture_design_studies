@@ -39,6 +39,26 @@ need_podman
 RENDERER_DIGEST="$(podman image inspect "$PLANTUML_IMAGE" --format '{{.Digest}}')"
 RENDERER_ID="$(podman image inspect "$PLANTUML_IMAGE" --format '{{.Id}}')"
 
+# Postprocess step, recorded in the manifest: a change to this step invalidates
+# every asset, exactly as a renderer change does.
+#
+# PlantUML emits textLength and lengthAdjust="spacing" on every <text> element, and
+# Typst honours them, so each label is stretched to the renderer's guessed width
+# instead of being laid out in the real font. Every asset relied on this, which is
+# why a long-labelled diagram looked letter-spaced while the short ones looked
+# acceptable. Stripping it at export, rather than correcting one figure, is what
+# makes the fix hold for figures nobody has drawn yet.
+POSTPROCESS="strip-textlength-v1"
+
+postprocess_svg() {
+  local f="$1" before after
+  before="$(grep -cE 'textLength=|lengthAdjust=' "$f" || true)"
+  sed -i -E 's/ textLength="[^"]*"//g; s/ lengthAdjust="[^"]*"//g' "$f"
+  after="$(grep -cE 'textLength=|lengthAdjust=' "$f" || true)"
+  [[ "$after" == "0" ]] || die "postprocess left $after stretching attribute(s) in $f"
+  printf '  postprocess: %s on %s (%s line(s) stripped)\n' "$POSTPROCESS" "$(basename "$f")" "$before" >&2
+}
+
 # A Windows-visible temp dir matters: the podman client cannot bind-mount a WSL
 # /tmp path. book/dist already exists for generated output.
 TMP="$BOOK_DIR/dist/.figures-tmp"
@@ -76,6 +96,8 @@ while [[ "$i" -lt "$COUNT" ]]; do
   rendered="$out/$stem.svg"
   [[ -f "$rendered" ]] || die "figure $id: the renderer produced no $stem.svg from $src"
 
+  postprocess_svg "$rendered"
+
   src_sha="$(sha256sum "$src_abs" | cut -d' ' -f1)"
   src_rev="$(git -C "$REPO_ROOT" rev-parse "HEAD:$src" 2>/dev/null || echo uncommitted)"
   svg_sha="$(sha256sum "$rendered" | cut -d' ' -f1)"
@@ -93,8 +115,10 @@ while [[ "$i" -lt "$COUNT" ]]; do
     --arg source_sha256 "$src_sha" --arg renderer_image "$PLANTUML_IMAGE" \
     --arg renderer_digest "$RENDERER_DIGEST" --arg renderer_id "$RENDERER_ID" \
     --arg asset "$asset" --arg asset_sha256 "$svg_sha" --argjson bytes "$bytes" \
+    --arg postprocess "$POSTPROCESS" \
     '{id:$id, source:$source, source_revision:$source_revision, source_sha256:$source_sha256,
       renderer_image:$renderer_image, renderer_digest:$renderer_digest, renderer_id:$renderer_id,
+      postprocess:$postprocess,
       asset:$asset, asset_sha256:$asset_sha256, bytes:$bytes}' >> "$ENTRIES"
 
   i=$((i + 1))
@@ -102,7 +126,9 @@ done
 
 FRESH="$TMP/figure-manifest.json"
 jq -s --arg ri "$PLANTUML_IMAGE" --arg rd "$RENDERER_DIGEST" --arg rid "$RENDERER_ID" \
-  '{schema_version:1, renderer_image:$ri, renderer_digest:$rd, renderer_id:$rid, figures:.}' \
+  --arg pp "$POSTPROCESS" \
+  '{schema_version:2, renderer_image:$ri, renderer_digest:$rd, renderer_id:$rid,
+    postprocess:$pp, figures:.}' \
   "$ENTRIES" > "$FRESH"
 
 if [[ "$MODE" == "--write" ]]; then
