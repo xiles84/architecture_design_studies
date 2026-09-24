@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260923T235916Z-diagram-fidelity-audit` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=deepseek-flash tool=unknown effort=unknown session=session-20260923T174300Z-deepseek-flash capability=HIGH role=planner` |
-| Last event | `event-20260924T000153Z-published` |
-| Updated at | `2026-09-24T00:01:53Z` |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20260924T005828Z-1414e9` |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=analyst` |
+| Last event | `event-20260924T005828Z-claimed` |
+| Updated at | `2026-09-24T00:58:28Z` |
 | Next capability | LOW |
-| Next work role | analyst |
+| Next work role | executor |
 | Branch | `repo/diagram-fidelity-audit` |
 | Worktree | `.worktrees/diagram-fidelity-audit` |
 
-Published by model=deepseek-flash tool=unknown effort=unknown session=session-20260923T174300Z-deepseek-flash capability=HIGH role=planner. The immutable event files are authoritative for history.
+Claimed by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=analyst until 2026-09-24T02:58:28Z. Worktree `.worktrees/diagram-fidelity-audit`.
