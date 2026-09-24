@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260924T110001Z-book-figures-v2` |
-| State | `ready` |
-| Sequence | `1` |
+| State | `approved_for_integration` |
+| Sequence | `6` |
 | Active attempt | none |
-| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner` |
-| Last event | `event-20260924T105855Z-published` |
-| Updated at | `2026-09-24T10:58:55Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=reviewer` |
+| Last event | `event-20260924T152956Z-approved` |
+| Updated at | `2026-09-24T15:29:56Z` |
+| Next capability | HIGH |
+| Next work role | integrator |
 | Branch | `book/figures-v2` |
 | Worktree | `.worktrees/book-figures-v2` |
 
-Published by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner. The immutable event files are authoritative for history.
+Approved for integration. NEXT: `queue integrate`.
