@@ -12,13 +12,26 @@ Studies 01–03 run PostgreSQL single-node and YugabyteDB single-node and 3-node
 multi-node cells show placement-shaped effects — a section-sharded layout collapsed point lookups
 to 26 ops/s on YugabyteDB — but the balance of tablets across nodes is unexplained.
 
-#heading(level: 2, "What it does not measure")
-Physical colocation is unverified, and balanced client access across endpoints is unproven. A
-single query endpoint stands in for cluster access in every multi-node run. Both are recorded gaps,
-not null results.
+Study 05 adds two things those cells did not have: a key-locality pair, where the same donor's
+donations are held in one tablet in one layout and hashed across tablets in the other, and
+three-node cells whose client spreads operations over all three endpoints rather than one.
 
-#registry-card("v2-gap-05-colocation-unverified")
-#registry-card("v2-gap-07-real-network-balanced-endpoints")
+#heading(level: 2, "What it does not measure")
+Two different limitations, and they should not be collapsed into one sentence.
+
+*Physical placement is unverified.* The locality pair ran, but the runner produced no tablet or
+leader distribution, so the layout labels record intent, not observed placement. That is an
+*instrument* gap: it needs a measurement the harness cannot take, not just another run.
+
+*Endpoint distribution is partial.* The 2026-09-23 Study 05 three-node cells spread operations
+round-robin over three endpoints, but the earlier multi-node cells still reach the cluster through a
+single endpoint. Their ratios remain valid for a client that does one endpoint's worth of cluster
+access, and none of it is a network result.
+
+Both are recorded gaps, not null results.
+
+#registry-card("v4-gap-01-physical-placement-unverified")
+#registry-card("v4-gap-02-endpoint-distribution-partial")
 #registry-card("v2-gap-06-native-datastore-families")
 
 #heading(level: 2, "Boundaries")

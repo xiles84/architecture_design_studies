@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://architecture-design-studies.local/book/evidence/v4/schema.json",
+  "title": "Book evidence registry v4 (claim lifecycle and gap kinds)",
+  "description": "Sole active claim-to-evidence source for the book. v4 carries every still-active v3 claim forward unchanged and adds claim lifecycle metadata: a status, a gap_kind for gap claims, and the successor ids and dimensions of a superseded or retired claim. A green validation means every atomic claim resolves to an eligible measured cell in its cited report, with run-level status kept separate from support-cell status, every supersession or retirement resolves against a frozen predecessor (v1, v2 or v3), and no claim states a gap that a later claim has closed.",
+  "type": "object",
+  "required": ["schema_version", "generated_from", "taxonomy", "claims"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "integer", "const": 4},
+    "generated_from": {"type": "string", "minLength": 10},
+    "taxonomy": {"$ref": "#/$defs/taxonomy"},
+    "retired_predecessor_claims": {"type": "array", "items": {"$ref": "#/$defs/retired"}},
+    "claims": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/claim"}}
+  },
+  "$defs": {
+    "taxonomy": {
+      "type": "object",
+      "required": ["families"],
+      "additionalProperties": false,
+      "properties": {"families": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/family"}}}
+    },
+    "family": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"enum": ["normalized-facts", "rolldown-duplicated", "rollups-materialized", "embedded-documents", "append-only-history", "external-read-copies"]},
+        "name": {"type": "string", "minLength": 3}
+      }
+    },
+    "retired": {
+      "type": "object",
+      "required": ["claim_id", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {"type": "string", "pattern": "^(claim|v[0-9]+)-[a-z0-9][a-z0-9-]*$"},
+        "reason": {"type": "string", "minLength": 10},
+        "superseded_by": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^v[0-9]+-[a-z0-9][a-z0-9-]*$"}},
+        "closed_dimensions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 3}}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "required": ["claim_id", "statement", "family", "study", "strength", "trials", "transfer", "comparability", "confounds", "limits", "anchors", "run_level", "support", "legacy_provenance_incomplete", "review", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {"type": "string", "pattern": "^v[0-9]+-[a-z0-9][a-z0-9-]*$"},
+        "statement": {"type": "string", "minLength": 10},
+        "family": {"enum": ["normalized-facts", "rolldown-duplicated", "rollups-materialized", "embedded-documents", "append-only-history", "external-read-copies"]},
+        "study": {"type": "string", "pattern": "^0[1-5]-[a-z0-9-]+$"},
+        "strength": {"enum": ["repeated_controlled", "single_run_directional", "mechanism_supported", "analogy", "gap", "invalid"]},
+        "trials": {"$ref": "#/$defs/trials"},
+        "transfer": {"enum": ["direct", "analogy", "not-applicable"]},
+        "comparability": {"enum": ["within-run", "cross-study", "not-applicable"]},
+        "comparability_record": {"type": ["string", "null"]},
+        "confounds": {"type": "array", "items": {"type": "string", "pattern": "^conf-[a-z0-9-]+$"}},
+        "limits": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 3}},
+        "anchors": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/anchor"}},
+        "run_level": {"$ref": "#/$defs/runLevel"},
+        "support": {"type": "array", "items": {"$ref": "#/$defs/support"}},
+        "gap_basis": {"type": ["string", "null"], "minLength": 3},
+        "legacy_provenance_incomplete": {"type": "boolean"},
+        "supersedes": {"type": ["string", "null"]},
+        "review": {"$ref": "#/$defs/review"},
+        "status": {"enum": ["active", "partially_superseded", "superseded", "retired"]},
+        "gap_kind": {"type": "array", "minItems": 1, "items": {"enum": ["coverage", "schema_limitation", "instrument", "unstable_measurement"]}},
+        "superseded_by": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^v[0-9]+-[a-z0-9][a-z0-9-]*$"}},
+        "closed_dimensions": {"type": "array", "items": {"type": "string", "minLength": 3}},
+        "remaining_dimensions": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 3}}
+      }
+    },
+    "trials": {
+      "type": "object",
+      "required": ["whole_run_replications", "fresh_load_trials_per_cell", "inner_iterations"],
+      "additionalProperties": false,
+      "properties": {
+        "whole_run_replications": {"type": "integer", "minimum": 0},
+        "fresh_load_trials_per_cell": {"type": "integer", "minimum": 0},
+        "inner_iterations": {"type": "integer", "minimum": 0}
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "required": ["run_id", "run_tag", "repo_commit", "inputs_digest", "report", "analysis", "environment", "topology", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "run_tag": {"type": ["string", "null"]},
+        "repo_commit": {"type": ["string", "null"]},
+        "inputs_digest": {"type": "string", "pattern": "^[0-9a-f]{8,64}$"},
+        "report": {"type": "string", "minLength": 3},
+        "analysis": {"type": "string", "minLength": 3},
+        "environment": {"type": "string", "pattern": "^host-[a-z0-9-]+$"},
+        "topology": {"type": "string", "minLength": 2},
+        "role": {"enum": ["primary", "corroborating"]}
+      }
+    },
+    "runLevel": {
+      "type": "object",
+      "required": ["reported_cells", "reported_failed", "source", "controls_present", "controls_fired", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "reported_cells": {"type": ["integer", "null"], "minimum": 0},
+        "reported_failed": {"type": ["integer", "null"], "minimum": 0},
+        "source": {"type": "string", "minLength": 3},
+        "controls_present": {"type": "integer", "minimum": 0},
+        "controls_fired": {"type": "integer", "minimum": 0},
+        "note": {"type": "string", "minLength": 3}
+      }
+    },
+    "support": {
+      "type": "object",
+      "required": ["key", "status", "resolves_to", "expected"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {"$ref": "#/$defs/supportKey"},
+        "status": {"enum": ["valid", "control", "reference", "partial"]},
+        "resolves_to": {"type": "string", "minLength": 2},
+        "expected": {"type": "string", "minLength": 1}
+      }
+    },
+    "supportKey": {
+      "type": "object",
+      "required": ["topology", "design", "operation", "metric"],
+      "additionalProperties": false,
+      "properties": {
+        "topology": {"type": "string", "minLength": 2},
+        "design": {"type": "string", "minLength": 1},
+        "operation": {"type": "string", "minLength": 1},
+        "metric": {"type": "string", "minLength": 1}
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["state", "artifact"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {"enum": ["reviewed", "reviewed-by-reference", "open"]},
+        "artifact": {"type": "string", "minLength": 3}
+      }
+    }
+  }
+}

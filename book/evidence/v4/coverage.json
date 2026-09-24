@@ -1,0 +1,90 @@
+{
+  "schema_version": 4,
+  "generated_from": "book/evidence/v3/coverage.json, updated by the v4 ingest (external review of the Edition 1 draft, finding R04, 2026-09-24) to reconcile the two placement/endpoint dimensions with the retired v2-gap-05/v2-gap-07 and their successors v4-gap-01/v4-gap-02. Statuses: measured / measured-but-confounded / planned / gap / not_applicable. `planned` points at the queue task that owns the work; `gap` means no committed measurement and none currently planned in a released task.",
+  "dimensions": [
+    {
+      "dimension": "cluster-and-client-sizing",
+      "status": "measured",
+      "evidence": "studies/02-ticket-booking, studies/03-reserved-seating: per-node 2 CPU / 3 GiB database budget, 2 CPU / 2 GiB client, 8 connections, documented in every manifest; throttling reported per cell. Study 05 records connection_nodes (1 or 3) per result.",
+      "review_state": "reviewed (study02-03 v2 validation, 2026-09-22)",
+      "limit": "One host, eight shared cores, no real network; the 3-node cluster is a placement experiment, not a distributed-systems result."
+    },
+    {
+      "dimension": "rollup-rolldown-embedding",
+      "status": "measured-but-confounded",
+      "evidence": "Study 01 D4/D5/D6 (rollup/embedding) and D3 (rolldown); Study 02 X1 ledger; Study 03 L2/L3 layouts; Study 05 ref-rollup-trigger / ref-embedded-locked.",
+      "review_state": "reviewed; conf-01 and conf-03 apply",
+      "limit": "The Study 01 D3 rolldown package confounds the copied key with its SQL/indexes; the Study 03 row-versus-document contrast is a family/package comparison."
+    },
+    {
+      "dimension": "optimistic-vs-pessimistic-concurrency",
+      "status": "measured",
+      "evidence": "Study 04 c1_optimistic_version vs c2_pessimistic_lock under one hot key / 16 writers; Study 02 P3 CAS vs lock-based designs.",
+      "review_state": "reviewed (study04 independent review, 2026-09-22) - 1.76x is an upper bound, single trial",
+      "limit": "One key, one trial, PostgreSQL only; no low-contention sweep."
+    },
+    {
+      "dimension": "colocated-vs-non-colocated-data",
+      "status": "measured-but-confounded",
+      "evidence": "Study 05 y1-coloc vs y2-noncol on yb-cluster3 RF=3 (2026-09-23, v3-06): the colocated layout was faster on warm (882 vs 673 ops/s) and cacheable-99 (852 vs 520) reads. Study 03 L3's tablet balance and Study 01 D7/D24 / Study 04 y1-y2 remain placement intent.",
+      "review_state": "open; v3-06 records the locality effect and v4-gap-01 carries the missing tablet/leader distribution",
+      "limit": "Placement is still not verified: the runner produced no tablet/leader distribution, and one host is not colocation evidence. Containers on one laptop are not evidence of colocation."
+    },
+    {
+      "dimension": "cardinality-crossover",
+      "status": "planned",
+      "evidence": "Study 04 n0_rows_unindexed vs n1_rows_indexed at small only; phase E (1/10/30/60/120/500 entries) not run.",
+      "review_state": "owned by task-20260922T025912Z-study04-v2-protocol",
+      "limit": "At 3 600 rows the whole table is cached, so the index control could not test its own hypothesis."
+    },
+    {
+      "dimension": "cadence-and-churn",
+      "status": "measured-but-confounded",
+      "evidence": "Study 05 crossed real TTL boundaries in measured cells (2026-09-23, v3-01/v3-02: 2.0 and 6.0 boundaries, 0 wrong reads) and reports 3 trials per measurement; Study 04 cadence phase G not run.",
+      "review_state": "open; v3-01/v3-02 and v3-gap-01",
+      "limit": "The hard-expiry path fired zero times, there is no repeated churn cell and no burst/jittered arrival; Study 04 cadence is still unmeasured."
+    },
+    {
+      "dimension": "repeated-and-randomized-trials",
+      "status": "measured-but-confounded",
+      "evidence": "Study 01 D3 has five fresh loads; the 2026-09-23 Study 05 cells report 3 trials per measurement; every other cited run is one trial per measurement.",
+      "review_state": "open; required by both v2 protocols",
+      "limit": "In-measurement spreads and 3-trial medians are not an across-run error bar; churn cells themselves are single sustained measurements."
+    },
+    {
+      "dimension": "equal-total-resource-control",
+      "status": "measured",
+      "evidence": "Study 05 now runs a separately labelled equal-total arm beside db-only on the same design and topology (2026-09-23, v3-03: warm 11k vs 8.0k ops/s).",
+      "review_state": "reviewed by the v3 ingest; arm labelled and never pooled",
+      "limit": "Only Study 05 has an equal-total arm; other cited runs still fix a per-database-node budget, and Study 05 is single-run."
+    },
+    {
+      "dimension": "yugabytedb-coverage",
+      "status": "measured",
+      "evidence": "Studies 01, 02 and 03 include YugabyteDB 1-node and 3-node RF=3 cells; Study 05 added yb-single RF=1 and yb-cluster3 RF=3 strict/relaxed and locality cells (2026-09-23, v3-04/v3-05/v3-06); Study 04 is PostgreSQL only.",
+      "review_state": "reviewed; Study 05 engine coverage added by the v3 ingest",
+      "limit": "Study 04 has no YugabyteDB cell; the Study 05 cluster is three containers on one host with round-robin endpoint spread and no real network."
+    },
+    {
+      "dimension": "open-loop-demand",
+      "status": "gap",
+      "evidence": "All cited races and read phases are closed loop; the platform's arrival driver was not used.",
+      "review_state": "open; owned by task-20260922T200831Z-study05-v2-open-loop and required by the methodology minimums",
+      "limit": "Closed-loop tails are floors, not SLO figures."
+    },
+    {
+      "dimension": "native-datastore-families",
+      "status": "gap",
+      "evidence": "JSONB/state is not evidence for a native document database, and Redis was tested only as a cache; no native document, key-value, graph or wide-column database was measured.",
+      "review_state": "open; recorded as a new gap by the v2 correction; owned by the Study 06 protocol",
+      "limit": "Do not transfer the embedded-document or cache results to a native family."
+    },
+    {
+      "dimension": "real-network-and-balanced-endpoints",
+      "status": "gap",
+      "evidence": "Every multi-node result runs on one laptop with no real network. Study 05 (2026-09-23) 3-node cells spread operations over three endpoints (connection_nodes=3) but record only the count, not a per-endpoint operation distribution. The earlier multi-node cells reach the cluster through a single endpoint: the study 01 and study 02 yb-cluster3 runs set one DSN against yb-n1.",
+      "review_state": "open; retained as v4-gap-02-endpoint-distribution-partial, which supersedes the retired v2-gap-07-real-network-balanced-endpoints",
+      "limit": "Placement and network results are not distributed-systems results; endpoint distribution is measured only for the 2026-09-23 Study 05 three-node cells."
+    }
+  ]
+}

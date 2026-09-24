@@ -47,16 +47,29 @@ summary, not a second ledger.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
   EH-02 and Studies 03–05 by reference (see [`docs/ai-work/tasks/`](docs/ai-work/tasks/) and the
   archived history) and fixes public status drift.
-- **Active book evidence source:** `book/evidence/v3/claims.json` (versioned update of v2 with the
-  2026-09-23 Study 05 churn, equal-total and engine/placement runs; tag target
-  `repo/book-evidence-registry-v3`; see [`book/evidence/README.md`](book/evidence/README.md)).
-  v2 (`book/evidence/v2/`, tag `repo/book-evidence-registry-v2`) is **frozen historical reference**;
-  v1 (`book/evidence/claims.json`, tag `repo/book-evidence-registry-v1`) is frozen too — its
-  claim-to-cell resolution failed (36 of 43 names resolve nowhere). `tools/evidence validate`
-  defaults to v3; the still-active v2 claim ids are carried forward unchanged, and the retired
-  `v2-gap-04` is superseded by `v3-gap-01` plus `v3-01`–`v3-06`.
-- **Book tasks read `book/evidence/v3/` only:** `book/lib/evidence.typ`, `book/build.sh` and
-  `book/main.typ` name v3; the PDF in `book/dist/` has not been rebuilt since the change.
+- **Active book evidence source:** `book/evidence/v4/claims.json` (retires the two stale
+  placement/endpoint gaps; tag target `repo/book-evidence-registry-v4`; see
+  [`book/evidence/README.md`](book/evidence/README.md)). v4 carries every still-active v3 claim
+  forward content-identically and adds claim lifecycle metadata (`status`, `gap_kind`,
+  `superseded_by`, `closed_dimensions`, `remaining_dimensions`). v3
+  (`book/evidence/v3/`, tag `repo/book-evidence-registry-v3`), v2 and v1 are **frozen historical
+  reference**; v1's claim-to-cell resolution failed (36 of 43 names resolve nowhere).
+  `tools/evidence validate` defaults to v4; `validate-v4/-v3/-v2` pin a package explicitly.
+- **External review of the Edition 1 draft (2026-09-24, GPT-5.6 Sol, high effort):** verified
+  against the committed PDF, manifest and registry by the `book-evidence-v4` session. Accepted:
+  **R04** (the active registry held two gaps contradicted by newer evidence in the same package) and
+  **R03** (one chapter named a v2 registry path while the cover said v3) — both closed by
+  `task-20260924T102917Z-book-evidence-v4`. Accepted in part: **R01** (the §15.2 table is physically
+  broken) and the figure-numbering/tracking defects, queued as separate tasks. **Rejected: R02's
+  severity** — the committed artefact renders real provenance for commit, describe, dirty state,
+  clock, image digest, evidence digest and tree hash; the only literal `unknown` is inside Typst's own
+  `0.15.1 (unknown commit)` version string. The residual is real and now hardened: an input-less
+  compile renders an *Unverified development build* banner, and `build.sh` fails if that banner
+  reaches a release PDF.
+- **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
+  single `registry_version` build input; no source may name a version, and
+  `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in
+  `book/dist/` is regenerated once, at release, from fully merged sources.
 - **Book toolchain:** `book/` holds the modular Typst reader layer, pinned by
   `book/Containerfile` to Typst `0.15.1` (image digest
   `sha256:032e292249bcd378480cc7c142cfa324b63ef8aadeb88d7e7230320c4c9c422f`). `book/build.sh`

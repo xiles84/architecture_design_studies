@@ -1,41 +1,67 @@
 # Book evidence registry
 
 Every number in the book must resolve to a claim here, and every claim must resolve to a run,
-digest, report and signed analysis. The registry is validated by [`tools/evidence`](../../tools/evidence/README.md).
+digest, report and signed analysis. The registry is validated by [`tools/evidence`](../../tools/evidence/README.md),
+and the Typst sources are checked by [`check.sh`](check.sh) before every build.
 
-## One active source: `v3/`
+## One active source: `v4/`
 
 | File | Purpose |
 |---|---|
-| `v3/claims.json` | **the active registry.** The still-active v2 claims carried forward, plus the six 2026-09-23 Study 05 claims and their successor gap claim; each claim names its family, study, strength, run-level status, structured support keys, confounds, limits and exact provenance |
-| `v3/schema.json` | the committed JSON Schema the active registry must satisfy |
-| `v3/confounds.json` | the six confounds that must be published beside the numbers they affect |
-| `v3/coverage.json` | the coverage matrix (`measured` / `measured-but-confounded` / `planned` / `gap` / `not_applicable`) with review state |
-| `v3/SUPERSESSION_LEDGER.md` | the attributed v2 → v3 change record and the clause-by-clause disposition of the retired `v2-gap-04` |
-| `v3/ANALYSIS.md` | the signed ingest analysis naming, for each new claim, the run, digest and tag it resolves to |
-| `v2/claims.json`, `v2/schema.json`, `v2/confounds.json`, `v2/coverage.json`, `v2/CORRECTION_LEDGER.md`, `v2/SYNTHESIS_HANDOFF.md` | **v2, frozen** at tag `repo/book-evidence-registry-v2`. Historical reference; v3 carries its still-active claims forward unchanged. |
-| `claims.json`, `claims.schema.json` | **v1, frozen** at tag `repo/book-evidence-registry-v1`. Historical reference only; its claim-to-cell resolution failed (36 of 43 names resolve nowhere). Do not write book prose from it. |
+| `v4/claims.json` | **the active registry.** The still-active v3 claims carried forward unchanged, plus the two successor placement/endpoint gaps and the v4 claim lifecycle fields; each claim names its family, study, strength, status, run-level status, structured support keys, confounds, limits and exact provenance |
+| `v4/schema.json` | the committed JSON Schema the active registry must satisfy |
+| `v4/confounds.json` | the six confounds that must be published beside the numbers they affect |
+| `v4/coverage.json` | the coverage matrix (`measured` / `measured-but-confounded` / `planned` / `gap` / `not_applicable`) with review state |
+| `v4/SUPERSESSION_LEDGER.md` | the attributed v3 → v4 change record and the clause-by-clause disposition of the two retired gaps |
+| `v4/ANALYSIS.md` | the signed ingest analysis naming, for each successor claim, the run, digest and tag it resolves to |
+| `v3/*`, `v2/*`, `claims.json`, `claims.schema.json` | **frozen** historical packages at tags `repo/book-evidence-registry-v3`, `-v2`, `-v1`. Never edited; a later package carries their still-active claims forward and records what it retires. |
+| `check.sh`, `check-waivers.txt` | the structural source rules the build runs, and the standing exceptions to them |
 
-Validation, v1 diagnostic and active-input listing:
+## Claim lifecycle (v4)
+
+`claims[]` holds only claims that may appear as evidence. Retiring one means moving it out:
+
+- `status` — `active`, `partially_superseded`, or (illegal in `claims[]`) `superseded` / `retired`.
+- `superseded_by` — the successor claim ids. Required for `partially_superseded`.
+- `remaining_dimensions` — what is still open after a partial supersession.
+- `closed_dimensions` — on a retired entry, the specific clauses the new evidence closed. This is the
+  field that would have caught the Edition 1 defect: v3 carried `v2-gap-05` and `v2-gap-07` forward
+  unchanged while adding the v3-05/v3-06 runs that closed parts of both, and the book printed them
+  side by side.
+- `gap_kind` — `coverage`, `schema_limitation`, `instrument` or `unstable_measurement`. A gap must
+  say which; the book badges them differently, because "no representation can answer this" is not
+  the same finding as "nobody ran it".
+
+## Validation
 
 ```bash
 cd tools/evidence
-go run . validate    --repo ../..   # default: the v3 package, 0 errors required
-go run . validate-v3 --repo ../..   # explicit v3 validation
-go run . validate-v2 --repo ../..   # the frozen v2 predecessor (supersedes v1)
+go run . validate    --repo ../..   # default: the v4 package, 0 errors required
+go run . validate-v4 --repo ../..   # explicit v4 validation (v4 lifecycle rules included)
+go run . validate-v3 --repo ../..   # the frozen v3 predecessor
+go run . validate-v2 --repo ../..   # the frozen v2 predecessor
 go run . v1-diagnostic --repo ../.. # the frozen v1 audit: 11/12 claims, 36/43 names
-go run . validate --repo ../.. \
-  --claims book/evidence/claims.json \
-  --schema book/evidence/claims.schema.json   # explicit historical v1 inspection
+go test ./...                       # the resolver and lifecycle rules, including negative controls
 ```
 
-`validate` dispatches on the file's own `schema_version`; the default resolves only v3, and v3
-supersessions and retirements may name either frozen predecessor (v1 or v2).
+`validate` dispatches on the file's own `schema_version`; the default resolves v4, and a v4
+supersession or retirement may name a claim in any frozen predecessor (v1, v2 or v3).
+
+Source-level checks, run by `book/build.sh` before it compiles:
+
+```bash
+book/evidence/check.sh
+```
+
+It fails the build when a Typst source names a fixed registry version, when a chapter renders a
+retired or unknown claim id, when a gap has no `gap_kind`, when an asset draws its own figure
+number, or when a registered figure is never embedded.
 
 ## Adding a claim
 
-A claim added to the active package may supersede a claim in either frozen predecessor (v1 or v2);
-record the change in the version's ledger. Then:
+A claim added to the active package may supersede a claim in any frozen predecessor; record the
+change in the version's ledger, or — when the change is a retirement — in the ledger plus
+`retired_predecessor_claims` with its `closed_dimensions`. Then:
 
 1. Write a statement a single status and a single winner can honestly qualify. If one clause needs
    a different strength or scope, split it into its own claim.
@@ -49,4 +75,8 @@ record the change in the version's ledger. Then:
    `inner_iterations` — and never raise `strength` above what they support.
 5. Attach every applicable confound id from `confounds.json`; a registered confound nobody cites
    fails validation.
-6. Run `go run . validate --repo ../..` — it must report 0 errors before the claim is used.
+6. **Re-read the gaps the new evidence touches, not only the claim you are adding.** If a new run
+   closes a clause of an existing gap, retire or narrow that gap in the same change; that omission
+   is what the v4 lifecycle fields exist to expose.
+7. Run `go run . validate --repo ../..` and `go test ./...` — both must be green before the claim
+   is used.
