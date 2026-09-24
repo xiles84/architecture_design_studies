@@ -15,9 +15,12 @@ hot key and 16 writers, with the caveat that the run could not separate the lock
 extra per-retry harness work.
 
 #heading(level: 2, "Pessimistic (lock-before-update)")
-The writer waits for the row, then updates. Latency per operation is higher and the waiting is
-visible, but the retry loop disappears. On a single engine primitive, `SKIP LOCKED` and
-compare-and-set both avoid the counter-row bottleneck measured in ticketing.
+The writer waits for the row, then updates. With pessimistic locking, contention is primarily paid as
+waiting/blocking rather than optimistic conflict retries; depending on the workload that may increase
+*or* decrease observed latency. Application-level retries can still be required — for deadlocks, lock
+timeouts, serialization failures or other transient failures — so the retry loop does not universally
+disappear. On a single engine primitive, `SKIP LOCKED` and compare-and-set both avoid the counter-row
+bottleneck measured in ticketing.
 
 #heading(level: 2, "The negative control matters here")
 An unchecked read-modify-write lost 93.7% of acknowledged updates in the same run that measured the

@@ -31,12 +31,12 @@ is a different answer to "where does this fact live, and who maintains it".
   "structure",
   "conceptual illustration",
   "Placement and ownership: where an answer may live.",
-  [The leaf row stays canonical for row questions. Each of the five placements is a copy that owns its
-   own maintenance cost and its own correctness contract: *derive* keeps no copy, *index* copies an
-   ordering, *materialize* copies the aggregate upward, *copy down* copies a parent key onto the child,
-   and *copy out* serves the answer beside the database under a freshness contract. The ladder is
-   ordered by how much read work each copy removes. The figure is a map of the corpus's decisions and
-   carries no measured value.],
+  [The leaf row stays canonical for row questions. *Derive stores no additional copy.* The remaining
+   rungs introduce some stored derived structure or copy, each owning its own maintenance cost and its
+   own correctness contract: *index* adds a copy of an ordering, *materialize* copies the aggregate
+   upward, *copy down* copies a parent key onto the child, and *copy out* serves the answer beside the
+   database under a freshness contract. The ladder is ordered by how much read work each stored
+   structure removes. The figure is a map of the corpus's decisions and carries no measured value.],
 )
 
 #direct[

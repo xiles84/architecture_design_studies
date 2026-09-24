@@ -174,14 +174,18 @@
 // adjacent text equivalent for a reader who cannot see the image. An
 // observed-result figure names the active claim it illustrates; it never embeds a
 // measured number of its own.
-#let figure-evidence(asset, form, status, caption, equivalent, claim: none) = block(
+// `image-width` exists because a tall sequence diagram rendered at the full text
+// width can be taller than a page and overflow into the running footer. A tall
+// figure is centred at a reduced width instead; its caption and text equivalent
+// stay full width.
+#let figure-evidence(asset, form, status, caption, equivalent, claim: none, image-width: 100%) = block(
   width: 100%,
   breakable: false,
   above: 1em,
   below: 1em,
 )[
   #figure(
-    image(asset, width: 100%),
+    image(asset, width: image-width),
     caption: {
       text(weight: "bold")[#caption]
       linebreak()

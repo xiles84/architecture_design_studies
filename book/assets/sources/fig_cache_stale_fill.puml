@@ -1,11 +1,12 @@
 @startuml fig_cache_stale_fill
 !include _style.puml
-' Book figure 3 — the stale-fill race and the fence.
+' Book figure — the stale-fill race and its source-generation fence.
 ' Form: sequence. Evidence status: observed result — it illustrates registered claim
 ' v2-15 (three shared instances under relaxed freshness) by showing the mechanism its
-' wrong reads came from. The figure embeds no rate of its own; the rate is stated in
-' the claim card beside it.
-title the stale-fill race and the fence
+' wrong reads came from. Scope: the stale-fill race only; the strict-after-acknowledgement
+' contract and its acknowledgement boundary are a separate figure. The figure embeds no
+' rate of its own; the rate is stated in the claim card beside it.
+title the stale-fill race, and source-generation validation
 
 actor "reader R1" as R
 actor "reader R2\n(another instance)" as R2
@@ -14,30 +15,30 @@ database "source\n(database)" as DB
 participant "shared cache" as C
 
 group unsafe: "publish after commit" is not enough
-  R -> DB : read (snapshot S0)
-  DB --> R : committed S0
-  W -> DB : write S1 · commit
-  DB -> C : invalidate key
-  R -> C : publish S0 (fill)
-  R2 -> C : read → hits the stale fill
+  R -> DB : 1 read  → S0 / v0
+  DB --> R : committed S0 (version v0)
+  W -> DB : 2 write S1 · commit
+  W -> DB : 3 source version := v1
+  W -> C : 4 invalidate key
+  R -> C : 5 publish S0 (fill)
+  R2 -> C : 6 read → hits the stale fill S0
   note right of C
-    The fill carries a committed-but-older value;
-    a reader in another instance now hits it.
-    This is the race the claim's wrong reads came from.
+    A committed-but-older value is now resident.
+    This is the race the claim's wrong reads came from:
+    the invalidation at step 4 orders nothing about
+    the fill already in flight at step 5.
   end note
 end
 
-group fenced: the publication is refused
-  R -> DB : version / CAS check before publishing
-  DB --> R : version moved — refuse the fill
-  R -> C : publish nothing
-  R2 -> C : read → miss → authoritative read
+group fenced: source-generation validation refuses the fill
+  R -> DB : 1 current source generation?
+  DB --> R : 2 v1
+  note over R : R1 observed v0. v1 <> v0, so R1 must not publish S0.
+  R -> C : 3 publish nothing
+  R2 -> C : 4 read → miss
+  R2 -> DB : 5 authoritative read
+  DB --> R2 : S1 / v1
+  R2 -> C : 6 fill S1 / v1 (safe)
+  note over R2, C : R2 served the source, not a stale copy.
 end
-
-note over R, C
-  Each mechanism on the protocol table closes one race:
-  the fill lease closes duplicate concurrent fills, the
-  fence closes this stale fill, the version token closes
-  the hit that never consults the source.
-end note
 @enduml

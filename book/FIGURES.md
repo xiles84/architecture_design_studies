@@ -37,23 +37,41 @@ and its **evidence status** (`conceptual illustration` / `implemented design con
 control` / `observed result`) — plus an adjacent text equivalent in the prose. The rule is
 [methodology 15](../docs/methodology.md).
 
+The table is in document order (Typst owns the numbers). Figures 2, 3, 6, 7, 10, 11 and 12 were added
+or redrawn by the 2026-09-24 revision A.
+
 | Figure | Source | Form | Evidence status | Placed in |
 |---|---|---|---|---|
-| 1 — placement and ownership | `assets/sources/fig_placement_ownership.puml` (book) | structure | conceptual illustration | `concepts/information-placement.typ` |
-| 2 — two buyers, same marked seats | `studies/03-reserved-seating/diagrams/s_arbitration.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `chapters/scenarios.typ` |
-| 3 — the stale-fill race and the fence | `assets/sources/fig_cache_stale_fill.puml` (book) | sequence | observed result (illustrates `v2-15`; embeds no rate) | `concepts/cache-consistency.typ` |
-| 4 — when an abandoned hold returns its seat | `studies/03-reserved-seating/diagrams/e_expiry.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `concepts/expiry-and-clock-authority.typ` |
+| 1 — the decision path | `assets/sources/fig_decision_tree.puml` (book) | decision tree | conceptual illustration | `chapters/how-to-choose.typ` |
+| 2 — normalized, rolldown, rollup | `assets/sources/fig_families_er.puml` (book) | structure | conceptual illustration | `chapters/major-families.typ` |
+| 3 — rolldown vs rollup | `assets/sources/fig_rollup_vs_rolldown.puml` (book) | structure | conceptual illustration | `chapters/major-families.typ` |
+| 4 — two buyers, same marked seats | `studies/03-reserved-seating/diagrams/s_arbitration.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `chapters/scenarios.typ` |
+| 5 — placement and ownership | `assets/sources/fig_placement_ownership.puml` (book) | structure | conceptual illustration | `concepts/information-placement.typ` |
+| 6 — derived state vs retained history | `assets/sources/fig_derived_vs_history.puml` (book) | structure | conceptual illustration | `concepts/derived-state-and-history.typ` |
+| 7 — current state vs retained history | `assets/sources/fig_history_vs_current.puml` (book) | structure | conceptual illustration | `concepts/derived-state-and-history.typ` |
+| 8 — when an abandoned hold returns its seat | `studies/03-reserved-seating/diagrams/e_expiry.puml` (study reuse) | sequence | implemented design contract (contains a labelled negative control) | `concepts/expiry-and-clock-authority.typ` |
+| 9 — the strict-after-acknowledgement timeline | `assets/sources/fig_freshness_timeline.puml` (book) | timeline | conceptual illustration | `concepts/cache-consistency.typ` |
+| 10 — a lease, a fencing token, a source generation | `assets/sources/fig_lease_vs_fence.puml` (book) | sequence | conceptual illustration | `concepts/cache-consistency.typ` |
+| 11 — the stale-fill race and source-generation validation | `assets/sources/fig_cache_stale_fill.puml` (book) | sequence | observed result (illustrates `v2-15`; embeds no rate) | `concepts/cache-consistency.typ` |
+| 12 — logical topologies inside one physical host | `assets/sources/fig_topology_physical_boundary.puml` (book) | structure | conceptual illustration | `concepts/distributed-placement.typ` |
 
 `pilot-00-overview` is the import-mechanism pilot and remains registered but is not a book figure.
 
-**Two-reader check (2026-09-23).** Two reading passes were run: a first reader (what does the picture
-say without the caption?) and a second reader (does it match the claim/SQL, and does it imply a
-performance number?). Both passes were by the same model, which is weaker than two independent readers.
-Outcomes: figure 1 kept; figure 2 kept; **figure 3 redesigned** (the first version showed one reader,
-but claim `v2-15` is about instances sharing a cache, so a second reader in another instance was added
-to show the stale hit); figure 4 **relabelled**, not redesigned (its form was corrected from `state`
-to `sequence` — the study source is a sequence and the book does not hold an editable copy). No figure
-was dropped.
+**Revision A figure changes (2026-09-24).** Figure 10 was redrawn: it now has five lifelines (R1, R2,
+lease/token coordinator, source, cache/sink), the coordinator no longer appears to publish to the cache,
+and two panels plus a distinction note separate a *lease*, a *sink-side fencing token* and
+*source-generation validation*. Figure 11 was redrawn with explicit `S0/v0 → S1/v1` provenance and the
+mechanism named precisely (source-generation validation); it is scoped to the stale-fill race only. The
+combined history figure was split into figures 6 and 7 for legibility and reading order. Figure 10 is
+rendered at 74% width (`image-width` on `figure-evidence`) because at full width the tall sequence
+overflowed the page footer.
+
+**Two-reader check (2026-09-23; figures 2, 3, 6, 7, 10, 11 and 12 inspected 2026-09-24).** Two reading
+passes were run: a first reader (what does the picture say without the caption?) and a second reader
+(does it match the claim/SQL, and does it imply a performance number?). Both passes were by the same
+model, which is weaker than two independent readers. The revision-A figures were additionally inspected
+as rasterised pages for clipping, overlap and label size; that is one model's visual review, not an
+independent read.
 
 
 

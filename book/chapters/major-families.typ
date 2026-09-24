@@ -10,6 +10,19 @@ explanations.
 Every cost below is a measured claim, labelled *direct* when it comes from the cited run or
 *analogy* when it is a transfer.
 
+#figure-evidence(
+  "../assets/fig-families-er.svg",
+  "structure",
+  "conceptual illustration",
+  "Normalized, rolldown and rollup on one parent-and-child relation.",
+  [Three panels over one donor-to-many-donations relation. *Normalized* keeps every fact once:
+   `display_name` lives only on `Donor`, so a query that needs a donation with its donor name follows the
+   relation. *Rolldown* copies the parent value down onto the child (`donation.donor_display_name`), so
+   the join disappears and a parent change fans out to every child row. *Rollup* aggregates child facts
+   up onto the parent (`donor.lifetime_total`), so parent reads are local and every contributing child
+   change must maintain the aggregate. The figure maps families 1–3 and carries no measured value.],
+)
+
 // ---------------------------------------------------------------- 1
 #heading(level: 2, "Normalized facts")
 #heading(level: 3, "Quick choice in plain language")
@@ -70,8 +83,12 @@ path can forget the rollup.
 #heading(level: 3, "Common scenarios")
 Donor lifetime totals, event ticket counts, a configuration portal's overview.
 #heading(level: 3, "Mechanism")
-See the *derived state and history* concept. Trigger-maintained is a structural guarantee at a write cost;
-application-maintained is cheaper but must be atomic with the publication.
+See the *derived state and history* concept. Trigger-maintained is a structural guarantee at a write cost.
+An application-maintained rollup is transactional first: where the base fact and the rollup share a
+database, update both in one transaction. Where they cannot share the authoritative transaction, the copy
+crosses that boundary and becomes *publication* — name the delivery, idempotency and reconciliation that
+keep it recoverable. In the measured configuration-portal workload application maintenance kept writes
+near the reference; that is a scope, not a law.
 #heading(level: 3, "Costs")
 Reads win big; writes pay maintenance; storage grows modestly; correctness is the whole game;
 operations must rebuild the rollup after a bulk load.
@@ -81,6 +98,18 @@ operations must rebuild the rollup after a bulk load.
 #registry-card("v2-04-recency-maintained-index")
 #heading(level: 3, "Boundaries and reproduction")
 The recency pair's write cost is confounded (`conf-02`); quote its read result, not its write cost.
+
+#figure-evidence(
+  "../assets/fig-rollup-vs-rolldown.svg",
+  "structure",
+  "conceptual illustration",
+  "Rolldown fans a parent change out; rollup aggregates a child change up.",
+  [The two directions are opposites. *Rolldown* copies parent information down, so a Donor value that
+   changes must be refreshed on Donation A, B and C — a fan-out write. *Rollup* aggregates child facts
+   up, so an insert or update on `Donation` maintains one `Donor.lifetime_total` — a single parent write
+   per contributing child change. The read gain and the maintenance cost point in opposite directions,
+   and the figure asserts no rate.],
+)
 
 // ---------------------------------------------------------------- 4
 #heading(level: 2, "Embedded documents")
@@ -118,11 +147,11 @@ Refund reporting, audit trails, last-purchase questions after a cancellation.
 #heading(level: 3, "Mechanism")
 See the *derived state and history* concept and the *expiry and clock authority* concept.
 #heading(level: 3, "Costs")
-Reads need a report over history; writes append and fence; storage grows (about 33–35% more in the
-ticketing ledger); *answerability improves* — this family is the answerability fix, because history
-keeps enough information to answer across refunds, cancellations and corrections. Append-only storage
-does not by itself settle concurrency, event ordering, duplicates, invalid events or atomicity;
-operations need retention.
+Reads need a report over history; writes append and storage grows (about 33–35% more in the ticketing
+ledger); *answerability improves* — this family is the answerability fix, because retained history keeps
+enough information to answer across refunds, cancellations and corrections. An append-only history does
+not itself fence concurrent writers, order events, deduplicate, reject invalid events or provide
+atomicity; concurrency and arbitration must be specified separately. Operations need retention.
 #heading(level: 3, "Direct evidence")
 #registry-card("v2-07-refund-answerability-and-storage")
 #registry-card("v2-08-ledger-race-cost-128-buyers")

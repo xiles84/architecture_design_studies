@@ -10,9 +10,15 @@ but "what does a hit *prove*, and who can observe every change?".
 *Invalidation and publication fencing are different operations.* Invalidation removes or marks an
 existing cache entry stale. It cannot stop a reader that loaded an older value from publishing it
 afterwards — which is exactly the race the stale-fill figure below draws. A *publication fence* is the
-additional check that refuses that fill when the source moved after the reader took its snapshot.
-Writing "invalidation is a fence" makes the fence sound like a deletion, and the deletion is the part
-that does not close the race. This is the concept the external-read-copies family exists to hold.
+additional check that refuses that fill when the source moved after the reader took its snapshot; its
+strongest form is *source-generation validation*, where the filler checks the authoritative current
+generation against the one it observed before publishing. A *sink-side fencing token* is a different
+mechanism: the protected sink remembers the highest token it has accepted and rejects an older one, so it
+orders operations only once a newer token has actually reached the sink. Neither is *cache CAS*, which
+conditionally modifies cache state against an explicitly stated expected generation, and neither is *hit
+validation*, which checks a served value against authoritative state at the hit boundary. Writing
+"invalidation is a fence" makes the fence sound like a deletion, and the deletion is the part that does
+not close the race. This is the concept the external-read-copies family exists to hold.
 
 #heading(level: 2, "The flow: contract first, pattern last")
 
@@ -137,17 +143,22 @@ present and the contract still be broken.
   "../assets/fig-lease-vs-fence.svg",
   "sequence",
   "conceptual illustration",
-  "A lease can expire under a slow filler; a fencing token rejects the stale owner.",
-  [Two panels. Above, one filler holds lease #7, its source read outlasts the lease, a second
-   filler takes lease #8 and publishes, and the first filler then publishes its older value —
-   nothing in the lease rejects it. Below, each filler holds a token and the cache accepts only
-   the highest one seen, so the stale filler's publish is refused. The figure is why the fill-lease
-   card claims load coordination and not freshness, and it asserts no rate of its own. Source:
+  "A lease orders ownership; a sink-side token and a source-generation check refuse the stale publish.",
+  [Two panels plus a distinction note. *Lease only*: filler R1 holds lease #7, its source read outlasts
+   the lease, R2 takes lease #8 and publishes S1, and R1 then publishes S0 — nothing in the lease rejects
+   it, because a lease orders ownership rather than publication. *Sink-side fencing token*: R1 holds
+   token 7 and R2 token 8; when R2's `(S1, token 8)` reaches the sink first, the sink records 8 and
+   rejects R1's later `(S0, token 7)` — so the ordering depends on a newer token having actually reached
+   the sink. *Distinct from both*, as the closing note says: source-generation validation checks the
+   authoritative current generation before publishing and can refuse token 7 even when no token-8
+   operation has reached the sink. The figure is why the fill-lease card claims load coordination and
+   not freshness, and it asserts no rate of its own. Source:
    `book/assets/sources/fig_lease_vs_fence.puml`],
+  image-width: 74%,
 )
 
 #mechanism-card(
-  "Publication fence / CAS",
+  "Publication fence — source-generation validation",
   [a reader that snapshotted committed state S0 republishes it *after* a writer commits S1 and
    invalidates],
   [before publishing, verify that the source generation still equals the generation the reader
@@ -233,7 +244,7 @@ Reading a table like this is faster than holding eight cards in your head.
   [Pessimistic lock + recheck], [yes], [—], [—], [may cost], [—],
   [Conditional update / CAS], [yes], [—], [—], [may cost], [—],
   [Invalidation], [—], [partial: clears, does not fence], [partial], [—], [—],
-  [Publication fence / CAS], [—], [—], [yes, race-specific], [—], [—],
+  [Publication fence — source-gen. validation], [—], [—], [yes, race-specific], [—], [—],
   [Source version at hit boundary], [—], [—], [yes], [read cost], [—],
   [Fill lease], [—], [—], [—], [yes, while held], [—],
   [TTL / early expiry], [—], [—], [bounds eligibility, not proof], [yes], [fallback only],
@@ -290,12 +301,15 @@ or publication boundary does not make a shared relaxed cache strict.
   "../assets/fig-cache-stale-fill.svg",
   "sequence",
   "observed result",
-  "The stale-fill race, and the fence that closes it.",
-  [A reader snapshots committed state S0, a writer commits S1 and invalidates the key, and then the
-   reader publishes S0 as a fill — so the next reader hits a committed-but-older value. A fenced
-   protocol refuses that fill by checking the source version before publishing. The figure illustrates
-   the registered claim beside it and embeds no rate of its own. Source:
-   `book/assets/sources/fig_cache_stale_fill.puml`],
+  "The stale-fill race, and the source-generation check that closes it.",
+  [Reader R1 snapshots committed state `S0 / v0`; writer W commits `S1`, advances the source version to
+   `v1` and invalidates the key; R1, still holding `S0 / v0`, would then publish S0 as a fill. The fenced
+   protocol validates the source generation before publishing: the source returns `v1`, `v1 != v0`, and
+   R1 must not publish. A second reader R2 then misses the cache and takes an authoritative read of
+   `S1 / v1`, which may safely be filled. The figure demonstrates the *stale-fill race* only; the
+   strict-after-acknowledgement contract and its acknowledgement boundary are drawn separately in the
+   freshness-timeline figure above. It illustrates the registered claim beside it and embeds no rate of
+   its own. Source: `book/assets/sources/fig_cache_stale_fill.puml`],
   claim: "v2-15",
 )
 #registry-card("v2-15-three-instance-staleness")

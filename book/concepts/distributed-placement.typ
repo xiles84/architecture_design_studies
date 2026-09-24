@@ -16,6 +16,18 @@ Study 05 adds two things those cells did not have: a key-locality pair, where th
 donations are held in one tablet in one layout and hashed across tablets in the other, and
 three-node cells whose client spreads operations over all three endpoints rather than one.
 
+#figure-evidence(
+  "../assets/fig-topology-physical-boundary.svg",
+  "structure",
+  "conceptual illustration",
+  "Logical multi-node topology; no real inter-host network was measured.",
+  [PostgreSQL single-node, YugabyteDB RF=1 and YugabyteDB RF=3 are drawn as three logical topologies,
+   but every Yugabyte container sits inside one physical host boundary and talks over a loopback-class
+   path, so the picture is *not* three independent machines. The lower band separates a logical mapping
+   — a hash key places one person's rows in one tablet *by configuration* — from physical tablet and
+   leader placement, which is marked UNVERIFIED in this corpus. The figure asserts no measured value.],
+)
+
 #heading(level: 2, "What it does not measure")
 Two different limitations, and they should not be collapsed into one sentence.
 

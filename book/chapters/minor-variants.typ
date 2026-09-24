@@ -30,11 +30,14 @@ to 42 ms); the application rollup kept writes near the reference for the same re
 
 #heading(level: 3, "Strict versus relaxed freshness")
 *Strict after acknowledgement* means a read that starts after a write to the same key is acknowledged
-never returns an older committed value. *Relaxed* is defined only against that comparator: it may
-serve a committed value that is older, for a bounded window — never a dirty, torn or impossible
-value. Every controlled pair differed by −14.2% to +12.3% in read throughput — noise. The visible cost
-of strictness is on the write path, where a publication fence is added against the stale-fill race (a
-reader republishing S0 after a writer commits S1 and invalidates).
+never returns an older committed value. *Relaxed* is a family of weaker contracts, not one contract:
+relative to the strict comparator a relaxed contract may permit a committed-but-older value according
+to its declared semantics. Only a *bounded-staleness* member declares a maximum Δ; eventual and
+best-effort freshness need not, and the study's measured relaxed cells declared no maximum, so they are
+unbounded-relaxed. No member permits a dirty, torn or impossible value. Every controlled pair differed
+by −14.2% to +12.3% in read throughput — noise. The visible cost of strictness is on the write path,
+where a publication fence is added against the stale-fill race (a reader republishing S0 after a writer
+commits S1 and invalidates).
 #registry-card("v2-16-strict-freshness-read-cost")
 
 #heading(level: 2, "Named but not measured as controlled pairs")

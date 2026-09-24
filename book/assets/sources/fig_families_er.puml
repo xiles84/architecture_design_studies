@@ -1,0 +1,58 @@
+@startuml fig_families_er
+!include _style.puml
+' Book figure — normalized, rolldown and rollup placed on one parent/child relation.
+' Form: structure (ER). Evidence status: conceptual illustration — it maps families 1-3
+' and asserts no rate. Donor/Donation is the book's recurring domain.
+title normalized, rolldown and rollup on one Donor-Donation relation
+top to bottom direction
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam nodesep 14
+skinparam ranksep 22
+
+package "1 . normalized — every fact once" as P1 {
+  class "Donor" as N_Donor <<authoritative>> {
+    donor_id
+    display_name
+  }
+  class "Donation" as N_Donation <<authoritative>> {
+    donation_id
+    donor_id
+    amount
+  }
+  N_Donor "1" *-- "*" N_Donation : has
+  note bottom of N_Donation : display_name lives only on Donor.\nA donor-name query follows the relation.
+}
+
+package "2 . rolldown — parent information copied down" as P2 {
+  class "Donor" as D_Donor <<authoritative>> {
+    donor_id
+    display_name
+  }
+  class "Donation" as D_Donation <<authoritative>> {
+    donation_id
+    donor_id
+    amount
+    __
+    donor_display_name (copied)
+  }
+  D_Donor "1" *-- "*" D_Donation : has
+  note bottom of D_Donor : A Donor.display_name change fans out to every\nchild row: refresh Donation A, B and C.
+}
+
+package "3 . rollup — child facts aggregated up" as P3 {
+  class "Donor" as U_Donor <<authoritative>> {
+    donor_id
+    display_name
+    __
+    lifetime_total (derived aggregate)
+  }
+  class "Donation" as U_Donation <<authoritative>> {
+    donation_id
+    donor_id
+    amount
+  }
+  U_Donor "1" *-- "*" U_Donation : has
+  note bottom of U_Donation : Each INSERT or UPDATE of a Donation\nmust maintain Donor.lifetime_total.
+}
+@enduml

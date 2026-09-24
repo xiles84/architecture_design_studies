@@ -44,7 +44,8 @@ counter-row design was 4–8x slower than pre-created seats and blocked unrelate
 
 #heading(level: 2, "Step 3 — decide who maintains derived state")
 For every rollup or copy, name the maintainer and the failure it must never have. A trigger makes
-the guarantee structural. Application maintenance keeps writes cheap, and its obligation is stated
+the guarantee structural. Application maintenance kept writes near the reference in the measured
+configuration-portal workload, and its obligation is stated
 against where the derived state lives: when the base fact and the rollup are in the same database,
 update both in one transaction; when they cannot share one atomic transaction, name the delivery,
 idempotency and reconciliation mechanism that keeps the derived state recoverable. Only that second
