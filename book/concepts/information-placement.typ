@@ -19,8 +19,11 @@ is a different answer to "where does this fact live, and who maintains it".
    child write, and a correctness question whenever a write path forgets it.],
   [*Copy it down (rolldown).* Put parent information on the child to avoid a join. Measured as a
    package with its indexes, never as a bare column.],
-  [*Copy it out (cache).* Serve the answer from beside the database. The fastest read and the only
-   step that adds a consistency contract to the design.],
+  [*Copy it out (cache).* Serve the answer from beside the database, outside the authoritative
+   transaction. It can be the lowest-latency hot read for the measured cacheable workload, and it is
+   the step that crosses the transaction boundary — so the design acquires a separate freshness and
+   failure-domain contract. Indexes, rollups and rolldowns carry their own maintenance correctness;
+   what is special here is where the copy lives, not that it is copied.],
 )
 
 #figure-evidence(

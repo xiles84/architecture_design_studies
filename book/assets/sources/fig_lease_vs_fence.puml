@@ -1,0 +1,30 @@
+@startuml fig_lease_vs_fence
+!include _style.puml
+' Book figure — why a lease is not a fence. Form: sequence, two panels.
+' Evidence status: conceptual illustration — it draws the mechanism the fill-lease
+' and publication-fence cards describe (v2-15) and asserts no rate.
+title a lease can expire; a fencing token cannot be outrun
+
+participant "filler R1" as R1
+participant "fill lease" as L
+participant "cache" as C
+
+group lease alone: the old filler may still publish
+  R1 -> L : acquire lease #7
+  note over R1 : slow source read
+  L --> L : lease #7 expires
+  L -> C : lease #8 issued to a second filler
+  C -> C : that filler publishes S1
+  R1 -> C : publish S0 (its lease has lapsed)
+  note over C : a lease cannot reject this
+end
+
+group lease with a fencing token: the old filler is rejected
+  R1 -> L : acquire token 7
+  L -> C : token 7
+  L -> C : token 8 issued later
+  C -> C : publish(token 8) — accepted
+  R1 -> C : publish(token 7) — rejected
+  note over C : the source generation rejects it
+end
+@enduml

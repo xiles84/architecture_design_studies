@@ -158,6 +158,16 @@ summary, not a second ledger.
   (V7), both with a form and evidence-status label and an adjacent text equivalent; the benchmark-reading
   checklist (V11) is a table. The book is 56 pages with seven registered figures, and the chapter-17
   "floor, not an SLO" wording is scoped in the same file.
+- **Review-2 delta applied (2026-09-24, task `book-review2-delta`):** repeat citations now render a
+  one-line capsule carrying the id, the strength, **every** limit and a pointer to the full card, while
+  the first citation and the registry index keep the full card — 34 citations collapsed, and the book is
+  54 pages from 56. The counter is Typst state in document order, so it cannot drift from the page the
+  way a build-time index could. Partially superseded cards now separate *Moved to successor claims* from
+  *Still open in this claim* and label the statement as unchanged from its source registry. The page-3
+  legend is generated from the registry's `gap_kind` values in a fixed order, and a new kind with no
+  written definition fails the build instead of going unlisted. The placement ladder no longer calls the
+  cache "the fastest read" or "the only step that adds a consistency contract"; copy-out is the step that
+  crosses the transaction boundary. A lease-versus-fence figure (V8's companion) joins the cache chapter.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in

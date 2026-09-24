@@ -104,9 +104,14 @@
 
 // A confidence card rendered straight from the registry, so the page cannot
 // drift from the data. This is the only way a number enters the prose.
-#let registry-card(id) = {
-  let c = claim-by-id(id)
-  block(
+// A claim cited more than once renders in full where it is first established and as
+// a one-line capsule afterwards: the capsule keeps the id, the strength, the limit
+// line and a pointer to the full card, so a repeat never loses its limits and the
+// narrative stops reprinting four lines of provenance mid-argument. A preview
+// compile without the citation index renders full cards everywhere.
+#let seen-claims = state("seen-claims", ())
+
+#let full-card(c) = block(
     width: 100%,
     inset: 9pt,
     radius: 3pt,
@@ -128,14 +133,23 @@
         · #gap-kind-text(c)
       ]
     ]
-    #v(2pt)
-    #typeset-ranges(c.statement)
     #if claim-status(c) == "partially_superseded" [
       #v(3pt)
       #text(size: 8pt, fill: rgb("#5b6470"))[
-        Still open: #typeset-ranges(c.remaining_dimensions.join("; "))
+        Moved to successor claims: #c.superseded_by.join(", ").
+      ]
+      #v(2pt)
+      #text(size: 8pt, fill: rgb("#5b6470"))[
+        Still open in this claim: #typeset-ranges(c.remaining_dimensions.join("; ")).
+      ]
+      #v(2pt)
+      #text(size: 8pt, fill: rgb("#5b6470"))[
+        Statement below is unchanged from its source registry; the moved dimensions are not restated
+        as open here.
       ]
     ]
+    #v(2pt)
+    #typeset-ranges(c.statement)
     #v(3pt)
     #text(size: 8pt, fill: rgb("#5b6470"))[
       #trials-line(c.trials)
@@ -155,6 +169,34 @@
   ]
 }
 
+// One line for a repeat citation: what it is, how strong it is, what it does not
+// claim, and where the full card lives.
+#let claim-capsule(c) = block(
+  width: 100%,
+  inset: 6pt,
+  radius: 2pt,
+  stroke: 0.4pt + rgb("#d5d9de"),
+  fill: rgb("#fafbfc"),
+  above: 0.5em,
+  below: 0.5em,
+)[
+  #set text(size: 8.5pt)
+  #text(weight: "bold", fill: rgb("#2b4b8f"))[#c.claim_id]
+  · #c.strength
+  · #text(fill: rgb("#5b6470"))[#typeset-ranges(c.limits.join("; "))]
+  · full card in the evidence registry index
+]
+
+// The public entry point. The first citation of a claim renders the full card; later
+// ones render the capsule. The evidence index calls full-card directly, because it is
+// the place a reader is sent to.
+#let registry-card(id) = context {
+  let c = claim-by-id(id)
+  let repeat = seen-claims.get().contains(id)
+  seen-claims.update(s => s + (id,))
+  if repeat { claim-capsule(c) } else { full-card(c) }
+}
+
 // The index of every claim that may appear as evidence, grouped by the fixed six
 // families. This is the reader-facing map from prose to data; a rendered page
 // proves the registry compiled into the PDF.
@@ -163,7 +205,7 @@
     #heading(level: 2, f.name)
     #for c in claims {
       if c.family == f.id [
-        #registry-card(c.claim_id)
+        #full-card(c)
         #v(4pt)
       ]
     }

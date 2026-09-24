@@ -133,6 +133,19 @@ present and the contract still be broken.
    cache strict],
 )
 
+#figure-evidence(
+  "../assets/fig-lease-vs-fence.svg",
+  "sequence",
+  "conceptual illustration",
+  "A lease can expire under a slow filler; a fencing token rejects the stale owner.",
+  [Two panels. Above, one filler holds lease #7, its source read outlasts the lease, a second
+   filler takes lease #8 and publishes, and the first filler then publishes its older value —
+   nothing in the lease rejects it. Below, each filler holds a token and the cache accepts only
+   the highest one seen, so the stale filler's publish is refused. The figure is why the fill-lease
+   card claims load coordination and not freshness, and it asserts no rate of its own. Source:
+   `book/assets/sources/fig_lease_vs_fence.puml`],
+)
+
 #mechanism-card(
   "Publication fence / CAS",
   [a reader that snapshotted committed state S0 republishes it *after* a writer commits S1 and

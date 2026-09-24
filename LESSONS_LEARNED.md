@@ -1595,3 +1595,26 @@ freshness timeline draws the strict contract at the point where it binds. Both c
 evidence-status label and a text equivalent beside them, which is the rule from the figures task applied
 to figures that carry no measurement — the label is what tells a reader whether to look for a claim card.
 A conceptual figure may place the numbers a claim provides; it may not introduce one.
+
+### Let the renderer count, not the build
+
+The review asked for a full evidence card where a claim is first established and a short capsule wherever
+it is cited again. The obvious implementation is a build step that scans the sources for `registry-card`
+calls, decides which is first, and passes the answer in — and it is the wrong one: the scan's notion of
+document order has to be kept in step with the include order, and nothing fails when the two drift.
+
+Typst already knows the order, because it renders in it. A `state` counter incremented as each card
+renders gives the same answer with no second source of truth, and it cannot disagree with the page. The
+scan-free version also needed no build input at all, which is how the vestigial one got deleted rather
+than documented.
+
+### A legend that restates its data will eventually contradict it
+
+Page 3 listed the kinds of gap by hand. The registry had four; the page named three of them in its own
+words for three versions — the same failure mode as the stale gap claims, one layer up in the prose.
+
+The legend now reads the kinds **in use** from the active claims and looks each one up in a description
+table, and a kind with no description panics with the missing name. A future package that introduces a
+fifth kind therefore cannot ship a page that lists four: the build stops, and the message says which
+definition is missing. Where a page explains data, derive the list from the data and write only the
+explanation.

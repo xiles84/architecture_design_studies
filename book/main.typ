@@ -7,7 +7,42 @@
 // page full of placeholders.
 
 #import "lib/config.typ": *
-#import "lib/evidence.typ": evidence-index, active-claims, registry-card, registry-label, registry-version
+#import "lib/evidence.typ": evidence-index, active-claims, registry-card, registry-label, registry-version, gap-kind-label
+
+// The kinds of gap the page explains are the ones the registry actually uses. A new
+// kind therefore cannot appear without someone writing its definition: the build
+// fails and names the missing one, instead of the page quietly listing three kinds
+// while the cards use four.
+#let gap-kind-description = (
+  coverage: [a relevant regime has not been measured yet],
+  schema_limitation: [the representation cannot answer the question, so no run would],
+  instrument: [the property could not be observed with the tools the study had],
+  unstable_measurement: [the number moved between runs with no code change],
+)
+#let gap-kind-order = ("schema_limitation", "coverage", "instrument", "unstable_measurement")
+#let gap-kinds-in-use = {
+  let kinds = ()
+  for c in active-claims() {
+    for k in c.at("gap_kind", default: ()) {
+      if k not in kinds { kinds.push(k) }
+    }
+  }
+  // A fixed reading order, with any kind the registry adds later at the end.
+  kinds.sorted(key: k => {
+    let i = gap-kind-order.position(x => x == k)
+    if i == none { 99 } else { i }
+  })
+}
+#for k in gap-kinds-in-use {
+  if k not in gap-kind-description {
+    panic("gap kind " + k + " has no definition in the legend that explains the evidence system")
+  }
+}
+#let gap-kinds-legend() = {
+  for k in gap-kinds-in-use [
+    *#gap-kind-label(k)* — #gap-kind-description.at(k) · 
+  ]
+}
 
 #let input(key, default: "unknown") = sys.inputs.at(key, default: default)
 
@@ -115,11 +150,8 @@
       something works without establishing a rate. *Analogy* is a labelled transfer to a family
       that was not measured. A #text(weight: "bold")[gap] callout is not one thing: each card
       names its own kind.],
-    [The four kinds of gap, because they close differently: a *schema limitation* means the
-      representation cannot answer the question, so no run would; a *coverage gap* means a
-      relevant regime has not been measured yet; an *instrument gap* means the property could not
-      be observed with the tools the study had; an *unstable measurement* means the number moved
-      between runs with no code change.],
+    [The kinds of gap in use, read from the registry rather than restated here, because they close
+      differently: #gap-kinds-legend()],
     [A claim can also be *partially superseded* — part of it has been replaced, the card names what
       moved to which successor, and the dimensions still open stay listed. A *retired* claim is no
       longer active and is not cited at all.],
