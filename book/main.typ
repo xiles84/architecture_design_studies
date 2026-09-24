@@ -41,7 +41,7 @@
     #set text(size: 9pt, fill: palette.muted)
     Built from commit #raw(describe) (#raw(commit)) — working tree #dirty. \
     Typst #typst-version (image #raw(typst-digest)). \
-    Evidence registry `book/evidence/v2/claims.json`, digest #raw(evidence-digest).
+    Evidence registry `book/evidence/v3/claims.json`, digest #raw(evidence-digest).
   ]
 ]
 
@@ -54,7 +54,7 @@
   #line(length: 100%, stroke: 1.2pt + palette.accent)
   #v(3mm)
   This is a generated artefact: Typst source plus the evidence registry, compiled in a pinned
-  Podman image. *Every claim in this book must resolve to a claim in the v2 registry*, and every
+  Podman image. *Every claim in this book must resolve to a claim in the active registry*, and every
   number must resolve to a measured cell in a cited report. Nothing here is hand-entered at build
   time; the fields below are injected from the build script.
 
@@ -68,7 +68,7 @@
     [Built at (UTC)], [#raw(built-at)],
     [Typst version], [#typst-version],
     [Typst image digest], [#raw(typst-digest)],
-    [Evidence registry], [`book/evidence/v2/claims.json`],
+    [Evidence registry], [`book/evidence/v3/claims.json`],
     [Evidence digest], [#raw(evidence-digest)],
     [Source tree hash], [#raw(pdf-source-hash)],
   )
@@ -124,7 +124,7 @@
 
 // -------------------------------------------------------------- evidence index
 #pagebreak()
-#heading("Evidence registry (active v2 claims)")
+#heading("Evidence registry (active v3 claims)")
 The active registry holds #active-claims().len() claims. This index is rendered from the registry
 file at build time; the digest above identifies its content.
 

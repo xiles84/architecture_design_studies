@@ -9,13 +9,17 @@ import (
 	"strings"
 )
 
-// V2Document is the correction-package registry (book/evidence/v2/claims.json).
+// V2Document is the versioned registry shape used by the v2 and v3 packages
+// (book/evidence/v2/claims.json and book/evidence/v3/claims.json). v3 adds the
+// retired_predecessor_claims key and drops retired_v1_claims; both keys are
+// typed here so one loader reads either file.
 type V2Document struct {
-	SchemaVersion   int         `json:"schema_version"`
-	GeneratedFrom   string      `json:"generated_from"`
-	Taxonomy        V2Taxonomy  `json:"taxonomy"`
-	RetiredV1Claims []V2Retired `json:"retired_v1_claims"`
-	Claims          []*V2Claim  `json:"claims"`
+	SchemaVersion            int         `json:"schema_version"`
+	GeneratedFrom            string      `json:"generated_from"`
+	Taxonomy                 V2Taxonomy  `json:"taxonomy"`
+	RetiredV1Claims          []V2Retired `json:"retired_v1_claims"`
+	RetiredPredecessorClaims []V2Retired `json:"retired_predecessor_claims"`
+	Claims                   []*V2Claim  `json:"claims"`
 }
 
 type V2Taxonomy struct {
@@ -148,8 +152,22 @@ var v2TagPattern = regexp.MustCompile(`^run/0[1-5]-`)
 // ValidateV2 is the semantic resolver: a green run means every atomic support
 // key resolves to a token in the primary anchor's cited report, every anchor
 // resolves, run-level status is separate from support status, and confounds and
-// supersessions are closed over their registers.
+// supersessions are closed over their registers. v2 supersedes and retires only
+// frozen v1 claims.
 func ValidateV2(repo string, schema map[string]any, doc *V2Document, raw any, conf *V2Confounds, v1 *Document) []error {
+	predecessors := map[string]bool{}
+	if v1 != nil {
+		for _, c := range v1.Claims {
+			predecessors[c.ClaimID] = true
+		}
+	}
+	return validateRegistry(repo, schema, doc, raw, conf, predecessors, "v1")
+}
+
+// validateRegistry is the shared semantic resolver. predecessors is the set of
+// claim ids that a supersedes or retired entry may name; label names that
+// registry in error messages.
+func validateRegistry(repo string, schema map[string]any, doc *V2Document, raw any, conf *V2Confounds, predecessors map[string]bool, label string) []error {
 	var errs []error
 	add := func(format string, args ...any) { errs = append(errs, fmt.Errorf(format, args...)) }
 
@@ -173,13 +191,6 @@ func ValidateV2(repo string, schema map[string]any, doc *V2Document, raw any, co
 				add("duplicate confound_id %s", c.ConfoundID)
 			}
 			confounds[c.ConfoundID] = c
-		}
-	}
-
-	v1IDs := map[string]bool{}
-	if v1 != nil {
-		for _, c := range v1.Claims {
-			v1IDs[c.ClaimID] = true
 		}
 	}
 
@@ -282,10 +293,10 @@ func ValidateV2(repo string, schema map[string]any, doc *V2Document, raw any, co
 		}
 
 		if c.Supersedes != nil && *c.Supersedes != "" {
-			if v1 == nil {
-				add("%s: supersedes %s but the v1 registry could not be read", c.ClaimID, *c.Supersedes)
-			} else if !v1IDs[*c.Supersedes] {
-				add("%s: supersedes %s, which is not in the v1 registry", c.ClaimID, *c.Supersedes)
+			if len(predecessors) == 0 {
+				add("%s: supersedes %s but the %s registry could not be read", c.ClaimID, *c.Supersedes, label)
+			} else if !predecessors[*c.Supersedes] {
+				add("%s: supersedes %s, which is not in the %s registry", c.ClaimID, *c.Supersedes, label)
 			}
 		}
 
@@ -324,10 +335,12 @@ func ValidateV2(repo string, schema map[string]any, doc *V2Document, raw any, co
 		}
 	}
 
-	// Retired v1 claims must exist in v1 and not be reproduced here.
-	for _, r := range doc.RetiredV1Claims {
-		if v1 != nil && !v1IDs[r.ClaimID] {
-			add("retired v1 claim %s is not in the v1 registry", r.ClaimID)
+	// Retired predecessor claims must exist in a frozen registry.
+	retired := doc.RetiredV1Claims
+	retired = append(retired, doc.RetiredPredecessorClaims...)
+	for _, r := range retired {
+		if len(predecessors) > 0 && !predecessors[r.ClaimID] {
+			add("retired %s claim %s is not in the %s registry", label, r.ClaimID, label)
 		}
 	}
 

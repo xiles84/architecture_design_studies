@@ -1,14 +1,15 @@
-// The book reads exactly one evidence registry: the v2 correction package.
-// This module loads it and renders an index of active claims. It deliberately
-// fails to a visible error string rather than a silent empty table, so a build
-// with a missing registry is obvious on the page.
+// The book reads exactly one evidence registry: the v3 package (the v2 claims
+// carried forward plus the 2026-09-23 Study 05 update). This module loads it and
+// renders an index of active claims. It deliberately fails to a visible error
+// string rather than a silent empty table, so a build with a missing registry is
+// obvious on the page.
 
 // A path without a leading slash is resolved against THIS file, so the book
 // compiles whether the Typst root is `book/` (as build.sh sets) or the
 // repository (as an editor's language server defaults to). A leading-slash path
 // is root-relative, which made preview fail with "file not found (searched at
-// <repo>/evidence/v2/claims.json)" before this change.
-#let registry-path = "../evidence/v2/claims.json"
+// <repo>/evidence/v3/claims.json)" before this change.
+#let registry-path = "../evidence/v3/claims.json"
 
 #let loaded = {
   // `json` needs the file to exist at compile time; the build copies the book
@@ -34,7 +35,7 @@
     if c.claim_id == id { found = c }
   }
   if found == none {
-    panic("no v2 claim with id " + id + "; do not write a number without a claim")
+    panic("no active claim with id " + id + "; do not write a number without a claim")
   }
   found
 }
@@ -94,8 +95,8 @@
       ]
     }
   ]
-  heading(level: 2, "Retired v1 claims")
+  heading(level: 2, "Retired predecessor claims")
   list(
-    ..loaded.retired_v1_claims.map(r => [#raw(r.claim_id) — #r.reason]),
+    ..loaded.retired_predecessor_claims.map(r => [#raw(r.claim_id) — #r.reason]),
   )
 }

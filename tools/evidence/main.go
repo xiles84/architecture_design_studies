@@ -34,6 +34,8 @@ func run(args []string, out, errOut io.Writer) int {
 		return runExtract(args, out, errOut)
 	case "validate-v2":
 		return runValidateV2(args, out, errOut)
+	case "validate-v3":
+		return runValidateV3(args, out, errOut)
 	case "v1-diagnostic":
 		return runV1Diagnostic(args, out, errOut)
 	default:
@@ -46,10 +48,11 @@ func runValidate(args []string, out, errOut io.Writer) int {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	fs.SetOutput(errOut)
 	repo := fs.String("repo", ".", "repository root")
-	claims := fs.String("claims", "book/evidence/v2/claims.json", "registry file (repo-relative; default is the active v2 correction package)")
-	schemaPath := fs.String("schema", "book/evidence/v2/schema.json", "JSON Schema file (repo-relative)")
-	confoundsPath := fs.String("confounds", "book/evidence/v2/confounds.json", "confound register for v2 (repo-relative)")
+	claims := fs.String("claims", "book/evidence/v3/claims.json", "registry file (repo-relative; default is the active v3 package)")
+	schemaPath := fs.String("schema", "book/evidence/v3/schema.json", "JSON Schema file (repo-relative)")
+	confoundsPath := fs.String("confounds", "book/evidence/v3/confounds.json", "confound register for the active package (repo-relative)")
 	v1Claims := fs.String("v1-claims", "book/evidence/claims.json", "historical v1 registry (repo-relative)")
+	v2Claims := fs.String("v2-claims", "book/evidence/v2/claims.json", "frozen v2 registry, the v3 predecessor (repo-relative)")
 	listInputs := fs.Bool("list-inputs", false, "print the claim ids that may appear in the book")
 	jsonOut := fs.Bool("json", false, "emit a JSON report")
 	if err := fs.Parse(args); err != nil {
@@ -71,10 +74,11 @@ func runValidate(args []string, out, errOut io.Writer) int {
 		return 2
 	}
 
-	// The default registry is the v2 correction package. A caller inspecting the
-	// historical v1 registry points --claims/--schema at book/evidence/claims.json
-	// and book/evidence/claims.schema.json; the command dispatches on the file's
-	// own schema_version so there is exactly one active source by default.
+	// The default registry is the v3 package (v2 plus the Study 05 update). A
+	// caller inspecting an older registry points --claims/--schema at
+	// book/evidence/v2/claims.json + v2/schema.json (or the v1 pair); the command
+	// dispatches on the file's own schema_version so there is exactly one active
+	// source by default, and v3 supersessions resolve against v1 or v2.
 	peek, err := os.ReadFile(filepath.Join(root, *claims))
 	if err != nil {
 		fmt.Fprintf(errOut, "load claims: %v\n", err)
@@ -85,10 +89,10 @@ func runValidate(args []string, out, errOut io.Writer) int {
 	}
 	_ = json.Unmarshal(peek, &header)
 
-	if header.SchemaVersion == 2 {
+	if header.SchemaVersion == 2 || header.SchemaVersion == 3 {
 		doc, raw, err := evidence.LoadV2(filepath.Join(root, *claims))
 		if err != nil {
-			fmt.Fprintf(errOut, "load v2 claims: %v\n", err)
+			fmt.Fprintf(errOut, "load versioned claims: %v\n", err)
 			return 1
 		}
 		conf, err := evidence.LoadConfounds(filepath.Join(root, *confoundsPath))
@@ -101,7 +105,17 @@ func runValidate(args []string, out, errOut io.Writer) int {
 			fmt.Fprintf(errOut, "load v1 claims: %v\n", err)
 			return 1
 		}
-		errs := evidence.ValidateV2(root, schema, doc, raw, conf, v1)
+		var errs []error
+		if header.SchemaVersion == 3 {
+			v2doc, _, err := evidence.LoadV2(filepath.Join(root, *v2Claims))
+			if err != nil {
+				fmt.Fprintf(errOut, "load predecessor v2 claims: %v\n", err)
+				return 1
+			}
+			errs = evidence.ValidateV3(root, schema, doc, raw, conf, v1, v2doc)
+		} else {
+			errs = evidence.ValidateV2(root, schema, doc, raw, conf, v1)
+		}
 		inputs := make([]string, 0, len(doc.Claims))
 		for _, c := range doc.Claims {
 			inputs = append(inputs, c.ClaimID)
@@ -218,6 +232,76 @@ func runValidateV2(args []string, out, errOut io.Writer) int {
 			fmt.Fprintf(out, "  [ERROR] %v\n", e)
 		}
 		fmt.Fprintf(out, "evidence-v2: %d claims, %d errors\n", len(doc.Claims), len(errs))
+	}
+	if len(errs) > 0 {
+		return 1
+	}
+	return 0
+}
+
+// runValidateV3 resolves the v3 package explicitly. It is the same work the
+// default `validate` performs, with all paths pinned to v3 and the frozen v2
+// registry named as the predecessor.
+func runValidateV3(args []string, out, errOut io.Writer) int {
+	fs := flag.NewFlagSet("validate-v3", flag.ContinueOnError)
+	fs.SetOutput(errOut)
+	repo := fs.String("repo", ".", "repository root")
+	claims := fs.String("claims", "book/evidence/v3/claims.json", "v3 registry file (repo-relative)")
+	schemaPath := fs.String("schema", "book/evidence/v3/schema.json", "v3 JSON Schema file (repo-relative)")
+	confoundsPath := fs.String("confounds", "book/evidence/v3/confounds.json", "confound register (repo-relative)")
+	v1Claims := fs.String("v1-claims", "book/evidence/claims.json", "v1 registry, a predecessor (repo-relative)")
+	v2Claims := fs.String("v2-claims", "book/evidence/v2/claims.json", "v2 registry, the direct predecessor (repo-relative)")
+	jsonOut := fs.Bool("json", false, "emit a JSON report")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	root, err := filepath.Abs(*repo)
+	if err != nil {
+		fmt.Fprintln(errOut, err)
+		return 2
+	}
+	rawSchema, err := os.ReadFile(filepath.Join(root, *schemaPath))
+	if err != nil {
+		fmt.Fprintf(errOut, "read schema: %v\n", err)
+		return 2
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(rawSchema, &schema); err != nil {
+		fmt.Fprintf(errOut, "parse schema: %v\n", err)
+		return 2
+	}
+	doc, raw, err := evidence.LoadV2(filepath.Join(root, *claims))
+	if err != nil {
+		fmt.Fprintf(errOut, "load v3 claims: %v\n", err)
+		return 1
+	}
+	conf, err := evidence.LoadConfounds(filepath.Join(root, *confoundsPath))
+	if err != nil {
+		fmt.Fprintf(errOut, "load confounds: %v\n", err)
+		return 1
+	}
+	v1, _, err := evidence.Load(filepath.Join(root, *v1Claims))
+	if err != nil {
+		fmt.Fprintf(errOut, "load v1 claims: %v\n", err)
+		return 1
+	}
+	v2, _, err := evidence.LoadV2(filepath.Join(root, *v2Claims))
+	if err != nil {
+		fmt.Fprintf(errOut, "load v2 claims: %v\n", err)
+		return 1
+	}
+	errs := evidence.ValidateV3(root, schema, doc, raw, conf, v1, v2)
+	if *jsonOut {
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(map[string]any{"claims": len(doc.Claims), "errors": errStrings(errs)})
+	} else if len(errs) == 0 {
+		fmt.Fprintf(out, "evidence-v3: %d claims, 0 errors, active source book/evidence/v3/claims.json\n", len(doc.Claims))
+	} else {
+		for _, e := range errs {
+			fmt.Fprintf(out, "  [ERROR] %v\n", e)
+		}
+		fmt.Fprintf(out, "evidence-v3: %d claims, %d errors\n", len(doc.Claims), len(errs))
 	}
 	if len(errs) > 0 {
 		return 1

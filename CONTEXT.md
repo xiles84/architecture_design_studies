@@ -47,14 +47,16 @@ summary, not a second ledger.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
   EH-02 and Studies 03–05 by reference (see [`docs/ai-work/tasks/`](docs/ai-work/tasks/) and the
   archived history) and fixes public status drift.
-- **Active book evidence source:** `book/evidence/v2/claims.json` (the correction package, tag
-  target `repo/book-evidence-registry-v2`; see [`book/evidence/README.md`](book/evidence/README.md)).
-  v1 (`book/evidence/claims.json`, tag `repo/book-evidence-registry-v1`) is **frozen historical
-  reference only** — its claim-to-cell resolution failed (36 of 43 names resolve nowhere) and no
-  book prose may be written from it. `tools/evidence validate` defaults to v2.
-- **Gate on the next book task:** the correction package is integrated (tag
-  `repo/book-evidence-registry-v2`), so `book-synthesis-v1` may now be released; it must read
-  `book/evidence/v2/` only.
+- **Active book evidence source:** `book/evidence/v3/claims.json` (versioned update of v2 with the
+  2026-09-23 Study 05 churn, equal-total and engine/placement runs; tag target
+  `repo/book-evidence-registry-v3`; see [`book/evidence/README.md`](book/evidence/README.md)).
+  v2 (`book/evidence/v2/`, tag `repo/book-evidence-registry-v2`) is **frozen historical reference**;
+  v1 (`book/evidence/claims.json`, tag `repo/book-evidence-registry-v1`) is frozen too — its
+  claim-to-cell resolution failed (36 of 43 names resolve nowhere). `tools/evidence validate`
+  defaults to v3; the still-active v2 claim ids are carried forward unchanged, and the retired
+  `v2-gap-04` is superseded by `v3-gap-01` plus `v3-01`–`v3-06`.
+- **Book tasks read `book/evidence/v3/` only:** `book/lib/evidence.typ`, `book/build.sh` and
+  `book/main.typ` name v3; the PDF in `book/dist/` has not been rebuilt since the change.
 - **Book toolchain:** `book/` holds the modular Typst reader layer, pinned by
   `book/Containerfile` to Typst `0.15.1` (image digest
   `sha256:032e292249bcd378480cc7c142cfa324b63ef8aadeb88d7e7230320c4c9c422f`). `book/build.sh`

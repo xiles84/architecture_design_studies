@@ -55,7 +55,7 @@ else
 fi
 BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 TYPST_VERSION="$(podman run --rm "$BOOK_IMAGE" --version | sed 's/^typst //')"
-EVIDENCE_DIGEST="$(sha256sum "$BOOK_DIR/evidence/v2/claims.json" | cut -d' ' -f1)"
+EVIDENCE_DIGEST="$(sha256sum "$BOOK_DIR/evidence/v3/claims.json" | cut -d' ' -f1)"
 SOURCE_HASH="$(
   find "$BOOK_DIR" -name '*.typ' -type f -print0 \
     | sort -z \
@@ -93,10 +93,10 @@ FONTS_TOTAL="$(printf '%s\n' "$FONTS_RAW" | awk 'NR>2 && NF>0' | wc -l | tr -d '
 # stable marker ("yes yes yes" = embedded, subset, unicode).
 FONTS_EMBEDDED="$(printf '%s\n' "$FONTS_RAW" | awk 'NR>2 && /yes[[:space:]]+yes[[:space:]]+yes/' | wc -l | tr -d ' ')"
 TEXT="$(podman run --rm -v "$(engine_path "$BOOK_DIR"):$BOOK_DIR" --entrypoint pdftotext "$BOOK_IMAGE" "$BOOK_DIR/$OUT_REL" -)"
-TOTAL_CLAIMS="$(jq -r '.claims | length' "$BOOK_DIR/evidence/v2/claims.json")"
+TOTAL_CLAIMS="$(jq -r '.claims | length' "$BOOK_DIR/evidence/v3/claims.json")"
 # Count only registry ids that actually render, so the number is a check that the
 # evidence index compiled in, not a count of look-alike tokens.
-CLAIM_COUNT="$(jq -r '.claims[].claim_id' "$BOOK_DIR/evidence/v2/claims.json" | while read -r id; do grep -q "$id" <<<"$TEXT" && echo "$id"; done | wc -l | tr -d ' ')"
+CLAIM_COUNT="$(jq -r '.claims[].claim_id' "$BOOK_DIR/evidence/v3/claims.json" | while read -r id; do grep -q "$id" <<<"$TEXT" && echo "$id"; done | wc -l | tr -d ' ')"
 DIGEST_IN_PDF="false"
 # A here-string, not a pipe: grep -q exits on first match, and under pipefail the
 # upstream printf's SIGPIPE would flip the test to false.
@@ -115,7 +115,7 @@ cat > "$BOOK_DIR/$MANIFEST_REL" <<JSON
   "typst_version": "$TYPST_VERSION",
   "typst_image": "$TYPST_IMAGE",
   "typst_image_digest": "$TYPST_DIGEST",
-  "evidence_registry": "book/evidence/v2/claims.json",
+  "evidence_registry": "book/evidence/v3/claims.json",
   "evidence_digest_sha256": "$EVIDENCE_DIGEST",
   "source_tree_hash_sha256": "$SOURCE_HASH",
   "pdf_sha256": "$PDF_SHA256",

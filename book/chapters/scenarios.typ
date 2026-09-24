@@ -35,6 +35,8 @@ three instances sharing one relaxed cache recorded about 87% wrong reads unless 
 fenced.
 #registry-card("v2-14-cache-throughput-gain")
 #registry-card("v2-15-three-instance-staleness")
+#registry-card("v3-01-churn-crosses-real-ttl")
+#registry-card("v3-03-equal-total-framing-labelled")
 
 #heading(level: 2, "Scenario transfers are labelled")
 #analogy[
@@ -47,9 +49,10 @@ fenced.
 #gap[
   Two scenario families are explicitly incomplete, and the book does not fill them with words: the
   configuration-portal study did not build eight of its eighteen designs and did not measure
-  cardinality, cadence or equal-total resources, and the cache study did not measure real TTL churn,
-  medium scale, repeated trials or cache resource accounting. These are coverage gaps, not null
-  results.
+  cardinality or cadence, and the cache study still owes its hard TTL expiry, medium scale,
+  tablet/leader placement and open-loop demand. The cache study *did* measure real TTL churn,
+  repeated in-run trials and equal-total cache accounting on 2026-09-23, so those are no longer gaps.
+  These are coverage gaps, not null results.
 ]
 #registry-card("v2-gap-03-study04-missing-designs")
-#registry-card("v2-gap-04-study05-unmeasured-regimes")
+#registry-card("v3-gap-01-study05-remaining-regimes")
