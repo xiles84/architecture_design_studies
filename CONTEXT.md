@@ -99,11 +99,31 @@ summary, not a second ledger.
 - **Next ready work:** the six scientific protocol tasks (`study04-v2-protocol`,
   `study05-v2-protocol`, `analytics-read-model-protocol`, `hierarchy-model-protocol`,
   `native-major-model-protocol`, `topology-study-protocol`).
-- **Brainstorm concluded** (tag `repo/book-evidence-and-model-brainstorm-v1`):
-  `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` — two positions
-  (gpt-5, deepseek-flash), two cross-reviews, one synthesis. It found registry v1 ineligible as the
-  book's numeric source and decided one versioned, attributed evidence-correction package as the sole
-  active claim source, with the fixed six-family taxonomy kept; the correction task implements it.
+- **Brainstorms concluded (3)** — [`docs/ai-work/brainstorms/CONCLUDED.md`](docs/ai-work/brainstorms/CONCLUDED.md)
+  is the state authority; each record below links its own `CONCLUSION.md`.
+  - `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` (tag
+    `repo/book-evidence-and-model-brainstorm-v1`) — two positions (gpt-5, deepseek-flash), two
+    cross-reviews, one synthesis. It found registry v1 ineligible as the book's numeric source and
+    decided one versioned, attributed evidence-correction package as the sole active claim source,
+    with the fixed six-family taxonomy kept. Published work:
+    `task-20260922T170845Z-book-evidence-correction-v2` (completed).
+    [CONCLUSION](docs/ai-work/brainstorms/records/2026/09/brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions/CONCLUSION.md)
+  - `brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies` — three positions, two
+    critiques, one synthesis: diagram sources need one pinned renderer and a provenance gate, the
+    committed sources need a fidelity/scope audit, and the book needs a small labelled figure proof
+    set rather than diagram dumps. Published work: `task-20260923T235910Z-diagram-renderer-pin`
+    (completed), `task-20260923T235913Z-book-figure-provenance` (completed),
+    `task-20260923T235916Z-diagram-fidelity-audit` (completed),
+    `task-20260923T235922Z-book-figure-proofset` (completed),
+    `task-20260923T235931Z-brainstorm-conclusions-index` (this task, claimed).
+    [CONCLUSION](docs/ai-work/brainstorms/records/2026/09/brainstorm-20260923T171458Z-visual-explanations-for-book-and-studies/CONCLUSION.md)
+  - `brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control` — three positions, two
+    critiques, one synthesis: the cache material must be guarantee-first, and the Study 05 v2 results
+    must be registered before the book cites them; unmeasured deletion/outbox protocols stay labelled
+    as such. Published work: `task-20260923T235907Z-book-evidence-study05-v3` (completed),
+    `task-20260923T235919Z-book-cache-decision-map` (completed),
+    `task-20260923T235925Z-cache-untested-protocols` (proposed).
+    [CONCLUSION](docs/ai-work/brainstorms/records/2026/09/brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control/CONCLUSION.md)
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
