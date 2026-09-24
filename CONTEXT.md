@@ -69,8 +69,14 @@ summary, not a second ledger.
   `book/assets/figure-manifest.json` (source revision + SHA-256, renderer digest, embedded-bytes
   SHA-256). `book/build.sh` runs `export.sh --check` before compiling and fails on a missing asset, a
   changed source or a stale render; `source_tree_hash_sha256` covers the figure layer and the
-  referenced sources. One pilot figure is registered; the real proof set lands with
-  `book-figure-proofset`.
+  referenced sources. The proof set is now authored (`book-figure-proofset`): four figures, each with
+  two independent labels (form: structure/sequence/state; evidence status: conceptual illustration /
+  implemented design contract / negative control / observed result) and an adjacent text equivalent —
+  placement and ownership (structure, book source), two buyers on the same marked seats (sequence,
+  study-03 reuse, labelled control), the stale-fill race (sequence, book source, observed result
+  illustrating `v2-15` with no embedded rate) and expiry/clock authority (sequence, study-03 reuse,
+  labelled control). Book-owned sources live in `book/assets/sources/`; the two-reader check is
+  recorded in `book/FIGURES.md` (both passes were one model) and the rule is methodology 15.
 - **Diagram fidelity audit (2026-09-23):** all 30 committed study diagram sources were classified
   against their SQL/harness/plans and the audit is recorded per study in
   `studies/0{1,2,3}-*/diagrams/FIDELITY.md`. Three annotations were corrected: D3's "six of twelve
@@ -236,8 +242,11 @@ placement pair).
    gaps the protocols below will close; no v1 acceptance check is open. The sources were then made
    **root-independent** (tag `repo/book-preview-paths-v1`, commit `89d8a0d`): `lib/evidence.typ`
    used a root-relative path that broke editor preview when the language server rooted at the
-   repository instead of `book/`. The rebuilt artefact (sha256 `379b31f9…`, still 36 pages, 4/4
-   fonts, 23/23 claims) is the current build; the released v1 PDF remains available at its tag.
+   repository instead of `book/`. That rebuilt artefact (sha256 `379b31f9…`, 36 pages, 4/4 fonts,
+   23/23 claims) was then the current build. `book-figure-proofset` later rebuilt from the v3 registry
+   and the figure proof set: `book/dist/data-architecture-reference.pdf` sha256 `d6d3c029…`, 49 pages,
+   5/5 fonts embedded, 29/29 v3 claims indexed, evidence digest `814f4094…` present, built from a clean
+   tree — the current **draft** build, not a reviewed release; the released v1 PDF remains at its tag.
 6. **Study 07 topology** — protocol complete 2026-09-22: `studies/07-topology/HANDOFF.md` (tag
    `repo/topology-study-handoff-v1`) separates node count, replication, placement, routing, resource
    budget, network and failure; it requires independent hosts and balanced endpoints, and defines
