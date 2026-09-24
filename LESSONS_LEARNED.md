@@ -1642,3 +1642,43 @@ The field is useful and stays, as documentation of when the content arrived. Wha
 comparison: staleness is now decided by the content hash of the source, the content hash of the asset, the
 renderer identity and the postprocess step — every one a property of the artefact. **If a field describes
 the repository rather than the artefact, keep it out of the equality test.**
+
+## Revising the book's figures and prose (2026-09-24)
+
+### A sequence figure must give every participant its prose names a lifeline
+The lease-versus-fence figure described a second filler but drew only R1, the lease and the cache, so the
+second filler had no lifeline and the coordinator's messages to the cache made the coordinator look like
+the publisher. Its closing note then attributed the rejection to "the source generation" although no
+source check was drawn. A figure that names a participant in prose owes it a lifeline, and a note may
+only name the mechanism the arrows actually show.
+
+### A fencing token and source-generation validation are different mechanisms
+A sink-side fencing token is accepted or rejected *at the sink* by the highest token the sink has already
+seen, so its ordering depends on a newer token having arrived. Source-generation validation consults the
+authoritative generation *before publishing* and can refuse an old publish even when no newer operation
+ever reached the sink. The two close related races; writing one as the other made the figure wrong while
+every word in the caption stayed true.
+
+### A tall sequence diagram overflows a non-breakable figure block into the footer
+`figure-evidence` keeps the image, its caption and its text equivalent together, so a 1097-pixel-tall
+sequence rendered at 100% text width was taller than the page and printed over the running footer. The
+fix is a `image-width` parameter that centres a tall figure at a reduced width; shrinking the source with
+renderer scaling does not help, because it shrinks text and height together. Measure the SVG aspect ratio
+before placing a sequence.
+
+### Disconnected panels can be reordered by the layout engine
+Three panels with no edges between them rendered 3-1-2 on the page. Forcing the order with hidden edges
+produced a diagonal that wasted half the width, and splitting the figure in two fixed both order and
+legibility. Prefer one connected figure, or separate figures, over disconnected panels whose numbers must
+carry the reading order.
+
+### A renderer deprecation warning can become visible page content
+`skinparam ParticipantPadding` made PlantUML print "Please use CSS style instead of skinparam
+ParticipantPadding" *inside the diagram*. A successful render exit code says nothing about what the
+picture contains; inspect the raster, not only whether the renderer succeeded.
+
+### The queue's worktree on WSL plus Windows podman records a relative gitdir
+`queue claim` created the expected branch and directory, but `git worktree list` marked it `prunable`
+because the recorded gitdir file pointed at a relative path that no longer resolved. Running
+`git worktree repair <path>` from the main checkout fixed the link, after which the claim, commits,
+submit and integrate all worked. Check `git worktree list` after a claim, before trusting the folder.

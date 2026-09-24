@@ -177,6 +177,22 @@ summary, not a second ledger.
   Two release blockers were found and fixed while producing it: the manifest hard-coded `Edition 1` beside
   a title page reading Edition 2, and the figure manifest's `source_revision` field made staleness depend
   on repository state, so the staleness comparison now uses content hashes only.
+- **Edition 2 revised (2026-09-24, tasks `book-visual-correctness-a` + `book-visual-tranche-b`, released
+  by `book-v2-1-release`):** the owner-supplied external review of the Edition 2 PDF was applied. Technical
+  items A–G: relaxed freshness is a family (only bounded staleness declares Δ); application-maintained
+  rollups are transactional-first and "published" only across the authoritative boundary; the placement
+  text equivalent no longer calls all five rungs a copy; pessimistic locking is waiting/blocking with
+  retries still possible; derived state is separated from retained history and append-only no longer
+  implies a fence. The cache chapter's publication-fence card is renamed **source-generation validation**
+  and the glossary defines eight distinct mechanisms. Figures: the lease-vs-fence and stale-fill figures
+  were redrawn, and nine explanatory figures were added (families ER, rollup vs rolldown, embedding,
+  index vs hot row, optimistic vs pessimistic, derived vs history, history vs current, cache read copy,
+  topology physical boundary); the book now has 16 figures and is **61 pages**. Item 2.9 (a
+  quote-readiness flowchart) was rejected with reason in favour of the existing table; the visual review
+  is one model's. No measured number, claim id or gap changed; `book/evidence/v5/` is untouched. The
+  change is recorded in `book/CHANGELOG.md` and
+  `book/evidence/reviews/20260924-edition-2-revision--deepseek-flash.md`; tags
+  `repo/data-architecture-book-visual-correctness-a`, `...-visual-tranche-b`, `repo/data-architecture-book-v2-1`.
 - **Book tasks read the active registry only:** `book/lib/evidence.typ` derives its path from the
   single `registry_version` build input; no source may name a version, and
   `book/evidence/check.sh` (run by `book/build.sh`) fails the build if one does. The tracked PDF in
