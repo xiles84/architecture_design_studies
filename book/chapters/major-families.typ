@@ -131,19 +131,26 @@ Serve the answer from beside the database, with a stated freshness contract. Do 
 cacheable, read-heavy questions.
 #heading(level: 3, "Where it thrives and where it perishes")
 Thrives on repeated reads of stable keys. Perishes when many instances share a cache under relaxed
-freshness without a fence.
+freshness without a publication fence. The fence closes one specific race: a reader that snapshotted
+committed state S0 republishes it after a writer commits S1 and invalidates.
 #heading(level: 3, "Common scenarios")
 A donor portal's hot profile reads, a public dashboard over changing totals.
 #heading(level: 3, "Mechanism")
-See the *cache consistency* concept. Invalidation is a fence that refuses a stale publication, not a deletion.
+See the *cache consistency* concept for the guarantee-first flow: name the contract, establish
+change-observation completeness, read the source's capabilities, then choose topology (process-local
+versus shared) and the fill path (cache-aside versus write-through). Topology and fill path are not
+guarantees; performance controls (fill lease, TTL, early expiry) are added separately.
 #heading(level: 3, "Costs")
-Reads gain 2.2–3.5x and p99 drops an order of magnitude; writes may gain a fence; storage moves to
-the cache (whose budget is outside the comparison); correctness needs the fence; operations gain a
-new failure domain.
+Reads gain 2.2–3.5x and p99 drops an order of magnitude; a strict protocol adds a write-path fence;
+storage moves to the cache (whose budget is outside the `db-only` comparison); operations gain a new
+failure domain.
 #heading(level: 3, "Direct evidence")
 #registry-card("v2-14-cache-throughput-gain")
 #registry-card("v2-15-three-instance-staleness")
 #registry-card("v2-16-strict-freshness-read-cost")
+#registry-card("v3-03-equal-total-framing-labelled")
 #heading(level: 3, "Boundaries and reproduction")
-Redis was measured as a cache, never as an authoritative store; the result is `db-only` framed
-(`conf-04`). The three-instance failure is a mechanism demonstration, not a rate to predict from.
+Redis was measured as a cache, never as an authoritative store; the v2 gain is `db-only` framed
+(`conf-04`) and the equal-total arm is labelled separately. The three-instance failure is a mechanism
+demonstration, not a rate to predict from, and the process-local arms' zero wrong reads are a bypass
+result (`v2-15`), not safety.

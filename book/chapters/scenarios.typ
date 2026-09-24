@@ -30,9 +30,12 @@ result at one cardinality.
 #registry-card("v2-13-trigger-rollup-cost")
 
 #heading(level: 2, "Donor portal with an external cache")
-Serve warm profile reads from a cache. Throughput rose 2.2–3.5x and p99 fell an order of magnitude;
-three instances sharing one relaxed cache recorded about 87% wrong reads unless the publication was
-fenced.
+Serve warm profile reads from a cache. Throughput rose 2.2–3.5x and p99 fell an order of magnitude.
+Three instances sharing one relaxed cache recorded 87.81% wrong reads on the owned model and 87.24% on
+the legacy model: the publication must be fenced against the stale-fill race — a reader republishing
+S0 after a writer commits S1 and invalidates — not merely ordered after the commit. The single-instance
+relaxed cells recorded zero wrong reads, and the legacy process-local arms' zero was a bypass result
+(`v2-15`), so neither is evidence that an unfenced relaxed cache is safe.
 #registry-card("v2-14-cache-throughput-gain")
 #registry-card("v2-15-three-instance-staleness")
 #registry-card("v3-01-churn-crosses-real-ttl")

@@ -25,8 +25,12 @@ to 42 ms); the application rollup kept writes near the reference for the same re
 #registry-card("v2-13-trigger-rollup-cost")
 
 #heading(level: 3, "Strict versus relaxed freshness")
-Every controlled strict/relaxed pair differed by −14.2% to +12.3% in read throughput — inside the
-noise. The visible cost of strictness is on the write path.
+*Strict after acknowledgement* means a read that starts after a write to the same key is acknowledged
+never returns an older committed value. *Relaxed* is defined only against that comparator: it may
+serve a committed value that is older, for a bounded window — never a dirty, torn or impossible
+value. Every controlled pair differed by −14.2% to +12.3% in read throughput — noise. The visible cost
+of strictness is on the write path, where a publication fence is added against the stale-fill race (a
+reader republishing S0 after a writer commits S1 and invalidates).
 #registry-card("v2-16-strict-freshness-read-cost")
 
 #heading(level: 2, "Named but not measured as controlled pairs")

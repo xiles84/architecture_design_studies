@@ -44,6 +44,7 @@ recommendation without a gap statement is over-claiming.
    pre-created-seat arbiter, +33–35% storage.],
   [A configuration portal reads its overview far more than it writes → application-maintained
    rollup; a trigger only if a forgotten write is unacceptable.],
-  [A public donor portal serves warm profiles → cache with a stated freshness contract and a fence,
-   accepting that the cache's budget is outside the database comparison.],
+  [A public donor portal serves warm profiles → cache with a named contract and a publication fence
+   against the stale-fill race (a reader republishing S0 after a writer commits S1 and invalidates),
+   accepting that the cache's budget is outside the `db-only` comparison.],
 )
