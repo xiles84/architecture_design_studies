@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260924T123503Z-book-review2-delta` |
-| State | `ready` |
-| Sequence | `1` |
+| State | `approved_for_integration` |
+| Sequence | `6` |
 | Active attempt | none |
-| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner` |
-| Last event | `event-20260924T122826Z-published` |
-| Updated at | `2026-09-24T12:28:26Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=reviewer` |
+| Last event | `event-20260924T155102Z-approved` |
+| Updated at | `2026-09-24T15:51:02Z` |
+| Next capability | HIGH |
+| Next work role | integrator |
 | Branch | `book/review2-delta` |
 | Worktree | `.worktrees/book-review2-delta` |
 
-Published by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=planner. The immutable event files are authoritative for history.
+Approved for integration. NEXT: `queue integrate`.
