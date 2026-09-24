@@ -1337,3 +1337,40 @@ becomes `<repo>/evidence/v2/claims.json` and the import dies in milliseconds
 resolved against the file that names it, so it works under either root. **A build script that
 happens to set the right root hides a source that only works under that root**; make paths
 file-relative unless there is a reason to be root-relative, and test the book from both roots.
+
+## Working the AI work queue and measuring open-loop demand (2026-09-23)
+
+### A stale empty `.git/index.lock` makes the queue's git steps fail, and the message can look like a conflict
+
+`queue integrate` / `queue complete` run git in a shared worktree. Twice in one session a
+zero-byte `.git/index.lock` left by a killed git process made the command fail; one of those
+failures printed `merging … into main conflicted; resolve it in the main worktree and retry`, while
+`git merge` of the same branch completed cleanly. Check `ls .git/index.lock`, confirm no git or
+podman process is running (`ps`, `podman ps`), remove the lock, and retry — do not start resolving a
+conflict the message invented. **When a tool reports a conflict, verify it with git before acting on
+it.**
+
+### A second integrate of an already-merged branch can be a no-op that reports failure
+
+After a task was integrated, a follow-up documentation commit on the same branch was merged into main
+by hand because `queue integrate` kept reporting a conflict. The queue state still moved to
+`completed` afterwards. Re-integrating an already-integrated branch is not a supported way to land a
+correction; make the correction part of the task's own commit range, or treat it as a small new
+change with its own worktree and tag.
+
+### A single-trial closed-loop floor is not a capacity reference for an open-loop phase
+
+The same Study 05 cell (`owned-opt-redis-aside-relaxed-coord`, `pg-single`, `db-only`) measured a
+warm closed-loop floor of **7,787**, **19,921** and **21,175** ops/s on three consecutive runs of one
+session — a 2.7x spread on shared, throttled laptop cores. Any open-loop conclusion that compares a
+delivered rate against "the" closed-loop floor from another run is measuring the machine's mood.
+Measure the floor in the same cell, and state the spread.
+
+### The open-loop saturation flag is fixed-rule and can fire on a fully delivered rate
+
+`measure.RunOpenLoop` marks `client_saturated` when any arrival is dropped **or** when the p99
+scheduling lag exceeds one arrival slot. At 5,000 ops/s offered the cell delivered 4,969 ops/s with
+**0 dropped**, yet the flag was set because the p99 lag (1.12 ms) exceeded the 200 µs slot. Read the
+counts (`dropped`, `offered` vs `completed`), not the boolean: `client_saturated = true` with
+`dropped = 0` and `delivered ≈ offered` is a scheduler-jitter artefact, not a saturated client.
+

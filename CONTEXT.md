@@ -96,9 +96,14 @@ summary, not a second ledger.
   `58d61df0600a46e9b019aa83067475add4e3a2b986345c6041deeea3c8516cb1`, tag
   `repo/data-architecture-book-v1`. It remains a v1: single-run, single-host evidence, and the two
   cited coverage gaps are open work.
-- **Next ready work:** the six scientific protocol tasks (`study04-v2-protocol`,
-  `study05-v2-protocol`, `analytics-read-model-protocol`, `hierarchy-model-protocol`,
-  `native-major-model-protocol`, `topology-study-protocol`).
+- **Work queue state (2026-09-23, end of the book-pipeline execution block):** 38 tasks completed,
+  **0 ready, 0 claimed, 0 in progress**; 17 proposed. The six scientific protocol tasks
+  (`study04-v2-protocol`, `study05-v2-protocol`, `analytics-read-model-protocol`,
+  `hierarchy-model-protocol`, `native-major-model-protocol`, `topology-study-protocol`) are complete,
+  and the block they defined has been executed or measured (Studies 01–05 v2 runs, the book evidence
+  v3, the figure layer and the cache decision map). The proposed work is the next execution tier —
+  Study 06 (`native-*`), Study 07 (`topology-*`), Study 08 (`analytics-*`), the `hierarchy-*` arms and
+  `cache-untested-protocols` — none of it ready; publish it with the queue before starting.
 - **Brainstorms concluded (3)** — [`docs/ai-work/brainstorms/CONCLUDED.md`](docs/ai-work/brainstorms/CONCLUDED.md)
   is the state authority; each record below links its own `CONCLUSION.md`.
   - `brainstorm-20260922T155627Z-book-v1-evidence-defects-and-model-additions` (tag
