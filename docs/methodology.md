@@ -427,3 +427,37 @@ triggers, commit/tag/merge steps and the next model/effort. See the
 [escalation template](templates/ESCALATION_REQUIRED.md).
 Pausing for the next model is an unfinished-task checkpoint. The final integration
 into main occurs under the usual worktree and provenance rules.
+
+## 15. Every book figure carries a form label, an evidence-status label and a text equivalent
+
+A figure in the book is an argument, so it is labelled like one. Each figure carries **two independent
+labels**: its *form* — `structure`, `sequence` or `state` — and its *evidence status* — `conceptual
+illustration`, `implemented design contract`, `negative control` or `observed result`. A reader must be
+able to tell from the page which of those a figure is.
+
+The rule follows from correctness gates timing (5) and from the separation of numbers and conclusions
+(11):
+
+- **An `observed result` figure cites an active claim** and embeds **no performance number, ratio or
+  causal performance claim** of its own. The number lives in the claim card beside it, where its
+  limits and confounds travel with it. A figure that needs a number to make its point is an evidence
+  card, not a figure.
+- **A `conceptual illustration` is labelled as such** and cannot be read as a measurement; a map of
+  decisions the corpus studies is the common case.
+- **An `implemented design contract`** (usually a sequence copied from a study) states the contract
+  the designs implement; it is not evidence that a design was faster.
+- **A `negative control`** is labelled where it appears and must be visibly the design that fails.
+
+Every figure also carries an **adjacent text equivalent** — a short prose paragraph that contains the
+figure's content — so the argument survives a reader who cannot see the image. Figures are generated
+artefacts: one canonical editable source per figure (a study `.puml` for study figures, the book's
+`book/assets/sources/` for book figures), a generated read-only asset, and a manifest recording the
+source revision, renderer digest and embedded bytes (`book/FIGURES.md`,
+[`../book/FIGURES.md`](../book/FIGURES.md)). A change to a canonical source requires a re-export, and
+the build refuses a missing or stale figure.
+
+**Two-reader check.** Before a figure is published, two readers — a first reader who has not seen the
+figure and a second reader who checks it against the claim or SQL — say what they take from it. Record
+per figure whether it was kept, redesigned or dropped, and why. Two passes by one model are weaker
+than two independent readers; say so when that is what happened rather than implying independence.
+

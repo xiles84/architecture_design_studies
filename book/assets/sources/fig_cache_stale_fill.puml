@@ -1,0 +1,43 @@
+@startuml fig_cache_stale_fill
+!include _style.puml
+' Book figure 3 — the stale-fill race and the fence.
+' Form: sequence. Evidence status: observed result — it illustrates registered claim
+' v2-15 (three shared instances under relaxed freshness) by showing the mechanism its
+' wrong reads came from. The figure embeds no rate of its own; the rate is stated in
+' the claim card beside it.
+title Figure 3 — the stale-fill race and the fence
+
+actor "reader R1" as R
+actor "reader R2\n(another instance)" as R2
+participant "writer W" as W
+database "source\n(database)" as DB
+participant "shared cache" as C
+
+group unsafe: "publish after commit" is not enough
+  R -> DB : read (snapshot S0)
+  DB --> R : committed S0
+  W -> DB : write S1 · commit
+  DB -> C : invalidate key
+  R -> C : publish S0 (fill)
+  R2 -> C : read → hits the stale fill
+  note right of C
+    The fill carries a committed-but-older value;
+    a reader in another instance now hits it.
+    This is the race the claim's wrong reads came from.
+  end note
+end
+
+group fenced: the publication is refused
+  R -> DB : version / CAS check before publishing
+  DB --> R : version moved — refuse the fill
+  R -> C : publish nothing
+  R2 -> C : read → miss → authoritative read
+end
+
+note over R, C
+  Each mechanism on the protocol table closes one race:
+  the fill lease closes duplicate concurrent fills, the
+  fence closes this stale fill, the version token closes
+  the hit that never consults the source.
+end note
+@enduml

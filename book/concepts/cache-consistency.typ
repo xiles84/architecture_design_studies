@@ -101,6 +101,19 @@ effectively absent (`reports/20260921T-survey3.md`, the anchor of the registered
 process-local arms did serve hits and stayed correct only because they validated a source version at
 the hit boundary. A private in-memory lease cannot coordinate instances; a source version token that
 is never consulted at the hit or publication boundary does not make a shared relaxed cache strict.
+
+#figure-evidence(
+  "../assets/fig-cache-stale-fill.svg",
+  "sequence",
+  "observed result",
+  "The stale-fill race, and the fence that closes it.",
+  [A reader snapshots committed state S0, a writer commits S1 and invalidates the key, and then the
+   reader publishes S0 as a fill — so the next reader hits a committed-but-older value. A fenced
+   protocol refuses that fill by checking the source version before publishing. The figure illustrates
+   the registered claim beside it and embeds no rate of its own. Source:
+   `book/assets/sources/fig_cache_stale_fill.puml`],
+  claim: "v2-15",
+)
 #registry-card("v2-15-three-instance-staleness")
 
 #heading(level: 2, "Churn, engines and placement (2026-09-23)")

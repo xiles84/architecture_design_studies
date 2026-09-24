@@ -23,7 +23,19 @@ is a different answer to "where does this fact live, and who maintains it".
    step that adds a consistency contract to the design.],
 )
 
-#heading(level: 2, "The rule that comes before performance")
+#figure-evidence(
+  "../assets/fig-placement-ownership.svg",
+  "structure",
+  "conceptual illustration",
+  "Placement and ownership: where an answer may live.",
+  [The leaf row stays canonical for row questions. Each of the five placements is a copy that owns its
+   own maintenance cost and its own correctness contract: *derive* keeps no copy, *index* copies an
+   ordering, *materialize* copies the aggregate upward, *copy down* copies a parent key onto the child,
+   and *copy out* serves the answer beside the database under a freshness contract. The ladder is
+   ordered by how much read work each copy removes. The figure is a map of the corpus's decisions and
+   carries no measured value.],
+)
+
 #direct[
   Ask what the schema must be able to *answer* before asking how fast it answers. Two measured
   answerability failures make this concrete: refunds were unanswerable in 14 of 15 ticketing

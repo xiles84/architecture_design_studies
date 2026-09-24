@@ -23,6 +23,18 @@ window is unanswerable because releasing an expired hold erases the evidence.
 #registry-card("v2-10-guarded-confirm-refusals")
 #registry-card("v2-gap-02-hold-funnel-unanswerable")
 
+#figure-evidence(
+  "../assets/fig-hold-arbitration.svg",
+  "sequence",
+  "implemented design contract",
+  "Two buyers choose the same marked seats at the same moment.",
+  [Because a reserved-seating buyer may not be moved to another seat, Study 02's `SKIP LOCKED` scan
+   does not apply here: the arbitration is a conditional update on the chosen seats (or a lock first,
+   with the loser retrying) and one unguarded design is shown as a negative control. The figure is the
+   contract the reserved-seating designs implement; it carries no measured value. Source:
+   `studies/03-reserved-seating/diagrams/s_arbitration.puml`],
+)
+
 #heading(level: 2, "Configuration portal")
 Read the overview often, replace configurations occasionally. A trigger-maintained rollup cost
 6.85x on replacement; the application rollup kept writes near the reference. This is a small-scale

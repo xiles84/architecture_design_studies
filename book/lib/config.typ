@@ -152,6 +152,33 @@
 
 #let source(url, label: none) = link(url)[#if label == none { url } else { label }]
 
+// A book figure. Every figure carries TWO independent labels — its form
+// (structure / sequence / state) and its evidence status (conceptual illustration /
+// implemented design contract / negative control / observed result) — plus an
+// adjacent text equivalent for a reader who cannot see the image. An
+// observed-result figure names the active claim it illustrates; it never embeds a
+// measured number of its own.
+#let figure-evidence(asset, form, status, caption, equivalent, claim: none) = block(
+  width: 100%,
+  breakable: false,
+  above: 1em,
+  below: 1em,
+)[
+  #figure(
+    image(asset, width: 100%),
+    caption: {
+      text(weight: "bold")[#caption]
+      linebreak()
+      text(size: 8.5pt, fill: palette.muted)[
+        Form: #form · Evidence: #status#if claim != none [ · illustrates #claim]
+      ]
+    },
+  )
+  #block(inset: (left: 8pt), stroke: (left: 0.8pt + palette.rule))[
+    #text(size: 8.5pt)[*Text equivalent.* #equivalent]
+  ]
+]
+
 // The progressive structure every family/variant section follows (REQUEST.md).
 #let progressive-structure(depth: 1) = {
   heading(level: depth, "Quick choice in plain language")
