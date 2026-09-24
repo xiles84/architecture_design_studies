@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20260922T200831Z-study05-v2-open-loop` |
-| State | `ready` |
-| Sequence | `4` |
-| Active attempt | none |
+| State | `claimed` |
+| Sequence | `5` |
+| Active attempt | `attempt-20260924T014745Z-5393c0` |
 | Active worker | `model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor` |
-| Last event | `event-20260923T130842Z-yielded` |
-| Updated at | `2026-09-23T13:08:42Z` |
-| Next capability | HIGH |
+| Last event | `event-20260924T014745Z-claimed` |
+| Updated at | `2026-09-24T01:47:45Z` |
+| Next capability | LOW |
 | Next work role | executor |
 | Branch | `study-05/v2-open-loop` |
 | Worktree | `.worktrees/study05-v2-open-loop` |
 
-Returned to the ready pool. Released to ready by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor.
+Claimed by model=unknown tool=unknown effort=unknown session=unknown capability=HIGH role=executor until 2026-09-24T03:47:45Z. Worktree `.worktrees/study05-v2-open-loop`.
