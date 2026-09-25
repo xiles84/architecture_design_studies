@@ -1120,13 +1120,13 @@
     },
     {
       "claim_id": "v2-13-trigger-rollup-cost",
-      "statement": "Maintaining the portal overview with a per-row trigger (n3_rollup_trigger) costs 6.85x on whole-configuration replacement (83.7 vs 573 ops/s, p99 2.5 -> 42 ms) while the application rollup (n4_rollup_app) keeps writes near the reference (593 ops/s) for the same ~15x read gain.",
+      "statement": "Maintaining the portal overview with a per-row trigger (n3_rollup_trigger) costs 4.0-5.7x the application-maintained rollup (n4_rollup_app) on whole-configuration replacement across three randomized-order runs (median 4.94x: n4 518-635 ops/s against n3 91-159 ops/s), and the trigger's latency tail is 22-46x worse (p99 61-109 ms against 2.2-2.7 ms); the trigger cell's own trials disagree by 35-115%, so this is a range over an unstable cell, and the earlier single-run 6.85x figure did not reproduce.",
       "family": "rollups-materialized",
       "study": "04-configuration-portal",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -1134,11 +1134,47 @@
       "comparability_record": null,
       "confounds": [],
       "limits": [
-        "PostgreSQL single node, small scale, one trial",
-        "the big effects (6.85x write, ~15x read) are above the run's ~1.7x read floor; smaller differences are not attributable",
+        "PostgreSQL single node, small scale; three whole runs, three trials per cell in each",
+        "run-level replication only: separate runs on one machine, not hardware-independent, and still exposed to this host's measurement hazards",
+        "the trigger cell's own trials disagreed by 35-115% across the three runs, above the ~20% precision rule, so only the direction and an order-of-magnitude range are supported; the ratio is not a point estimate",
+        "the ~15x read gain belongs to the earlier single run and was not re-measured in the replication",
+        "the earlier single-run 6.85x figure did not reproduce and must not be quoted",
         "the trigger's product is a structural guarantee, not speed"
       ],
       "anchors": [
+        {
+          "run_id": "20260925T190831Z",
+          "run_tag": "run/04-configuration-portal/20260925T190831Z",
+          "repo_commit": "f9f201e159e1b6e5c75679e06c245173e778408e",
+          "inputs_digest": "829381816473fbd8",
+          "report": "studies/04-configuration-portal/reports/20260925T190831Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20260925T1-replication--deepseek-flash--2026-09-25.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "primary"
+        },
+        {
+          "run_id": "20260925T191610Z",
+          "run_tag": "run/04-configuration-portal/20260925T191610Z",
+          "repo_commit": "f9f201e159e1b6e5c75679e06c245173e778408e",
+          "inputs_digest": "dc76ad71636584b4",
+          "report": "studies/04-configuration-portal/reports/20260925T191610Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20260925T1-replication--deepseek-flash--2026-09-25.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20260925T194447Z",
+          "run_tag": "run/04-configuration-portal/20260925T194447Z",
+          "repo_commit": "f9f201e159e1b6e5c75679e06c245173e778408e",
+          "inputs_digest": "536c9eb4dcd53f67",
+          "report": "studies/04-configuration-portal/reports/20260925T194447Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20260925T1-replication--deepseek-flash--2026-09-25.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        },
         {
           "run_id": "20260921T1215Z-small",
           "run_tag": "run/04-configuration-portal/20260921T1215Z-small",
@@ -1148,16 +1184,16 @@
           "analysis": "studies/04-configuration-portal/reports/analyses/20260921T1215Z-small--deepseek-flash--2026-09-21.md",
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node",
-          "role": "primary"
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": 10,
+        "reported_cells": 9,
         "reported_failed": 0,
-        "source": "report TL;DR",
-        "controls_present": 2,
-        "controls_fired": 2,
-        "note": "x2 demonstrates the failure when application maintenance is not atomic with the publication."
+        "source": "the three T1 run reports and manifests (3 designs x 3 runs)",
+        "controls_present": 3,
+        "controls_fired": 3,
+        "note": "The x2 drift control fired in every run: 60 rollup mismatches each, audit passed=false on INV-8/INV-9."
       },
       "support": [
         {
@@ -1169,7 +1205,7 @@
           },
           "status": "valid",
           "resolves_to": "n3_rollup_trigger",
-          "expected": "83.7 ops/s"
+          "expected": "159 ops/s in the primary run (91-159 across the three)"
         },
         {
           "key": {
@@ -1180,7 +1216,7 @@
           },
           "status": "valid",
           "resolves_to": "n4_rollup_app",
-          "expected": "593 ops/s"
+          "expected": "635 ops/s in the primary run (518-635 across the three)"
         }
       ],
       "legacy_provenance_incomplete": false,
@@ -1201,10 +1237,15 @@
       },
       "control_coverage": "present",
       "replication": {
-        "runs": 1,
+        "runs": 3,
         "order": "randomized",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "across_run_spread_pct": 34.4,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P1 in the T1 replication protocol: the cited single-run 6.85x write-cost ratio reproduces in a three-run replication.",
+        "source": "studies/04-configuration-portal/T1-REPLICATION.md",
+        "verdict": "falsified"
       }
     },
     {

@@ -36,3 +36,25 @@ is a schema property, not a missing measurement.
 #heading(level: 2, "Boundaries")
 Do not transfer a single-engine expiry result to a clock-synchronised cluster without a placement
 and clock test; the corpus has neither.
+
+#heading(level: 2, "The checklist")
+
+The eight questions, answered for this concept; the status in brackets is the evidence behind the
+answer.
+
+- *Invariant.* A hold made while it is valid is honoured, nothing is granted or sold after expiry, and
+  no seat leaks. [direct]
+- *Where the information lives.* In `expires_at` on the held row — or, in one variant, once on a cart
+  row rather than copied to every seat. [direct]
+- *Where the contention is.* The seat rows of one chosen block, which cannot be skipped the way study
+  02's interchangeable seats can. [mechanism]
+- *What work moved from reads to writes.* Expiry checks move to the moment of use, and a sweeper does
+  the work at rest instead of on the buyer's path. [mechanism]
+- *What state is derived.* Availability is derived, not stored: with lazy expiry an expiry changes no
+  row, so no exact availability counter can be maintained. [mechanism]
+- *What can become stale.* Any judgement of expiry made from an application clock, and any cached
+  availability figure. [direct]
+- *Where it stops working.* When the clock is not the database's — the injected-skew control fired —
+  and when the sweeper stalls, which leaks seats. [gap]
+- *The experiment that would settle it.* An injected application-clock skew and a sweeper outage,
+  beside the honoured-hold invariant. [direct]

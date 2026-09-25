@@ -49,3 +49,25 @@ A table, not a figure: check it against the card beside the number.
 #heading(level: 2, "Boundaries")
 Laptop topologies with shared cores are a controlled comparison, not a capacity model. The
 environment caveat belongs wherever a conclusion is drawn.
+
+#heading(level: 2, "The checklist")
+
+The eight questions applied to a *number* rather than to a design; the status in brackets is the
+evidence behind the answer.
+
+- *Invariant.* A number is reproducible from its commit, its pinned images and its inputs digest, or it
+  is not evidence. [mechanism]
+- *Where the information lives.* In the run manifest, the result JSON, the plans and the report — not
+  in the prose that quotes it. [mechanism]
+- *Where the contention is.* The machine itself: one measurement at a time, under the benchmark lock.
+  [mechanism]
+- *What work moved from reads to writes.* Nothing; this concept prices work, it does not move it.
+  [mechanism]
+- *What state is derived.* A blended score is derived from its parts and must be decomposed before it
+  is quoted. [mechanism]
+- *What can become stale.* A report whose digest no longer matches the results it describes, and any
+  number copied out of a superseded analysis. [mechanism]
+- *Where it stops working.* Single-trial cells, closed-loop tails read as service levels, differences
+  inside the noise floor, and cells whose own trials disagree by more than the 20% rule. [mechanism]
+- *The experiment that would settle it.* Independent runs with randomized order and reported
+  across-run spread — which is what the first replication in the corpus did. [direct]

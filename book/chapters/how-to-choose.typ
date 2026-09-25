@@ -50,7 +50,8 @@ against where the derived state lives: when the base fact and the rollup are in 
 update both in one transaction; when they cannot share one atomic transaction, name the delivery,
 idempotency and reconciliation mechanism that keeps the derived state recoverable. Only that second
 case is *publication*, because only there does a copy cross the authoritative transaction boundary.
-The measured trigger cost was 6.85x on whole-configuration replacement.
+The measured trigger cost was 4.0–5.7x on whole-configuration replacement across three runs (median
+4.94x) — a range, because the trigger cell's own trials are imprecise.
 
 #heading(level: 2, "Step 4 — state the evidence level and the gap")
 Every recommendation carries a claim id, its strength, its confounds and its coverage gap. A

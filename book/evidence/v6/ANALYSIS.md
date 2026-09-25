@@ -16,9 +16,11 @@ headline: v6 adds evidence_form, attribution, control_coverage and replication-t
 
 ## TL;DR
 
-- v6 is a **method-metadata-only** package: all 29 v5 claims are carried forward with their statement,
-  limits, confounds, anchors, support cells, trial counts, review state and lifecycle byte-identical,
-  pinned by `TestV6CarriesV5ForwardUnchanged`.
+- v6 began as a **method-metadata-only** package: all 29 v5 claims are carried forward with their
+  statement, limits, confounds, anchors, support cells, trial counts, review state and lifecycle
+  byte-identical. One claim was then re-scoped before the package was tagged, by the corpus's first
+  run-level replication (the update below);
+  `TestV6CarriesV5ForwardExceptTheReplicatedClaim` now pins exactly that one exception.
 - It adds the metadata the empirical-architecture charter requires: `evidence_form`, `attribution`,
   `control_coverage`, and a `replication` record, plus optional `prediction` and `crossover`.
 - Four rules are now machine-checked with failing fixtures: no attribution from a package; a confounded
@@ -49,8 +51,10 @@ form: a claim whose headline names a mechanism its own evidence cannot isolate.
 | 10 `isolate`, 9 `package`, 10 `not_applicable`, **0 `interaction`** | The book's evidence is strong on single-decision pairs and honest about packages, but it has never registered a crossed-factor result. Every interaction the corpus names as unmeasured is genuinely unmeasured. |
 | 20 of 29 withhold attribution | This is the v5 confounds (conf-01…conf-06) working as designed. The book may report these packages, but any recommendation that names one component needs the isolation experiment. |
 | 15 claims with `control_coverage: absent` | The correctness gate is only as strong as the control that fires. Seven are read-only phases where the study's controls could not fire; their correctness inference is now withdrawn rather than implied. |
-| 28 single-run, 1 run-level, 0 hardware-independent | The charter's replication-before-domains ordering is not a preference but the corpus's largest confidence gap. |
-| 0 recorded predictions, 0 bounded crossovers | Both exist in the corpus — Study 04's falsified `d2` prediction, the writer-sweep crossing between `c1` and `c2` — but neither reaches the book's numeric source because neither is a registered claim. |
+| 27 single-run, 2 run-level (one a gap), 0 hardware-independent | The charter's replication-before-domains ordering is not a preference but the corpus's largest confidence gap. One claim was replicated before the v6 tag (see the update below). |
+| 1 recorded prediction (falsified), 0 bounded crossovers | The T1 replication recorded its prediction and falsified it. A crossover still exists only outside the registry: Study 04's writer sweep, where `c2/c1` reverses between 1 and 4 writers. |
+
+*(These counts are the ones this analysis was written with, corrected for the T1 update below.)*
 
 ## Where this analysis is weak
 
@@ -67,6 +71,32 @@ form: a claim whose headline names a mechanism its own evidence cannot isolate.
 - Nothing here is compile-verified for the book's Typst layer; the eight-question checklist is a
   book-owned Markdown contract (`book/concepts/CHECKLIST.md`) checked by `book/evidence/check.sh`, and
   its integration into the Typst chapters still needs a Podman/Typst session.
+
+## Update (2026-09-25): the first replicated claim
+
+The T1 replication landed after this analysis was written and before v6 was tagged, so v6 carries one
+claim that is no longer identical to v5.
+
+`v2-13-trigger-rollup-cost` cited a single run: "costs 6.85x on whole-configuration replacement (83.7
+vs 573 ops/s)". Three whole runs with randomized order (order seeds 101/202/303, three trials per cell)
+gave 3.99x, 4.94x and 5.69x — the direction replicated in 3/3 runs, the magnitude did not. The claim is
+now:
+
+- strength `run_replicated`, with `replication {runs: 3, order: randomized, across_run_spread_pct:
+  34.4, tier: run-level}` and four anchors (three new runs primary/corroborating, the original run
+  corroborating);
+- `prediction` recorded with verdict **`falsified`** — the first claim to exercise that field, and the
+  first to exercise the `run_replicated` branch of the v6 lints;
+- statement re-scoped to the observed range with the trigger cell's own 35–115% trial spread stated,
+  the 22–46x p99 gap added, and the ~15x read-gain clause marked as not re-measured.
+
+Two findings this changes in the tables above: **one** claim is now `run-level` (27 single-run, not 28),
+and **one** recorded prediction now exists (falsified, not zero). The coverage dimension
+`run-level-replication` moves from `gap` to `measured` for that one claim and stays open for the other
+28.
+
+The book prose repeated the superseded 6.85x in four places (`minor-variants`, `how-to-choose`,
+`scenarios`, `concepts/derived-state-and-history`); all four now state the replicated range.
 
 ## Next experiments
 

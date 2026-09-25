@@ -354,3 +354,26 @@ cacheable-99 852 against 520) as engine locality on one host, not verified coloc
 #heading(level: 2, "Boundaries")
 Redis was measured as a cache, never as an authoritative key-value store. JSONB is not a native
 document store. Transfer either result to a native family only as a labelled analogy.
+
+#heading(level: 2, "The checklist")
+
+The eight questions, answered for this concept; the status in brackets is the evidence behind the
+answer.
+
+- *Invariant.* Every cache value corresponds to a committed database state, and under the strict
+  contract a read that starts after an acknowledged write never returns an older committed value.
+  [direct]
+- *Where the information lives.* In the authoritative row, and in a copy in Redis or in process
+  memory. The copy is never the source of truth. [direct]
+- *Where the contention is.* One hot key and its fill lease: who is allowed to fill, and who must wait.
+  [direct]
+- *What work moved from reads to writes.* Invalidation and publication. A write becomes responsible
+  for the copies of the value it changed. [mechanism]
+- *What state is derived.* The cached payload and its version or source generation. [mechanism]
+- *What can become stale.* Any value a relaxed contract is permitted to return — with three instances
+  sharing a relaxed write-through cache this was 87% wrong reads, against zero for one instance.
+  [direct]
+- *Where it stops working.* When an invalidation cannot reach every instance, and at the boundary the
+  corpus has not crossed: the hard TTL has never been observed to remove an entry. [gap]
+- *The experiment that would settle it.* Strict/relaxed pairs under the same backend, crossed with
+  instance count, beside the stale-invalidation control. [direct]

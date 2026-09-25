@@ -49,3 +49,22 @@ Both are recorded gaps, not null results.
 #heading(level: 2, "Boundaries")
 Do not read a single-node-versus-cluster ratio as production capacity guidance. The nodes share the
 host's cores and have no real network between them.
+
+#heading(level: 2, "The checklist")
+
+Every answer below is a gap, and the honest response is to say so rather than to reason from how
+clusters usually behave.
+
+- *Invariant.* The same logical read returns the same answer wherever the data sits. [gap]
+- *Where the information lives.* In engine-chosen tablets and leaders — and the corpus records layout
+  *intent*, never an observed distribution. [gap]
+- *Where the contention is.* Unknown: no tablet or leader distribution has been measured. [gap]
+- *What work moved from reads to writes.* Replication and placement move work and latency, but no
+  experiment in the corpus separates them from node count. [gap]
+- *What state is derived.* A lagging replica is a copy rather than derived state, and no control has
+  been seen to serve it. [gap]
+- *What can become stale.* A follower, in principle. Unmeasured, therefore unstated. [gap]
+- *Where it stops working.* Unknown on one host with no real network path: a container count is not a
+  topology. [gap]
+- *The experiment that would settle it.* Independent hosts, balanced endpoints, a recorded
+  tablet/leader distribution and injected latency — Study 07's axes. [gap]

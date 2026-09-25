@@ -165,6 +165,12 @@ else
     if ! grep -qF "| \`$chapter\` |" "$CHECKLIST"; then
       failure "concept-checklist" "book/concepts/$chapter.typ has no row in book/concepts/CHECKLIST.md"
     fi
+    # A row in the table is not an answer: the chapter itself must carry the
+    # eight-question section (methodology 21), or the checklist is documentation
+    # about the book rather than part of it.
+    if ! grep -qF 'heading(level: 2, "The checklist")' "$BOOK_DIR/concepts/$chapter.typ"; then
+      failure "concept-checklist" "book/concepts/$chapter.typ does not answer the eight-question checklist"
+    fi
   done < <(for f in "$BOOK_DIR"/concepts/*.typ; do [[ -e "$f" ]] && basename "$f" .typ; done)
   while IFS= read -r named; do
     [[ -z "$named" ]] && continue

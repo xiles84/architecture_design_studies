@@ -53,3 +53,24 @@ is a different answer to "where does this fact live, and who maintains it".
   Placement says nothing about *physical* colocation. The corpus does not verify where a cluster
   put its data, so a placement claim here is a design claim, not a topology result.
 ]
+
+#heading(level: 2, "The checklist")
+
+The eight questions, answered for this concept; the status in brackets is the evidence behind the
+answer.
+
+- *Invariant.* After every acknowledged mutation, a derived answer equals what the base facts imply.
+  [direct]
+- *Where the information lives.* In the base table, in a copied parent key on the child, in an
+  aggregate on the parent, or inside an embedded child document. [direct]
+- *Where the contention is.* The parent row that every child write touches once an aggregate or a
+  document lives there. [direct]
+- *What work moved from reads to writes.* Aggregation (rollup) and child retrieval (embedding) both
+  move to the write path. [direct]
+- *What state is derived.* Parent aggregates, copied parent keys, and embedded child arrays. [direct]
+- *What can become stale.* An application-maintained rollup published outside the mutation's
+  transaction, and an embedded slice that lags its table. [mechanism]
+- *Where it stops working.* Embedding, once a parent's history grows without bound; a rollup, once its
+  maintenance cost exceeds the read gain it buys. [gap]
+- *The experiment that would settle it.* Isolated pairs at matched SQL, swept over cardinality and
+  history so the crossing is visible. [direct]

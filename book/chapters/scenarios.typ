@@ -37,8 +37,8 @@ window is unanswerable because releasing an expired hold erases the evidence.
 
 #heading(level: 2, "Configuration portal")
 Read the overview often, replace configurations occasionally. A trigger-maintained rollup cost
-6.85x on replacement; the application rollup kept writes near the reference. This is a small-scale
-result at one cardinality.
+4.0–5.7x on replacement across three runs; the application rollup kept writes near the reference. This
+is a small-scale result at one cardinality, and the trigger's own trials were imprecise.
 #registry-card("v2-13-trigger-rollup-cost")
 
 #heading(level: 2, "Donor portal with an external cache")

@@ -24,8 +24,10 @@ unchecked read-modify-write lost 93.7% of acknowledged updates.
 #registry-card("v2-12-lock-vs-version-upper-bound")
 
 #heading(level: 3, "Trigger versus application maintenance")
-Trigger-maintained rollups cost 6.85x on whole-configuration replacement (83.7 vs 573 ops/s, p99 2.5
-to 42 ms); the application rollup kept writes near the reference for the same read gain.
+Trigger-maintained rollups cost 4.0–5.7x on whole-configuration replacement across three
+randomized-order runs (median 4.94x), and their latency tail is 22–46x worse (p99 61–109 ms against
+2.2–2.7 ms); the application rollup kept writes near the reference. The trigger cell's own trials
+disagree by 35–115%, so quote the range and never a point.
 #registry-card("v2-13-trigger-rollup-cost")
 
 #heading(level: 3, "Strict versus relaxed freshness")

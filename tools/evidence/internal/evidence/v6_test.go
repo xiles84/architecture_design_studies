@@ -63,10 +63,12 @@ func TestV6RegistryValidates(t *testing.T) {
 	}
 }
 
-// TestV6CarriesV5ForwardUnchanged pins that v6 is a method-metadata-only package:
-// every statement, limit, confound, trial count and anchor is identical to v5. A
-// later pass that re-scopes a claim must update this test and the ledger.
-func TestV6CarriesV5ForwardUnchanged(t *testing.T) {
+// TestV6CarriesV5ForwardExceptTheReplicatedClaim pins that v6 adds method metadata
+// without re-writing the corpus: every statement, limit, confound, trial count and
+// anchor is identical to v5 except for the single claim the first run-level
+// replication re-scoped (v2-13). A later pass that re-scopes another claim must add
+// it here, in the supersession ledger, and in the analysis.
+func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	root := repoRoot(t)
 	v6, _, _, _, _, _, _, _ := loadV6Fixture(t, root)
 	v5, _, err := LoadV2(filepath.Join(root, "book", "evidence", "v5", "claims.json"))
@@ -76,25 +78,26 @@ func TestV6CarriesV5ForwardUnchanged(t *testing.T) {
 	if len(v6.Claims) != len(v5.Claims) {
 		t.Fatalf("claim count drifted: v6 %d v5 %d", len(v6.Claims), len(v5.Claims))
 	}
+	// The one claim the 2026-09-25 T1 replication corrected.
+	changed := map[string]bool{"v2-13-trigger-rollup-cost": true}
 	for i := range v6.Claims {
 		a, b := v6.Claims[i], v5.Claims[i]
 		if a.ClaimID != b.ClaimID {
 			t.Fatalf("claim order drifted at %d: %s vs %s", i, a.ClaimID, b.ClaimID)
 		}
-		if a.Statement != b.Statement {
-			t.Errorf("%s: statement changed in a method-only package", a.ClaimID)
+		same := a.Statement == b.Statement &&
+			strings.Join(a.Limits, "\x00") == strings.Join(b.Limits, "\x00") &&
+			strings.Join(a.Confounds, "\x00") == strings.Join(b.Confounds, "\x00") &&
+			a.Trials == b.Trials &&
+			len(a.Anchors) == len(b.Anchors)
+		if changed[a.ClaimID] {
+			if same {
+				t.Errorf("%s is listed as re-scoped but is identical to v5", a.ClaimID)
+			}
+			continue
 		}
-		if strings.Join(a.Limits, "\x00") != strings.Join(b.Limits, "\x00") {
-			t.Errorf("%s: limits changed in a method-only package", a.ClaimID)
-		}
-		if strings.Join(a.Confounds, "\x00") != strings.Join(b.Confounds, "\x00") {
-			t.Errorf("%s: confounds changed in a method-only package", a.ClaimID)
-		}
-		if a.Trials != b.Trials {
-			t.Errorf("%s: trials changed in a method-only package", a.ClaimID)
-		}
-		if len(a.Anchors) != len(b.Anchors) {
-			t.Errorf("%s: anchors changed in a method-only package", a.ClaimID)
+		if !same {
+			t.Errorf("%s changed without being listed as re-scoped", a.ClaimID)
 		}
 	}
 }

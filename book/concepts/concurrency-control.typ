@@ -45,3 +45,25 @@ lock advantage. A concurrency result without its lost-update control is not evid
 
 #heading(level: 2, "Boundaries")
 One key, one engine, one trial, small scale. The ratio is an upper bound and a point, not a curve.
+
+#heading(level: 2, "The checklist")
+
+The eight questions, answered for this concept; the status in brackets is the evidence behind the
+answer.
+
+- *Invariant.* The business rule holds under concurrent writers: no lost increment, no oversold seat,
+  no double sale. [direct]
+- *Where the information lives.* In the current row the writers contend for, plus whatever version or
+  lock column guards it. [direct]
+- *Where the contention is.* One hot key or row; the corpus measures one event or one installed
+  product. [direct]
+- *What work moved from reads to writes.* Conflict resolution itself: a version check or a lock turns
+  a read-then-decide into one guarded write. [mechanism]
+- *What state is derived.* Nothing in this concept; a counter or rollup a concurrent writer maintains
+  is derived state, which is its own concept. [mechanism]
+- *What can become stale.* The value a writer read before losing the race — which is why the guard has
+  to be part of the write. [mechanism]
+- *Where it stops working.* The ordering is workload-dependent: at one writer the version check leads,
+  and from four writers the lock leads by 1.26–1.60x. [mechanism]
+- *The experiment that would settle it.* A writer-count sweep of the same pair with retries disabled,
+  so the lock's advantage is separated from per-retry work. [direct]

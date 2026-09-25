@@ -25,9 +25,9 @@ from a current-state-only representation.
 
 #heading(level: 2, "Maintenance is the design")
 A rollup can be maintained by the application or by a database trigger. The trigger makes the
-guarantee structural; the measured cost was 6.85x on whole-configuration replacement (83.7 vs 573
-ops/s, p99 2.5 to 42 ms), while the application rollup kept writes near the reference for the same
-read gain. Neither is universally right: choose who must never forget.
+guarantee structural; the measured cost was 4.0–5.7x on whole-configuration replacement across three
+runs (median 4.94x), with a 22–46x worse latency tail, while the application rollup kept writes near
+the reference. Neither is universally right: choose who must never forget.
 
 #heading(level: 2, "History is answerability")
 Retained history is not faster; it is the difference between being able to answer a question after the
@@ -56,3 +56,25 @@ separate, explicit decision.
 #heading(level: 2, "Boundaries")
 The ledger's write cost is engine- and order-sensitive at the small arm; quote the run's own range
 and the disagreement, not a headline multiplier. The load-time multiplier is not published at all.
+
+#heading(level: 2, "The checklist")
+
+The eight questions, answered for this concept; the status in brackets is the evidence behind the
+answer.
+
+- *Invariant.* Published derived state agrees with the entries it summarises, and retained history is
+  never erased by the mutation that follows it. [direct]
+- *Where the information lives.* In the base entries, in an aggregate on the parent, and — for
+  answerability — in an append-only record that the mutation does not overwrite. [direct]
+- *Where the contention is.* The parent row an aggregate is maintained on, which every child write
+  touches. [direct]
+- *What work moved from reads to writes.* Aggregate maintenance. History is different: it is
+  write-only work bought for the questions it lets you answer later. [direct]
+- *What state is derived.* The rollup columns. History is a fact, not a derived value, which is why it
+  is not "stale" when it disagrees with current state. [direct]
+- *What can become stale.* Any aggregate published after the commit that produced it — the drift
+  control demonstrates it. [mechanism]
+- *Where it stops working.* A per-row trigger's cost grows with the rows a replacement touches (here
+  4.0–5.7x, with a 22–46x worse tail); history costs storage (33–35% for the ledger). [gap]
+- *The experiment that would settle it.* The n3/n4/x2 isolation pair, swept over entries per
+  installation to find where the two maintenance strategies cross. [direct]

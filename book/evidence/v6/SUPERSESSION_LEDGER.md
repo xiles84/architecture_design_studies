@@ -10,14 +10,17 @@ boundaries preferred).
 
 **What changed.** Nothing about the claims themselves. All 29 v5 claims are carried forward with their
 statement, limits, confounds, anchors, support cells, trial counts, review state and lifecycle
-**byte-identical**, pinned by `TestV6CarriesV5ForwardUnchanged` in `tools/evidence`. v6 adds:
+**byte-identical**, pinned by `TestV6CarriesV5ForwardExceptTheReplicatedClaim` in `tools/evidence` —
+with **one exception, added before the package tag**: `v2-13-trigger-rollup-cost` was re-scoped by the
+corpus's first run-level replication, which falsified its previously cited 6.85x (see `ANALYSIS.md`).
+v6 adds:
 
 | Added field | Values | Count across the 29 claims |
 |---|---|---|
 | `evidence_form` | isolate / package / not_applicable | 10 / 9 / 10 |
 | `attribution` | withheld, isolated_by, note | 20 withhold attribution |
 | `control_coverage` | present / absent / not_applicable | 7 / 15 / 7 |
-| `replication` | runs, order, spread, tier | 28 single-run, 1 run-level |
+| `replication` | runs, order, spread, tier | 27 single-run, 2 run-level (one a gap) |
 
 Optional `prediction` and `crossover` fields are defined and machine-checked but unused: no registered
 claim yet carries a recorded prediction or a bounded crossover.
