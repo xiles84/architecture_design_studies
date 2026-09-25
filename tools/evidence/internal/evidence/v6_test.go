@@ -58,8 +58,9 @@ func TestV6RegistryValidates(t *testing.T) {
 			t.Errorf("unexpected error: %v", e)
 		}
 	}
-	if len(doc.Claims) != 29 {
-		t.Fatalf("want 29 claims, got %d", len(doc.Claims))
+	// 29 carried from v5 plus v2-17, added with the first bounded crossover.
+	if len(doc.Claims) != 30 {
+		t.Fatalf("want 30 claims, got %d", len(doc.Claims))
 	}
 }
 
@@ -75,12 +76,16 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(v6.Claims) != len(v5.Claims) {
-		t.Fatalf("claim count drifted: v6 %d v5 %d", len(v6.Claims), len(v5.Claims))
+	// The claims added after v5, by id. Adding a claim is a deliberate act: it
+	// must be listed here and in the supersession ledger, or this test fails.
+	added := map[string]bool{"v2-17-optimistic-pessimistic-crossover": true}
+	if len(v6.Claims) != len(v5.Claims)+len(added) {
+		t.Fatalf("claim count drifted: v6 %d v5 %d plus %d declared additions",
+			len(v6.Claims), len(v5.Claims), len(added))
 	}
 	// The one claim the 2026-09-25 T1 replication corrected.
 	changed := map[string]bool{"v2-13-trigger-rollup-cost": true}
-	for i := range v6.Claims {
+	for i := range v5.Claims {
 		a, b := v6.Claims[i], v5.Claims[i]
 		if a.ClaimID != b.ClaimID {
 			t.Fatalf("claim order drifted at %d: %s vs %s", i, a.ClaimID, b.ClaimID)

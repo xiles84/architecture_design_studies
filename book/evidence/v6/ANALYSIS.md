@@ -51,10 +51,23 @@ form: a claim whose headline names a mechanism its own evidence cannot isolate.
 | 10 `isolate`, 9 `package`, 10 `not_applicable`, **0 `interaction`** | The book's evidence is strong on single-decision pairs and honest about packages, but it has never registered a crossed-factor result. Every interaction the corpus names as unmeasured is genuinely unmeasured. |
 | 20 of 29 withhold attribution | This is the v5 confounds (conf-01…conf-06) working as designed. The book may report these packages, but any recommendation that names one component needs the isolation experiment. |
 | 15 claims with `control_coverage: absent` | The correctness gate is only as strong as the control that fires. Seven are read-only phases where the study's controls could not fire; their correctness inference is now withdrawn rather than implied. |
-| 27 single-run, 2 run-level (one a gap), 0 hardware-independent | The charter's replication-before-domains ordering is not a preference but the corpus's largest confidence gap. One claim was replicated before the v6 tag (see the update below). |
-| 1 recorded prediction (falsified), 0 bounded crossovers | The T1 replication recorded its prediction and falsified it. A crossover still exists only outside the registry: Study 04's writer sweep, where `c2/c1` reverses between 1 and 4 writers. |
+| 27 single-run, 3 run-level (one a gap), 0 hardware-independent | The charter's replication-before-domains ordering is not a preference but the corpus's largest confidence gap. One claim was replicated before the v6 tag (see the update below). |
+| 1 recorded prediction (falsified), 1 bounded crossover | Both fields are now exercised: the T1 replication falsified its prediction, and the writer sweep registers a crossing bracketed between 1 and 2 writers. Neither is replicated - one measurement per level. |
 
-*(These counts are the ones this analysis was written with, corrected for the T1 update below.)*
+*(These counts are the ones this analysis was written with, corrected for the two updates below.)*
+
+## Update (2026-09-25, second): the first bounded crossover
+
+`v2-17-optimistic-pessimistic-crossover` is a **new** claim (the 30th), not a re-scope. It was created by
+extending Study 04's writer sweep from four levels to seven — 1, 2, 4, 8, 16, 32 and 64 writers — which
+is what the `crossover` lint requires before a claimed reversal may be presented: five levels and a stated
+crossing interval. The earlier four levels gave a reversal between 1 and 4 writers; two adjacent levels
+(1 and 2) now bracket it, since `c2/c1` goes 0.89 → 1.10 there.
+
+Three consequences for the counts above: the claim total is **30**, one claim carries a `crossover`
+record, and `crossover-bounded` moves from `gap` to `measured` in `coverage.json`. The addition is
+declared in `TestV6CarriesV5ForwardExceptTheReplicatedClaim`, which now permits exactly one added claim
+and one re-scoped claim and nothing else.
 
 ## Where this analysis is weak
 
