@@ -299,15 +299,24 @@ summary, not a second ledger.
   - `docs/empirical-method-program.md` — the ordered T1–T5 program (replication → crossover sweeps →
     interactions → package isolation → gated domain/topology expansion) with the ordering rule that
     blocks T5 while T1 is outstanding.
-- **Blocker:** this host has no Podman and no Typst, so no measurement, no `tools/queue` publish/claim
-  and no PDF build can run here. `.queue-drafts/` is git-ignored (`.git/info/exclude`), so it is not a
-  durable handoff; the program document is the committed record.
+- **Blocker corrected 2026-09-25:** the host has no Podman or Typst *in the WSL distro*, but Windows
+  Podman 5.8.1 (`/mnt/c/Program Files/RedHat/Podman/podman.exe`, machine `podman-machine-default`,
+  already running) is reachable through `infra/lib.sh`, and the pinned `localhost/ads-book:1` Typst
+  image is cached. `podman info` reports 8 CPUs / 16,496,418,816 B, matching `host-zenbook-ux5406sa`.
+  Measurement and the book build both run here; the earlier "no build can run" note was wrong.
+  `.queue-drafts/` is still git-ignored (`.git/info/exclude`), so the program document remains the
+  durable record.
+- **Verified 2026-09-25:** the book builds against the v6 registry — `book/build.sh` to a scratch path
+  gives 61 pages, 6/6 fonts embedded, 29/29 claims indexed, evidence digest present, no unverified
+  banner, no unresolved tokens, edition on page.
 - **Found and fixed on this task:** `book/CHANGELOG.md` named a fixed registry path
   (`book/evidence/v5/`), which fails the `registry-literal` rule in `book/evidence/check.sh` on `main`
   itself. Reworded to name the then-active package without a path literal.
 - **Remaining for the method layer:** integrating the eight-question checklist into the eight Typst
-  concept chapters (needs a Podman/Typst session to compile-verify), and publishing T1–T5 as queue
-  tasks (needs `tools/queue`).
+  concept chapters, then rebuilding the tracked PDF; publishing T1–T5 as queue tasks (`tools/queue`
+  works now); and correcting `v2-13`'s superseded 6.85x figure, which needs a registry package change
+  (the v6 package tag `repo/book-evidence-registry-v6` has not been created yet, so the correction
+  belongs in v6 before it is tagged).
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
@@ -338,19 +347,36 @@ unanswerable in every design, L2 answers the 100k-seat map 4.5-11x the row desig
 and L3's point lookups collapse to 26 ops/s.
 → [Study](studies/03-reserved-seating/) · [reports](studies/03-reserved-seating/reports/)
 
-### Study 04 — configuration portal — **v1 measured, independently reviewed; v2 protocol next**
+### Study 04 — configuration portal — **v1 measured and reviewed; v2 tranches measured; T1 replication landed**
 
-`product → installed product → configuration entry`: 18 designs planned, 10 implemented, measured on
+`product → installed product → configuration entry`: 18 designs planned, 11 implemented, measured on
 PostgreSQL (`small`) with two negative controls. The independent HIGH review landed 2026-09-22
 (`task-20260922T025912Z-study04-independent-review`, signed analysis
 `20260921T1215Z-small--deepseek-flash--2026-09-22`): it accepted the 93.7% control loss, the
-15.2-15.8x rollup read gain at a 6.85x write cost, and the deterministic 10.5x document storage
-win; it narrowed the 1.76x lock advantage to an upper bound and found that the ~1.7x identical-SQL
-attribution floor is real but its proposed cell-order cause is not corroborated by the recorded
-order. Next: the v2 completion protocol (`task-20260922T025912Z-study04-v2-protocol`, now unblocked),
-which must recover the missing designs and add cardinality, cadence/churn, repeated randomized
-trials, equal-total resources, placement and YugabyteDB, plus the three controls the review
-requires (repeated-design instrument control, `-retries 1`, writer sweep).
+15.2-15.8x rollup read gain, and the deterministic 10.5x document storage win; it narrowed the 1.76x
+lock advantage to an upper bound and found that the ~1.7x identical-SQL attribution floor is real but
+its proposed cell-order cause is not corroborated by the recorded order. The v2 tranches (controls,
+cardinality/cadence, staleness, `d2`) are measured — see open gap 3 below.
+
+**T1 replication (2026-09-25, tag `study-04/v2-t1-replication`):** the first run-level replication in
+the corpus. Three whole runs (`20260925T190831Z`, `20260925T191610Z`, `20260925T194447Z`; order seeds
+101/202/303) of `n3_rollup_trigger` vs `n4_rollup_app` vs the `x2` drift control on `w05_replace_all`,
+`pg-single`, `small`, three trials each. The prediction was committed **before** the runs
+(`T1-REPLICATION.md`). Result: the direction replicated in 3/3 runs (application-maintained faster,
+3.99x / 4.94x / 5.69x, median 4.94x) but the previously cited **6.85x did not reproduce**; the trigger
+cell's own trials disagree by 35–115%, above the 20% precision rule, so the pair now supports a
+direction and a range, not a point ratio. New: the trigger's p99 is 61–109 ms against 2.2–2.7 ms
+(22–46x), and the trigger's **first trial was the slowest in every run** (1.5–5.6x below the cell
+median) — a within-cell position effect. The `x2` control fired in all three runs (60 rollup
+mismatches, INV-8/INV-9). The read-phase prediction is unresolved because the committed scope ran no
+read phase. Signed analysis:
+`studies/04-configuration-portal/reports/analyses/20260925T1-replication--deepseek-flash--2026-09-25.md`.
+The active registry still states the superseded 6.85x figure; correcting it needs a registry package
+change (see the method-layer entry above).
+
+Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
+`h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the
+review requires (repeated-design instrument control, `-retries 1`, writer sweep).
 → [Study](studies/04-configuration-portal/) · [reports](studies/04-configuration-portal/reports/)
 
 ### Study 05 — external cache — **v1 reviewed; v2 runs landed (churn/scale, resources/engines, open-loop)**

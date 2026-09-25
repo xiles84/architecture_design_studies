@@ -1720,8 +1720,41 @@ nothing written there can reach `main`. Drafts staged there exist only in the fo
 A program that must survive a session belongs in a tracked document (here
 `docs/empirical-method-program.md`) with the publish commands it needs.
 
-### A missing toolchain is a resource gap, not a decision gap
-This host has no Podman and no Typst, so measurement, the queue CLI and the PDF build are all
-unavailable at once. The honest output is the verifiable part — registry, lints, templates, method,
-checker rule — plus a named blocker, not a half-run matrix or an unverified Typst edit. A Typst change
-that cannot be compiled is the book's version of a number that cannot be reproduced.
+### A missing toolchain is a resource gap, not a decision gap — and it was not missing
+This host has no Podman or Typst in the WSL distro, so the first conclusion drawn was that measurement,
+the queue CLI and the PDF build were all unavailable. The honest response to that conclusion was the
+verifiable part — registry, lints, templates, method, checker rule — plus a named blocker rather than a
+half-run matrix or an unverified Typst edit. **That conclusion was wrong.** Windows-side Podman 5.8.1
+was installed the whole time at `/mnt/c/Program Files/RedHat/Podman/podman.exe`, reachable through
+`infra/lib.sh`, with the pinned Typst image cached; `podman info` reported the documented 8 CPUs /
+16.5 GB. Two lessons: check the Windows side of a WSL host before declaring a container resource
+absent (the repo's own `hostpath` helper and the `wsl-podman-bridge` work exist for exactly this), and a
+"resource gap" claim is itself a claim that needs checking — not merely one that needs stating.
+
+## Replicating a claim, and what it cost (2026-09-25)
+
+### A replicated ratio can keep its direction and lose its magnitude
+The registry's `v2-13` cited one run at 6.85x (83.7 vs 573 ops/s) for the trigger-vs-application rollup
+pair. Three whole runs with randomized order gave 3.99x, 4.94x and 5.69x — same direction every time,
+magnitude never as large. One run established a direction; it could not establish a number. Reporting
+the replicated range and retiring the point estimate is the whole point of the exercise.
+
+### A prediction's falsifier must be as strong as its expectation
+P1 expected the 6.85x to reproduce, but its stated falsifier was only "the median falls inside the
+suppression floor or reverses". The median was 4.94x and nothing reversed, so by its own wording the
+prediction was "not falsified" while its actual expectation plainly failed. A falsifier has to name the
+observation that would refute the *expectation* (here: a three-run median far from 6.85x), or it
+degrades into a test that passes whatever happens.
+
+### A cell whose own trials span the ratio cannot report a point
+The trigger cell's three trials inside one run were `[40,159,162]`, `[22,124,165]` and `[61,91,93]` —
+spreads of 77%, 115% and 35%, against the corpus's ~20% rule, while the application cell was flat at
+1.4–6.8%. The reported ratio is therefore a range over an unstable cell, and the registry claim must
+say so instead of quoting a ratio as though both sides were equally precise.
+
+### The first trial of a cell can carry a 2–5x position penalty
+In all three runs the trigger's first trial was its slowest (`40` vs a `159` median, `22` vs `124`,
+`61` vs `91`). Warmup is discarded by duration, not by effect, so a design whose cost grows with cache
+state or bloat starts each cell cold. Two consequences: the median is doing real work here, and the
+within-run position effect the corpus already suspected is now measured — inside a single cell, before
+any cross-cell ordering enters.
