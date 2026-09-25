@@ -317,7 +317,9 @@ summary, not a second ledger.
   chapters and `check.sh` fails if a chapter lacks it; `v2-13` is re-scoped to the replicated range
   (strength `run_replicated`, a `falsified` prediction, four anchors) and the superseded 6.85x is
   retired; the four prose sites that repeated it are corrected; the tracked PDF is rebuilt on v6
-  (65 pages, 29/29 claims, digest present).
+  (65 pages, 29/29 claims, digest present). The new `concept-checklist` rule was negative-controlled:
+  deleting the section from one chapter in a scratch copy fails the check with that chapter named,
+  while the real tree passes.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), and
   the still-open coverage dimensions — 27 of 29 claims are single-run, no claim is a bounded
   `crossover`, and no claim has `evidence_form: interaction`.
