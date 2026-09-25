@@ -66,6 +66,14 @@ type V2Claim struct {
 	SupersededBy        []string `json:"superseded_by"`
 	ClosedDimensions    []string `json:"closed_dimensions"`
 	RemainingDimensions []string `json:"remaining_dimensions"`
+	// v6 method metadata. v2-v5 files do not carry these keys; the zero values
+	// mean "not declared", which is why their rules live in ValidateV6.
+	EvidenceForm    string         `json:"evidence_form"`
+	Attribution     V2Attribution  `json:"attribution"`
+	ControlCoverage string         `json:"control_coverage"`
+	Prediction      *V2Prediction  `json:"prediction"`
+	Replication     *V2Replication `json:"replication"`
+	Crossover       *V2Crossover   `json:"crossover"`
 }
 
 type V2Trials struct {

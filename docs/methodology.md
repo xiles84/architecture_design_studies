@@ -461,3 +461,80 @@ figure and a second reader who checks it against the claim or SQL — say what t
 per figure whether it was kept, redesigned or dropped, and why. Two passes by one model are weaker
 than two independent readers; say so when that is what happened rather than implying independence.
 
+## 16. A prediction is recorded before measurement
+
+This project's identity is empirical architecture, not a benchmark of implementations: it explains a
+mechanism, predicts what it will do, isolates it, sweeps the regimes where it should matter, combines
+it into a realistic package, measures, explains the result, and states where the evidence stops.
+
+The **prediction** is the step that makes the rest falsifiable rather than descriptive. Each study
+protocol carries a `## Prediction` section, written and committed **before** any code that measures
+([study protocol template](templates/STUDY_PROTOCOL.md)): the expected direction, the expected
+mechanism, the expected crossover or regime, and the observation that would refute it. The generated
+report quotes the predictions verbatim, and the final analysis gives each one a verdict —
+`confirmed`, `falsified` or `unresolved`. A prediction added after a result is a retrofit and is
+marked `unrecorded`. A falsified prediction is a result and is reported as one.
+
+## 17. Three forms of evidence, and no attribution from a package
+
+Comparisons come in three forms, and the form decides what may be claimed:
+
+- **`isolate`** — exactly one decision differs, with SQL, indexes, data and resources otherwise
+  matched. The delta may be attributed to that decision.
+- **`interaction`** — two decisions are crossed. Neither main effect may be attributed alone; the
+  interaction is the result.
+- **`package`** — several decisions change together, as real designs do. The package may be reported,
+  but **no component may be named as the cause unless an isolation experiment supports it**;
+  otherwise the attribution is withheld and the claim says so.
+
+Every registered claim is labelled with its form. A claim that lists a confound must either name the
+isolation pair that supports its headline or record that attribution is withheld. A package result is
+evidence about the package; turning it into a recommendation about one mechanism requires the
+isolation experiment, not a plausible story.
+
+## 18. Replication, order and variability come before new domains
+
+A single run on one machine is a hypothesis, not a measurement (section 8). Before the corpus expands
+into another domain, its single-run headline claims are strengthened:
+
+- **Whole-run replication.** A conclusion that argues a small difference is measured in several
+  independent runs, not several trials inside one run.
+- **Randomized or interleaved order.** Design order is shuffled or interleaved per run from a recorded
+  seed, and the same design is placed first and last in a phase at least once, because a design's
+  measured speed can follow its position (see `LESSONS_LEARNED.md`).
+- **Across-run variability.** Results report the median and the spread *between* runs, not only the
+  spread of trials inside one run.
+
+Two tiers are recorded and never conflated: **`run-level`** replication (separate runs, one machine,
+still exposed to that machine's hazards) and **`hardware-independent`** replication (separate hosts,
+owned by Study 07). A same-machine repeat is never described as hardware-independent.
+
+## 19. Crossovers and boundaries are the preferred result
+
+A study that reports only that A is faster than B has answered a weaker question than one that reports
+**where the ordering reverses**. Where a design's weakness depends on a workload property, the study
+sweeps that property and reports the monotonicity, the reversal, and the crossing interval with its
+spread. A two-point comparison is a direction, not a curve, and is labelled as such. The boundary —
+the regime in which the design stops working — is stated with the same care as the design's best case,
+and section 8a's "change the shape, hold the volume" rule applies to every sweep.
+
+## 20. Read-only experiments need a read-path negative control
+
+Section 5a requires a deliberately wrong design for every invariant, and a read-only phrase cannot
+exercise a write-path control. A read-only experiment therefore carries a **read-path control**: a
+deliberately stale or wrong copy that must be *seen* to return the wrong answer. Where no read-path
+control exists, the claim records `control_absent`, and the absence of violations in the other designs
+is not evidence of their correctness — only of a control that could not fire. This is the same rule as
+5a, applied to the phases where most of the corpus's read claims were made.
+
+## 21. The book explains each concept against a fixed checklist
+
+Each concept chapter answers the same questions, with an evidence-status label per answer
+(`direct` / `mechanism` / `analogy` / `gap`): What is the invariant? Where does the information live?
+Where is the contention? What work moved from reads to writes? What state is derived? What can become
+stale? Under which workload does the decision stop working? Which experiment would prove or disprove
+the expectation? A question with no evidence is shown as a gap rather than answered by analogy.
+
+The checklist is a reading frame for the concepts, not an exercise set: the book contains no reader
+exercises.
+

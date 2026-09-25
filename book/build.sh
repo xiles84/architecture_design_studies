@@ -40,7 +40,7 @@ TYPST_IMAGE="ghcr.io/typst/typst@${TYPST_DIGEST}"
 
 OUT_REL="dist/data-architecture-reference.pdf"
 MANIFEST_REL="dist/build-manifest.json"
-REGISTRY_VERSION="v5"
+REGISTRY_VERSION="v6"
 
 # The edition is stated once, in lib/config.typ, and read here. A second copy in this
 # script is how the manifest came to say "Edition 1" beside a title page that said

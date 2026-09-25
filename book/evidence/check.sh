@@ -15,7 +15,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOK_DIR="$(cd "$HERE/.." && pwd)"
-REGISTRY_VERSION="v5"
+REGISTRY_VERSION="v6"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -150,6 +150,29 @@ while IFS= read -r asset; do
     failure "orphan-figure" "$asset is registered but no Typst source embeds it"
   fi
 done < <(jq -r '.figures[].asset' "$BOOK_DIR/assets/figures.json" 2>/dev/null || true)
+
+# --- concept-checklist ---------------------------------------------------
+# Every concept chapter answers the same eight questions, and the canonical list
+# plus its per-concept evidence status lives in book/concepts/CHECKLIST.md
+# (methodology 21). The two must not drift: a chapter with no row is invisible to
+# the frame, and a row for a chapter that does not exist is a stale promise.
+CHECKLIST="$BOOK_DIR/concepts/CHECKLIST.md"
+if [[ ! -f "$CHECKLIST" ]]; then
+  failure "concept-checklist" "book/concepts/CHECKLIST.md is missing; methodology 21 requires the concept checklist"
+else
+  while IFS= read -r chapter; do
+    [[ -z "$chapter" ]] && continue
+    if ! grep -qF "| \`$chapter\` |" "$CHECKLIST"; then
+      failure "concept-checklist" "book/concepts/$chapter.typ has no row in book/concepts/CHECKLIST.md"
+    fi
+  done < <(for f in "$BOOK_DIR"/concepts/*.typ; do [[ -e "$f" ]] && basename "$f" .typ; done)
+  while IFS= read -r named; do
+    [[ -z "$named" ]] && continue
+    if [[ ! -f "$BOOK_DIR/concepts/$named.typ" ]]; then
+      failure "concept-checklist" "book/concepts/CHECKLIST.md names a chapter that does not exist: $named"
+    fi
+  done < <(grep -E '^\| `[a-z0-9-]+` \|(.*\|){7}' "$CHECKLIST" | sed -n 's/^| `\([a-z0-9-]*\)` |.*/\1/p')
+fi
 
 if [[ "$failures" -gt 0 ]]; then
   printf 'check: %d failure(s)\n' "$failures" >&2

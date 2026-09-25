@@ -4,18 +4,20 @@ Every number in the book must resolve to a claim here, and every claim must reso
 digest, report and signed analysis. The registry is validated by [`tools/evidence`](../../tools/evidence/README.md),
 and the Typst sources are checked by [`check.sh`](check.sh) before every build.
 
-## One active source: `v5/`
+## One active source: `v6/`
 
 | File | Purpose |
 |---|---|
-| `v5/claims.json` | **the active registry.** The v4 claims carried forward, with five re-scoped so that no statement or limit asserts more than its own evidence supports (v2-07, v2-10, v2-14, v2-16, v3-06); each claim names its family, study, strength, status, run-level status, structured support keys, confounds, limits and exact provenance |
-| `v5/schema.json` | the committed JSON Schema the active registry must satisfy |
-| `v5/confounds.json` | the six confounds that must be published beside the numbers they affect |
-| `v5/coverage.json` | the coverage matrix (`measured` / `measured-but-confounded` / `planned` / `gap` / `not_applicable`) with review state |
-| `v5/SUPERSESSION_LEDGER.md` | the attributed v4 → v5 change record: all 29 claims audited, the five re-scoped claims with their before/after text, and why v3-06 keeps its statement |
-| `v5/ANALYSIS.md` | the signed claim-versus-limit audit: the per-claim verdict table for all 29 claims and the two observations recorded without a change |
-| `v3/*`, `v2/*`, `claims.json`, `claims.schema.json` | **frozen** historical packages at tags `repo/book-evidence-registry-v3`, `-v2`, `-v1`. Never edited; a later package carries their still-active claims forward and records what it retires. |
-| `check.sh`, `check-waivers.txt` | the structural source rules the build runs, and the standing exceptions to them |
+| `v6/claims.json` | **the active registry.** All 29 v5 claims carried forward byte-identical, plus the empirical-architecture method metadata: `evidence_form` (isolate / interaction / package / not_applicable), `attribution` (withheld + `isolated_by`), `control_coverage`, and a `replication` record; `prediction` and `crossover` are defined and currently unused |
+| `v6/schema.json` | the committed JSON Schema the active registry must satisfy, including the method enums |
+| `v6/confounds.json` | the six confounds that must be published beside the numbers they affect |
+| `v6/coverage.json` | the coverage matrix (`measured` / `measured-but-confounded` / `planned` / `gap` / `not_applicable`) with review state, extended with the method dimensions: evidence-form classification, interaction experiments, recorded predictions, bounded crossovers, run-level replication, read-path controls |
+| `v6/method_migration.json` | the per-claim record of how each v6 field was assigned, so the classification is auditable rather than inferred |
+| `v6/SUPERSESSION_LEDGER.md` | the attributed v5 → v6 change record (frozen v4 → v5 text below it) |
+| `v6/ANALYSIS.md` | the signed method-metadata analysis: what v6 adds, the four machine-checked rules, and the findings (0 interaction claims, 0 predictions, 0 bounded crossovers, 20/29 withheld attributions, 15 claims with no fired control) |
+| `v5/*` | **frozen** predecessor: the five claims re-scoped by the 2026-09-24 claim-versus-limit audit (v2-07, v2-10, v2-14, v2-16, v3-06) |
+| `v4/*`, `v3/*`, `v2/*`, `claims.json`, `claims.schema.json` | **frozen** historical packages at tags `repo/book-evidence-registry-v4`, `-v3`, `-v2`, `-v1`. Never edited; a later package carries their still-active claims forward and records what it retires. |
+| `check.sh`, `check-waivers.txt` | the structural source rules the build runs (including `concept-checklist` against `book/concepts/CHECKLIST.md`), and the standing exceptions to them |
 
 ## Claim lifecycle (v4 and later)
 
@@ -36,8 +38,9 @@ and the Typst sources are checked by [`check.sh`](check.sh) before every build.
 
 ```bash
 cd tools/evidence
-go run . validate    --repo ../..   # default: the v5 package, 0 errors required
-go run . validate-v5 --repo ../..   # explicit v5 validation (lifecycle rules + repetition lint)
+go run . validate    --repo ../..   # default: the v6 package, 0 errors required
+go run . validate-v6 --repo ../..   # explicit v6 validation (lifecycle + repetition + method lints)
+go run . validate-v5 --repo ../..   # explicit v5 validation (frozen predecessor)
 go run . validate-v4 --repo ../..   # explicit v4 validation (frozen predecessor, unchanged)
 go run . validate-v3 --repo ../..   # the frozen v3 predecessor
 go run . validate-v2 --repo ../..   # the frozen v2 predecessor
@@ -45,8 +48,8 @@ go run . v1-diagnostic --repo ../.. # the frozen v1 audit: 11/12 claims, 36/43 n
 go test ./...                       # the resolver and lifecycle rules, including negative controls
 ```
 
-`validate` dispatches on the file's own `schema_version`; the default resolves v5, and a v5
-supersession or retirement may name a claim in any frozen predecessor (v1, v2 or v3).
+`validate` dispatches on the file's own `schema_version`; the default resolves v6, and a v6
+supersession or retirement may name a claim in any frozen predecessor (v1, v2, v3, v4 or v5).
 
 Source-level checks, run by `book/build.sh` before it compiles:
 

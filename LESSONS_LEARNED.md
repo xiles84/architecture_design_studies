@@ -1682,3 +1682,46 @@ picture contains; inspect the raster, not only whether the renderer succeeded.
 because the recorded gitdir file pointed at a relative path that no longer resolved. Running
 `git worktree repair <path>` from the main checkout fixed the link, after which the claim, commits,
 submit and integrate all worked. Check `git worktree list` after a claim, before trusting the folder.
+
+## Recording the method (2026-09-25)
+
+### A method field that cannot fail its own rule is documentation, not a gate
+Adding `evidence_form` and `attribution` to the registry changed nothing on its own: the v1 registry
+was schema-valid and resolved to nothing, which is the failure mode a schema cannot catch. The fields
+only became a gate when each rule got a lint *and* a fixture that must fail — a package claim with no
+isolation pair, a confounded claim with no withheld attribution, `control_coverage: present` beside
+`controls_fired: 0`, `run_replicated` with one run and fixed order, a reversal with three levels. All
+29 claims passed the lints unchanged, which is the useful result: the corpus was already honest, and
+now it can no longer become dishonest silently.
+
+### A metadata-only registry version needs a byte-identical carry-forward test
+The risk of a "metadata pass" is that it quietly rewords a statement while claiming to add fields. The
+guard is a test that fails on any difference in statement, limits, confounds, trials or anchor count
+between the new package and its predecessor (`TestV6CarriesV5ForwardUnchanged`). It also pins claim
+order, so a reordering cannot hide a change.
+
+### A source checker needs its own negative control, or it fires on the wrong rows
+The first version of the `concept-checklist` rule extracted every `` | `name` | `` row from
+`CHECKLIST.md`, which also matched the four evidence-status legend rows (`direct`, `mechanism`,
+`analogy`, `gap`) and reported them as chapters that do not exist. The rule now requires a row with
+eight columns, and a temporary-copy test proves it still fires when a real concept row is deleted.
+Every new checker rule needs the same treatment as a correctness gate: show it catching the thing it
+is for.
+
+### A book source check can already be failing on `main`
+`book/evidence/check.sh` failed on `main` before this task: `book/CHANGELOG.md` named a fixed registry
+path, which the `registry-literal` rule forbids, and no session had run the check since that line was
+written. Run the check first, on an unmodified checkout, before attributing a failure to your own
+change — and fix the pre-existing one when it is in the tree you are already editing.
+
+### An ignored staging directory is not a handoff
+`.queue-drafts/` is excluded by `.git/info/exclude`, so a new git worktree does not contain it and
+nothing written there can reach `main`. Drafts staged there exist only in the folder that wrote them.
+A program that must survive a session belongs in a tracked document (here
+`docs/empirical-method-program.md`) with the publish commands it needs.
+
+### A missing toolchain is a resource gap, not a decision gap
+This host has no Podman and no Typst, so measurement, the queue CLI and the PDF build are all
+unavailable at once. The honest output is the verifiable part — registry, lints, templates, method,
+checker rule — plus a named blocker, not a half-run matrix or an unverified Typst edit. A Typst change
+that cannot be compiled is the book's version of a number that cannot be reproduced.

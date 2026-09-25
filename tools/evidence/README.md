@@ -3,13 +3,14 @@
 Validates the book claim-to-evidence registry against its committed JSON Schema and the repository
 it cites. No external dependencies; runs offline.
 
-The **active** registry is the v5 package, `book/evidence/v5/claims.json`. `validate` defaults to it
-and dispatches on the file's own `schema_version`; point `--claims`/`--schema` at the v4, v3, v2 or v1
-files to inspect an older registry explicitly.
+The **active** registry is the v6 package, `book/evidence/v6/claims.json`. `validate` defaults to it
+and dispatches on the file's own `schema_version`; point `--claims`/`--schema` at the v5, v4, v3, v2 or
+v1 files to inspect an older registry explicitly.
 
 ```
-go run . validate    --repo ../..                # active v5: schema + semantic resolver + lifecycle + lint
-go run . validate    --repo ../.. --list-inputs  # v5 claim ids that may appear in the book
+go run . validate    --repo ../..                # active v6: schema + semantic resolver + lifecycle + lints
+go run . validate    --repo ../.. --list-inputs  # v6 claim ids that may appear in the book
+go run . validate-v6 --repo ../..                # explicit v6 validation (method lints, predecessor set = v1..v5)
 go run . validate-v5 --repo ../..                # explicit v5 validation
 go run . validate-v4 --repo ../..                # explicit v4 validation
 go run . validate-v3 --repo ../..                # explicit v3 validation
@@ -81,3 +82,18 @@ adds the v4 positive check, the retirement regression (the two stale placement g
 with successors that exist), that v4 carries the v3 statements forward unchanged (27 of them), and
 four lifecycle negative controls: a gap with no `gap_kind`, a `retired` status inside `claims[]`,
 a partial supersession with no successors, and a successor id that resolves to nothing.
+
+12. **Method metadata (v6 only).** `ValidateV6` adds four rules the 2026-09-25 empirical-architecture
+    charter requires: (a) a `package` claim may not name a component without an isolation pair, and a
+    claim listing a confound must withhold attribution or name that pair; (b) `control_coverage:
+    present` may not stand beside `controls_fired: 0` or with no control present — an unfired control
+    is not coverage; (c) `run_replicated` needs at least two whole runs, a non-fixed order and a
+    recorded prediction, `hardware_replicated` needs the hardware-independent tier, and the two tiers
+    may never be conflated; (d) a reported reversal needs at least five levels and a crossing interval.
+    The v6 schema also widens the study pattern to `01`–`09` so a claim may cite a later study.
+
+`internal/evidence/v6_test.go`
+adds the v6 positive check, the byte-identical carry-forward test against v5, a per-claim metadata
+completeness check, and four lint negative controls: a package with no isolation pair, a confounded
+claim with no withheld attribution, `control_coverage: present` beside zero fired controls, and a
+crossover reversal with three levels and no interval.

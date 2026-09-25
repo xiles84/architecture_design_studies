@@ -47,16 +47,24 @@ summary, not a second ledger.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
   EH-02 and Studies 03–05 by reference (see [`docs/ai-work/tasks/`](docs/ai-work/tasks/) and the
   archived history) and fixes public status drift.
-- **Active book evidence source:** `book/evidence/v5/claims.json` (re-scopes five claims whose
-  statements or limits asserted more than their own evidence supported; tag target
-  `repo/book-evidence-registry-v5`; see
-  [`book/evidence/README.md`](book/evidence/README.md)). v4 retired the two stale placement/endpoint
-  gaps, and in doing so carries every still-active v3 claim
-  forward content-identically and adds claim lifecycle metadata (`status`, `gap_kind`,
-  `superseded_by`, `closed_dimensions`, `remaining_dimensions`). v3
+- **Active book evidence source:** `book/evidence/v6/claims.json` (tag target
+  `repo/book-evidence-registry-v6`; see
+  [`book/evidence/README.md`](book/evidence/README.md)). v6 carries all 29 v5 claims forward with their
+  statements, limits, confounds, anchors, support cells, trials and lifecycle **byte-identical** and
+  adds the empirical-architecture method metadata: `evidence_form` (isolate / package /
+  not_applicable — currently 10 / 9 / 10, with **0 interaction**), `attribution` (20 of 29 withhold a
+  component-level attribution), `control_coverage` (7 present, 15 absent, 7 not applicable) and a
+  `replication` record (28 single-run, 1 run-level, **0 hardware-independent**). Four method lints are
+  machine-checked with failing fixtures; `optional` `prediction` and `crossover` fields are defined and
+  unused (0 recorded predictions, 0 bounded crossovers). Assignment of every value is auditable in
+  `book/evidence/v6/method_migration.json`; the pass is analysed in `book/evidence/v6/ANALYSIS.md`.
+  v5 (`book/evidence/v5/`, tag `repo/book-evidence-registry-v5`) re-scoped five claims whose statements
+  or limits asserted more than their own evidence supported and remains a **frozen predecessor**. v4
+  retired the two stale placement/endpoint gaps and added claim lifecycle metadata (`status`,
+  `gap_kind`, `superseded_by`, `closed_dimensions`, `remaining_dimensions`). v3
   (`book/evidence/v3/`, tag `repo/book-evidence-registry-v3`), v2 and v1 are **frozen historical
   reference**; v1's claim-to-cell resolution failed (36 of 43 names resolve nowhere).
-  `tools/evidence validate` defaults to v5; `validate-v5/-v4/-v3/-v2` pin a package explicitly.
+  `tools/evidence validate` defaults to v6; `validate-v6/-v5/-v4/-v3/-v2` pin a package explicitly.
 - **Claim-versus-limit audit (2026-09-24, task `book-evidence-v5-consistency`):** all 29 active
   claims were audited for the class "the statement asserts more than its limits, trials or
   anchors support". Five were re-scoped and 24 passed unchanged: `v2-10` dropped an
@@ -269,6 +277,37 @@ summary, not a second ledger.
     `task-20260923T235919Z-book-cache-decision-map` (completed),
     `task-20260923T235925Z-cache-untested-protocols` (proposed).
     [CONCLUSION](docs/ai-work/brainstorms/records/2026/09/brainstorm-20260923T172022Z-cache-strategy-coverage-by-schema-control/CONCLUSION.md)
+
+### Empirical-architecture method layer — **implemented; experiments not started**
+
+- Charter (owner, 2026-09-25): the book's identity is empirical architecture — explain, **predict**,
+  isolate, sweep regimes, combine, measure, explain, state the boundary. Crossover/boundary results are
+  preferred over larger throughput numbers; controlled single-variable, interaction and package
+  comparisons are three distinct evidence forms, and a package may not be attributed to a component
+  without an isolation experiment. Replication comes **before** new domains; no reader exercises.
+- Implemented in `task repo/empirical-method` (tag `repo/empirical-method-v1`):
+  - `docs/methodology.md` sections 16–21 (prediction precondition, three evidence forms, replication
+    tiers and ordering, crossovers/boundaries, read-path controls, the eight-question concept
+    checklist).
+  - `docs/templates/STUDY_PROTOCOL.md` — the per-study protocol template with a committed-before-code
+    `## Prediction` section, evidence-form table, read-path controls, sweep levels and replication plan.
+  - `book/evidence/v6/` — the method-metadata registry (see the evidence bullet above), with four
+    machine-checked lints each proven by a failing fixture.
+  - `book/concepts/CHECKLIST.md` — the eight-question reading frame with a per-concept evidence-status
+    table, checked against `book/concepts/*.typ` by a new `concept-checklist` rule in
+    `book/evidence/check.sh`.
+  - `docs/empirical-method-program.md` — the ordered T1–T5 program (replication → crossover sweeps →
+    interactions → package isolation → gated domain/topology expansion) with the ordering rule that
+    blocks T5 while T1 is outstanding.
+- **Blocker:** this host has no Podman and no Typst, so no measurement, no `tools/queue` publish/claim
+  and no PDF build can run here. `.queue-drafts/` is git-ignored (`.git/info/exclude`), so it is not a
+  durable handoff; the program document is the committed record.
+- **Found and fixed on this task:** `book/CHANGELOG.md` named a fixed registry path
+  (`book/evidence/v5/`), which fails the `registry-literal` rule in `book/evidence/check.sh` on `main`
+  itself. Reworded to name the then-active package without a path literal.
+- **Remaining for the method layer:** integrating the eight-question checklist into the eight Typst
+  concept chapters (needs a Podman/Typst session to compile-verify), and publishing T1–T5 as queue
+  tasks (needs `tools/queue`).
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 

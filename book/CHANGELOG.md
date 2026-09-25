@@ -2,7 +2,7 @@
 
 This revision applies the owner-supplied external review of the Edition 2 PDF. It changes prose and
 figures only: **no measured number, claim id, trial count, evidence classification, confound or gap was
-changed**, and `book/evidence/v5/` is untouched. The revision was executed as two queue tasks
+changed**, and the then-active v5 evidence package is untouched. The revision was executed as two queue tasks
 (`book-visual-correctness-a`, `book-visual-tranche-b`) and released by
 `task-20260924T170502Z-book-v2-1-release`. Tags: `repo/data-architecture-book-visual-correctness-a`,
 `repo/data-architecture-book-visual-tranche-b`, `repo/data-architecture-book-v2-1`.
