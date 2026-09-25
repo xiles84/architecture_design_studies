@@ -1799,3 +1799,24 @@ as having a mechanism, and a *consistent* confounded difference is still confoun
 on a comparison where order never varied is three runs of the same mistake. That tranche also ran without
 `explain`, so it could not test the one explanation that mattered. Run the position control first: a
 replicated gap with no mechanism is an open question, not a result.
+
+### A single-order comparison can carry a 1.5x positional term
+The position control settled the r01 anomaly in two runs and 8 minutes: with `n3` first, `n4/n3` = 0.62;
+with `n4` first, 1.50. Each design reads `r01` about **1.55x** faster when it holds first position, and
+the plan, SQL, storage and row counts are identical in all four combinations. So a 1.5x "design
+difference" was entirely positional — and the same harness measured it the other way round in the write
+phase, where the *first* trial was the slowest, so the sign of a position effect is not even predictable
+across phases. Two consequences: any read comparison reported from one realized order should say so, and
+the cheapest possible experiment (run it the other way round) should be tried before theorising about the
+mechanism. The earlier tranche's three-run consistency was worth nothing here, because all three runs
+repeated the same order — replication of a comparison is not replication of an *order*.
+
+### Extend the measurement before relaxing the rule
+The corpus had a real reversal (optimistic vs pessimistic locking, crossing between 1 and 4 writers) and
+could not register it: the new `crossover` lint requires five levels and a stated crossing interval, and
+the sweep had four. Relaxing the lint to fit the data was the available shortcut and the wrong one — a
+rule that is amended in the same task where it blocks its author is not a rule. Running three more levels
+(2, 8, 32) cost under nine minutes, satisfied the lint unamended, and produced a **better** result than
+the exemption would have: the crossing is now bracketed by two adjacent levels (0.89 → 1.10) instead of
+by a gap from 1 to 4. When a gate blocks a result, the question to ask first is what measurement would
+satisfy it; the answer is often cheaper than the argument about the gate.

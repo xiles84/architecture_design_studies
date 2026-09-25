@@ -378,12 +378,23 @@ mismatches, INV-8/INV-9). The read-phase prediction was then tested in three rea
 `study-04/v2-t1-read`): `n4` read `r01_effective_config` **1.52x** faster in all three, but the
 two-design shuffle produced the **same order for all three seeds**, so `n4` ran first every time and the
 effect cannot be attributed to the design — P2 stays **unresolved (confounded)**, and the tranche ran
-without `explain`, so no plan explains it. Signed analysis of the read tranche:
-`studies/04-configuration-portal/reports/analyses/20260925T-read-replication--deepseek-flash--2026-09-25.md`;
-signed analysis of the write tranche:
-`studies/04-configuration-portal/reports/analyses/20260925T1-replication--deepseek-flash--2026-09-25.md`.
+without `explain`, so no plan explains it. **Follow-up resolved it (tag
+`study-04/v2-position-control-crossover`):** run in both orders, the gap follows the *order* — with `n3`
+first `n4/n3` = 0.62, with `n4` first = 1.50; each design reads `r01` about **1.55x** faster when it goes
+first, and the plan, SQL, storage and row counts are identical in all four combinations. So P2 is **not
+falsified**: there is no attributable read difference. Signed analyses:
+`studies/04-configuration-portal/reports/analyses/20260925T-read-replication--deepseek-flash--2026-09-25.md`
+(read tranche), `.../20260925T-position-control--deepseek-flash--2026-09-25.md` (position control),
+`.../20260925T1-replication--deepseek-flash--2026-09-25.md` (write tranche).
 `v2-13` in the active registry now states the replicated range, and the four book sites that repeated
 the 6.85x were corrected in the same task (tag `repo/book-t1-correction-v1`).
+
+**The corpus's first bounded crossover (2026-09-25, tag `study-04/v2-position-control-crossover`):**
+`v2-17-optimistic-pessimistic-crossover` — the writer sweep was extended from four levels to seven
+(1, 2, 4, 8, 16, 32, 64) rather than relaxing the `crossover` lint, which requires five levels and a
+stated interval before a reversal may be presented. `c2/c1` is 0.89 at one writer and 1.10 at two, so the
+crossing is bracketed by adjacent levels; it peaks at 1.68x and does not reverse again. The registry now
+has **30 claims**, one with a `crossover` record; `crossover-bounded` moved gap → measured.
 
 Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
 `h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the
