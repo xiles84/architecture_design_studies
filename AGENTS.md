@@ -269,9 +269,13 @@ per agent, one branch per folder, one shared repository (commits and tags are vi
 all worktrees at once, with nothing to push between them).
 
 ```bash
-git worktree add ../ads-<study>-<topic> -b <study>/<topic>
+git worktree add .worktrees/<name> -b <study>/<topic>
 ```
 
+- **Worktrees live inside the project**, under the git-ignored `.worktrees/<name>` — the same
+  location `tools/queue claim` creates. Never put a worktree in a sibling directory outside the
+  project: the project directory is the only tree the owner wants written to, and `.worktrees/` is
+  already excluded from Git. A path outside the project is a defect to fix, not a preference.
 - **Branch names:** `<study>/<topic>` (e.g. `study-02/retry-backoff`) or `repo/<topic>`.
 - **At task completion, merge all of this task's changes into local `main`.** Commit
   explicit owned paths, integrate the latest local `main` into the task branch, resolve

@@ -1758,3 +1758,14 @@ In all three runs the trigger's first trial was its slowest (`40` vs a `159` med
 state or bloat starts each cell cold. Two consequences: the median is doing real work here, and the
 within-run position effect the corpus already suspected is now measured — inside a single cell, before
 any cross-cell ordering enters.
+
+### A worktree belongs inside the project, whatever an example says
+`AGENTS.md` gave `git worktree add ../ads-<study>-<topic>` as the example, so two tasks were started in
+sibling directories outside the project — and one of them was deleted at completion, taking the
+owner's view of those files with it. Every historical task `STATUS.md` records its worktree as
+`.worktrees/<name>`, `tools/queue claim` creates `.worktrees/<name>`, and `.worktrees/` is already in
+`.git/info/exclude`, so the in-project location was both the established convention and the obvious
+one. Two lessons: when an instruction and the artefacts disagree, the artefacts are evidence and the
+instruction may be stale — check how the other 30 tasks actually did it; and a path is a decision the
+owner has already made, so writing outside the project is a defect rather than a preference. The
+example in `AGENTS.md` is corrected.
