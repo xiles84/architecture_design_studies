@@ -372,8 +372,13 @@ cell's own trials disagree by 35–115%, above the 20% precision rule, so the pa
 direction and a range, not a point ratio. New: the trigger's p99 is 61–109 ms against 2.2–2.7 ms
 (22–46x), and the trigger's **first trial was the slowest in every run** (1.5–5.6x below the cell
 median) — a within-cell position effect. The `x2` control fired in all three runs (60 rollup
-mismatches, INV-8/INV-9). The read-phase prediction is unresolved because the committed scope ran no
-read phase. Signed analysis:
+mismatches, INV-8/INV-9). The read-phase prediction was then tested in three read-only runs (tag
+`study-04/v2-t1-read`): `n4` read `r01_effective_config` **1.52x** faster in all three, but the
+two-design shuffle produced the **same order for all three seeds**, so `n4` ran first every time and the
+effect cannot be attributed to the design — P2 stays **unresolved (confounded)**, and the tranche ran
+without `explain`, so no plan explains it. Signed analysis of the read tranche:
+`studies/04-configuration-portal/reports/analyses/20260925T-read-replication--deepseek-flash--2026-09-25.md`;
+signed analysis of the write tranche:
 `studies/04-configuration-portal/reports/analyses/20260925T1-replication--deepseek-flash--2026-09-25.md`.
 `v2-13` in the active registry now states the replicated range, and the four book sites that repeated
 the 6.85x were corrected in the same task (tag `repo/book-t1-correction-v1`).

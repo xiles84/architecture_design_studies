@@ -1779,3 +1779,23 @@ one. Two lessons: when an instruction and the artefacts disagree, the artefacts 
 instruction may be stale — check how the other 30 tasks actually did it; and a path is a decision the
 owner has already made, so writing outside the project is a defect rather than a preference. The
 example in `AGENTS.md` is corrected.
+
+### A seeded shuffle is not a varied order
+The T1 read tranche ran three times with `--order-seed` 101, 202 and 303, and the two-design list came
+out `n4_rollup_app, n3_rollup_trigger` **all three times** — so the design that read `r01` 1.52x faster
+held the same first position in every run, and design identity is confounded with position. The
+three-design write tranche was little better: three seeds produced only two distinct orders (202 and 303
+coincided). The shuffle is not broken — testing it directly gives different orders for different seeds —
+but with a short list a coincidental repeat is likely, and the honest fix is to read the realized order
+out of each manifest rather than trust the method's name. "Randomized order" describes the mechanism;
+only `design_order_<topology>` in the manifest describes what happened. Encoded as a limit on `v2-13`
+rather than left as an assumption.
+
+### Identical SQL and identical storage do not make a read comparison clean
+n3 and n4 have byte-identical `queries.sql`, schemas that differ only in comments, and exactly equal
+`storage_bytes` and load timings — and one of five reads still differed by 1.52x in all three runs. The
+reusable point is that ruling out the obvious causes (a different query, a bigger table) is not the same
+as having a mechanism, and a *consistent* confounded difference is still confounded: three runs agreeing
+on a comparison where order never varied is three runs of the same mistake. That tranche also ran without
+`explain`, so it could not test the one explanation that mattered. Run the position control first: a
+replicated gap with no mechanism is an open question, not a result.
