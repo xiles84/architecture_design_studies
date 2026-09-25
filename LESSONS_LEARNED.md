@@ -1496,6 +1496,16 @@ sources; until that exists, the phrase search is the control. This is the same s
 lesson that a superseding claim must retire the gap it closes — the artefact was updated and the thing
 that quotes it was not.
 
+**A third instance, 2026-09-25, and a harder one.** The T1 replication replaced `v2-13`'s single-run
+"6.85x" with a replicated range, and the phrase search found the old figure in **four** places —
+`chapters/minor-variants`, `chapters/how-to-choose`, `chapters/scenarios` and
+`concepts/derived-state-and-history` — each citing the same claim card that had just been corrected. It
+is harder than the earlier two because the change is a *number*, not a phrase: "6.85x" is a string a
+search can find, but the sentence around it was also stale ("the application rollup kept writes near the
+reference for the same read gain", where the read gain was never re-measured). Fixing a claim means
+re-reading every sentence that quotes it, not just replacing the figure. The proposed lint would help;
+until then, grep the retired number *and* read its paragraph.
+
 ### A checker whose scope depends on how it is invoked is not a checker
 
 `book/evidence/check.sh` excluded hits under its own directory by comparing scanned paths against an

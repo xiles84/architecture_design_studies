@@ -312,11 +312,15 @@ summary, not a second ledger.
 - **Found and fixed on this task:** `book/CHANGELOG.md` named a fixed registry path
   (`book/evidence/v5/`), which fails the `registry-literal` rule in `book/evidence/check.sh` on `main`
   itself. Reworded to name the then-active package without a path literal.
-- **Remaining for the method layer:** integrating the eight-question checklist into the eight Typst
-  concept chapters, then rebuilding the tracked PDF; publishing T1–T5 as queue tasks (`tools/queue`
-  works now); and correcting `v2-13`'s superseded 6.85x figure, which needs a registry package change
-  (the v6 package tag `repo/book-evidence-registry-v6` has not been created yet, so the correction
-  belongs in v6 before it is tagged).
+- **Done 2026-09-25 (task `book/t1-correction`, tags `repo/book-evidence-registry-v6` and
+  `repo/book-t1-correction-v1`):** the eight-question checklist is answered inside all eight concept
+  chapters and `check.sh` fails if a chapter lacks it; `v2-13` is re-scoped to the replicated range
+  (strength `run_replicated`, a `falsified` prediction, four anchors) and the superseded 6.85x is
+  retired; the four prose sites that repeated it are corrected; the tracked PDF is rebuilt on v6
+  (65 pages, 29/29 claims, digest present).
+- **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), and
+  the still-open coverage dimensions — 27 of 29 claims are single-run, no claim is a bounded
+  `crossover`, and no claim has `evidence_form: interaction`.
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
@@ -371,8 +375,8 @@ median) — a within-cell position effect. The `x2` control fired in all three r
 mismatches, INV-8/INV-9). The read-phase prediction is unresolved because the committed scope ran no
 read phase. Signed analysis:
 `studies/04-configuration-portal/reports/analyses/20260925T1-replication--deepseek-flash--2026-09-25.md`.
-The active registry still states the superseded 6.85x figure; correcting it needs a registry package
-change (see the method-layer entry above).
+`v2-13` in the active registry now states the replicated range, and the four book sites that repeated
+the 6.85x were corrected in the same task (tag `repo/book-t1-correction-v1`).
 
 Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
 `h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the
