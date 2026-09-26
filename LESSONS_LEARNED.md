@@ -1858,3 +1858,27 @@ had no Podman and no Typst, when both existed on the Windows side. The reusable 
 absent" is a claim about the world, not about your query**, and it needs the same evidence as any other
 claim. The cost here was not just a wrong paragraph: the first version of the analysis threw away a
 positive result (0 lost updates under rejected publications) and recorded a limitation that did not exist.
+
+### A ratio quoted without its axis is not a finding
+`v2-13` reported the trigger-maintained rollup at 4.0–5.7x the application-maintained one, replicated
+across three runs — a solid result, and one that crossed the maintenance decision with nothing. Crossing
+it with the size of a replacement gives **2.07x at 10 entries, 4.38x at 60 and 24.20x at 240**: the
+replicated figure is one reading on a steep curve, and the same design is either nearly free or
+catastrophic depending on a setting the claim did not mention. The lesson is not that the earlier claim
+was wrong — its numbers replicated twice — but that **"A is N times B" is an incomplete sentence until
+the axis is named**, because the reader will supply a size of their own. The cheapest guard is the one
+this experiment used: take the decision the claim is about and cross it with the variable the mechanism
+says should matter, then see whether the number survives.
+
+### A phase that does not apply is silently absent
+The first version of that experiment crossed maintenance strategy with concurrent writers. It produced no
+data, no error and no warning: `harness/main.go` guards the contention phase with
+`if !d.hasContention() { return nil }`, and the rollup designs have no arbitration, so the phase returned
+immediately and the result files simply had `concurrency: null`. Three runs were spent before the code
+was read. The general defect: **a phase that is skipped and a phase that measured nothing look identical
+in the artifact**, so a harness should record "not applicable" rather than omitting the key — and an agent
+meeting an empty result should read the runner's condition before designing around it. This is the third
+instance this week of the same root cause: a result was absent from where I looked and I concluded it was
+absent from the world. The first was a worktree path, the second a JSON field name, this one a phase
+guard; the check is the same each time — read how the producing code decides, before reporting what the
+output means.

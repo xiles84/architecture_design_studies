@@ -410,6 +410,22 @@ that invariant as missing: it lives in `final_counter_value` / `expected_counter
 in every result file, and the report's contention table renders it, so querying the non-existent keys
 `final_value` / `expected_value` returned `null` and was misread as an absence in the artifact.
 
+**The corpus's first interaction claim (2026-09-26, tag `study-04/v2-interaction`):**
+`v2-18-maintenance-size-interaction` crosses rollup maintenance strategy with entries per installation
+and finds the penalty is a function of size rather than a constant — the application design is **2.07x**
+faster at 10 entries, **4.38x** at 60 and **24.20x** at 240, with the trigger's p99 rising 3 → 156 ms
+against the application's 1 → 8 ms and the trigger's throughput falling 46x across the axis. Correctness
+held everywhere (0 audit failures, 0 rollup mismatches over 600 / 3,600 / 14,400 entries). `v2-13` gained
+a limit saying its 4.0–5.7x holds at the 60-entry default; the tier-60 cell of this crossing reads 4.38x,
+inside that replicated range. Registry is now **31 claims**, `evidence_form` counts 11 isolate / 9 package
+/ 1 interaction / 10 not_applicable, and `interaction-experiments` moved gap → measured.
+
+**A phase that does not apply is silently absent (harness defect, 2026-09-26):** the same experiment was
+first designed to cross maintenance strategy with concurrent writers, which cannot run —
+`harness/main.go` guards the contention phase with `if !d.hasContention() { return nil }`, so for the
+rollup designs it returns with no result and no warning (three runs produced `concurrency: null`). A
+skipped phase and a phase that measured nothing are currently indistinguishable in the artifacts.
+
 Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
 `h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the
 review requires (repeated-design instrument control, `-retries 1`, writer sweep).
