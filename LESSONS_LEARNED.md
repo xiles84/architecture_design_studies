@@ -1820,3 +1820,26 @@ rule that is amended in the same task where it blocks its author is not a rule. 
 the exemption would have: the crossing is now bracketed by two adjacent levels (0.89 → 1.10) instead of
 by a gap from 1 to 4. When a gate blocks a result, the question to ask first is what measurement would
 satisfy it; the answer is often cheaper than the argument about the gate.
+
+### When both arms of a control move together, the control measured the run
+The retry control was built to prove that the optimistic design's disadvantage at 16 writers comes from
+retrying. Setting the retry budget to zero did not narrow the gap at all (`c2/c1` 1.60 against 1.61), and
+the giveaway was sitting in the same table: **`c2_pessimistic_lock` never retries**, at any setting of the
+flag, and it still moved 10% between the two arms. A design that cannot respond to the option under test
+moving by the same amount as the design that can means the difference belongs to the *run*, not to the
+option. The general form: before reading an arm-to-arm difference as an effect, check that a unit which is
+insensitive to the change did not move too. That check costs nothing when the control already contains
+such a unit — and this control did, which is why the false positive lived for one run instead of a week.
+The consequence was writing the claim's mechanism sentence and then withdrawing it: the claim keeps its
+numbers and loses its explanation, which is the correct trade.
+
+### A falsifier's baseline must be measured the same day
+P1 asked whether the lock's throughput stayed within 20% of *870 ops/s*, a figure from two days earlier,
+and failed at +34% — while the same-day baseline showed +10%, i.e. inside the band. The prediction was
+therefore reported as both falsified and confirmed depending on which baseline the falsifier named, which
+is a defect in the prediction and not in the design. A baseline quoted in a falsifier is part of the
+experiment; if it was not measured in the same session it carries whatever the day carries. Here that was
+a **~30% day term** on a design that does not retry at all (869 ops/s on 2026-09-23, 1,056 on 2026-09-26,
+identical settings). Two consequences: state the baseline run id in the falsifier, and re-measure a fixed
+reference cell each measurement day so the day term is recorded rather than discovered — the corpus's
+absolute ops/s figures are day-specific, and only within-run ratios travel.

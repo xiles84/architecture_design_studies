@@ -396,6 +396,15 @@ stated interval before a reversal may be presented. `c2/c1` is 0.89 at one write
 crossing is bracketed by adjacent levels; it peaks at 1.68x and does not reverse again. The registry now
 has **30 claims**, one with a `crossover` record; `crossover-bounded` moved gap → measured.
 
+**The mechanism was then tested and rejected (2026-09-26, tag `study-04/v2-retry-control`):** pre-registered
+in `studies/04-configuration-portal/RETRY-CONTROL.md`, then measured by setting the harness retry budget to
+zero at 16 writers. `c1` did not collapse (657 → 725 ops/s) and the ratio did not narrow (`c2/c1` 1.60
+without retries against 1.61 with them, same day) — and since `c2` never retries at any setting and moved
+by the same 10%, the arm-to-arm difference is run-level, not retry work. **`v2-17`'s mechanism sentence is
+withdrawn**: the crossover stands, the explanation does not. The control also measured a ~30% same-settings
+**day term** (`c2` 869 ops/s on 2026-09-23 against 1,056 on 2026-09-26), now a limit on `v2-17`: absolute
+throughput is day-specific and only within-run ratios carry across days.
+
 Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
 `h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the
 review requires (repeated-design instrument control, `-retries 1`, writer sweep).
