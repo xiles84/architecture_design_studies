@@ -124,7 +124,7 @@ BUSY="$(podman ps --format '{{.Names}}' | grep -E '^(pg-single|yb-single|yb-n[12
 
 need_podman
 log "building benchmark image $BENCH_IMAGE (context: repository root)"
-podman build -q -t "$BENCH_IMAGE" -f "$(hostpath "$STUDY_DIR/Containerfile")" "$(hostpath "$REPO")" >/dev/null \
+podman build -q -t "$BENCH_IMAGE" -f "$(buildpath "$STUDY_DIR/Containerfile")" "$(buildpath "$REPO")" >/dev/null \
   || die "image build failed"
 
 if [[ -f "$OUT/manifest.yaml" ]]; then

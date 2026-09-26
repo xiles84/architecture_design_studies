@@ -73,7 +73,7 @@ mkdir -p "$OUT"
 need_podman
 log "building benchmark image"
 podman build -q -t "$BENCH_IMAGE" \
-  -f "$(hostpath "$STUDY_DIR/Containerfile")" "$(hostpath "$STUDY_DIR")" >/dev/null || die "image build failed"
+  -f "$(buildpath "$STUDY_DIR/Containerfile")" "$(buildpath "$STUDY_DIR")" >/dev/null || die "image build failed"
 
 bash "$UP" up || die "$TOPOLOGY failed to start"
 record_topology "$OUT/topology.yaml" pg-single yb-single yb-n1 yb-n2 yb-n3

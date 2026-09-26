@@ -107,6 +107,20 @@ winpath() {
   fi
 }
 
+# buildpath returns the form a *build context* needs, which is not the same as
+# the form a bind-mount source needs. A bind mount is resolved by the engine
+# inside the machine and tolerates the POSIX form; the build context is resolved
+# by the podman binary itself, and the Windows podman handed /mnt/c/... reads it
+# as C:\mnt\c\..., which does not exist: the build then dies with "context must
+# be a directory". Every `podman build -f ... <context>` in this repository must
+# use buildpath, never hostpath.
+#
+# This helper exists because the same correction was once made inside one
+# study's runner, in a comment, where it protected only that copy: study 02
+# could not build at all from a WSL path and no one could see why. The rule
+# lives here so there is one copy of it. On Linux and macOS it is a no-op.
+buildpath() { winpath "$1"; }
+
 rm_container() {
   if container_exists "$1"; then
     podman rm -f "$1" >/dev/null 2>&1 || true

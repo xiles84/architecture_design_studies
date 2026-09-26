@@ -74,7 +74,7 @@ ALL_YB_DESIGNS="$ALL_PG_DESIGNS d7_yb_child_colocated d24_recency_flag_colocated
 need_podman
 log "building benchmark image"
 podman build -q -t "$BENCH_IMAGE" \
-  -f "$(hostpath "$STUDY_DIR/Containerfile")" "$(hostpath "$STUDY_DIR")" >/dev/null \
+  -f "$(buildpath "$STUDY_DIR/Containerfile")" "$(buildpath "$STUDY_DIR")" >/dev/null \
   || die "image build failed"
 
 # ---------------------------------------------------------------------------

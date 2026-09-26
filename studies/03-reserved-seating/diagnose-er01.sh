@@ -46,7 +46,7 @@ DIRTY="false"
 [[ -n "$("${GIT[@]}" status --porcelain -- platform infra "studies/$STUDY_ID" ':!studies/*/results' ':!studies/*/reports')" ]] && DIRTY="true"
 
 log "building benchmark image $BENCH_IMAGE"
-podman build -q -t "$BENCH_IMAGE" -f "$(hostpath "$STUDY_DIR/Containerfile")" "$(hostpath "$REPO")" >/dev/null || die "image build failed"
+podman build -q -t "$BENCH_IMAGE" -f "$(buildpath "$STUDY_DIR/Containerfile")" "$(buildpath "$REPO")" >/dev/null || die "image build failed"
 
 BASE_TSERVER_FLAGS="$YB_EXTRA_TSERVER_FLAGS"
 DSN_BASE="postgres://yugabyte@yb-single:5433/yugabyte?sslmode=disable"

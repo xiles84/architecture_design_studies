@@ -48,7 +48,7 @@ RUN_TAG="run/01-charity-tree/$RUN_ID"
 DESCRIBE="$("${GIT[@]}" describe --tags --always)"
 mkdir -p "$OUT"
 log "building the committed benchmark once"
-podman build -q -t localhost/charitybench:3 -f "$(hostpath "$STUDY_DIR/Containerfile")" "$(hostpath "$STUDY_DIR")" > "$OUT/image-id.txt"
+podman build -q -t localhost/charitybench:3 -f "$(buildpath "$STUDY_DIR/Containerfile")" "$(buildpath "$STUDY_DIR")" > "$OUT/image-id.txt"
 IMAGE="$(podman image inspect localhost/charitybench:3 --format '{{.Id}}')"
 ENVIRONMENT="${BENCH_ENVIRONMENT:-host-zenbook-ux5406sa}"
 export YB_EXTRA_TSERVER_FLAGS=yb_enable_read_committed_isolation=true
