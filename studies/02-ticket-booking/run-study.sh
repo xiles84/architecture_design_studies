@@ -120,7 +120,13 @@ BUSY="$(podman ps --format '{{.Names}}' | grep -E '^(pg-single|yb-single|yb-n[12
 
 need_podman
 log "building benchmark image $BENCH_IMAGE (context: repository root)"
-podman build -q -t "$BENCH_IMAGE" -f "$(hostpath "$STUDY_DIR/Containerfile")" "$(hostpath "$REPO")" >/dev/null \
+# winpath, not hostpath, for the build. A bind-mount source tolerates /mnt/c/...
+# because the engine resolves it inside the machine, but the *build context* is
+# resolved by the podman binary itself: handed a POSIX path, the Windows podman
+# reads /mnt/c/... as C:\mnt\c\..., which does not exist. Study 04 hit this first
+# and carries the same fix; this copy was still using hostpath and so could not
+# build from a WSL path at all.
+podman build -q -t "$BENCH_IMAGE" -f "$(winpath "$STUDY_DIR/Containerfile")" "$(winpath "$REPO")" >/dev/null \
   || die "image build failed"
 
 if [[ -f "$OUT/manifest.yaml" ]]; then
