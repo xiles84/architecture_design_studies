@@ -86,8 +86,14 @@ ALL_DESIGNS="p1_precreated_lock_first p2_precreated_skip_locked p3_precreated_ca
 GIT=(git -C "$(hostpath "$REPO")")
 REPO_COMMIT="$("${GIT[@]}" rev-parse HEAD 2>/dev/null)" \
   || die "cannot read the repository commit -- refusing to produce results that cannot be traced to code"
-CODE_PATHS=(platform infra "studies/$STUDY_ID" .containerignore ':!studies/*/results' ':!studies/*/reports')
-STATUS="$("${GIT[@]}" status --porcelain -- "${CODE_PATHS[@]}")" \
+CODE_PATHS=(platform infra "studies/$STUDY_ID" .containerignore)
+# Dirty means uncommitted changes to code that can change results. Generated
+# results and reports are what a run PRODUCES, not code, so they are filtered out
+# explicitly: git's `:!` pathspec exclusion does not suppress *untracked* files
+# under those directories, so every run after the first report looked like a dirty
+# tree and the runner skipped --tag without failing. Study 04 learned this on
+# 2026-09-23 and studies 02 and 03 were still carrying it on 2026-09-26.
+STATUS="$("${GIT[@]}" status --porcelain -- "${CODE_PATHS[@]}" | grep -vE 'studies/[^/]+/(results|reports)/' || true)" \
   || die "git status failed -- cannot tell whether the study code is committed"
 REPO_DIRTY="false"
 [[ -n "$STATUS" ]] && REPO_DIRTY="true"
