@@ -93,8 +93,8 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// counts and anchors may all differ from v5. v2-06 was only reworded at the
 	// v6 tag; the 2026-09-26 replication then re-scoped it, so it moved here.
 	changed := map[string]bool{
-		"v2-13-trigger-rollup-cost":  true,
-		"v2-06-hot-drop-designs":     true,
+		"v2-13-trigger-rollup-cost": true,
+		"v2-06-hot-drop-designs":    true,
 	}
 	// Claims whose wording was made plainer without touching the evidence. Their
 	// statement and limits may differ from v5; their confounds, trial counts and
