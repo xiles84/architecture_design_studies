@@ -33,6 +33,16 @@ headline: Removing the retry budget does not change the pessimistic/optimistic r
 - One thing did hold: conflicts are a property of the workload, not of the budget (26,014 with the budget
   removed, up from 24,176 with it).
 
+> **Correction, 2026-09-26, same session.** This analysis first reported the contention-phase counter
+> invariant as *not recorded* and P4 as only weakly confirmed. That was wrong: the invariant **is** in every
+> result file under `final_counter_value`, `expected_counter_value` and `lost_updates`, and the report's
+> contention table renders it. The error came from querying the fields I guessed (`final_value`,
+> `expected_value`), getting `null` for a key that does not exist, and reading my own miss as an absence in
+> the artifact. P4 is now **confirmed**: with the retry budget removed, `c1` ended at 4,948 against 4,948
+> expected and `c2` at 7,917 against 7,917, both with **0 lost updates** — so rejecting publications does
+> not break the counter invariant, which is a positive result the first version of this file threw away.
+> The verdict table and the weaknesses list below are corrected in place, and the lesson is recorded.
+
 ## What was measured
 
 Same day, same topology, scale, phases (`verify,contention`), writer count (16) and trials; only the
@@ -52,7 +62,7 @@ Three days earlier, retries = 8, `verify,read,write,contention`: c1 552 ops/s, c
 | P1 | c2 within 20% of 870 ops/s | **falsified as written, confirmed same-day** | 1,163 is +34% against the cross-day baseline but +10% against the same-day one. The falsifier named a baseline two days old; that was a defect in the prediction, not in the design. |
 | P2 | c1 collapses by >50% or the cell fails | **falsified** | c1 rose to 725 ops/s; the cell passed. The mechanism sentence is withdrawn. |
 | P3 | conflicts still > 10,000 | **confirmed** | 26,014 conflicts with no retry budget. |
-| P4 | the correctness gate still passes | **confirmed weakly** | the gate passed (16 checks), but `final_value`/`expected_value` are null, so the contention-phase counter invariant is not recorded and "no lost updates under rejected publications" is **not evidenced** here. |
+| P4 | the correctness gate still passes | **confirmed** (corrected — see the note below) | the gate passed (16 checks), and the counter invariant holds under rejected publications: `c1` ended at 4,948 with 4,948 expected and `c2` at 7,917 with 7,917 expected, both **0 lost updates**. |
 
 ## What this changes
 
@@ -79,8 +89,9 @@ Three days earlier, retries = 8, `verify,read,write,contention`: c1 552 ops/s, c
 3. **`-retries 0` is not "no conflict handling".** It makes the optimistic path abandon on first
    conflict, so the two arms differ in *what the design does*, not only in an internal counter. A cleaner
    arm would keep retries but exclude retry work from the measured interval.
-4. **The contention counter invariant is not in the artifacts** (P4), so the correctness claim under
-   rejected publications rests on the gate's 16 statement checks, not on the counter.
+4. **A rejected publication's cost is not measured.** The counter invariant confirms nothing was lost, but
+   nothing here says how much work the 26,014 abandoned attempts consumed — the run measures outcomes, not
+   wasted effort.
 5. **One writer count.** This tests the mechanism sentence at 16 writers; it says nothing about whether
    the crossing *moves* when the budget changes.
 

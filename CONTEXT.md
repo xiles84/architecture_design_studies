@@ -403,7 +403,12 @@ without retries against 1.61 with them, same day) — and since `c2` never retri
 by the same 10%, the arm-to-arm difference is run-level, not retry work. **`v2-17`'s mechanism sentence is
 withdrawn**: the crossover stands, the explanation does not. The control also measured a ~30% same-settings
 **day term** (`c2` 869 ops/s on 2026-09-23 against 1,056 on 2026-09-26), now a limit on `v2-17`: absolute
-throughput is day-specific and only within-run ratios carry across days.
+throughput is day-specific and only within-run ratios carry across days. The control also **confirmed the
+counter invariant under rejected publications** (`c1` ended at 4,948 against 4,948 expected, `c2` at 7,917
+against 7,917, both 0 lost updates) — recorded because a first version of the analysis wrongly reported
+that invariant as missing: it lives in `final_counter_value` / `expected_counter_value` / `lost_updates`
+in every result file, and the report's contention table renders it, so querying the non-existent keys
+`final_value` / `expected_value` returned `null` and was misread as an absence in the artifact.
 
 Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
 `h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the

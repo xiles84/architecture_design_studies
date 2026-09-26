@@ -1843,3 +1843,18 @@ a **~30% day term** on a design that does not retry at all (869 ops/s on 2026-09
 identical settings). Two consequences: state the baseline run id in the falsifier, and re-measure a fixed
 reference cell each measurement day so the day term is recorded rather than discovered — the corpus's
 absolute ops/s figures are day-specific, and only within-run ratios travel.
+
+### A null from your own query is not an absence in the artifact
+Within an hour of writing it, this session's own retry-control analysis declared that the
+contention-phase counter invariant "is not recorded" and downgraded its correctness verdict accordingly.
+It was wrong. Every result file carries `final_counter_value`, `expected_counter_value` and
+`lost_updates`, and the generated report renders them in a contention table — the check that caught the
+lost-update control's 3,201 lost updates was sitting in the artifact the whole time. The mistake was
+mechanical: I queried `final_value` and `expected_value`, got `null` for keys that do not exist, and read
+my own miss as a property of the data. **Look up the field names in a real file before asserting that a
+result is missing** — `jq 'keys'` costs one command, and it would have turned a wrong finding into a right
+one. This is the second instance of the same family in one week: the earlier one declared that this host
+had no Podman and no Typst, when both existed on the Windows side. The reusable rule is that **"X is
+absent" is a claim about the world, not about your query**, and it needs the same evidence as any other
+claim. The cost here was not just a wrong paragraph: the first version of the analysis threw away a
+positive result (0 lost updates under rejected publications) and recorded a limitation that did not exist.
