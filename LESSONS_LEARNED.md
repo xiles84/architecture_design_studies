@@ -1902,3 +1902,25 @@ session where a session-level term dominated the effect being measured, which ma
 setup rather than an unlucky run: **on this host, a single measurement session is not a stable
 instrument**, and any repeated claim should say how repetition and time were kept apart — or admit that
 they were not.
+
+### Repetition close together in time measures a narrower spread than repetition apart
+The lesson above assumed the sequential repeat's spread was an *upper* bound, contaminated by the drift it
+had detected. Interleaving the same nine measurements in a Latin square showed the opposite: the spread
+roughly doubled (101%, 98%, 104% against 15%, 55%, 52%). The reason is that three runs of a size placed
+next to each other in the session sample almost the same machine state, so they agree with each other for
+reasons that have nothing to do with the design; spread them across the session and each one samples the
+whole drift range. **Adjacent repeats understate uncertainty, and the arrangement of repeats in time is
+part of the experiment, not an implementation detail.** A repeat design should be chosen for what it
+lets you *see*, and a tranche whose repeats are contiguous should say so rather than present its narrow
+spread as the measurement's precision — or measure a reference cell alongside, which is what turned "the
+session probably drifted" into "+44% across this tranche".
+
+### A pipe hides the exit status, and that is how a red state got merged
+`go test ./... | tail -1` printed `FAIL`, and the command chain continued anyway: the exit status came
+from `tail`, which succeeded. The commit and the merge went through with a failing test in the tree, and
+it was caught only because the next command happened to re-run the suite. **A pipeline reports the last
+command's status, so a check inside a chain must not be piped unless its status is captured** — use
+`set -o pipefail`, or run the check unpiped, or read `PIPESTATUS`. The failure it hid was real: a new
+profile check requires `replication.runs` to agree with `trials.whole_run_replications`, and a claim that
+had just been relabelled to six runs still declared one trial. Both halves of this are worth keeping: the
+gate worked, and the shell hid it.

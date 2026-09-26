@@ -338,10 +338,20 @@ summary, not a second ledger.
   noise: absolute throughput fell as the session ran on for both designs (at 60 entries n4 read 631 → 205 →
   206 ops/s). The repeat also dropped the tier-60 median to 3.42x, below the 3.99–5.69x `v2-13` replicated,
   so the corroboration between the two claims is now recorded as approximate rather than a match.
+- **The sweeps were then interleaved, and the drift measured (2026-09-26, tag `study-04/v2-interleaved-sweep`):**
+  nine runs in a Latin square so size and position in the session stop being the same thing, wrapped in a
+  reference cell (`c2` contention at 16 writers) measured immediately before and after. The ordering by
+  size held in **all three sweeps**, so the interaction does not depend on the sequential layout — but the
+  spread within a size roughly **doubled** (101%, 98%, 104% against 15%, 55%, 52%), because adjacent
+  repeats share the session's state and so *understate* the uncertainty. The reference cell put a number on
+  the drift: **445 → 640 ops/s, +44%**. `v2-18` now carries the ranges six runs per size actually span
+  (~1.3–3.2x, 2.5–9.0x, 10–24x) with `replication runs=6, order=interleaved, spread=104.1`; the two lower
+  bands touch when both tranches are pooled, though every individual sweep ordered them correctly.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
   the breadth gaps above, and the standing follow-ups — 26 of 31 claims are still single-run, the other
-  named interactions are unmeasured, and a fixed reference cell should be re-measured each measurement day
-  to track the drift without re-deriving it from a curve.
+  named interactions are unmeasured, and the reference cell should now be taken **from the same operation
+  being compared**, between every run rather than only at the ends of a tranche, so the drift becomes a
+  per-run covariate.
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
