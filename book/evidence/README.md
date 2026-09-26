@@ -45,8 +45,15 @@ go run . validate-v4 --repo ../..   # explicit v4 validation (frozen predecessor
 go run . validate-v3 --repo ../..   # the frozen v3 predecessor
 go run . validate-v2 --repo ../..   # the frozen v2 predecessor
 go run . v1-diagnostic --repo ../.. # the frozen v1 audit: 11/12 claims, 36/43 names
-go test ./...                       # the resolver and lifecycle rules, including negative controls
+go test -count=1 ./...              # the resolver and lifecycle rules, including negative controls
 ```
+
+**Always pass `-count=1` when the registry may have changed.** These tests read the live registry from
+disk at runtime, and Go's test cache only tracks the package's build inputs — so after a claim is edited,
+`go test ./...` can report a cached `ok` from before the edit. A cache hit is not a passing gate. The same
+applies to any wrapper that pipes the result: a pipeline's exit status is the *last* command's, so
+`go test ./... | tail -1` will happily print `FAIL` and return success. The scripts in this repository set
+`set -o pipefail` for that reason; ad-hoc command chains do not.
 
 `validate` dispatches on the file's own `schema_version`; the default resolves v6, and a v6
 supersession or retirement may name a claim in any frozen predecessor (v1, v2, v3, v4 or v5).
@@ -82,5 +89,5 @@ change in the version's ledger, or — when the change is a retirement — in th
 6. **Re-read the gaps the new evidence touches, not only the claim you are adding.** If a new run
    closes a clause of an existing gap, retire or narrow that gap in the same change; that omission
    is what the v4 lifecycle fields exist to expose.
-7. Run `go run . validate --repo ../..` and `go test ./...` — both must be green before the claim
-   is used.
+7. Run `go run . validate --repo ../..` and `go test -count=1 ./...` — both must be green before the
+   claim is used, and the tests must not be served from the cache (see the note above the command list).
