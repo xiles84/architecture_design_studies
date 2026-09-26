@@ -320,9 +320,21 @@ summary, not a second ledger.
   (65 pages, 29/29 claims, digest present). The new `concept-checklist` rule was negative-controlled:
   deleting the section from one chapter in a scratch copy fails the check with that chapter named,
   while the real tree passes.
-- **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), and
-  the still-open coverage dimensions — 27 of 29 claims are single-run, no claim is a bounded
-  `crossover`, and no claim has `evidence_form: interaction`.
+- **The book now reads without experimental-design vocabulary (2026-09-26, tags
+  `repo/book-plain-language-v1` and `repo/book-cards-plain-language-v1`):** every limitation, in the prose
+  and in the evidence cards, states what was measured, then why it limits the conclusion, and only then
+  names the term or the id. Eleven book sources were rewritten first, then twenty claims'
+  `statement`/`limits` — a *rewording*, declared separately from a *re-scoping* in the carry-forward test,
+  which fails if a reworded claim's confounds, trials or anchors move. No evidence id or results field name
+  was removed.
+- **The three coverage gaps named here on 2026-09-25 are each closed for one claim:** a bounded crossover
+  exists (`v2-17`), an `interaction` claim exists (`v2-18`), and run-level replication exists (`v2-13`).
+  What remains is breadth, not kind: 29 of 31 claims are still single-run, and the other named interactions
+  are unmeasured.
+- **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
+  the breadth gaps above, and the standing follow-ups — repeat the interaction's three tiers three times
+  with randomized order, and re-measure a fixed reference cell each measurement day to track the ~30% day
+  drift.
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
