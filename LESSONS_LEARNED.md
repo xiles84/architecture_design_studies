@@ -1881,4 +1881,7 @@ meeting an empty result should read the runner's condition before designing arou
 instance this week of the same root cause: a result was absent from where I looked and I concluded it was
 absent from the world. The first was a worktree path, the second a JSON field name, this one a phase
 guard; the check is the same each time — read how the producing code decides, before reporting what the
-output means.
+output means. **The harness now records it** (`main @ 3c16e39`): each requested phase lands in `phases[]`
+as `ran` or `not_applicable` with a reason, and the report lists the ones that did not apply — verified
+with a negative control in a single run, where the design that does have contention records `ran` and is
+deliberately absent from the table.

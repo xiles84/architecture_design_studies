@@ -424,7 +424,12 @@ inside that replicated range. Registry is now **31 claims**, `evidence_form` cou
 first designed to cross maintenance strategy with concurrent writers, which cannot run —
 `harness/main.go` guards the contention phase with `if !d.hasContention() { return nil }`, so for the
 rollup designs it returns with no result and no warning (three runs produced `concurrency: null`). A
-skipped phase and a phase that measured nothing are currently indistinguishable in the artifacts.
+skipped phase and a phase that measured nothing were indistinguishable in the artifacts. **Fixed
+2026-09-26 (tag `study-04/harness-phase-status`, `main @ 3c16e39`):** every result now carries
+`phases[]` with `status: ran | not_applicable` and a reason, and the report renders a *Phases that did not
+apply* table. Verified in one run with the control included: `c1_optimistic_version` records
+`contention: ran` and is not listed, `n3_rollup_trigger` records
+`contention: not_applicable (design has no arbitration to contend over)` and does appear.
 
 Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
 `h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the
