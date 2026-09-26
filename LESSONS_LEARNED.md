@@ -1924,3 +1924,27 @@ command's status, so a check inside a chain must not be piped unless its status 
 profile check requires `replication.runs` to agree with `trials.whole_run_replications`, and a claim that
 had just been relabelled to six runs still declared one trial. Both halves of this are worth keeping: the
 gate worked, and the shell hid it.
+
+### The machine wanders, it does not drift, and a band is not a bound
+Two beliefs from the previous two tranches died in the next one, and both were mine.
+
+**"Drift by time" was the wrong model.** Three readings of one reference cell taken through a single
+tranche gave 8.64 → 5.21 → 8.53: down, then back up. Reading only the start and the end would have
+reported "no movement" while the middle sat 39% below both. A monotone trend can be characterised by its
+endpoints; a wandering one cannot, and the fix is the one this tranche happened to use — take the reading
+*inside* the tranche, beside the cells it is meant to help interpret, not only at the edges.
+
+**A band is not a bound.** Tier 10 had seven candidate ranges behind it and the seventh reading landed
+below all of them (1.06 against a 1.34–3.15 range built from six runs). Presenting a min–max range as the
+interval a future measurement will fall inside is a claim the data does not support; the honest phrasing
+is "what has been seen, over N runs", with N beside it, because the more times you look the wider the
+range gets. Both lessons point the same way: **this corpus's numbers are samples from a wandering process,
+so any interval it reports is an observation record, not a tolerance** — and the ordering between designs
+is the part that has so far survived every arrangement.
+
+### The ratio is more portable than the throughput
+Over the same three reference readings, the `n4/n3` ratio spread 40% while the application design's
+absolute throughput spread 49% and the trigger's 114%. A session term shared by two designs cancels when
+they are divided, and only the differential part survives. So the design of a repeated comparison should
+prefer ratios and paired readings over absolute numbers wherever the claim allows it: it is the difference
+between carrying a number that moves with the machine and one that mostly does not.

@@ -344,9 +344,18 @@ summary, not a second ledger.
   size held in **all three sweeps**, so the interaction does not depend on the sequential layout — but the
   spread within a size roughly **doubled** (101%, 98%, 104% against 15%, 55%, 52%), because adjacent
   repeats share the session's state and so *understate* the uncertainty. The reference cell put a number on
-  the drift: **445 → 640 ops/s, +44%**. `v2-18` now carries the ranges six runs per size actually span
+  the drift: **445 → 640 ops/s, +44%**. `v2-18` then carried the ranges six runs per size actually span
   (~1.3–3.2x, 2.5–9.0x, 10–24x) with `replication runs=6, order=interleaved, spread=104.1`; the two lower
   bands touch when both tranches are pooled, though every individual sweep ordered them correctly.
+- **A reference cell on the same operation, read three times through a tranche (2026-09-26, tag
+  `study-04/v2-same-operation-reference`):** the ratio proved **more portable than the absolutes** (40%
+  spread against 49% and 114%), because a session term shared by both designs cancels in the ratio. But two
+  predictions failed and both matter: the session **wanders rather than drifts** (the three reference
+  readings went 8.64 → 5.21 → 8.53, so reading only the ends would have reported no movement while the
+  middle sat 39% below both), and **a band from six runs did not contain a seventh** — tier 10 measured
+  1.06 against a 1.34–3.15 range. `v2-18` now carries 7/9/7 runs per size, bands of 1.06–3.15 / 2.51–8.95 /
+  10.20–24.20, and `replication runs=7, spread=134.7`; 23 anchors. The bands describe what has been seen,
+  not a range a future reading must fall inside.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
   the breadth gaps above, and the standing follow-ups — 26 of 31 claims are still single-run, the other
   named interactions are unmeasured, and the reference cell should now be taken **from the same operation
