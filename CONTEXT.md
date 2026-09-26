@@ -365,6 +365,14 @@ summary, not a second ledger.
   with it: study 02's runner passed `hostpath` where the image build needs `winpath` (study 04 already had
   the fix), so **no study 02 claim could be re-run from a WSL path at all**; and the runner **silently
   skipped the `--tag`** on the second run, so that tag was created by hand on the recorded commit.
+- **Every build context migrated to one helper (2026-09-26, tag `repo/buildpath-v1`):** the
+  `hostpath`-instead-of-`winpath` defect was found in **four more runners** — study 01's four scripts and
+  study 03's runner and diagnosis script — so **studies 01, 02 and 03 could not build their benchmark images
+  from a WSL path at all**, which is the structural reason none of their claims had ever been replicated.
+  `buildpath()` now lives in `infra/lib.sh` with the reason written down, all six remaining build sites use
+  it, bind-mount sources keep `hostpath` (correct for them), and study 03's image was rebuilt with it to
+  confirm (exit 0). The lesson is recorded too: a correction written inside one study's copy of a shared
+  script protects only that copy.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
   the breadth gaps above, and the standing follow-ups — **19 of 31 claims are still `single_run_directional`**
   (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, 3 `run_replicated`), the other
