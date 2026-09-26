@@ -48,14 +48,16 @@ the guarantee structural. Application maintenance kept writes near the reference
 configuration-portal workload, and its obligation is stated
 against where the derived state lives: when the base fact and the rollup are in the same database,
 update both in one transaction; when they cannot share one atomic transaction, name the delivery,
-idempotency and reconciliation mechanism that keeps the derived state recoverable. Only that second
-case is *publication*, because only there does a copy cross the authoritative transaction boundary.
+idempotency and reconciliation mechanism that keeps the derived state recoverable. Only the second case
+is *publication*, because only there does a copy escape the transaction that wrote the original — leaving
+a moment when a reader can see the new value while the copy is still old.
 The measured trigger cost was 4.0–5.7x on whole-configuration replacement across three runs (median
-4.94x) — a range, because the trigger cell's own trials are imprecise.
+4.94x) — a range rather than a single figure, because repeating the measurement inside that configuration
+gave results that disagreed with each other by more than we would like.
 
-#heading(level: 2, "Step 4 — state the evidence level and the gap")
-Every recommendation carries a claim id, its strength, its confounds and its coverage gap. A
-recommendation without a gap statement is over-claiming.
+#heading(level: 2, "Step 4 — say how strong the evidence is")
+Every recommendation states how well it is supported, what it could not separate, and what has not been
+measured. A recommendation that does not say what is missing claims more than the evidence allows.
 
 #heading(level: 2, "A worked decision")
 #list(

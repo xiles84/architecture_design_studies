@@ -47,8 +47,9 @@ ordinary.
 #registry-card("v2-06-hot-drop-designs")
 #registry-card("v2-12-lock-vs-version-upper-bound")
 #heading(level: 3, "Boundaries and reproduction")
-The ratios are single-run and single-host. Reproduce from the run tags in the cards; check the
-`run_level` note for failed cells before quoting a percentage.
+Every ratio on this page comes from one run of the experiment, on one machine, so read each as a
+direction rather than a stable number. Reproduce it from the run tags in the cards, and check the note on
+the card for any part of that run that failed or was invalid before quoting a percentage.
 
 // ---------------------------------------------------------------- 2
 #heading(level: 2, "Rolldown / duplicated data")
@@ -69,8 +70,9 @@ for the stale copy; operations must backfill after a schema change.
 #heading(level: 3, "Direct evidence")
 #registry-card("v2-05-d3-read-advantage-repeated")
 #heading(level: 3, "Boundaries and reproduction")
-One family contrast is not a general law. The copied-key package is confounded (`conf-01`), and
-physical placement is unverified (`v4-gap-01`).
+One family contrast is not a general law. The copied-key comparison changes more than the copied key, so
+it cannot be attributed to that decision on its own (`conf-01`), and where the cluster physically put the
+data was never verified (`v4-gap-01`).
 
 // ---------------------------------------------------------------- 3
 #heading(level: 2, "Rollups / materialized aggregates")
@@ -97,7 +99,9 @@ operations must rebuild the rollup after a bulk load.
 #registry-card("v2-13-trigger-rollup-cost")
 #registry-card("v2-04-recency-maintained-index")
 #heading(level: 3, "Boundaries and reproduction")
-The recency pair's write cost is confounded (`conf-02`); quote its read result, not its write cost.
+We can trust the read comparison, but not the write comparison. The design with the recency index also
+performs the rollup maintenance, so the experiment cannot tell us how much of the write cost comes from
+the index itself. In experimental terms, this write comparison is confounded (`conf-02`).
 
 #figure-evidence(
   "../assets/fig-rollup-vs-rolldown.svg",
@@ -144,8 +148,9 @@ similar; correctness needs a bounded-growth rule; operations can be awkward for 
 #registry-card("v2-11-section-seat-map")
 #heading(level: 3, "Boundaries and reproduction")
 Embedding here means a JSON/array child column in PostgreSQL or a document row in YugabyteDB — a
-labelled #text(weight: "bold")[analogy] to a native document database, which was not measured
-(`v2-gap-06`). The row-versus-document contrast is a package comparison (`conf-03`).
+labelled #text(weight: "bold")[analogy] to a native document database, which was not measured here
+(`v2-gap-06`). The comparison of a table of rows against a stored document changes both designs at once,
+so it contrasts two whole ways of organising the data rather than one decision (`conf-03`).
 
 // ---------------------------------------------------------------- 5
 #heading(level: 2, "Append-only history / snapshots")
@@ -197,7 +202,8 @@ failure domain.
 #registry-card("v2-16-strict-freshness-read-cost")
 #registry-card("v3-03-equal-total-framing-labelled")
 #heading(level: 3, "Boundaries and reproduction")
-Redis was measured as a cache, never as an authoritative store; the v2 gain is `db-only` framed
-(`conf-04`) and the equal-total arm is labelled separately. The three-instance failure is a mechanism
-demonstration, not a rate to predict from, and the process-local arms' zero wrong reads are a bypass
-result (`v2-15`), not safety.
+Redis was measured as a cache, never as an authoritative store. The gain is measured against a
+database-only reference point, so it cannot be attributed to the cache by itself (`conf-04`), and the
+comparison against equal total resources per side is labelled separately. The failure with three
+instances shows the mechanism at work rather than a rate to predict from, and the in-process designs'
+zero wrong reads are a bypass result (`v2-15`), not safety.

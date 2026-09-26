@@ -30,12 +30,27 @@ when one decision changed, and every comparison carries its confounds on the pag
 #registry-card("v2-03-embedding-not-ahead")
 #registry-card("v2-11-section-seat-map")
 
-#heading(level: 2, "The confounds, published here rather than in a footnote")
+#heading(level: 2, "What these six comparisons cannot decide")
+
+Each item below is a comparison the book shows, followed by the reason it cannot settle the question it
+looks like it settles. The reason comes first because it is the useful part; the short label in brackets
+is only how the rest of the book refers back to it.
+
 #list(
-  [*`conf-01`* — the D2→D3 rolldown prices a copied key plus its SQL and indexes, not the column.],
-  [*`conf-02`* — the recency pair's write axis is confounded by the whole rollup package.],
-  [*`conf-03`* — the row-versus-document seat map is a family/package comparison.],
-  [*`conf-04`* — the cache gain is `db-only` framed.],
-  [*`conf-05`* — the ticketing buyer arms disagree in sign on PostgreSQL.],
-  [*`conf-06`* — the strict-freshness range must be shown in full (−14.2% to +12.3%).],
+  [*A copied key carries more than the key.* The D2→D3 rolldown compares two whole designs, so the read
+   gain it measures includes the copied column, the index that supports it and the changed SQL — not the
+   copied column on its own. [*`conf-01`*]],
+  [*The recency pair's write cost is not only about recency.* The design with the recency index also does
+   all of the rollup maintenance, so the experiment cannot say how much of the write cost comes from the
+   index itself. Quote its read comparison, not its write cost. [*`conf-02`*]],
+  [*A table of rows against a stored document is a whole-family comparison.* The seat map differs both in
+   storage shape and in how the data is organised, so any difference belongs to the two designs together,
+   not to one decision inside them. [*`conf-03`*]],
+  [*The cache gain was measured against one baseline.* The reference point was the database alone, so the
+   measured gain cannot be attributed to the cache by itself. [*`conf-04`*]],
+  [*The two buyer models swap places.* On PostgreSQL the two designs change order depending on the
+   workload, so neither can be reported as the faster one. [*`conf-05`*]],
+  [*The strict-freshness numbers run in both directions.* The range goes from −14.2% to +12.3%, so
+   quoting either end alone would misrepresent the result; the whole range travels with any summary.
+   [*`conf-06`*]],
 )

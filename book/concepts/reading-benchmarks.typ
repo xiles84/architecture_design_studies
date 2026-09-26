@@ -11,14 +11,16 @@ reading a number as if it answered a different question, not from a bad run.
 #list(
   [*Closed or open loop?* Every race here is closed loop. Closed-loop load can understate
    fixed-rate behaviour, so its tail must not be read as an SLO prediction.],
-  [*One trial or many?* Spreads within a measurement are not an across-trial error bar.],
-  [*Per-node or equal-total framing?* Single-vs-cluster answers "add machines", not "same budget".],
-  [*What was the design order?* In Study 02 the two arms disagree in sign on PostgreSQL, so no ratio
-   is quotable until a repeated-design control is run.],
-  [*What fired the control?* A correctness gate without a fired negative control proves less than it
-   appears to.],
-  [*What is the cell, and what is the run?* A run's totals and failures belong to the run; a claim's
-   support cells are a selected subset.],
+  [*One trial or many?* The scatter between repeats inside one measurement is not the same as the
+   scatter between separate runs of the whole experiment.],
+  [*Were both sides given the same resources?* Comparing one node with three answers "what if I add
+   machines", not "what if I spend the same total".],
+  [*In what order were the designs run?* In Study 02 the two designs swap places on PostgreSQL depending
+   on the order, so no ratio is quotable until an order-controlled repeat is run.],
+  [*Did the check that is meant to fail actually fail?* A correctness check that no deliberately broken
+   design ever trips proves less than it appears to.],
+  [*One configuration, or the whole run?* A run's totals and failures belong to the run; a claim cites a
+   selected subset of what was measured.],
 )
 
 #heading(level: 2, "Worked examples of a number that cannot be quoted")
@@ -37,12 +39,12 @@ A table, not a figure: check it against the card beside the number.
   align: (left, left, left),
   table.header([*Question*], [*Where the answer lives*], [*If it is missing*]),
   [Which claim does this number belong to?], [The claim id in the card], [Do not quote it.],
-  [Run, replication or trial?], [`trials` on the card], [Say "one run, one trial" and stop.],
+  [Was it one run, or several?], [`trials` on the card], [Say "one run, one trial" and stop.],
   [Closed or open loop?], [The report's workload section], [Do not read the tail as an SLO.],
-  [Per-node or equal-total framing?], [`resource_framing` in the result], [Never pool the two arms.],
-  [One decision or a package?], [The card's own label], [Attribute nothing to a single change.],
-  [Did the negative control fire?], [The run's verification block], [Treat correctness as unproven.],
-  [What confound moved with it?], [`confounds` on the card], [Do not attribute the effect.],
+  [Same resources on both sides?], [`resource_framing` in the result], [Never mix the two ways of counting.],
+  [One decision, or several changes at once?], [The card's own label], [Attribute nothing to a single change.],
+  [Did the deliberately broken control fail?], [The run's verification block], [Treat correctness as unproven.],
+  [What else changed at the same time?], [`confounds` on the card], [Do not attribute the effect.],
   [What gap does it leave?], [The gap's `gap_kind`], [Name the kind, never "unknown".],
 )
 

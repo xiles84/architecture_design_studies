@@ -5,8 +5,8 @@
 
 #marker("chapter", "evidence and reproduction")
 Every number in this book resolves to a claim in #raw(registry-label), and every claim to
-a measured cell in a cited report. This chapter explains the confidence cards, the run-tag
-provenance model, and how to reproduce a run in Podman.
+something actually measured in a report this book cites. This chapter explains the confidence cards,
+the run-tag provenance model, and how to reproduce a run in Podman.
 #heading(level: 2, "The provenance model")
 #direct[
   A run tag marks the producing code state, not a tree that contains the run's results. Check out

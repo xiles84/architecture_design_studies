@@ -4,14 +4,15 @@
 #heading("Topologies")
 
 #marker("chapter", "topologies")
-Topology is a separate axis from design family: node count, replication, placement, endpoint
-routing, resource framing, network conditions and failure behaviour. A design that is best on one
-node is not thereby best on three.
+Topology is a separate axis from design family: how many nodes there are, how many copies of the data
+exist, where those copies sit, how clients are routed to them, how resources are divided between the two
+sides of a comparison, what the network does, and what happens when a node fails. A design that is best
+on one node is not thereby best on three.
 
 #heading(level: 2, "What was measured")
-Studies 01–03 run PostgreSQL single-node and YugabyteDB single-node (RF=1) and 3-node (RF=3). Every
-cell is throttled to a documented per-node budget, and every manifest records it. The cost model is
-therefore "per-node budget", not "equal total budget".
+Studies 01–03 run PostgreSQL single-node and YugabyteDB single-node (RF=1) and 3-node (RF=3). Each
+measured configuration is capped at a documented per-node budget, and every run manifest records it. The
+comparison is therefore "the same budget on every node", not "the same total resources on both sides".
 
 #heading(level: 2, "What topology does to a design")
 In the measured YugabyteDB RF=3 topology, replication puts consensus work on the foreground write

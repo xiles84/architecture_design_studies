@@ -14,7 +14,7 @@
 // fails and names the missing one, instead of the page quietly listing three kinds
 // while the cards use four.
 #let gap-kind-description = (
-  coverage: [a relevant regime has not been measured yet],
+  coverage: [the case simply has not been measured yet],
   schema_limitation: [the representation cannot answer the question, so no run would],
   instrument: [the property could not be observed with the tools the study had],
   unstable_measurement: [the number moved between runs with no code change],
@@ -102,8 +102,8 @@
   #v(3mm)
   This is a generated artefact: Typst source plus the evidence registry, compiled in a pinned
   Podman image. *Every claim in this book must resolve to a claim in the active registry*, and every
-  number must resolve to a measured cell in a cited report. Nothing here is hand-entered at build
-  time; the fields below are injected from the build script.
+  number must trace back to something actually measured in a report this book cites. Nothing here is
+  hand-entered at build time; the fields below are injected from the build script.
 
   #if not release [
     #v(3mm)

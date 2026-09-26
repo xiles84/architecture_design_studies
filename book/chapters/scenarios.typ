@@ -9,9 +9,9 @@ wrong in another, so each scenario below states its answerability question and i
 
 #heading(level: 2, "Ticket overbooking and refunds")
 Never oversell, then report refunds. Pre-created seats with compare-and-set or `SKIP LOCKED` sold
-4–8x faster than a counter row; a ledger made refunds answerable at +33–35% storage. The ratio
-between the two arbitration designs at 128 buyers is 1.1–2.3x on PostgreSQL; the small arm is
-unsettled.
+4–8x faster than a counter row; a ledger made refunds answerable at +33–35% storage. The ratio between
+the two ways of arbitrating a seat at 128 simultaneous buyers is 1.1–2.3x on PostgreSQL, and the
+measurements at small scale disagree with each other, so that size does not settle which is faster.
 #registry-card("v2-06-hot-drop-designs")
 #registry-card("v2-08-ledger-race-cost-128-buyers")
 #registry-card("v2-09-postgres-ledger-ratio-unsettled")
@@ -68,9 +68,10 @@ relaxed cells recorded zero wrong reads, and the legacy process-local arms' zero
   tablet/leader placement and open-loop demand. The cache study *did* measure real TTL churn,
   in-run repeats and equal-total cache accounting on 2026-09-23, so those are no longer gaps. The
   vocabulary is worth fixing here: an *in-run repeat* is another measurement window inside one
-  benchmark process, which reduces within-run noise but is not an independent run replication —
-  where the cards say `Trials: 1`, they mean one whole-run replication and no more.
-  These are coverage gaps, not null results.
+  benchmark process, which reduces the scatter inside that process but is not a separate run of the whole
+  experiment — where the cards say `Trials: 1`, they mean the experiment was run once and no more.
+  None of the things listed above has been measured yet, which is not the same as having been measured
+  and shown to make no difference: these are absences of evidence, not neutral or negative results.
 ]
 #registry-card("v2-gap-03-study04-missing-designs")
 #registry-card("v3-gap-01-study05-remaining-regimes")

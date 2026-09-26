@@ -59,23 +59,24 @@ under every contract, not a relaxation of one. *Relaxed* is a family of weakenin
 contract, so which member is in force has to be named:
 
 #list(
-  [*Strict after acknowledgement* — the contract the comparator below enforces.],
+  [*Strict after acknowledgement* — the rule the comparison in this chapter is made against.],
   [*Session / read-your-writes* — a client can see its own committed writes.],
   [*Bounded staleness* (≤ Δ) — a hit may lag the latest commit by at most a declared Δ.],
   [*Eventual freshness* — convergence is required; no distance or deadline is declared.],
   [*Best effort* — nothing beyond a valid committed value is promised.],
 )
 
-None of these permits a dirty, torn or uncommitted value, and every measured cell here recorded zero
-impossible values — that is the negative control on this sentence. The study's measured relaxed cells
-are **unbounded-relaxed**: they permit committed-but-older values relative to the strict comparator
-without declaring a maximum staleness. They are therefore not bounded-staleness contracts, and their
-violation count says nothing about a Δ window.
+None of these permits a dirty, torn or uncommitted value, and no configuration measured here produced an
+impossible value — measuring that is how the sentence is checked rather than assumed. The relaxed
+contracts this study measured are **unbounded-relaxed**: compared with the strict rule below, they allow a
+committed but older value, without declaring how old it may be. They are therefore not bounded-staleness
+contracts, and counting how often they break the strict rule says nothing about whether they stay inside a
+Δ window.
 
 #heading(level: 2, "The strict contract, written down")
 
-*Strict after acknowledgement* is the contract the measured cells are judged against, so it is worth
-stating formally rather than in prose. Let `W1` be a write to a key, `ack(W1)` the moment its
+*Strict after acknowledgement* is the rule every configuration measured here is judged against, so it is
+worth stating formally rather than in prose. Let `W1` be a write to a key, `ack(W1)` the moment its
 acknowledgement is observed, `R1` a read of the same key, and `begin(R1)` the moment it starts.
 
 #align(center)[
@@ -86,10 +87,9 @@ acknowledgement is observed, `R1` a read of the same key, and `begin(R1)` the mo
   ]
 ]
 
-Every other contract is a weakening of that line, and the weakening must be named: a
-*bounded-staleness* budget, *session / read-your-writes*, or *best effort*. The comparator is what the
-harness count below is measured against — a "wrong read" is a read that violates this line, not a read
-that returns something impossible.
+Every other contract is a weakening of that line, and the weakening must be named: a *bounded-staleness*
+budget, *session / read-your-writes*, or *best effort*. That line is the yardstick for the counts in this
+chapter — a "wrong read" is one that breaks it, not one that returns something impossible.
 
 #figure-evidence(
   "../assets/fig-freshness-timeline.svg",
@@ -148,7 +148,7 @@ present and the contract still be broken.
    flight are outside this guarantee],
   [the stale-fill race. A reader that snapshotted S0 before the invalidation can still publish S0
    afterwards; deletion orders nothing about a fill already in flight],
-  [mechanism used by every measured write-through cell; on its own it never made a shared relaxed
+  [used by every write-through configuration measured here; on its own it never made a shared relaxed
    cache strict],
 )
 
@@ -207,8 +207,8 @@ present and the contract still be broken.
    if the lease expires or ownership is lost before the first filler finishes — which is exactly why a
    lease is not a fence],
   [*any* freshness question. It is a load control; it guarantees nothing about the value filled],
-  [newer signed but unregistered evidence — the 2026-09-23 Study 05 churn cell demonstrates the lease
-   path (`20260923T1100Z-churn1800-through`); no registry claim states a lease rate],
+  [newer evidence, signed but not yet registered — the churn configuration measured on 2026-09-23
+   demonstrates the lease path (`20260923T1100Z-churn1800-through`); no registry claim states a lease rate],
 )
 
 #mechanism-card(
@@ -278,37 +278,41 @@ figure from it. What the read result does forbid is the other direction: never r
 freshness is free".
 #registry-card("v2-16-strict-freshness-read-cost")
 
-#heading(level: 2, "The gain, and the framing it does not have")
+#heading(level: 2, "The gain, and what the gain leaves out")
 Adding a cache to warm cacheable reads bought 2.2–3.5x throughput and an order of magnitude in p99
-(15.8–27.1 ms to 0.8–2.0 ms). That is an *add-cache* result under `db-only` framing: the cache's own
-CPU and memory are outside the comparison (`conf-04`). A separately labelled equal-total arm now
-exists — the same design and topology read 11k ops/s equal-total against 8.0k db-only — and the two
-framings are never pooled.
+(15.8–27.1 ms to 0.8–2.0 ms). One thing is left out of that number: the cache's own CPU and memory are
+not counted against the database side, so the ratio compares a database with a database *plus* a cache,
+rather than the same total resources arranged two ways (`conf-04`). A second comparison now counts the
+resources the other way — both sides given the same total — and there the same design reads 11k ops/s
+against 8.0k when the cache's resources are not counted. The two ways of counting are kept apart and never
+averaged together.
 #registry-card("v2-14-cache-throughput-gain")
 #registry-card("v3-03-equal-total-framing-labelled")
 
-#heading(level: 2, "The failure mode, stated against the strict comparator")
+#heading(level: 2, "The failure mode, measured against the strict rule")
 Three logical application instances sharing one Redis cache on write-through + *relaxed* freshness
-recorded 87.81% wrong reads on the owned model and 87.24% on the legacy model, while every
-single-instance relaxed cell recorded zero.
+recorded 87.81% wrong reads on the owned model and 87.24% on the legacy model, while every relaxed
+configuration running on a single instance recorded none.
 
-*What the counter counts.* The harness metric is named `wrong_reads`, and it counts reads that violated
-the strict comparator above. In this cell those were committed-but-older values — the legitimate
-consequence of choosing a relaxed contract — and *not* dirty, torn, uncommitted or impossible values.
-Read it as *strict-freshness violations*, never as corruption: every measured cell here recorded zero
-impossible values. A *bounded* staleness contract would raise a further question this run cannot
-answer — whether the stale values also left the permitted window — so the counter is only evidence
-about staleness when the contract is bounded and the window is known.
+*What the counter counts.* The harness field is named `wrong_reads`, and it counts reads that broke the
+strict rule stated above: a read that starts after a write is acknowledged must not return an older
+value. In this configuration the offending values had been committed, just earlier — which is exactly
+what choosing a relaxed contract permits — and were *not* dirty, torn, uncommitted or impossible values.
+Read it as those broken promises, never as corruption: no configuration measured here produced an
+impossible value. Where a contract promises staleness bounded to a window, a further question arises that
+this run cannot answer — whether the stale values also stayed inside that window — so the counter is only
+evidence about staleness once the window is known.
 
-The process-local arms are the trap. The legacy process-local arms' zero wrong reads are a *bypass*
-result, not safety: they served *0* cache hits across 15,578–21,756 reads, so the cache was
-effectively absent (`reports/20260921T-survey3.md`, the anchor of the registered claim). The owned
-process-local arms did serve hits and validated the source version at the hit boundary; those cells
-recorded no strict-comparator violations. Validation at the hit boundary is what *can* supply that
-proof — but whether it is the only thing that could is not tested here, because no unvalidated owned
-arm was run. Read it as the mechanism these cells are consistent with, not as an ablation. A private
-in-memory lease cannot coordinate instances; a source version token that is never consulted at the hit
-or publication boundary does not make a shared relaxed cache strict.
+The designs that keep the cache inside one process are the trap. The legacy process-local design's zero
+wrong reads are a *bypass* result, not safety: it served *0* cache hits across 15,578–21,756 reads, so
+there was effectively no cache to be wrong (`reports/20260921T-survey3.md`, the anchor of the registered
+claim). The owned process-local design did serve hits and checked the source version at the moment of the
+hit; those configurations recorded no broken promises. Checking the version at the hit is one way to
+obtain that guarantee — but whether it is the only way is not tested here, because no owned process-local
+design without the check was run. Read it as the mechanism these results are consistent with, not as a
+controlled removal of one part. A private in-memory lease cannot coordinate separate instances, and a
+source version token that is never consulted at the hit or at publication does not make a shared relaxed
+cache strict.
 
 #figure-evidence(
   "../assets/fig-cache-stale-fill.svg",
@@ -328,9 +332,9 @@ or publication boundary does not make a shared relaxed cache strict.
 #registry-card("v2-15-three-instance-staleness")
 
 #heading(level: 2, "Churn, engines and placement (2026-09-23)")
-Sustained churn crossed real 300 s TTL boundaries under load and stayed correct: a 1,801 s
-write-through cell crossed 6.0 boundaries with 0 wrong reads in 2,879,077 reads, and the two 601 s
-write-through / write-aside cells crossed 2.0 each with 0 wrong reads. The hard-expiry path fired
+Sustained churn crossed real 300 s TTL boundaries under load and stayed correct: one write-through
+configuration ran 1,801 s and crossed 6.0 boundaries with 0 wrong reads in 2,879,077 reads, and the two
+601 s write-through / write-aside configurations crossed 2.0 each with 0 wrong reads. The hard-expiry path fired
 *0* times — only probabilistic early expiry did — so "an entry reached its hard TTL" is still not
 demonstrated and is carried as a gap below. The strict/relaxed pair now also runs per engine, with the
 client spread over the endpoints: on YugabyteDB 1-node strict read 514 against relaxed 596 app-99

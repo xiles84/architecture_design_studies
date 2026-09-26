@@ -26,16 +26,16 @@ unchecked read-modify-write lost 93.7% of acknowledged updates.
 #heading(level: 3, "Trigger versus application maintenance")
 Trigger-maintained rollups cost 4.0–5.7x on whole-configuration replacement across three
 randomized-order runs (median 4.94x), and their latency tail is 22–46x worse (p99 61–109 ms against
-2.2–2.7 ms); the application rollup kept writes near the reference. The trigger cell's own trials
-disagree by 35–115%, so quote the range and never a point.
+2.2–2.7 ms); the application rollup kept writes near the reference. Repeating the measurement inside that
+one configuration gave 35–115% disagreement, so quote the range and never a point.
 #registry-card("v2-13-trigger-rollup-cost")
 
 #heading(level: 3, "Strict versus relaxed freshness")
 *Strict after acknowledgement* means a read that starts after a write to the same key is acknowledged
 never returns an older committed value. *Relaxed* is a family of weaker contracts, not one contract:
-relative to the strict comparator a relaxed contract may permit a committed-but-older value according
-to its declared semantics. Only a *bounded-staleness* member declares a maximum Δ; eventual and
-best-effort freshness need not, and the study's measured relaxed cells declared no maximum, so they are
+compared with the strict promise just stated, a relaxed contract may permit a committed but older value
+according to its declared semantics. Only a *bounded-staleness* member declares a maximum Δ; eventual and
+best-effort freshness need not, and the relaxed contracts measured here declared no maximum, so they are
 unbounded-relaxed. No member permits a dirty, torn or impossible value. Every controlled pair differed
 by −14.2% to +12.3% in read throughput — noise. The visible cost of strictness is on the write path,
 where a publication fence is added against the stale-fill race (a reader republishing S0 after a writer

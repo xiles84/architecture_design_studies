@@ -59,8 +59,9 @@ separate, explicit decision.
 #registry-card("v2-09-postgres-ledger-ratio-unsettled")
 
 #heading(level: 2, "Boundaries")
-The ledger's write cost is engine- and order-sensitive at the small arm; quote the run's own range
-and the disagreement, not a headline multiplier. The load-time multiplier is not published at all.
+The ledger's write cost depends on the engine and on the order the designs were run at the small size, so
+quote the run's own range and the disagreement rather than a single headline multiplier. The load-time
+multiplier is not published at all.
 
 #heading(level: 2, "The checklist")
 
