@@ -48,8 +48,8 @@ form: a claim whose headline names a mechanism its own evidence cannot isolate.
 
 | Finding | Implication |
 |---|---|
-| 10 `isolate`, 9 `package`, 10 `not_applicable`, **0 `interaction`** | The book's evidence is strong on single-decision pairs and honest about packages, but it has never registered a crossed-factor result. Every interaction the corpus names as unmeasured is genuinely unmeasured. |
-| 20 of 29 withhold attribution | This is the v5 confounds (conf-01…conf-06) working as designed. The book may report these packages, but any recommendation that names one component needs the isolation experiment. |
+| 10 `isolate`, 9 `package`, 10 `not_applicable`, **1 `interaction`** | The book's evidence is strong on single-decision pairs and honest about packages. The first crossed-factor result arrived with v2-18 (maintenance strategy × replacement size, see the third update below); the other interactions the corpus names as unmeasured are still unmeasured. |
+| 20 of 30 withhold attribution | This is the v5 confounds (conf-01…conf-06) working as designed. The book may report these packages, but any recommendation that names one component needs the isolation experiment. |
 | 15 claims with `control_coverage: absent` | The correctness gate is only as strong as the control that fires. Seven are read-only phases where the study's controls could not fire; their correctness inference is now withdrawn rather than implied. |
 | 27 single-run, 3 run-level (one a gap), 0 hardware-independent | The charter's replication-before-domains ordering is not a preference but the corpus's largest confidence gap. One claim was replicated before the v6 tag (see the update below). |
 | 1 recorded prediction (falsified), 1 bounded crossover | Both fields are now exercised: the T1 replication falsified its prediction, and the writer sweep registers a crossing bracketed between 1 and 2 writers. Neither is replicated - one measurement per level. |

@@ -58,9 +58,10 @@ func TestV6RegistryValidates(t *testing.T) {
 			t.Errorf("unexpected error: %v", e)
 		}
 	}
-	// 29 carried from v5 plus v2-17, added with the first bounded crossover.
-	if len(doc.Claims) != 30 {
-		t.Fatalf("want 30 claims, got %d", len(doc.Claims))
+	// 29 carried from v5 plus v2-17 (the first bounded crossover) and v2-18 (the
+	// first interaction).
+	if len(doc.Claims) != 31 {
+		t.Fatalf("want 31 claims, got %d", len(doc.Claims))
 	}
 }
 
@@ -78,7 +79,10 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	}
 	// The claims added after v5, by id. Adding a claim is a deliberate act: it
 	// must be listed here and in the supersession ledger, or this test fails.
-	added := map[string]bool{"v2-17-optimistic-pessimistic-crossover": true}
+	added := map[string]bool{
+		"v2-17-optimistic-pessimistic-crossover": true,
+		"v2-18-maintenance-size-interaction":     true,
+	}
 	if len(v6.Claims) != len(v5.Claims)+len(added) {
 		t.Fatalf("claim count drifted: v6 %d v5 %d plus %d declared additions",
 			len(v6.Claims), len(v5.Claims), len(added))

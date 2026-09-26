@@ -1140,7 +1140,8 @@
         "the ~15x read gain belongs to the earlier single run and was not re-measured in the replication",
         "the earlier single-run 6.85x figure did not reproduce and must not be quoted",
         "the trigger's product is a structural guarantee, not speed",
-        "the three runs realized only two distinct design orders (seeds 202 and 303 coincided, and in the sibling read tranche all three seeds coincided); randomized order describes the method, and the realized order is recorded in each manifest"
+        "the three runs realized only two distinct design orders (seeds 202 and 303 coincided, and in the sibling read tranche all three seeds coincided); randomized order describes the method, and the realized order is recorded in each manifest",
+        "the penalty is size-dependent, not a constant: crossing the same pair with entries per installed product gives 2.07x at 10 entries, 4.38x at 60 and 24.20x at 240, so this ratio holds at the small scale default of 60 entries and must not be quoted as a property of the design without the size (v2-18-maintenance-size-interaction)"
       ],
       "anchors": [
         {
@@ -2822,6 +2823,119 @@
         "levels": 7,
         "reversal_observed": true,
         "crossing_interval": "[1, 2] writers"
+      }
+    },
+    {
+      "claim_id": "v2-18-maintenance-size-interaction",
+      "statement": "Crossing who maintains the parent rollup (trigger n3_rollup_trigger against application n4_rollup_app) with the size of a replacement (10, 60 and 240 entries per installed product) shows the maintenance penalty is a function of size rather than a constant: the application design delivers 2.07x the trigger design on whole-configuration replacement at 10 entries (952 against 459 ops/s), 4.38x at 60 (631 against 144) and 24.20x at 240 (242 against 10), while the trigger's p99 rises from 3 to 156 ms against the application's 1 to 8 ms and no rollup mismatch is recorded at any size.",
+      "family": "rollups-materialized",
+      "study": "04-configuration-portal",
+      "strength": "single_run_directional",
+      "trials": {
+        "whole_run_replications": 1,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 1
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "PostgreSQL single node, small scale, one measurement per tier across 10, 60 and 240 entries per installed product, so the curve carries no spread at any level",
+        "one operation only: w05_replace_all replaces the whole configuration, and a workload that appends a single entry would sit at the low end of this curve at any size",
+        "the axis is capped by the small scale at 240 entries and the curve is still rising steeply there, so nothing here bounds where it flattens",
+        "no negative control in these three runs; control_coverage is recorded absent rather than implied",
+        "two designs cannot separate the two mechanisms that predict this shape: the trigger fires once per row written, and its per-row work may also be heavier than the application's single statement",
+        "the tier-60 cell reads 4.38x, inside the replicated range v2-13 measured for the same operation at the same tier on another day (3.99-5.69x); that cross-day comparison carries the approximately 30 percent day term the retry control measured"
+      ],
+      "anchors": [
+        {
+          "run_id": "20260926T152621Z",
+          "run_tag": "run/04-configuration-portal/20260926T152621Z",
+          "repo_commit": "1e2d046e9c342e815847e77e22f73d1769bb2e16",
+          "inputs_digest": "5618b5ce5954adcf",
+          "report": "studies/04-configuration-portal/reports/20260926T152621Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20260926T-maintenance-size-interaction--deepseek-flash--2026-09-26.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "primary"
+        },
+        {
+          "run_id": "20260926T152426Z",
+          "run_tag": "run/04-configuration-portal/20260926T152426Z",
+          "repo_commit": "1e2d046e9c342e815847e77e22f73d1769bb2e16",
+          "inputs_digest": "69ef9738af6d2fd4",
+          "report": "studies/04-configuration-portal/reports/20260926T152426Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20260926T-maintenance-size-interaction--deepseek-flash--2026-09-26.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20260926T152812Z",
+          "run_tag": "run/04-configuration-portal/20260926T152812Z",
+          "repo_commit": "1e2d046e9c342e815847e77e22f73d1769bb2e16",
+          "inputs_digest": "62417ed21d652380",
+          "report": "studies/04-configuration-portal/reports/20260926T152812Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20260926T-maintenance-size-interaction--deepseek-flash--2026-09-26.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 6,
+        "reported_failed": 0,
+        "source": "the three tier reports (2 designs x 3 tiers)",
+        "controls_present": 0,
+        "controls_fired": 0,
+        "note": "No negative control in this tranche; the rollup drift control belongs to the v2 tranche and is not reused as evidence here."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "n3",
+            "operation": "w05_replace_all",
+            "metric": "ops-per-second"
+          },
+          "status": "valid",
+          "resolves_to": "n3_rollup_trigger",
+          "expected": "144 ops/s at 60 entries per installation, 459 at 10 and 10 at 240"
+        },
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "n4",
+            "operation": "w05_replace_all",
+            "metric": "ops-per-second"
+          },
+          "status": "valid",
+          "resolves_to": "n4_rollup_app",
+          "expected": "631 ops/s at 60 entries per installation, 952 at 10 and 242 at 240"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/04-configuration-portal/reports/analyses/20260926T-maintenance-size-interaction--deepseek-flash--2026-09-26.md"
+      },
+      "status": "active",
+      "evidence_form": "interaction",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "04 n3->n4 (who maintains the rollup), crossed with entries per installation at 10, 60 and 240"
+        ],
+        "note": "The maintenance decision is the only difference between the two designs; the replacement size is the only difference between the tiers. Both factors are varied independently, which is what makes this an interaction rather than a package."
+      },
+      "control_coverage": "absent",
+      "replication": {
+        "runs": 1,
+        "order": "fixed",
+        "across_run_spread_pct": null,
+        "tier": "single-run"
       }
     }
   ],

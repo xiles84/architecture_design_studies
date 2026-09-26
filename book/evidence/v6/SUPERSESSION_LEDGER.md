@@ -11,22 +11,25 @@ boundaries preferred).
 **What changed.** Nothing about the claims themselves. All 29 v5 claims are carried forward with their
 statement, limits, confounds, anchors, support cells, trial counts, review state and lifecycle
 **byte-identical**, pinned by `TestV6CarriesV5ForwardExceptTheReplicatedClaim` in `tools/evidence` —
-with **one exception and one addition, both before the package tag**: `v2-13-trigger-rollup-cost` was
-re-scoped by the corpus's first run-level replication, which falsified its previously cited 6.85x, and
+with **one exception and two additions, all before the package tag**: `v2-13-trigger-rollup-cost` was
+re-scoped by the corpus's first run-level replication, which falsified its previously cited 6.85x;
 `v2-17-optimistic-pessimistic-crossover` was **added** with the corpus's first bounded crossover (seven
-writer levels, crossing bracketed between 1 and 2 writers; see `ANALYSIS.md`). v6 therefore carries 30
-claims: 29 from v5, one of them re-scoped, plus one new.
+writer levels, crossing bracketed between 1 and 2 writers), and whose retry-based mechanism was later
+withdrawn by the retry control; and `v2-18-maintenance-size-interaction` was **added** with the corpus's
+first `interaction` evidence form (maintenance strategy × replacement size). v6 therefore carries 31
+claims: 29 from v5, one of them re-scoped, plus two new. See `ANALYSIS.md`.
 v6 adds:
 
-| Added field | Values | Count across the 30 claims |
+| Added field | Values | Count across the 31 claims |
 |---|---|---|
-| `evidence_form` | isolate / package / not_applicable | 10 / 9 / 10 |
+| `evidence_form` | isolate / package / interaction / not_applicable | 11 / 9 / 1 / 10 |
 | `attribution` | withheld, isolated_by, note | 20 withhold attribution |
-| `control_coverage` | present / absent / not_applicable | 7 / 15 / 7 |
-| `replication` | runs, order, spread, tier | 27 single-run, 2 run-level (one a gap) |
+| `control_coverage` | present / absent / not_applicable | 7 / 17 / 7 |
+| `replication` | runs, order, spread, tier | 29 single-run, 2 run-level (one a gap) |
 
-Optional `prediction` and `crossover` fields are defined and machine-checked but unused: no registered
-claim yet carries a recorded prediction or a bounded crossover.
+The optional `prediction` and `crossover` fields are defined and machine-checked, and are no longer unused:
+`v2-13` carries a recorded prediction with verdict `falsified`, and `v2-17` carries the corpus's first
+bounded crossover (crossing interval `[1, 2] writers`).
 
 **How the values were assigned.** Every claim's assignment is in
 [`method_migration.json`](method_migration.json), so a reader can audit the rule applied to each claim

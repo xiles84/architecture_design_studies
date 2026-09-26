@@ -27,7 +27,12 @@ from a current-state-only representation.
 A rollup can be maintained by the application or by a database trigger. The trigger makes the
 guarantee structural; the measured cost was 4.0–5.7x on whole-configuration replacement across three
 runs (median 4.94x), with a 22–46x worse latency tail, while the application rollup kept writes near
-the reference. Neither is universally right: choose who must never forget.
+the reference. That ratio is a reading at one size, not a property of the design: crossed with the size
+of a replacement it runs 2.07x at 10 entries per installation, 4.38x at 60 and **24.20x** at 240, because
+the trigger does its work once per row written while the application does one statement per replacement.
+Neither is universally right: choose who must never forget, and then ask how large a replacement is.
+#registry-card("v2-13-trigger-rollup-cost")
+#registry-card("v2-18-maintenance-size-interaction")
 
 #heading(level: 2, "History is answerability")
 Retained history is not faster; it is the difference between being able to answer a question after the
@@ -74,7 +79,8 @@ answer.
   is not "stale" when it disagrees with current state. [direct]
 - *What can become stale.* Any aggregate published after the commit that produced it — the drift
   control demonstrates it. [mechanism]
-- *Where it stops working.* A per-row trigger's cost grows with the rows a replacement touches (here
-  4.0–5.7x, with a 22–46x worse tail); history costs storage (33–35% for the ledger). [gap]
+- *Where it stops working.* A per-row trigger's cost grows with the rows a replacement touches — now
+  measured at three sizes (2.07x, 4.38x, 24.20x at 10, 60 and 240 entries) rather than stated as a
+  tendency; history costs storage (33–35% for the ledger). [direct]
 - *The experiment that would settle it.* The n3/n4/x2 isolation pair, swept over entries per
   installation to find where the two maintenance strategies cross. [direct]
