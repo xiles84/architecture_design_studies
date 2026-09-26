@@ -1885,3 +1885,20 @@ output means. **The harness now records it** (`main @ 3c16e39`): each requested 
 as `ran` or `not_applicable` with a reason, and the report lists the ones that did not apply — verified
 with a negative control in a single run, where the design that does have contention records `ran` and is
 deliberately absent from the table.
+
+### Repeating a measurement in sequence measures the session too
+The interaction curve was repeated three times per level, and the repeats went in wall-clock order — two
+per level, level by level. The trend survived perfectly (the ordering by size held in all three
+repetitions) but the magnitudes did not: 15% spread at the smallest level and 55% at the middle one,
+against a pre-registered falsifier of 40%. The cause was visible in the absolutes: throughput fell
+through the session for *both* designs (at the middle level the application design read 631, then 205,
+then 206 ops/s), and the ratio moved because the two designs drifted by different amounts. So the
+"spread" I measured is not run-to-run noise at all; it is **drift by time, and the repetition index is
+confounded with it** — the same mistake the design-order work caught in the read tranche, one level up.
+The fix is the same in shape: vary the thing whose effect you want to exclude. Interleave the repeats,
+or run the sizes in a different order each time, or (cheapest) measure a fixed reference cell before and
+after the tranche so the drift is a number rather than an inference. This is the third tranche in one
+session where a session-level term dominated the effect being measured, which makes it a property of this
+setup rather than an unlucky run: **on this host, a single measurement session is not a stable
+instrument**, and any repeated claim should say how repetition and time were kept apart — or admit that
+they were not.

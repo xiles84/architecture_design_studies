@@ -331,10 +331,17 @@ summary, not a second ledger.
   exists (`v2-17`), an `interaction` claim exists (`v2-18`), and run-level replication exists (`v2-13`).
   What remains is breadth, not kind: 29 of 31 claims are still single-run, and the other named interactions
   are unmeasured.
+- **The interaction was then repeated three times per size (2026-09-26, tag `study-04/v2-interaction-repeat`):**
+  the ordering by size holds in all three repetitions, so the interaction is reproducible in direction, but
+  the spread within a size is 15% at 10 entries and 55% at 60, so `v2-18`'s figures are now **bands**
+  (~2.1–2.4x, 2.5–4.4x, 13–24x) and it is `run_replicated`. The scatter is a **session-level drift**, not
+  noise: absolute throughput fell as the session ran on for both designs (at 60 entries n4 read 631 → 205 →
+  206 ops/s). The repeat also dropped the tier-60 median to 3.42x, below the 3.99–5.69x `v2-13` replicated,
+  so the corroboration between the two claims is now recorded as approximate rather than a match.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
-  the breadth gaps above, and the standing follow-ups — repeat the interaction's three tiers three times
-  with randomized order, and re-measure a fixed reference cell each measurement day to track the ~30% day
-  drift.
+  the breadth gaps above, and the standing follow-ups — 26 of 31 claims are still single-run, the other
+  named interactions are unmeasured, and a fixed reference cell should be re-measured each measurement day
+  to track the drift without re-deriving it from a curve.
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
