@@ -373,6 +373,16 @@ summary, not a second ledger.
   it, bind-mount sources keep `hostpath` (correct for them), and study 03's image was rebuilt with it to
   confirm (exit 0). The lesson is recorded too: a correction written inside one study's copy of a shared
   script protects only that copy.
+- **The same defect class, second instance: the dirty-tree check (2026-09-26, tag `repo/dirty-check-v1`).**
+  Study 04 fixed this on 2026-09-23 and wrote the reason inside its own runner — git's `:!` pathspec
+  exclusion does not suppress **untracked** files, so every run after the first report looks dirty and
+  `--tag` is skipped *without failing*. **Studies 02 and 03 still carried it**, which is exactly why the
+  second study 02 replication produced results and a report but no run tag: the validator caught the missing
+  tag, not the runner. Both now filter results and reports explicitly, like studies 04 and 05. Verified with
+  a control pair: a probe file under `results/` leaves the new check empty and made the old one non-empty,
+  while an uncommitted file under `platform/` is still detected. The two fixes together mean the reason no
+  non-study-04 claim had ever been replicated was **two shared-infrastructure defects, each fixed in one
+  study's copy**.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
   the breadth gaps above, and the standing follow-ups — **19 of 31 claims are still `single_run_directional`**
   (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, 3 `run_replicated`), the other
