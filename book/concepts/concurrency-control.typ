@@ -47,9 +47,12 @@ lock advantage. A concurrency result without its lost-update control is not evid
 
 The lock is not simply faster. Swept across concurrent writers on one hot key, the pessimistic lock
 gives up **11%** of the version check's throughput at one writer and leads from two writers on, reaching
-1.68x at 32. The mechanism is on the optimistic side: its throughput falls 2.9x across the sweep while
-its conflict count rises from 0 to 21,301. So "which is faster" has no answer without the concurrency
-level, and the honest form of the recommendation names the interval where the ordering reverses.
+1.68x at 32. The movement is on the optimistic side: its throughput falls 2.9x across the sweep while its
+conflict count rises from 0 to 21,301. That correlation is not an explanation, and the obvious one was
+tested and rejected — with the retry budget set to zero the ratio at 16 writers does not narrow (1.60
+against 1.61), and the design that never retries moves by the same amount as the one that does. So
+"which is faster" has no answer without the concurrency level, and the interval where the ordering
+reverses is what a recommendation should name.
 #registry-card("v2-17-optimistic-pessimistic-crossover")
 
 #heading(level: 2, "Boundaries")
