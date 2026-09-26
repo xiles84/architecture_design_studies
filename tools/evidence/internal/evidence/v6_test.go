@@ -87,26 +87,67 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		t.Fatalf("claim count drifted: v6 %d v5 %d plus %d declared additions",
 			len(v6.Claims), len(v5.Claims), len(added))
 	}
-	// The one claim the 2026-09-25 T1 replication corrected.
+	// The one claim the 2026-09-25 T1 replication corrected: re-scoped because new
+	// evidence arrived. Its numbers and its limits both changed.
 	changed := map[string]bool{"v2-13-trigger-rollup-cost": true}
+	// Claims whose wording was made plainer without touching the evidence. Their
+	// statement and limits may differ from v5; their confounds, trial counts and
+	// anchors may not, which is what keeps a rewording from quietly carrying a
+	// change of substance. Listed here and in the ledger, so neither a rewording
+	// nor a re-scoping can pass as a silent edit.
+	reworded := map[string]bool{
+		"v2-01-normalized-index-first":              true,
+		"v2-02-rollup-family":                       true,
+		"v2-04-recency-maintained-index":            true,
+		"v2-05-d3-read-advantage-repeated":          true,
+		"v2-06-hot-drop-designs":                    true,
+		"v2-07-refund-answerability-and-storage":    true,
+		"v2-09-postgres-ledger-ratio-unsettled":     true,
+		"v2-10-guarded-confirm-refusals":            true,
+		"v2-11-section-seat-map":                    true,
+		"v2-13-trigger-rollup-cost":                 true,
+		"v2-14-cache-throughput-gain":               true,
+		"v2-15-three-instance-staleness":            true,
+		"v2-gap-01-ledger-load-multiplier-unstable": true,
+		"v3-01-churn-crosses-real-ttl":              true,
+		"v3-02-churn-600-through-vs-aside":          true,
+		"v3-03-equal-total-framing-labelled":        true,
+		"v3-04-yb-single-strict-relaxed":            true,
+		"v3-05-yb-cluster3-strict-relaxed":          true,
+		"v3-06-colocated-vs-noncolocated-locality":  true,
+		"v3-gap-01-study05-remaining-regimes":       true,
+	}
 	for i := range v5.Claims {
 		a, b := v6.Claims[i], v5.Claims[i]
 		if a.ClaimID != b.ClaimID {
 			t.Fatalf("claim order drifted at %d: %s vs %s", i, a.ClaimID, b.ClaimID)
 		}
-		same := a.Statement == b.Statement &&
-			strings.Join(a.Limits, "\x00") == strings.Join(b.Limits, "\x00") &&
-			strings.Join(a.Confounds, "\x00") == strings.Join(b.Confounds, "\x00") &&
+		structureSame := strings.Join(a.Confounds, "\x00") == strings.Join(b.Confounds, "\x00") &&
 			a.Trials == b.Trials &&
 			len(a.Anchors) == len(b.Anchors)
+		textSame := a.Statement == b.Statement &&
+			strings.Join(a.Limits, "\x00") == strings.Join(b.Limits, "\x00")
+		same := textSame && structureSame
+		// A re-scoped claim may change anything, because new evidence arrived.
+		// A reworded claim may change its text and nothing else, which is the
+		// rule that keeps a rewording from carrying a change of substance.
 		if changed[a.ClaimID] {
 			if same {
 				t.Errorf("%s is listed as re-scoped but is identical to v5", a.ClaimID)
 			}
 			continue
 		}
+		if reworded[a.ClaimID] {
+			if textSame {
+				t.Errorf("%s is listed as reworded but its text is identical to v5", a.ClaimID)
+			}
+			if !structureSame {
+				t.Errorf("%s is listed as reworded but its confounds, trial counts or anchors moved; a rewording may never move the evidence structure", a.ClaimID)
+			}
+			continue
+		}
 		if !same {
-			t.Errorf("%s changed without being listed as re-scoped", a.ClaimID)
+			t.Errorf("%s changed without being listed as re-scoped or reworded", a.ClaimID)
 		}
 	}
 }

@@ -31,6 +31,17 @@ The optional `prediction` and `crossover` fields are defined and machine-checked
 `v2-13` carries a recorded prediction with verdict `falsified`, and `v2-17` carries the corpus's first
 bounded crossover (crossing interval `[1, 2] writers`).
 
+**Plain-language rewording of the cards (2026-09-26, task `book/cards-plain-language`).** Twenty claims
+had their `statement` and/or `limits` reworded so that each one says what was measured, then why it limits
+the conclusion, and only then uses the project's term — the wording the book itself was given on
+2026-09-26. No number, evidence id, anchor, confound or trial count moved. That is a distinct class from a
+re-scoping, and `TestV6CarriesV5ForwardExceptTheReplicatedClaim` now keeps two declared sets to hold the
+distinction: a **re-scoped** claim may change anything, while a **reworded** claim may change its text and
+nothing else — if a reworded claim's confounds, trial counts or anchors move, the test fails. The claims
+reworded are `v2-01`, `v2-02`, `v2-04`–`v2-07`, `v2-09`–`v2-11`, `v2-13`, `v2-14`, `v2-15`, `v2-gap-01`,
+`v3-01`–`v3-06` and `v3-gap-01`. The registry files (`evidence_form`, `attribution`, `replication`,
+`coverage.json`) are unchanged by this pass.
+
 **How the values were assigned.** Every claim's assignment is in
 [`method_migration.json`](method_migration.json), so a reader can audit the rule applied to each claim
 rather than infer it. The per-claim verdicts and the full finding table are in
