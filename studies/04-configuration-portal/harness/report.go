@@ -232,6 +232,31 @@ func writeReport(resultsDir, out string) error {
 	wt.Write(&b)
 	b.WriteString("\n")
 
+	// ------------------------------------------------------------------- phases
+	// A requested phase that did not apply is listed as skipped, so a reader can
+	// tell an absent section (nothing to show) from an inapplicable one (nothing
+	// to measure). Before this table existed, the two looked identical.
+	var skipped [][2]string
+	for _, c := range cells {
+		for _, p := range c.Phases {
+			if p.Status == "not_applicable" {
+				skipped = append(skipped, [2]string{
+					c.Topology + " `" + c.DesignShort + "`",
+					p.Name + " — " + p.Reason,
+				})
+			}
+		}
+	}
+	if len(skipped) > 0 {
+		b.WriteString("## Phases that did not apply\n\n")
+		pt := markdown.NewTable("Cell", "Phase")
+		for _, s := range skipped {
+			pt.Row(s[0], s[1])
+		}
+		pt.Write(&b)
+		b.WriteString("\n")
+	}
+
 	// ---------------------------------------------------------------- contention
 	b.WriteString("## Contention (hot key, one installed product)\n\n")
 	ct := markdown.NewTable("Topology", "Design", "Strategy", "Writers", "Acked", "Retries", "Conflicts",

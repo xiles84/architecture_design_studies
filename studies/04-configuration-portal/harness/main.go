@@ -143,6 +143,7 @@ type Result struct {
 	Load       LoadInfo       `json:"load"`
 	Gate       GateInfo       `json:"gate"`
 	ClientCPU  *ClientCPUInfo `json:"client_cpu,omitempty"`
+	Phases     []PhaseOutcome `json:"phases,omitempty"`
 	Reads      []measure.Result `json:"reads,omitempty"`
 	Writes     []measure.Result `json:"writes,omitempty"`
 	Concurrency []ConcurrencyResult `json:"concurrency,omitempty"`
@@ -355,9 +356,25 @@ func describeDataset(ds *Dataset) DatasetInfo {
 	return di
 }
 
+// PhaseOutcome records what happened to each requested phase. A phase that did
+// not apply is reported as not_applicable rather than omitted, so that "skipped"
+// and "ran but measured nothing" are distinguishable in the artifact -- a
+// distinction three runs were wasted on before this field existed.
+type PhaseOutcome struct {
+	Name   string `json:"name"`
+	Status string `json:"status"` // ran | not_applicable
+	Reason string `json:"reason,omitempty"`
+}
+
 func runPhase(ctx context.Context, res *Result, d Design, cat *catalogue, ds *Dataset, db ports.DB, led *ledger, phase, explainPath string) error {
+	// Every requested phase is recorded, including the ones that return early.
+	status, reason := "ran", ""
+	defer func() {
+		res.Phases = append(res.Phases, PhaseOutcome{Name: phase, Status: status, Reason: reason})
+	}()
 	switch phase {
 	case "":
+		status, reason = "not_applicable", "empty phase name"
 		return nil
 	case "verify":
 		DropSchema(ctx, db)
@@ -428,12 +445,14 @@ func runPhase(ctx context.Context, res *Result, d Design, cat *catalogue, ds *Da
 		// drift control, whose race is on the derived rollup rather than on a key
 		// and which therefore must still be run here.
 		if !d.hasContention() {
+			status, reason = "not_applicable", "design has no arbitration to contend over"
 			return nil
 		}
 		return runContention(ctx, res, d, cat, ds, db, led)
 
 	case "cadence":
 		if res.Options.Cadence == "none" {
+			status, reason = "not_applicable", "cadence is none"
 			return nil
 		}
 		return runCadence(ctx, res, d, cat, ds, db, led)
