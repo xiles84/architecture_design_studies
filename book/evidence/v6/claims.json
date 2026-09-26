@@ -466,13 +466,13 @@
     },
     {
       "claim_id": "v2-06-hot-drop-designs",
-      "statement": "For a hot drop, pre-created seats taken by compare-and-set or SKIP LOCKED (P3 CAS, P2 skip-locked) sell 4-8x faster than any single counter row, but only with retry backoff in mind, and a counter on the event row also blocks unrelated edits to it. Both deliberately wrong controls fired in the same run.",
+      "statement": "For a hot drop, pre-created seats taken by compare-and-set or SKIP LOCKED (P3 CAS, P2 skip-locked) sell 4-8x faster than any single counter row, but only with retry backoff in mind, and a counter on the event row also blocks unrelated edits to it. Both deliberately wrong controls fired in the same run. Two replications thirteen days later, on the same topology and with the design order reversed between them (AB/BA), reproduced the range - P3 at 4.30-7.06x and 4.64-6.99x, P2 at 3.25-5.25x and 5.78-8.71x against the two counters - while every absolute throughput fell 26-72% below the original run. The range is therefore the claim and the absolute numbers are one session's readings.",
       "family": "normalized-facts",
       "study": "02-ticket-booking",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -482,7 +482,14 @@
       "limits": [
         "one run of the experiment, a single measurement per configuration",
         "the run has 42 cells of which 2 failed (C2 count (SER) on the two YugabyteDB topologies); those cells are not evidence",
-        "hot-drop workload only"
+        "hot-drop workload only",
+        "every absolute throughput in the 2026-09-26 replication was 26-72% below the 2026-09-13 run for the same design and tier, so the 4-8x range reproduced while the numbers behind it did not; the range is quotable and the figures are not",
+        "the ratio moved between runs: p3 against c4 went 7.07 to 4.37 to 4.64 at 100 seats and 7.26 to 4.30 to 4.70 at 1000, and p2 against c4 went 3.97 to 3.25 to 5.78, so the range is a range, not a point, and individual ratios shift by up to 44%",
+        "the replication re-ran neither deliberately wrong control (c1_count_naive, h0_hold_naive_confirm), so it strengthens the comparison without re-firing the correctness control that the first run provided",
+        "r1_inventory_row recorded one trial of about 4x lower throughput than its siblings at each tier (122 and 117 against 468-653); whether that is a real instability or a harness artefact is unresolved, and r1 is the weakest comparison in the replication",
+        "two of the original sweep's five tiers (10 and 10000 seats) were not re-measured",
+        "p2_precreated_skip_locked moved 58-76% between the two same-day replications while the counters moved within 15% and p3 within 7%; it ran first in one and last in the other, so that design carries a position or warm-up effect as large as the comparison it takes part in, and the claim's pairing of p2 with p3 hides it - the >=3x result holds at both extremes",
+        "the anomalous r1_inventory_row trials of the first replication (122 and 117 against 468-653) did not recur in the reverse-order run, which makes a harness artefact likelier than a design property without settling it"
       ],
       "anchors": [
         {
@@ -495,6 +502,28 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+yugabytedb-1node+yugabytedb-3node",
           "role": "primary"
+        },
+        {
+          "run_id": "20260926T214452Z",
+          "run_tag": "run/02-ticket-booking/20260926T214452Z",
+          "repo_commit": "9c608c89e8ff1e43a1b212916b2c1209468ec0c1",
+          "inputs_digest": "518f3bfc68e987df",
+          "report": "studies/02-ticket-booking/reports/20260926T214452Z.md",
+          "analysis": "studies/02-ticket-booking/reports/analyses/20260926T-v2-06-replication--deepseek-flash--2026-09-26.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20260926T215213Z",
+          "run_tag": "run/02-ticket-booking/20260926T215213Z",
+          "repo_commit": "9c608c89e8ff1e43a1b212916b2c1209468ec0c1",
+          "inputs_digest": "b1f88e0067f4db83",
+          "report": "studies/02-ticket-booking/reports/20260926T215213Z.md",
+          "analysis": "studies/02-ticket-booking/reports/analyses/20260926T-v2-06-replication--deepseek-flash--2026-09-26.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
@@ -561,10 +590,15 @@
       },
       "control_coverage": "present",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 76.0,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "T1 in the replication protocol: p3_precreated_cas sells 4-8x faster than both counter rows at 100 and 1000 seats.",
+        "source": "studies/02-ticket-booking/V2-06-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {

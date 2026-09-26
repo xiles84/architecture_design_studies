@@ -1948,3 +1948,24 @@ absolute throughput spread 49% and the trigger's 114%. A session term shared by 
 they are divided, and only the differential part survives. So the design of a repeated comparison should
 prefer ratios and paired readings over absolute numbers wherever the claim allows it: it is the difference
 between carrying a number that moves with the machine and one that mostly does not.
+
+### A defect fixed in one copy of a shared script leaves the other copies broken
+Study 04's runner learned to pass `winpath`, not `hostpath`, as the image-build context: handed a POSIX
+path, the Windows podman reads `/mnt/c/...` as `C:\mnt\c\...` and the build dies with "context must be a
+directory". Study 02's runner never got that fix, so **study 02 could not build its benchmark image from a
+WSL path at all** — meaning no study 02 claim had ever been replicated, not because replication was
+expensive (the run takes five minutes) but because a two-word bug in a copy of a script made it impossible.
+The lesson is about where a fix is recorded: a comment inside one study's runner is not a fix for the
+repository. **When a runner is corrected, check every other runner for the same defect in the same
+change**, and prefer putting the correction in `infra/lib.sh` so there is one copy of it. The corpus's
+convention of one runner per study, each with its own copy of the orchestration, makes this failure
+repeatable by construction.
+
+### A run that is not tagged is not reproducible, and the runner may skip it silently
+Study 02's runner emitted `run/02-ticket-booking/20260926T214452Z` for the first replication and then
+produced the second run's results and report without emitting any tag at all. The data was fine; the
+provenance was not, and nothing warned. The registry validator caught it — an anchor whose run tag does
+not exist is an error — so the gap was found by the gate rather than by a reader. The tag was created by
+hand on the commit the run recorded (`repo_commit` in its manifest). **A runner's `--tag` must either
+produce a tag or fail loudly; a silent skip is worse than a failure**, because the run looks complete and
+is not. Check `git rev-parse` for the expected tag after any `--tag` run, before writing the analysis.

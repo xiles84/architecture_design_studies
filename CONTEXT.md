@@ -356,8 +356,18 @@ summary, not a second ledger.
   1.06 against a 1.34–3.15 range. `v2-18` now carries 7/9/7 runs per size, bands of 1.06–3.15 / 2.51–8.95 /
   10.20–24.20, and `replication runs=7, spread=134.7`; 23 anchors. The bands describe what has been seen,
   not a range a future reading must fall inside.
+- **The first non-study-04 replication (2026-09-26, tag `study-02/v2-06-replication`):** `v2-06-hot-drop-designs`
+  — the corpus's headline overbooking claim, one run since 2026-09-13 — was re-measured twice, in opposite
+  design order (AB/BA). The **4–8x range reproduced in both orders** (P3 4.30–7.06x and 4.64–6.99x),
+  so the claim holds, but **every absolute throughput fell 26–72%** below the original, and
+  `p2_precreated_skip_locked` moved **58–76% with its position in the session** while the counters moved
+  within 15%. `v2-06` is now `run_replicated` (3 runs, AB/BA, spread 76). Two infrastructure findings came
+  with it: study 02's runner passed `hostpath` where the image build needs `winpath` (study 04 already had
+  the fix), so **no study 02 claim could be re-run from a WSL path at all**; and the runner **silently
+  skipped the `--tag`** on the second run, so that tag was created by hand on the recorded commit.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
-  the breadth gaps above, and the standing follow-ups — 26 of 31 claims are still single-run, the other
+  the breadth gaps above, and the standing follow-ups — **19 of 31 claims are still `single_run_directional`**
+  (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, 3 `run_replicated`), the other
   named interactions are unmeasured, and the reference cell should now be taken **from the same operation
   being compared**, between every run rather than only at the ends of a tranche, so the drift becomes a
   per-run covariate.
