@@ -31,6 +31,21 @@ same organiser-edit cadence (every 20 ms). Only the session differs.
 Recorded before measurement. Evidence form stays `isolate` (a two-design pair differing in whether a ledger
 is written); this tranche raises the claim's replication tier if R1 and R3 hold.
 
+## Addendum, recorded after the first pass and before the second
+
+The first pass ran the two designs in one order (`p3` then `x1`), which cannot control for a design's
+position in the session — and on this host that effect has been measured at 58–76% on one design (study 02's
+own `v2-06` replication). The registry lint refuses `run_replicated` for a fixed order, correctly. The run
+takes **80 seconds**, so the reversal is cheap and is pre-registered here before it is run:
+
+| Id | Prediction | Falsifier |
+|---|---|---|
+| R5 | **The ratio and the ordering survive the reversal.** With `x1` running first, each tier's `p3/x1` ratio still falls within ±30% of the baseline and `x1` is still slower at every tier. | A tier outside the band or an order where the ledger wins, which would show the ratios to be a property of the running order. |
+| R6 | **The spread finding repeats in the reversed order.** If the small-tier cell's spread is a property of that cell rather than of its position, the 100-seat tier shows a wide spread again (above 40%) in the reversed pass too. | The 100-seat spread falling back under 40% with the order reversed, which would make the first pass's 56.8% a position effect rather than a cell effect. |
+
+If R5 and R6 hold, `v2-08` is registered `run_replicated` with `order: abba`; the first pass becomes the
+evidence for R2's falsification and the second for its cause.
+
 **Coverage gap, stated in advance.** The claim's YugabyteDB figures, its refund ratio and its effect on the
 organiser's own edit are **not** re-measured here, and the 10-seat and 100k-seat tiers are omitted to keep
 the run short. A pass on R1–R4 says nothing about those.
