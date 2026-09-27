@@ -170,6 +170,11 @@ fi
   echo "  podman: $(podman --version)"
 } >> "$OUT/manifest.yaml"
 
+# The resources this run actually gets, written beside its results: a cell lost
+# to memory pressure must be attributable to memory rather than to the design
+# (study 03 lost two of three cells this way on 2026-09-27).
+record_host_state "$OUT/host-state.txt"
+
 FAILED=()
 
 run_cell() {

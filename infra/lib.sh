@@ -127,6 +127,36 @@ rm_container() {
   fi
 }
 
+# record_host_state <file>
+# Appends a timestamped snapshot of the machine's memory and CPU count, and of
+# the container budgets this session is using — the resources a run actually
+# gets, not the ones the documentation claims.
+#
+# It exists because a lost cell has to be attributable. On 2026-09-27 study 03
+# lost two of three cells to the out-of-memory killer inside the database
+# container (server processes terminated by signal 9, then connections dropped
+# with SQLSTATE 57P01) and nothing in the run recorded the memory position at
+# the time, so the explanation had to be inferred from the database log
+# afterwards. A run that dies should be able to say what it died of.
+record_host_state() {
+  local f="$1"
+  {
+    printf '# host state %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'cpus: %s\n' "$(nproc 2>/dev/null || echo unknown)"
+    if command -v free >/dev/null 2>&1; then
+      free -m | sed 's/^/mem_mb: /'
+    else
+      printf 'mem_mb: unavailable\n'
+    fi
+    printf 'db_budget: cpus=%s memory=%s\n' "${DB_CPUS:-unknown}" "${DB_MEMORY:-unknown}"
+    printf 'client_budget: cpus=%s memory=%s\n' "${CLIENT_CPUS:-unknown}" "${CLIENT_MEMORY:-unknown}"
+    printf 'yb_tserver_memory_bytes: %s\n' "${ADS_YB_TSERVER_MEMORY:-1593835520}"
+    printf 'yb_master_memory_bytes: %s\n' "${ADS_YB_MASTER_MEMORY:-536870912}"
+    printf 'containers:\n'
+    podman ps --format '  {{.Names}} {{.Status}}' 2>/dev/null || true
+  } >> "$f"
+}
+
 # sql_in <container> <client> <host> <port> <user> <db> <sql>
 # Runs one statement from inside a container and prints the bare result.
 #
