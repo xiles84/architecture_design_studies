@@ -6,8 +6,8 @@ analyst: deepseek-flash
 analyst_kind: ai
 analyst_version: "deepseek-flash (DeepSeek), HIGH-capability, Deep Code CLI; effort setting not exposed. Executor of task study-03/v2-11-replication."
 analyzed_at: 2026-09-26
-inputs_digest: pending — the run's report states it; the baseline for comparison is run/03-reserved-seating/20260921T231328Z
-repo_commit: 35abeff
+inputs_digest: a2a6b655e14e7fa1 (run 20260926T234227Z); the baseline for comparison is run/03-reserved-seating/20260921T231328Z
+repo_commit: 35abeff334f6100a9f79731b273a4880f4e9db43
 status: current
 headline: Study 03's first replication reproduces the document's advantage on the 100k seat map (27.8x against the original's 20.8x) while both absolutes fall 63-72 percent; the sharded variant's collapse could not be re-tested because its load failed three times.
 ---
