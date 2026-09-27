@@ -461,7 +461,9 @@ The tranche is merged into local `main` and tagged `study-02/v2-08-tier100-settl
 `LESSONS_LEARNED.md` and the v6 registry were updated in the same change. Two registry points a later
 reader should know: the record's `across_run_spread_pct` was corrected from a within-cell figure (57.0)
 to the run-to-run spread of the tier-100 ratio (54.1), and the two earlier replication passes were added
-as anchors, which the earlier replication analysis had promised but not recorded.
+as anchors, which the earlier replication analysis had promised but not recorded. The tracked book draft was
+rebuilt on the new registry in the same change (`book/dist/`, 72 pages, 31/31 claims, evidence digest
+`06f3cc01…`), as every recent claim-registry change has done.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
