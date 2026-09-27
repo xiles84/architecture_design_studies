@@ -692,11 +692,11 @@
       "statement": "At 128 buyers the ledger costs 1.1-2.3x of the sell-out race on PostgreSQL and 1.8-2.2x on YugabyteDB with tight spreads, 2.1-2.5x on the refund itself, and not one under-booked seat anywhere; it delays the organiser's own edit by up to 5x.",
       "family": "append-only-history",
       "study": "02-ticket-booking",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 2,
         "fresh_load_trials_per_cell": 3,
-        "inner_iterations": 128
+        "inner_iterations": 1
       },
       "transfer": "direct",
       "comparability": "within-run",
@@ -707,7 +707,11 @@
       "limits": [
         "one small run, closed loop, quota-bound nodes",
         "scoped to 128 buyers; must not be extrapolated to 32 buyers",
-        "single run, three trials per tier"
+        "single run, three trials per tier",
+        "replicated on 2026-09-27 in both design orders at 128 buyers, three trials per tier: the p3/x1 ratio came out 1.53x, 1.71x and 2.00x at 100, 1000 and 10000 seats in the first order and 0.99x, 1.30x and 1.74x in the reversed order, so the ratios reproduce in size while the lowest of them falls below this claim's 1.1x floor",
+        "the ordering is not stable at the smallest tier: CAS read 4163 against the ledger's 2724 at 100 seats in the first order (1.53x) and 3588 against 3618 in the reversed order (0.99x), i.e. the ledger marginally faster - so the designs swap places at a fixed buyer count, which is what v2-09 records for changing buyer counts",
+        "the phrase 'tight spreads' does not hold at that tier: the 100-seat cell spread 57% for CAS and 37% for the ledger in the first order, and 47% and 51% in the reversed order, while every other tier stayed within 4-17% - and because the wide spread appeared at the same tier in both orders it belongs to the cell rather than to a design's position in the session",
+        "the statement's 1.1-2.3x band and its 'tight spreads' wording are therefore not fully reproduced, and re-scoping a signed claim's numbers is a decision for HIGH rather than a mechanical update; the measured evidence is recorded here in the meantime"
       ],
       "anchors": [
         {
@@ -769,10 +773,15 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 2,
+        "order": "abba",
+        "across_run_spread_pct": 57.0,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "R5 in the replication protocol: the ratio and the ordering survive running the pair in the opposite order.",
+        "source": "studies/02-ticket-booking/V2-08-REPLICATION.md",
+        "verdict": "falsified"
       }
     },
     {
