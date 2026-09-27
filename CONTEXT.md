@@ -383,6 +383,19 @@ summary, not a second ledger.
   while an uncommitted file under `platform/` is still detected. The two fixes together mean the reason no
   non-study-04 claim had ever been replicated was **two shared-infrastructure defects, each fixed in one
   study's copy**.
+- **BLOCKER — sizing defect, found 2026-09-27 (tag `study-03/l3-diagnosis`): the podman machine has 2 GiB of
+  memory and every container runs inside it**, while `infra/versions.env` allots the database 3 GB and the
+  client 2 GB. Five gigabytes of declared budgets on a two-gigabyte machine: **no container limit can be
+  enforced and the VM's own ceiling is the real one**, so the per-node budgets recorded in every manifest
+  have never described the environment. This is the mechanism behind the three `l3_section_sharded` load
+  failures (server processes **killed with signal 9**, 122 lines in one cell), and it is why raising the
+  container limits to 5 GB changed the symptom instead of removing it. The machine was also found **stopped**
+  (state `stopped`, hence "lock volume vanished" and `connect: connection refused`); it has been started, and
+  the configuration is unchanged. **Decision needed from the owner — resize the machine
+  (`podman machine set --memory 8192`) or shrink every study's declared budgets to fit 2 GiB.** Either is an
+  environment change: runs before and after are not comparable, and the change must be recorded as such.
+  Consequences: study 07's 3-node topology cannot be attempted here at all, and every published run's
+  declared envelope carries this gap.
 - **Study 03 has now been replicated twice, and neither pass registers (2026-09-27, tags
   `study-03/v2-11-replication`, `study-03/v2-11-order-reversed`).** The first pass confirmed the claim's
   direction on `yb-single` — the stored section document read the 100k-seat map at 1,138 ops/s against 41
