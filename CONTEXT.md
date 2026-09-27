@@ -396,17 +396,17 @@ summary, not a second ledger.
   environment change: runs before and after are not comparable, and the change must be recorded as such.
   Consequences: study 07's 3-node topology cannot be attempted here at all, and every published run's
   declared envelope carries this gap.
-- **Study 03 has now been replicated twice, and neither pass registers (2026-09-27, tags
-  `study-03/v2-11-replication`, `study-03/v2-11-order-reversed`).** The first pass confirmed the claim's
-  direction on `yb-single` — the stored section document read the 100k-seat map at 1,138 ops/s against 41
-  for one row per seat, a **27.8x** multiple against 2026-09-21's 20.8x — while both absolutes fell 63–72%,
-  the third study to show that pattern. The second pass, which reversed the design order to make the
-  comparison AB/BA, **lost two of its three cells to memory pressure**: connections terminated by the server,
-  and the database log recording processes **killed with signal 9** (122 lines in one cell) on a 15 GB host.
-  So `v2-11` remains `single_run_directional`, and the binding constraint on study 03 replication is now
-  **host capacity**, not cost or method — a repeated attempt needs a bounded container memory limit and a
-  smaller scale, not another identical run. A correction travelled with it: the first pass's analysis had
-  recorded the wrong `inputs_digest` (the first 16-hex string in the report rather than the labelled one).
+- **Study 03's replication history, corrected (passes `study-03/v2-11-replication`, `…-order-reversed`;
+  both superseded by `study-03/v2-11-memory-envelope` and then `study-03/close-out`).** An earlier version of
+  this bullet said neither pass registered, which was true when written and is not true now: `v2-11` is
+  `run_replicated` with **five whole runs** and both engines. The first pass confirmed the direction
+  (1,138 ops/s against 41, a **27.8x** multiple); the order-reversed pass lost two cells to memory pressure
+  (`killed with signal 9`, 122 lines in one cell); the memory-envelope pass supplied the AB/BA pair
+  (**27.8x and 24.4x**, a 12% difference) and registered the claim; the PostgreSQL half gave **0.83x**; and
+  the close-out pass reversed the PostgreSQL pair for **0.88x**. The engine contrast — about 25x on
+  YugabyteDB against essentially none on PostgreSQL — is therefore the claim's most replicated element.
+  One correction travelled with this work: an analysis of the first pass had recorded the wrong
+  `inputs_digest` (the first 16-hex string in the report rather than the labelled one).
 - **`v2-11` registered after a third pass, and the vocabulary gap closed itself (2026-09-27, tag
   `study-03/v2-11-memory-envelope`).** The retry raised the envelope (database 3 GB → 5 GB, tserver limit
   1.5 GiB → 3 GiB) and ran the pair in the **opposite** order, which is what the lint had been demanding:
