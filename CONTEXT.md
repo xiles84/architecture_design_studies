@@ -457,6 +457,8 @@ first-trial warm-up appeared in 6 of 6 runs. Analysis
 `studies/02-ticket-booking/reports/analyses/20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27.md`; the
 earlier replication analysis's two reports still say "None yet" because it lacks the `inputs:` frontmatter line
 the report index needs (recorded in `LESSONS_LEARNED.md`) — not edited here, as it is another session's file.
+The tranche is merged into local `main` and tagged `study-02/v2-08-tier100-settle`; `CONTEXT.md`,
+`LESSONS_LEARNED.md` and the v6 registry were updated in the same change.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
