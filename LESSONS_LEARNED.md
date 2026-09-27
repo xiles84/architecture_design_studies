@@ -1969,3 +1969,26 @@ not exist is an error — so the gap was found by the gate rather than by a read
 hand on the commit the run recorded (`repo_commit` in its manifest). **A runner's `--tag` must either
 produce a tag or fail loudly; a silent skip is worse than a failure**, because the run looks complete and
 is not. Check `git rev-parse` for the expected tag after any `--tag` run, before writing the analysis.
+
+### A grep for a fingerprint can return a different fingerprint
+An analysis recorded its run's `inputs_digest` as `a2a6b655e14e7fa1`, taken with
+`grep -oE '[0-9a-f]{16}' report.md | head -1`. The report's actual digest line said `0e717c5c3a629cd6`; the
+value that was published was simply the **first sixteen hex characters anywhere in the file**, which
+happened to be a different field (a config or dataset hash). It survived a validation pass, because the
+validator checks that an anchor's digest *appears* in the report and the analysis — and it did appear, in
+both, from the same wrong source. **A fingerprint must be read from the line that labels it, never
+extracted by shape**, and the cheap guard is to grep the label (`grep "Inputs digest"`) rather than the
+pattern. Note also that the wrongness was invisible from inside the file: it was found only by comparing
+against a second run, where two identical-looking digests for different data exposed it.
+
+### A run that dies in its load is not a failed design, and the memory is the suspect
+Two of three cells in study 03's order-reversed pass died during their `load`, with connections terminated
+by the server (SQLSTATE 57P01). The database log showed why: `server process (PID 721) was terminated by
+signal 9: Killed`, 122 such lines in one cell. That is the out-of-memory killer, and no property of the
+design can produce it. Two consequences worth keeping. First, **"never reached the gate" and "failed the
+gate" are different absences** and must be reported differently; conflating them would have turned a host
+resource limit into evidence against two designs. Second, **position was the wrong hypothesis and the test
+settled it**: `l3` failed as the last design in one run and as the first in the next, while `l1` succeeded
+first and failed last — so a hypothesis about ordering was falsified by varying the order, which is the same
+move this corpus keeps needing. When a cell dies, rule out the machine before theorising about the design;
+record memory beside the run, and bound the database container explicitly.

@@ -383,12 +383,25 @@ summary, not a second ledger.
   while an uncommitted file under `platform/` is still detected. The two fixes together mean the reason no
   non-study-04 claim had ever been replicated was **two shared-infrastructure defects, each fixed in one
   study's copy**.
+- **Study 03 has now been replicated twice, and neither pass registers (2026-09-27, tags
+  `study-03/v2-11-replication`, `study-03/v2-11-order-reversed`).** The first pass confirmed the claim's
+  direction on `yb-single` — the stored section document read the 100k-seat map at 1,138 ops/s against 41
+  for one row per seat, a **27.8x** multiple against 2026-09-21's 20.8x — while both absolutes fell 63–72%,
+  the third study to show that pattern. The second pass, which reversed the design order to make the
+  comparison AB/BA, **lost two of its three cells to memory pressure**: connections terminated by the server,
+  and the database log recording processes **killed with signal 9** (122 lines in one cell) on a 15 GB host.
+  So `v2-11` remains `single_run_directional`, and the binding constraint on study 03 replication is now
+  **host capacity**, not cost or method — a repeated attempt needs a bounded container memory limit and a
+  smaller scale, not another identical run. A correction travelled with it: the first pass's analysis had
+  recorded the wrong `inputs_digest` (the first 16-hex string in the report rather than the labelled one).
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
   the breadth gaps above, and the standing follow-ups — **19 of 31 claims are still `single_run_directional`**
   (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, 3 `run_replicated`), the other
-  named interactions are unmeasured, and the reference cell should now be taken **from the same operation
-  being compared**, between every run rather than only at the ends of a tranche, so the drift becomes a
-  per-run covariate.
+  named interactions are unmeasured, host and container memory should be recorded beside every run, and the
+  reference cell should now be taken **from the same operation being compared**, between every run rather
+  than only at the ends of a tranche, so the drift becomes a per-run covariate. One registry-vocabulary gap
+  is open for HIGH: there is **no strength label for "measured twice with an uncontrolled order"**, which
+  understates `v2-06` and `v2-11`.
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
