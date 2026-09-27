@@ -458,7 +458,10 @@ first-trial warm-up appeared in 6 of 6 runs. Analysis
 earlier replication analysis's two reports still say "None yet" because it lacks the `inputs:` frontmatter line
 the report index needs (recorded in `LESSONS_LEARNED.md`) — not edited here, as it is another session's file.
 The tranche is merged into local `main` and tagged `study-02/v2-08-tier100-settle`; `CONTEXT.md`,
-`LESSONS_LEARNED.md` and the v6 registry were updated in the same change.
+`LESSONS_LEARNED.md` and the v6 registry were updated in the same change. Two registry points a later
+reader should know: the record's `across_run_spread_pct` was corrected from a within-cell figure (57.0)
+to the run-to-run spread of the tier-100 ratio (54.1), and the two earlier replication passes were added
+as anchors, which the earlier replication analysis had promised but not recorded.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
