@@ -964,12 +964,12 @@
     },
     {
       "claim_id": "v2-11-section-seat-map",
-      "statement": "On YugabyteDB a stored section document answers the 100k-seat map 4.5-11x faster than one row per seat, while the variant that shards by section collapses point lookups to 26 ops/s; on PostgreSQL no difference can be attributed to the design. The two designs differ in storage shape and in how the data is organised, so this is a comparison of two whole designs, not of one decision.",
+      "statement": "On YugabyteDB the section document (L2 document) answers the 100k-seat map 4.5-11x faster than per-seat rows, while the section-sharded variant (L3 sharded) collapses point lookups to 26 ops/s; PostgreSQL shows no attributable difference. This is a family/package comparison, not a one-decision pair. The engine contrast now has a replication on both halves: the same pair of designs measures 24.4x and 27.8x on yb-single and 0.83x on pg-single, so the substitution is worth about 25x on one engine and nothing on the other.",
       "family": "embedded-documents",
       "study": "03-reserved-seating",
       "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 3,
+        "whole_run_replications": 4,
         "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
@@ -989,7 +989,10 @@
         "the pair has since been measured in both orders: l1 then l2 gave a 27.8x multiple and l2 then l1 gave 24.4x, a 12 percent difference, so the claim's direction does not depend on which design runs first",
         "the pass that supplied the reversal ran with the database container at 5 GB and the YugabyteDB memory limit at 3 GiB rather than 3 GB and 1.5 GiB, because the earlier passes lost cells to the out-of-memory killer; its absolute figures are therefore not comparable with the 3 GB runs, and only the ratio between the two designs inside a run is",
         "the load failures are memory pressure rather than design behaviour: the database log records server processes terminated by signal 9 (killed), 122 such lines in one cell, on a host with 15 GB of memory - so the sharded half of this claim and its PostgreSQL half are blocked here by host capacity, and a lost cell of this kind never reached the correctness gate rather than failing it",
-        "the two passes that supply the AB/BA pair also differ in memory envelope, so the 12 percent agreement may hide an order effect and a memory effect that cancel; a pass at 5 GB in the first pass's order would separate them"
+        "the two passes that supply the AB/BA pair also differ in memory envelope, so the 12 percent agreement may hide an order effect and a memory effect that cancel; a pass at 5 GB in the first pass's order would separate them",
+        "the PostgreSQL half was replicated on 2026-09-27 and shows no attributable difference (l2_section_document 6565 ops/s against l1_claim_rows 7873 on the 100k-seat map, a 0.83x multiple), so the finding is the engine contrast - about 25x on YugabyteDB against none on PostgreSQL - rather than the design being faster in general",
+        "that PostgreSQL measurement is a single run in a single design order, unlike the YugabyteDB pair which has the AB/BA control; a reverse-order pass there is still owed",
+        "l3_section_sharded is declared yugabyte_only_designs in this study's runner and is therefore never attempted on PostgreSQL, so the claim's sharded element can only ever be engine-specific evidence; its 2026-09-21 figures (15.9 and 28.3 ops/s) have not been reproduced on any pass since because its load fails on yb-single"
       ],
       "anchors": [
         {
@@ -1073,7 +1076,7 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 3,
+        "runs": 4,
         "order": "abba",
         "across_run_spread_pct": 73.0,
         "tier": "run-level"
