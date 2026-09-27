@@ -451,8 +451,8 @@ positive control) read `p3/x1` at **1.279, 1.333, 1.257, 1.712, 1.328 and 1.476*
 inside the claim's `1.1–2.3x` band — and the ledger was slower in **29 of 30 individual trial pairs** (pooled
 per-trial median 1.391x). The tier-1,000 control read 1.304–1.712 in all six runs and correctness was green
 (46/46, 48/48, 0 bad counters). So the band survives and **"tight spreads" does not**: the 100-seat cell spread
-47–77% and the ratio moved 34% across the six runs (54% across all eight). `v2-08` now records 8 whole runs with
-the two earlier replication passes as anchors; **re-scoping its signed wording is still a HIGH decision.** A
+47–77% and the ratio moved 34% across the six runs (54% across all eight). `v2-08` then recorded 8 whole runs
+with the two earlier replication passes as anchors; **re-scoping its signed wording is still a HIGH decision.** A
 first-trial warm-up appeared in 6 of 6 runs. Analysis
 `studies/02-ticket-booking/reports/analyses/20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27.md`; the
 earlier replication analysis's two reports still say "None yet" because it lacks the `inputs:` frontmatter line
@@ -464,6 +464,22 @@ to the run-to-run spread of the tier-100 ratio (54.1), and the two earlier repli
 as anchors, which the earlier replication analysis had promised but not recorded. The tracked book draft was
 rebuilt on the new registry in the same change (`book/dist/`, 72 pages, 31/31 claims, evidence digest
 `06f3cc01…`), as every recent claim-registry change has done.
+
+**The ledger's cost is monotone in tier (2026-09-27, four runs `20260927T224424Z`/`…225107Z`/`…225817Z`/
+`…230535Z`, tag `study-02/v2-08-tier-axis`).** Four whole runs measured **all five tiers in every run**, in
+both design orders, 5 trials per cell. The pooled run-median `p3/x1` rose **1.075, 1.237, 1.409, 1.845, 2.505**
+at 10 / 100 / 1k / 10k / 100k seats — monotone in the pooled medians and in every individual run — so the
+claim's `1.1–2.3x` band describes its **middle three tiers**, not the axis. Both endpoint tiers had never been
+repeated: at 10 seats the run medians are 1.023–1.180 (pooled 1.075, below the floor) but the per-trial median
+is 1.131 and the ledger is slower in only **12 of 20** pairs, while at 100,000 seats it is slower in **20 of
+20** (pooled per-trial median 2.456, above the 2.3x top — but that tier is **one event** per trial, so an
+event-specific effect is indistinguishable from a tier effect). Correctness was green (0 bad counters in all
+four runs). `v2-08` now records **12 whole runs, 13 anchors and 15 limits**, and its tier-100 ratio spans
+0.992–1.712 over the twelve. Analysis
+`studies/02-ticket-booking/reports/analyses/20260927T-v2-08-tier-axis--deepseek-flash--2026-09-27.md`. **The
+axis is now the main input to the HIGH re-scoping: the band is an interior summary and "tight spreads" fails
+at the small tiers.** Merged into local `main` and tagged `study-02/v2-08-tier-axis`; the tracked book draft
+was rebuilt on the new registry.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

@@ -2036,3 +2036,25 @@ its own by adding the `inputs:` line and regenerating with the recorded benchmar
 analysis needs `inputs: <run-id>@<digest>, …`, and "the report lists it" is a separate check from "the
 validator is green"** — run the report generator and read the index before believing the analysis is
 attached to its data.
+
+## The tier axis (2026-09-27)
+
+### A range whose endpoints lie outside it is an interior summary, not the cost
+`v2-08` quotes the ledger at "1.1–2.3x" of the sell-out race. Sweeping the tier with the same pair in four
+runs, both orders, gives a *monotone* cost: 1.075x at 10 seats, 1.237 at 100, 1.409 at 1,000, 1.845 at
+10,000 and **2.505 at 100,000**. So the quoted range is just the two interior tiers the sweep's author
+happened to bracket, and a reader who says "between 1.1x and 2.3x" is quoting a middle while the ends sit at
+"no measurable cost" and "well over 2x". The general rule is to read the ends of a sweep before quoting its
+middle: **a band drawn from a sweep is a summary of the levels measured, not a bound on the mechanism**, and
+if the endpoints fall outside it the axis has to be named in the same sentence. Here it also produced a
+boundary rather than a bigger number, which is the form the corpus prefers.
+
+### A falsifier that does not name its statistic is two falsifiers
+Study 02's tier-axis protocol predicted that the 10-seat ratio would fall below the claim's 1.1x floor, and
+named no statistic. The run medians came out 1.023–1.180 (pooled 1.075 — confirmed) while the per-trial
+median was 1.131 (falsified); the tier is also the only one where the ledger is slower in fewer than 80% of
+trial pairs (12 of 20, 60%). The verdict therefore depends on which number the reader picks, which is a
+defect in the prediction rather than in the data. **Write the statistic into the falsifier** — "the pooled
+run-median ratio", "the per-trial median", "the count of pairs that reverse" — because with a noisy cell
+those are three different experiments, and the corpus's own rule (methodology 4) is that a prediction must
+name the observation that would refute it precisely enough that one observation can do it.
