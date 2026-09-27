@@ -418,8 +418,9 @@ summary, not a second ledger.
   having tested it and found nothing. `record_host_state()` captured the budgets and host memory beside the
   results on its first use.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
-  the breadth gaps above, and the standing follow-ups — **18 of 31 claims are still `single_run_directional`**
-  (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, **4 `run_replicated`**), the other
+  the breadth gaps above, and the standing follow-ups — **17 of 31 claims are still `single_run_directional`**
+  (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, **5 `run_replicated`**, after `v2-08` was
+  registered on 2026-09-27), the other
   named interactions are unmeasured, `l3_section_sharded`'s load needs a diagnosis, and the
   reference cell should now be taken **from the same operation being compared**, between every run rather
   than only at the ends of a tranche, so the drift becomes a per-run covariate.
@@ -442,6 +443,20 @@ The validation accepted the ledger's ~2x YugabyteDB race cost at 128 buyers and 
 answerability result, left the PostgreSQL race ratio *unsettled by design order*, and required
 three artifact-only corrections (widened `claim-07` range, dropped `claim-05` "8x load", retired
 `claim-gap-04`); verdicts in `book/evidence/reviews/20260922-phase-3b-high-validation.json`.
+
+**The 100-seat reversal of the `v2-08` replication was settled (2026-09-27, six runs `20260927T22*`, tag
+`study-02/v2-08-tier100-settle`).** The earlier tranche's 0.99x was a run median taken from a cell whose own
+trials disagree by 50–92%. Six more runs (5 race trials per cell, three in each design order, tier-1,000 as a
+positive control) read `p3/x1` at **1.279, 1.333, 1.257, 1.712, 1.328 and 1.476** at 100 seats — every run
+inside the claim's `1.1–2.3x` band — and the ledger was slower in **29 of 30 individual trial pairs** (pooled
+per-trial median 1.391x). The tier-1,000 control read 1.304–1.712 in all six runs and correctness was green
+(46/46, 48/48, 0 bad counters). So the band survives and **"tight spreads" does not**: the 100-seat cell spread
+47–77% and the ratio moved 34% across the six runs (54% across all eight). `v2-08` now records 8 whole runs with
+the two earlier replication passes as anchors; **re-scoping its signed wording is still a HIGH decision.** A
+first-trial warm-up appeared in 6 of 6 runs. Analysis
+`studies/02-ticket-booking/reports/analyses/20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27.md`; the
+earlier replication analysis's two reports still say "None yet" because it lacks the `inputs:` frontmatter line
+the report index needs (recorded in `LESSONS_LEARNED.md`) — not edited here, as it is another session's file.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

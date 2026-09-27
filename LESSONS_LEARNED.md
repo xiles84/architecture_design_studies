@@ -2010,3 +2010,29 @@ act on the third.** For the lock that means capturing the engine's exit status a
 rather than `FREE`; for a query it means printing the key names that exist before concluding a field is
 missing; for a fingerprint it means `grep "Inputs digest"` and never a pattern. The general rule: a negative
 result is only evidence if you have shown the instrument was working when you took it.
+
+## Settling a reversal (2026-09-27)
+
+### A median taken over a noisy cell can manufacture a reversal, and a reversal is a count
+Study 02's `v2-08` replication read 0.99x at 100 seats — the ledger *faster* — where the first pass read
+1.53x, and the honest reading was that the tier's cell disagreed with itself by 50–92% of its own median.
+Six more runs with five trials each (30 trial pairs instead of 6) put the ledger slower in **29 of 30**,
+with a pooled per-trial median of 1.391x and every run median inside the original band (1.257–1.712). The
+single sub-1 pair (0.940x) is the tail of a distribution, not a second regime. Two reusable points:
+**when a reversal is the finding, judge it on the count of pairs that reverse, not on a median of medians**
+— the earlier 0.99x was one trial pair in six, and a median of three trials per design let one trial set
+it; and **more trials, not more nested medians, is the cheap way out** (the whole settle cost six runs of
+~80 s). The registry's own rule for this is the `replication` record plus the spread limit: a cell whose
+spread exceeds ~20% supports a direction, not a point ratio, and the claim should say which it is offering.
+
+### An analysis can be indexed nowhere while looking perfectly formed
+The report's "Analyses of this run" table matches an analysis by its `run_id` **or** by an `inputs:
+run-id@digest, …` frontmatter line (`platform/core/provenance`). A multi-run analysis whose `run_id` is a
+descriptive string and whose digests live only in `inputs_digest:` therefore matches **no run**, and every
+report it covers says "None yet" — even though the `inputs_digest` is correct and the registry validator,
+which only checks that the digest *appears* in report and analysis, passes. The 2026-09-27 `v2-08`
+replication analysis hit this, and its two run reports were never regenerated; the settle tranche fixed
+its own by adding the `inputs:` line and regenerating with the recorded benchmark image. **A multi-run
+analysis needs `inputs: <run-id>@<digest>, …`, and "the report lists it" is a separate check from "the
+validator is green"** — run the report generator and read the index before believing the analysis is
+attached to its data.
