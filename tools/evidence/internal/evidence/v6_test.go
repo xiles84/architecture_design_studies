@@ -90,11 +90,13 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// The one claim the 2026-09-25 T1 replication corrected: re-scoped because new
 	// evidence arrived. Its numbers and its limits both changed.
 	// Claims re-scoped because new evidence arrived: their numbers, limits, trial
-	// counts and anchors may all differ from v5. v2-06 was only reworded at the
-	// v6 tag; the 2026-09-26 replication then re-scoped it, so it moved here.
+	// counts and anchors may all differ from v5. v2-06 and v2-11 were only reworded
+	// at the v6 tag; their 2026-09-26/27 replications then re-scoped them, so they
+	// moved here.
 	changed := map[string]bool{
 		"v2-13-trigger-rollup-cost": true,
 		"v2-06-hot-drop-designs":    true,
+		"v2-11-section-seat-map":    true,
 	}
 	// Claims whose wording was made plainer without touching the evidence. Their
 	// statement and limits may differ from v5; their confounds, trial counts and
@@ -110,7 +112,6 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		"v2-07-refund-answerability-and-storage":    true,
 		"v2-09-postgres-ledger-ratio-unsettled":     true,
 		"v2-10-guarded-confirm-refusals":            true,
-		"v2-11-section-seat-map":                    true,
 		"v2-13-trigger-rollup-cost":                 true,
 		"v2-14-cache-throughput-gain":               true,
 		"v2-15-three-instance-staleness":            true,

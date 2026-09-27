@@ -967,10 +967,10 @@
       "statement": "On YugabyteDB a stored section document answers the 100k-seat map 4.5-11x faster than one row per seat, while the variant that shards by section collapses point lookups to 26 ops/s; on PostgreSQL no difference can be attributed to the design. The two designs differ in storage shape and in how the data is organised, so this is a comparison of two whole designs, not of one decision.",
       "family": "embedded-documents",
       "study": "03-reserved-seating",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -985,10 +985,11 @@
         "read-only phases; no control could fire",
         "a difference below ~1.8x cannot be attributed to the design rather than to run-to-run scatter",
         "a replication on yb-single on 2026-09-26, three repeats per cell, reproduced the direction strongly: l2_section_document read the 100k-seat map at 1138 ops/s against l1_claim_rows at 41, a 27.8x multiple against the 20.8x of 2026-09-21, while both absolute figures fell far below the original (l1 by 72 percent, l2 by 63 percent), so the multiple is the claim and the figures are one session's readings",
-        "that replication could not test this claim's second half: l3_section_sharded failed its load three times (connection terminated by the server, SQLSTATE 57P01) before any measurement, so the sharded collapse was not re-observed and that cell carries no evidence in either direction - it never reached the correctness gate, which is a different absence from failing it",
-        "the replication ran the designs in one fixed order, so no position effect was controlled for and it does not yet lift this claim above single_run_directional; an order-reversed run is the outstanding step",
-        "an order-reversed replication was attempted on 2026-09-27 and produced no comparable pair: l3_section_sharded and l1_claim_rows both died during their load with connections terminated by the server, so this claim still rests on a single configuration order and the reversal that would have controlled for position does not exist",
-        "the load failures are memory pressure rather than design behaviour: the database log records server processes terminated by signal 9 (killed), 122 such lines in one cell, on a host with 15 GB of memory - so the sharded half of this claim and its PostgreSQL half are blocked here by host capacity, and a lost cell of this kind never reached the correctness gate rather than failing it"
+        "l3_section_sharded has failed its load in all three passes, in three different positions and under two memory envelopes, and with two different symptoms (connections terminated mid-COPY with SQLSTATE 57P01, then connect: connection refused). The sharded collapse therefore cannot be tested on this host with this harness - which is different from having tested it and found nothing",
+        "the pair has since been measured in both orders: l1 then l2 gave a 27.8x multiple and l2 then l1 gave 24.4x, a 12 percent difference, so the claim's direction does not depend on which design runs first",
+        "the pass that supplied the reversal ran with the database container at 5 GB and the YugabyteDB memory limit at 3 GiB rather than 3 GB and 1.5 GiB, because the earlier passes lost cells to the out-of-memory killer; its absolute figures are therefore not comparable with the 3 GB runs, and only the ratio between the two designs inside a run is",
+        "the load failures are memory pressure rather than design behaviour: the database log records server processes terminated by signal 9 (killed), 122 such lines in one cell, on a host with 15 GB of memory - so the sharded half of this claim and its PostgreSQL half are blocked here by host capacity, and a lost cell of this kind never reached the correctness gate rather than failing it",
+        "the two passes that supply the AB/BA pair also differ in memory envelope, so the 12 percent agreement may hide an order effect and a memory effect that cancel; a pass at 5 GB in the first pass's order would separate them"
       ],
       "anchors": [
         {
@@ -1001,6 +1002,28 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+yugabytedb-1node+yugabytedb-3node",
           "role": "primary"
+        },
+        {
+          "run_id": "20260926T234227Z",
+          "run_tag": "run/03-reserved-seating/20260926T234227Z",
+          "repo_commit": "35abeff334f6100a9f79731b273a4880f4e9db43",
+          "inputs_digest": "0e717c5c3a629cd6",
+          "report": "studies/03-reserved-seating/reports/20260926T234227Z.md",
+          "analysis": "studies/03-reserved-seating/reports/analyses/20260926T-v2-11-replication--deepseek-flash--2026-09-26.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20260927T142039Z",
+          "run_tag": "run/03-reserved-seating/20260927T142039Z",
+          "repo_commit": "dc76b7804873a10b8eeb62398cf0ecf0d56220aa",
+          "inputs_digest": "febd951548f154ca",
+          "report": "studies/03-reserved-seating/reports/20260927T142039Z.md",
+          "analysis": "studies/03-reserved-seating/reports/analyses/20260927T-v2-11-memory-envelope--deepseek-flash--2026-09-27.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
@@ -1050,10 +1073,15 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 73.0,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "W2 in the memory-envelope protocol: the reversal reproduces the claim's direction, with l2_section_document at least 4x faster than l1_claim_rows on the 100k-seat map.",
+        "source": "studies/03-reserved-seating/V2-11-REPLICATION-MEMORY.md",
+        "verdict": "confirmed"
       }
     },
     {

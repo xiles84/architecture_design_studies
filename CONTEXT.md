@@ -394,14 +394,22 @@ summary, not a second ledger.
   **host capacity**, not cost or method — a repeated attempt needs a bounded container memory limit and a
   smaller scale, not another identical run. A correction travelled with it: the first pass's analysis had
   recorded the wrong `inputs_digest` (the first 16-hex string in the report rather than the labelled one).
+- **`v2-11` registered after a third pass, and the vocabulary gap closed itself (2026-09-27, tag
+  `study-03/v2-11-memory-envelope`).** The retry raised the envelope (database 3 GB → 5 GB, tserver limit
+  1.5 GiB → 3 GiB) and ran the pair in the **opposite** order, which is what the lint had been demanding:
+  the 100k-seat multiple came out **24.4x against pass 1's 27.8x, a 12% difference**, so `v2-11` is now
+  `run_replicated` with `order: abba` and three anchors. The raised envelope fixed `l1`'s load (which failed
+  in pass 2) but **not `l3`**, which failed a third time — in three different positions, under two
+  envelopes, and now with a different symptom (`connection refused` instead of SQLSTATE 57P01). The sharded
+  half of the claim therefore cannot be tested on this host with this harness, which is not the same as
+  having tested it and found nothing. `record_host_state()` captured the budgets and host memory beside the
+  results on its first use.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
-  the breadth gaps above, and the standing follow-ups — **19 of 31 claims are still `single_run_directional`**
-  (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, 3 `run_replicated`), the other
-  named interactions are unmeasured, host and container memory should be recorded beside every run, and the
+  the breadth gaps above, and the standing follow-ups — **18 of 31 claims are still `single_run_directional`**
+  (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, **4 `run_replicated`**), the other
+  named interactions are unmeasured, `l3_section_sharded`'s load needs a diagnosis, and the
   reference cell should now be taken **from the same operation being compared**, between every run rather
-  than only at the ends of a tranche, so the drift becomes a per-run covariate. One registry-vocabulary gap
-  is open for HIGH: there is **no strength label for "measured twice with an uncontrolled order"**, which
-  understates `v2-06` and `v2-11`.
+  than only at the ends of a tranche, so the drift becomes a per-run covariate.
 
 ### Study 01 — charity tree — **complete; recency question analysed**
 
