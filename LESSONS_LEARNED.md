@@ -1992,3 +1992,21 @@ settled it**: `l3` failed as the last design in one run and as the first in the 
 first and failed last — so a hypothesis about ordering was falsified by varying the order, which is the same
 move this corpus keeps needing. When a cell dies, rule out the machine before theorising about the design;
 record memory beside the run, and bound the database container explicitly.
+
+### A failed check is not an absent one — the third time
+Three separate defects in this corpus share one shape: **a command that failed was read as a command that
+found nothing.**
+
+- A query for `final_counter_value` used the wrong key names, returned `null`, and was written up as "the
+  harness does not record this" — it did (study 04's retry control).
+- `grep -oE '[0-9a-f]{16}' report.md | head -1` returned the *first* fingerprint in the file rather than the
+  labelled one, and it matched nothing that was checked, so the wrong digest was published (`v2-11`).
+- `podman volume inspect ads-run-lock >/dev/null 2>&1 && echo HELD || echo FREE` printed **FREE** while the
+  podman machine was stopped: a failed inspection and an absent volume take the same `||` branch, so a dead
+  engine looked idle. The runner's own `run_lock_acquire` refused correctly, which is what exposed it.
+
+The fix is the same in all three: **distinguish three states — present, absent, unreadable — and refuse to
+act on the third.** For the lock that means capturing the engine's exit status and reporting `UNREADABLE`
+rather than `FREE`; for a query it means printing the key names that exist before concluding a field is
+missing; for a fingerprint it means `grep "Inputs digest"` and never a pattern. The general rule: a negative
+result is only evidence if you have shown the instrument was working when you took it.
