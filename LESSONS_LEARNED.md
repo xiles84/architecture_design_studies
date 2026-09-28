@@ -2058,3 +2058,15 @@ defect in the prediction rather than in the data. **Write the statistic into the
 run-median ratio", "the per-trial median", "the count of pairs that reverse" — because with a noisy cell
 those are three different experiments, and the corpus's own rule (methodology 4) is that a prediction must
 name the observation that would refute it precisely enough that one observation can do it.
+
+### A registry's test and its ledger can disagree about the same fact
+`TestV6CarriesV5ForwardExceptTheReplicatedClaim` listed **four** re-scoped claims — `v2-13` at the v6 tag
+plus `v2-06`, `v2-08` and `v2-11` added after it — while `book/evidence/v6/SUPERSESSION_LEDGER.md` still
+said the package carried "one exception". Both files were true when written; the drift came from updating
+the machine-checked set and the prose record in separate tasks, three times. The gate stayed green
+throughout, so nothing failed: a reader trusting the ledger would have believed the v6 claims were frozen
+while the test said otherwise. **A declared-inventory test protects against a silent change only if the
+inventory's prose twin is updated in the same change**, which is why the fix here is a post-tag section in
+the ledger recording all three re-scopings and the HIGH decision, rather than an edit to the sentence that
+was true at the tag. When a test carries a hard-coded list of exceptions, the list and its narrative belong
+in one commit.
