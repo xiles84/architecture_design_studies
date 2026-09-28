@@ -94,12 +94,15 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// at the v6 tag; their 2026-09-26/27 replications then re-scoped them, so they
 	// moved here. v2-08 was never in either set: the 2026-09-27 replication is the
 	// first thing to touch it since v5, and it changed its strength, trials and
-	// anchors.
+	// anchors. v2-09 was reworded at the v6 tag and then re-scoped on 2026-09-28,
+	// when the buyer-count sweep falsified its headline ("the designs change places")
+	// and changed its strength, trials, limits and anchors.
 	changed := map[string]bool{
-		"v2-13-trigger-rollup-cost":         true,
-		"v2-06-hot-drop-designs":            true,
-		"v2-11-section-seat-map":            true,
-		"v2-08-ledger-race-cost-128-buyers": true,
+		"v2-13-trigger-rollup-cost":             true,
+		"v2-06-hot-drop-designs":                true,
+		"v2-11-section-seat-map":                true,
+		"v2-08-ledger-race-cost-128-buyers":     true,
+		"v2-09-postgres-ledger-ratio-unsettled": true,
 	}
 	// Claims whose wording was made plainer without touching the evidence. Their
 	// statement and limits may differ from v5; their confounds, trial counts and
@@ -113,7 +116,6 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		"v2-05-d3-read-advantage-repeated":          true,
 		"v2-06-hot-drop-designs":                    true,
 		"v2-07-refund-answerability-and-storage":    true,
-		"v2-09-postgres-ledger-ratio-unsettled":     true,
 		"v2-10-guarded-confirm-refusals":            true,
 		"v2-13-trigger-rollup-cost":                 true,
 		"v2-14-cache-throughput-gain":               true,

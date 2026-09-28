@@ -133,3 +133,15 @@ one. Strength stays `run_replicated` (the PostgreSQL race), and the table in thi
 [`SUPERSESSION_LEDGER.md`](SUPERSESSION_LEDGER.md), which also records the `v2-06` and `v2-11` re-scopings
 that had been added to the test's `changed` set without a ledger entry. The three source protocols and
 signed analyses are the evidence; no other claim changed.
+
+**Update (2026-09-28): `v2-09` re-scoped by its own sweep.** The sibling claim `v2-09` rested on a primary
+comparison that moved buyer count (32 → 128) **and** design order together, which its own limit admitted
+could not be isolated. An eleven-run sweep at 1,000 seats crossed the two factors (buyers 8/16/32/64/128,
+both orders, 5 trials, plus a repeated reference): the ledger was slower in **55 of 55 trial pairs**, both
+orders agreed on the sign at every level, and the magnitude was non-monotone with **no crossing of ratio
+1**. Two recorded predictions — a monotone rise and a bounded crossing — were falsified, so the claim's
+headline ("the designs change places") was replaced by the stable direction plus the confound explanation;
+its strength moved to `run_replicated` (11 runs, alternating order) and the falsified prediction is recorded
+in the registry. The book chapters that called the PostgreSQL ledger cost "order-sensitive and unsettled"
+now state the stable direction and the tier/order limits instead. This is the fifth re-scoped claim in the
+post-tag set, and the first whose headline a pre-registered prediction of ours refuted.

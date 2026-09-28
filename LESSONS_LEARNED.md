@@ -2069,4 +2069,30 @@ while the test said otherwise. **A declared-inventory test protects against a si
 inventory's prose twin is updated in the same change**, which is why the fix here is a post-tag section in
 the ledger recording all three re-scopings and the HIGH decision, rather than an edit to the sentence that
 was true at the tag. When a test carries a hard-coded list of exceptions, the list and its narrative belong
-in one commit.
+in one commit. (The post-tag section has since recorded a fourth re-scoping, `v2-09`; the count in this
+entry is the one true when it was written.)
+
+## Isolating a confound (2026-09-28)
+
+### A confounded comparison is repaired by varying the confounded factor, not by repeating the comparison
+Study 02's `v2-09` claimed the two designs "change places depending on the workload", from a primary pair
+that moved buyer count (32 → 128) **and** design order (`p3`-first → `x1`-first) together — two factors, one
+comparison, and the claim's own limit admitted neither could be isolated. Eleven runs crossing the two
+factors at one tier showed the direction is in fact **stable** (the ledger slower in 55 of 55 trial pairs,
+both orders agreeing at every buyer count) and that the apparent swap was the confound. Two of the
+pre-registered predictions were falsified in the process. The reusable rules: **when a claim rests on a
+comparison that moved two factors, the fix is a crossed design and not more runs of the same pair** — a
+confound is invariant under repetition; and **the falsified prediction is a deliverable**, because it is
+what replaced a false headline with a true one. A second, quieter confound travelled with it: the primary
+ran a different phase set on a five-day-old image, so the re-scope is stated as a direction rather than a
+ratio, and the period difference is named as the residual.
+
+### A cell can change state mid-run, and a median does not protect against it
+In the 8-buyer, `p3`-first cell the ledger arm fell from ~4,800 to ~1,000 ops/s across its last three
+trials — a 5x collapse inside one cell — while the same level's other order sat flat at ~5,000. The cell
+median (1,000 for the collapsed arm) is then a description of the collapsed state, not of the cell, and the
+ratio built on it (5.10) is an average of two regimes. The corpus's within-cell position and warm-up
+findings are the opposite shape (a slow first trial); this is a *late* break, which no median-of-five
+protects against and which a spread check only reports after the fact. Two guards apply: read the per-trial
+series, not only the median, before quoting a cell, and prefer a cell whose trials agree — the tier-axis
+tranche's cells did, and their ratios survived a 2.5x shift in the absolutes.

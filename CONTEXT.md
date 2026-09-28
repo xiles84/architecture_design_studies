@@ -418,9 +418,9 @@ summary, not a second ledger.
   having tested it and found nothing. `record_host_state()` captured the budgets and host memory beside the
   results on its first use.
 - **Remaining for the method layer:** publishing T1–T5 as queue tasks (`tools/queue` works now), closing
-  the breadth gaps above, and the standing follow-ups — **17 of 31 claims are still `single_run_directional`**
-  (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, **5 `run_replicated`**, after `v2-08` was
-  registered on 2026-09-27), the other
+  the breadth gaps above, and the standing follow-ups — **16 of 31 claims are still `single_run_directional`**
+  (7 `gap`, 1 `mechanism_supported`, 1 `repeated_controlled`, **6 `run_replicated`**, after `v2-08` was
+  registered on 2026-09-27 and `v2-09` on 2026-09-28), the other
   named interactions are unmeasured, `l3_section_sharded`'s load needs a diagnosis, and the
   reference cell should now be taken **from the same operation being compared**, between every run rather
   than only at the ends of a tranche, so the drift becomes a per-run covariate.
@@ -492,6 +492,22 @@ listed while the ledger still said "one exception"; `ANALYSIS.md` gained the mat
 prose sites that quoted the removed band (`chapters/scenarios.typ`, `chapters/major-families.typ`,
 `concepts/derived-state-and-history.typ`) were corrected in the same change and the tracked draft rebuilt.
 No other claim's statement or evidence changed.
+
+**`v2-09` re-scoped by its own sweep (2026-09-28, eleven runs `20260928T01*`, tag
+`study-02/v2-09-buyer-sweep`).** Leader and follower in one session: HIGH pre-registered a buyer-count sweep
+with order controls, LOW executed it. `v2-09`'s swap rested on a primary comparison that moved buyer count
+(32 → 128) **and** design order together — its own limit said neither could be isolated. Crossing them at
+1,000 seats found the **ledger slower in 55 of 55 trial pairs**, both orders agreeing on the sign at every
+level (8/16/32/64/128 buyers), the magnitude **non-monotone** (pooled medians 3.08, 1.32, 1.23, 1.59, 1.57)
+with **no crossing of ratio 1**; the 32-buyer cell the primary read as 0.585 now reads 1.233/1.219, so the
+swap was the confound (and a five-day-old harness state). Two pre-registered predictions — a monotone rise
+and a bounded crossing — were **falsified**; the reference cell moved 8.6%; one 8-buyer cell changed state
+mid-run and is reported, not discarded. `v2-09` is now `run_replicated` (11 runs, alternating order) with
+B2 recorded as a falsified prediction and the ratio's non-portability as a limit. Analysis
+`studies/02-ticket-booking/reports/analyses/20260928T-v2-09-buyer-sweep--deepseek-flash--2026-09-28.md`; the
+v6 ledger's post-tag section now records four re-scopings, and the two book prose sites that called the
+ledger cost "order-sensitive" were corrected. Merged into local `main` and tagged; the tracked draft was
+rebuilt on the new registry.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

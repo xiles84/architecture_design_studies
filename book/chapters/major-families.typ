@@ -174,8 +174,9 @@ atomicity; concurrency and arbitration must be specified separately. Operations 
 #registry-card("v2-08-ledger-race-cost-128-buyers")
 #heading(level: 3, "Boundaries and reproduction")
 The PostgreSQL ledger cost rises with the size of the event — about 1.1x at 10 seats to about 2.5x at
-100,000 — and at the smallest sizes the design order moves it (`v2-09`); the load multiplier is not
-published (`v2-gap-01`). Quote the tier, never one pooled ratio.
+100,000 — and the design order moves the absolute throughput at the small sizes without changing which
+design is faster (`v2-09`); the load multiplier is not published (`v2-gap-01`). Quote the tier, never one
+pooled ratio.
 
 // ---------------------------------------------------------------- 6
 #heading(level: 2, "External read copies / caches")

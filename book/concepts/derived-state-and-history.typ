@@ -65,9 +65,9 @@ separate, explicit decision.
 
 #heading(level: 2, "Boundaries")
 The ledger's write cost depends on the engine and on the size of the event — about 1.1x at 10 seats against
-about 2.5x at 100,000 on PostgreSQL — and at the smallest sizes the design order moves it, so quote the tier
-and the run's own range rather than a single headline multiplier. The load-time multiplier is not published
-at all.
+about 2.5x at 100,000 on PostgreSQL — and the design order moves the absolute throughput at the smallest
+sizes without changing which design is faster, so quote the tier and the run's own range rather than a
+single headline multiplier. The load-time multiplier is not published at all.
 
 #heading(level: 2, "The checklist")
 

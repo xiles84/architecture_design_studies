@@ -58,25 +58,27 @@ against v1, v2, v3, v4 or v5.
 
 ---
 
-## After the v6 tag — three re-scopings, and the `v2-08` decision (2026-09-26 … 2026-09-27)
+## After the v6 tag — four re-scopings, and the `v2-08` and `v2-09` decisions (2026-09-26 … 2026-09-28)
 
 **Attribution.** Written by `deepseek-flash` (DeepSeek, HIGH-capability, Deep Code CLI; effort not exposed)
-on 2026-09-27, task `repo/v2-08-rescope`. It records the re-scopings the T1 run-level replication programme
-made to the v6 package **after** its tag, and takes the `v2-08` decision that two worker tranches had
-explicitly left to HIGH.
+on 2026-09-27, task `repo/v2-08-rescope`, and extended on 2026-09-28 by the same model in the
+leader-and-executor session that ran `study-02/v2-09-buyer-sweep`. It records the re-scopings the T1
+run-level replication programme made to the v6 package **after** its tag, and takes the `v2-08` decision two
+worker tranches had explicitly left to HIGH and the `v2-09` decision that sweep forced.
 
 **Why this section exists.** `TestV6CarriesV5ForwardExceptTheReplicatedClaim` keeps three declared sets —
-added, **re-scoped** and reworded — so no claim can change silently. Three claims entered the re-scoped set
+added, **re-scoped** and reworded — so no claim can change silently. Four claims entered the re-scoped set
 after the v6 tag, but only the tag-time exception (`v2-13`) was recorded above: the ledger said "one
-exception" while the test listed four. This section closes that gap. The section above is left as written,
+exception" while the test listed five. This section closes that gap. The section above is left as written,
 because it was true of the v6 tag.
 
-**The three post-tag re-scopings.**
+**The four post-tag re-scopings.**
 
 | Claim | Tranche tag(s) | What moved |
 |---|---|---|
 | `v2-06-hot-drop-designs` | `study-02/v2-06-replication` (2026-09-26) | strength → `run_replicated` (3 runs, AB/BA); statement re-scoped to carry the reproduced 4–8x range and the fact that absolute throughput fell 26–72% between sessions; limits extended |
 | `v2-08-ledger-race-cost-128-buyers` | `study-02/v2-08-replication`, `study-02/v2-08-tier100-settle`, `study-02/v2-08-tier-axis` (2026-09-27) | strength → `run_replicated` (12 whole runs); statement re-scoped (below); anchors and limits extended |
+| `v2-09-postgres-ledger-ratio-unsettled` | `study-02/v2-09-buyer-sweep` (2026-09-28) | strength `single_run_directional` → `run_replicated` (11 runs, alternating order); statement re-scoped (below) after its headline swap was falsified; a recorded prediction with verdict `falsified` added; 11 anchors and 6 limits |
 | `v2-11-section-seat-map` | `study-03/v2-11-memory-envelope`, `study-03/close-out` (2026-09-27) | strength → `run_replicated` (5 runs, both engines, AB/BA); the engine contrast is the replicated element; limits extended |
 
 Each claim's own signed analyses are the primary record; this table is the registry-side index of them.
@@ -98,12 +100,27 @@ labels the not-re-measured arms as such. Strength stays `run_replicated`, which 
 supports. The limits that referred to the old wording or the old band now speak of the *former* one; one
 limit records this re-scope and one records that the YugabyteDB, refund and organiser-edit arms were not
 re-measured. Nothing was retired, and the superseded wording is preserved here and in the two worker
-analyses. **No other claim's statement or evidence changed in this pass.**
+analyses. **No other claim's statement or evidence changed in that pass.**
+
+**The `v2-09` decision.** `v2-09` asserted that "the two designs change places depending on the workload",
+resting on a primary comparison that moved buyer count (32 → 128) and design order (`p3`-first → `x1`-first)
+together — its own limit said neither could be isolated. The buyer-count sweep crossed them at 1,000 seats:
+eleven runs at 8/16/32/64/128 buyers, both orders, 5 trials, with a repeated reference cell. It found that
+**the ledger is slower in 55 of 55 trial pairs**, that both orders agree on the sign at every level, and that
+the magnitude is **non-monotone** (pooled medians 3.08, 1.32, 1.23, 1.59, 1.57) with **no crossing of ratio
+1**; the 32-buyer cell that the primary read as 0.585 now reads 1.233 and 1.219. Two of the protocol's
+predictions — a monotone rise with buyers and a bounded crossing — were **falsified**, and the reference cell
+moved 8.6% between the two ends. Decision: the statement now says the direction is stable at 1,000 seats
+across 8–128 buyers in both orders and that the primary's apparent swap came from its confound; strength
+moves to `run_replicated` (11 runs, alternating order), with B2 recorded as a falsified `prediction` and the
+ratio's non-portability as a limit. Nothing was retired, and the superseded wording is preserved here and in
+the sweep's signed analysis.
 
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
-`…-TIER-AXIS.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
+`…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,
-`20260927T-v2-08-tier-axis--deepseek-flash--2026-09-27`.
+`20260927T-v2-08-tier-axis--deepseek-flash--2026-09-27`,
+`20260928T-v2-09-buyer-sweep--deepseek-flash--2026-09-28`.
 
 ---
 
