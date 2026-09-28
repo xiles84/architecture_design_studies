@@ -480,6 +480,18 @@ four runs). `v2-08` now records **12 whole runs, 13 anchors and 15 limits**, and
 axis is now the main input to the HIGH re-scoping: the band is an interior summary and "tight spreads" fails
 at the small tiers.** Merged into local `main` and tagged `study-02/v2-08-tier-axis`; the tracked book draft
 was rebuilt on the new registry.
+
+**`v2-08` re-scoped by HIGH (2026-09-27, task `repo/v2-08-rescope`).** HIGH validated both worker tranches
+(their numbers were recomputed from the raw results and reproduce exactly) and then took the decision they
+had flagged. The signed statement no longer carries the flat `1.1–2.3x` band or the words "tight spreads":
+it names the tier axis (about 1.1x at 10 seats to about 2.5x at 100,000 seats on PostgreSQL), labels the
+YugabyteDB, refund and organiser-edit figures as single-run and not re-measured, and keeps
+`run_replicated` (12 whole runs). `book/evidence/v6/SUPERSESSION_LEDGER.md` gained a **post-tag section**
+recording this decision and the earlier `v2-06` and `v2-11` re-scopings, which the test's `changed` set had
+listed while the ledger still said "one exception"; `ANALYSIS.md` gained the matching update. The three book
+prose sites that quoted the removed band (`chapters/scenarios.typ`, `chapters/major-families.typ`,
+`concepts/derived-state-and-history.typ`) were corrected in the same change and the tracked draft rebuilt.
+No other claim's statement or evidence changed.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

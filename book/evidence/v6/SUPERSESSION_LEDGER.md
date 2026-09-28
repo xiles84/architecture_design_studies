@@ -58,6 +58,55 @@ against v1, v2, v3, v4 or v5.
 
 ---
 
+## After the v6 tag — three re-scopings, and the `v2-08` decision (2026-09-26 … 2026-09-27)
+
+**Attribution.** Written by `deepseek-flash` (DeepSeek, HIGH-capability, Deep Code CLI; effort not exposed)
+on 2026-09-27, task `repo/v2-08-rescope`. It records the re-scopings the T1 run-level replication programme
+made to the v6 package **after** its tag, and takes the `v2-08` decision that two worker tranches had
+explicitly left to HIGH.
+
+**Why this section exists.** `TestV6CarriesV5ForwardExceptTheReplicatedClaim` keeps three declared sets —
+added, **re-scoped** and reworded — so no claim can change silently. Three claims entered the re-scoped set
+after the v6 tag, but only the tag-time exception (`v2-13`) was recorded above: the ledger said "one
+exception" while the test listed four. This section closes that gap. The section above is left as written,
+because it was true of the v6 tag.
+
+**The three post-tag re-scopings.**
+
+| Claim | Tranche tag(s) | What moved |
+|---|---|---|
+| `v2-06-hot-drop-designs` | `study-02/v2-06-replication` (2026-09-26) | strength → `run_replicated` (3 runs, AB/BA); statement re-scoped to carry the reproduced 4–8x range and the fact that absolute throughput fell 26–72% between sessions; limits extended |
+| `v2-08-ledger-race-cost-128-buyers` | `study-02/v2-08-replication`, `study-02/v2-08-tier100-settle`, `study-02/v2-08-tier-axis` (2026-09-27) | strength → `run_replicated` (12 whole runs); statement re-scoped (below); anchors and limits extended |
+| `v2-11-section-seat-map` | `study-03/v2-11-memory-envelope`, `study-03/close-out` (2026-09-27) | strength → `run_replicated` (5 runs, both engines, AB/BA); the engine contrast is the replicated element; limits extended |
+
+Each claim's own signed analyses are the primary record; this table is the registry-side index of them.
+
+**The `v2-08` decision.** The primary run quoted the ledger at "1.1–2.3x … with tight spreads". Three
+tranches of PostgreSQL race runs at 128 buyers — two whole runs over tiers 100/1,000/10,000, six tier-100
+runs, and four runs covering all five tiers — established that:
+
+- **The cost is monotone in tier.** Pooled run-median `p3/x1` is 1.075, 1.237, 1.409, 1.845 and 2.505 at 10,
+  100, 1,000, 10,000 and 100,000 seats, monotone in the pooled medians and in every individual run. The old
+  band is therefore an **interior summary**: its floor and ceiling are the 100- and 10,000-seat tiers.
+- **"Tight spreads" is false at the small tiers.** The 100-seat cell spread 47–77%, the 10-seat cell
+  16–71%, and the tier-100 ratio spans 0.992–1.712 across twelve runs (spread 54%), with the ledger slower in
+  only 12 of 20 trial pairs at 10 seats.
+- **The YugabyteDB, refund and organiser-edit figures were never re-measured**, and remain one run each.
+
+Decision: the statement now **names the tier axis**, drops the flat band and the words "tight spreads", and
+labels the not-re-measured arms as such. Strength stays `run_replicated`, which the PostgreSQL race
+supports. The limits that referred to the old wording or the old band now speak of the *former* one; one
+limit records this re-scope and one records that the YugabyteDB, refund and organiser-edit arms were not
+re-measured. Nothing was retired, and the superseded wording is preserved here and in the two worker
+analyses. **No other claim's statement or evidence changed in this pass.**
+
+**Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
+`…-TIER-AXIS.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
+`20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,
+`20260927T-v2-08-tier-axis--deepseek-flash--2026-09-27`.
+
+---
+
 ## Frozen predecessor text: v4 → v5
 
 # Supersession ledger — evidence registry v4 → v5

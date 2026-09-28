@@ -117,3 +117,19 @@ T1 (run-level replication with randomized order) and T2 (crossover/boundary swee
 `.queue-drafts/empirical-method/`. T2's first deliverable should register Study 04's writer-sweep
 crossing as the corpus's first `crossover` claim and Study 04's `d2` falsified prediction as its first
 recorded `prediction`, since both already exist as measurements and only lack registration.
+
+## Update (2026-09-27): the tier axis, and `v2-08` re-scoped
+
+Three PostgreSQL tranches of study 02's `v2-08` ran after this analysis was written (tags
+`study-02/v2-08-replication`, `…-tier100-settle`, `…-tier-axis`; 12 whole runs in both design orders). They
+found a **monotone** cost across the event-size axis — pooled run-median `p3/x1` of 1.075, 1.237, 1.409,
+1.845 and 2.505 at 10, 100, 1,000, 10,000 and 100,000 seats — so the claim's flat "1.1–2.3x with tight
+spreads" was an interior summary of the 100–10,000-seat tiers and false about its own spread at the small
+end (the 100-seat cell spread 47–77%). The statement has been **re-scoped** to name the axis, to drop the
+flat band and the words "tight spreads", and to label the YugabyteDB, refund and organiser-edit figures as
+single-run and not re-measured; the limits that referred to the old wording or band now speak of the former
+one. Strength stays `run_replicated` (the PostgreSQL race), and the table in this analysis that counted
+"one exception" to the v5 carry-forward is superseded by the post-tag section of
+[`SUPERSESSION_LEDGER.md`](SUPERSESSION_LEDGER.md), which also records the `v2-06` and `v2-11` re-scopings
+that had been added to the test's `changed` set without a ledger entry. The three source protocols and
+signed analyses are the evidence; no other claim changed.

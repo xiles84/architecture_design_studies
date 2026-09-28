@@ -9,9 +9,10 @@ wrong in another, so each scenario below states its answerability question and i
 
 #heading(level: 2, "Ticket overbooking and refunds")
 Never oversell, then report refunds. Pre-created seats with compare-and-set or `SKIP LOCKED` sold
-4–8x faster than a counter row; a ledger made refunds answerable at +33–35% storage. The ratio between
-the two ways of arbitrating a seat at 128 simultaneous buyers is 1.1–2.3x on PostgreSQL, and the
-measurements at small scale disagree with each other, so that size does not settle which is faster.
+4–8x faster than a counter row; a ledger made refunds answerable at +33–35% storage. The ledger's own cost
+over compare-and-set at 128 simultaneous buyers grows with the size of the event — about 1.1x at 10 seats,
+about 1.2–1.4x at 100–1,000 seats and about 1.8–2.5x at 10,000–100,000 — so no single ratio covers the
+axis, and at the smallest size the direction is not reliable.
 #registry-card("v2-06-hot-drop-designs")
 #registry-card("v2-08-ledger-race-cost-128-buyers")
 #registry-card("v2-09-postgres-ledger-ratio-unsettled")
