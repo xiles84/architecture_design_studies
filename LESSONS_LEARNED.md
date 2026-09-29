@@ -2142,3 +2142,18 @@ you want**; the platform is six days older than the analysis habit of reading it
 is generated into every report — the CPU-quota section has been there since the same commit — reading it is
 part of analysing the run**, not an optional extra; the numbers were one `jq` away for thirteen days while a
 mechanism was recorded as "unresolved".
+
+### A flat cell over a wide input range is a ceiling, not a cost
+The client-quota audit found study 02's read phase throttled in two old anchors, and the obvious reading was
+"that session was unlucky". Re-running four designs on today's harness, both orders, same phases and scale,
+falsified it: `r1_inventory_row` still loses **420 of 634** and **422 of 633** client CFS periods, and its
+`q01_event_availability` cell sits at **37.7–38.7k ops/s at every one of the five tiers** — 10, 100, 1,000,
+10,000 and 100,000 seats — while the baseline falls from 25,967 to 595 over the same range. **A number that
+does not move when the query gets 10,000x harder is not a measurement of the query**; it is whatever ceiling
+the cell hit, and here that ceiling was the client's two-core quota. Two rules follow. **Read a flat cell as
+a ceiling and go looking for the binding resource** (the report prints client and database throttling beside
+the cell precisely for this). And **when a hazard turns out to be reproducible, the fix is sizing, not a
+re-run**: the tranche that "restored quotability" by measuring again would only have produced a second set of
+client-bound numbers. What survived the re-run is the part with a mechanism — an ordering (`q05` fast where
+there are no per-seat rows, `r03` slow where a per-customer sort is unavoidable) — which is the corpus's
+ratio-over-absolute lesson arriving through a quota floor rather than through session drift.

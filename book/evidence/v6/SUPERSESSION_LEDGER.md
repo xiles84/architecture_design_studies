@@ -151,6 +151,20 @@ changed for any of the three: `v2-06` rests on race-phase sell rate, `v2-07` on 
 `v2-gap-01` on the load phase, and none of those phases was throttled. The superseded inference is preserved
 in `reports/outdated/20260929T-v2-09-8buyer-recurrence--deepseek-flash--2026-09-29.md`.
 
+**The read-phase re-run (2026-09-29).** The audit implied the read-phase throttling was that session's. A
+re-run of four designs (`p3`, `x1`, `c1`, `r1`), both orders, same phases and scale, shows it is **not**:
+`r1_inventory_row` loses **420 of 634 and 422 of 633 CFS periods** to client throttling today (`p3` 2.3–5.9 s,
+`x1` 2.6–4.6 s, `c1` 5.4 s), and its `q01_event_availability` reads sit **flat at ~38k ops/s across all five
+tiers** (10 → 100,000 seats) where `p3` falls from 25,967 to 595 — a cell that does not move over a 10,000x
+input range is the client's ceiling, not the query's cost. So the read family's numbers are client-bound for
+the client-heavy designs at the study's two-core client budget, and the fix is **client sizing**, not another
+re-run. The three limits above were updated to say so. What *does* reproduce is the designs' own ordering:
+`q05` sell-through per band (C1 12.2–12.7k against P3/X1 ≈ 2.0k), the `q03`/`r03` gap (143–256x), and `r05`
+answered only by the ledger (30.3k, 33.0k against the primary's 32.2k). X1's "~2x slower across the board"
+read penalty **does not** reproduce (0.77–1.05 and 0.97–1.05 against the primary's 0.29–0.73), which confirms
+the primary analysis's own suspicion that it was a cell-level effect. No claim's statement, strength,
+confound or anchor changed; only the three read-hazard limits were extended.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

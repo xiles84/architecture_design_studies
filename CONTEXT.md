@@ -556,6 +556,23 @@ gained a limit saying so, and no statement, strength or anchor changed for any c
 the 8-buyer cause was corrected. The superseded inference is archived under `reports/outdated/`. Also fixed
 here: root `CONTEXT.md`/`LESSONS_LEARNED.md` are now pinned to LF in `.gitattributes`, because a CRLF working
 copy made both files read as modified with zero content difference and would have blocked this merge.
+
+**Read phase re-run: the floor is the client (2026-09-29, two runs `20260929T16/17*`, tag
+`study-02/read-family-rerun`).** The audit implied the read-phase throttling was that session's. Four designs
+(`p3`, `x1`, `c1`, `r1`), both orders, same phases and scale, say otherwise: **`r1_inventory_row` loses 420 of
+634 and 422 of 633 client CFS periods today** (`p3` 2.3–5.9 s, `x1` 2.6–4.6 s, `c1` 5.4 s), and its
+`q01_event_availability` reads are **flat at ~38k ops/s across all five tiers** (10 → 100,000 seats) where
+`p3` falls 25,967 → 595 — a flat cell over a 10,000x input range is the client's ceiling, not the query's
+cost. So the read family's numbers are **client-bound** for client-heavy designs at the study's two-core
+client budget: the fix is **client sizing**, not another re-run. P1 falsified; P2–P5 confirmed — the designs'
+own ordering reproduces (`q05` C1 12.2–12.7k against P3/X1 ≈ 2.0k; the `q03`/`r03` gap 143–256x; `r05`
+answered only by the ledger at 30.3k/33.0k against 32.2k), and X1's "~2x slower across the board" read penalty
+does **not** reproduce (0.77–1.05, 0.97–1.05 against 0.29–0.73), confirming the primary analysis's own
+suspicion. No claim statement, strength, confound or anchor changed; the three read-hazard limits were
+extended. Analysis
+`studies/02-ticket-booking/reports/analyses/20260929T-read-family-rerun--deepseek-flash--2026-09-29.md`. **Open
+for the owner: the read phase needs a client sizing decision** (raise the client budget or cut its read
+connections) before any read level is quoted again.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
