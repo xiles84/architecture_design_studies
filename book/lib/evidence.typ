@@ -113,6 +113,10 @@
 
 #let full-card(c) = block(
     width: 100%,
+    // A card is one unit of evidence. Splitting it can leave a claim id alone at
+    // a page foot and detach it from the statement, limits and source that make
+    // the claim reviewable. Let Typst move the complete card to the next page.
+    breakable: false,
     inset: 9pt,
     radius: 3pt,
     stroke: 0.6pt + rgb("#d5d9de"),

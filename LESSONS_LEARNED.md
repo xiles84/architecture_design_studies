@@ -1450,6 +1450,15 @@ column whose cells hold sentences**, and prefer cards to a wide table when each 
 labelled fields — the labels then sit beside their content instead of in a column header the reader
 has to look back for.
 
+### A labelled evidence unit must not split across pages
+
+Visual review of the book found a full claim card broken after its identifier and a coverage callout
+broken after its label. The next page contained the statement, limits and source, but a reader scanning
+the page foot could not tell what the title qualified. Full evidence cards and labelled callouts now use
+non-breakable Typst blocks, so the renderer inserts the page break before the whole unit. Rendered
+artefacts need this check: text extraction can prove a card's words exist, but it cannot show that their
+label was stranded on the preceding page.
+
 ### The queue CLI can leave a stale git lock behind on WSL + Windows podman
 
 Four queue commands in a row failed with "Another git process seems to be running", naming a

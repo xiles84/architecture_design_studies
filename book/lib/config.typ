@@ -100,6 +100,9 @@
 
 #let callout(title, color, body) = block(
   width: 100%,
+  // A callout's label states how the reader must interpret its body. Keep that
+  // label with the complete warning instead of splitting the box at a page foot.
+  breakable: false,
   inset: 8pt,
   radius: 3pt,
   stroke: 0.6pt + color,

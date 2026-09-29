@@ -309,6 +309,11 @@ summary, not a second ledger.
 - **Verified 2026-09-25:** the book builds against the v6 registry — `book/build.sh` to a scratch path
   gives 61 pages, 6/6 fonts embedded, 29/29 claims indexed, evidence digest present, no unverified
   banner, no unresolved tokens, edition on page.
+- **Pagination repair (2026-09-29):** visual review found full evidence cards and labelled callouts
+  split across page boundaries, occasionally leaving only a title or label at a page foot. Both now
+  render as non-breakable blocks, so Typst moves the complete unit to the next page. A pinned Typst
+  scratch compile produced a 76-page review PDF with the affected cards and callouts intact; no claim,
+  figure or evidence-package content changed.
 - **Found and fixed on this task:** `book/CHANGELOG.md` named a fixed registry path
   (`book/evidence/v5/`), which fails the `registry-literal` rule in `book/evidence/check.sh` on `main`
   itself. Reworded to name the then-active package without a path literal.
