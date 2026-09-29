@@ -313,7 +313,8 @@ summary, not a second ledger.
   split across page boundaries, occasionally leaving only a title or label at a page foot. Both now
   render as non-breakable blocks, so Typst moves the complete unit to the next page. A pinned Typst
   scratch compile produced a 76-page review PDF with the affected cards and callouts intact; no claim,
-  figure or evidence-package content changed.
+  figure or evidence-package content changed. Integrated into local `main` at `e3e3606` and tagged
+  `repo/book-pdf-page-breaks-v1`.
 - **Found and fixed on this task:** `book/CHANGELOG.md` named a fixed registry path
   (`book/evidence/v5/`), which fails the `registry-literal` rule in `book/evidence/check.sh` on `main`
   itself. Reworded to name the then-active package without a path literal.
