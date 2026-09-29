@@ -540,7 +540,22 @@ three and so set its median. So the low mode belongs to the 8-buyer level's very
 ledger**, and no 8-buyer magnitude is quoted. `v2-09` gained six anchors and three limits with no statement
 change; the `v2-09` limit that had called it the ledger arm's is corrected. Cause still open — the artifact
 carries the database's cgroup counters but not the client's, so the fix is instrumentation, not more cells.
-Analysis `studies/02-ticket-booking/reports/analyses/20260929T-v2-09-8buyer-recurrence--deepseek-flash--2026-09-29.md`.
+Analysis `studies/02-ticket-booking/reports/analyses/20260929T-v2-09-8buyer-recurrence--deepseek-flash--2026-09-29.md`
+— **superseded** the same day by the client-quota audit below.
+
+**The client's own quota, read at last (2026-09-29, no new measurement, tag
+`repo/client-quota-audit`).** The harness has written `client_cpu` since the study's first commit — one entry
+per **trial** for the race phase — and no analysis had read it. Reading it **refuted the previous
+paragraph's own inference**: in all twelve 8-buyer cells the client's throttling is **zero** and the slow
+trials use *more* client CPU (2.6–2.8 s against ~1.9 s), so the client waits rather than starves, and with
+the database's ~4 ms the 8-buyer low mode is a latency excursion in the response path, not a quota effect.
+The audit also found **35 client-throttled cells out of 775** across study 02, all in the **read phase** of
+two anchors (`20260920T234953Z`, `20260913T021206Z`) and throttled by a **design-dependent** amount within one
+run (2.3 s to 58.1 s), so those reports' read figures are not quotable; `v2-06`, `v2-07` and `v2-gap-01` each
+gained a limit saying so, and no statement, strength or anchor changed for any claim. `v2-09`'s limit about
+the 8-buyer cause was corrected. The superseded inference is archived under `reports/outdated/`. Also fixed
+here: root `CONTEXT.md`/`LESSONS_LEARNED.md` are now pinned to LF in `.gitattributes`, because a CRLF working
+copy made both files read as modified with zero content difference and would have blocked this merge.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

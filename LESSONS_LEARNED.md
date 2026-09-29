@@ -2125,5 +2125,20 @@ and the two normal trials read as the anomaly. Two rules follow. **A name for an
 description of where it fell, not a mechanism** — "collapse" and "spike" are the same measurement at
 different positions in a five-trial median, and a ~7% event rate makes position decisive. And **before
 attributing a slow cell to a design, look for the same event in the other arm**: if it is there too, the
-design is not the explanation, and the honest next step is instrumentation (the client container's own
-cgroup counters beside the database's) rather than more cells.
+design is not the explanation, and the honest next step is to **read the instrumentation that already
+exists** — see the next entry, which corrects this lesson's own first draft.
+
+### Read the instrumentation you already have before building more
+This entry's predecessor ended by prescribing client-side instrumentation. The client's cgroup counters were
+already in every result file — `client_cpu`, written by `platform/adapters/cgroup` since the study's first
+commit, one entry per **trial** for the race phase — and no analysis had ever opened them. Reading them
+settled the question the previous tranche had declared unassignable (zero client throttling; the slow trials
+consume *more* client CPU, so the client waits rather than starves) and then produced a larger finding
+nobody was looking for: **35 of study 02's 775 recorded client-CPU cells were throttled**, all in read
+phases, and throttled by a **design-dependent** amount inside a single run — 2.3 s for one design against
+58.1 s for another out of ~1085 CFS periods, so those runs' read *rankings* can be an ordering of who lost
+the client's quota. Two rules. **Before proposing new instrumentation, grep the artifact for the measurement
+you want**; the platform is six days older than the analysis habit of reading it. And **when a hazard table
+is generated into every report — the CPU-quota section has been there since the same commit — reading it is
+part of analysing the run**, not an optional extra; the numbers were one `jq` away for thirteen days while a
+mechanism was recorded as "unresolved".

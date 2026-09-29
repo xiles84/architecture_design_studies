@@ -97,12 +97,18 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// anchors. v2-09 was reworded at the v6 tag and then re-scoped on 2026-09-28,
 	// when the buyer-count sweep falsified its headline ("the designs change places")
 	// and changed its strength, trials, limits and anchors.
+	// v2-07 and v2-gap-01 moved here on 2026-09-29: the client-quota audit found
+	// their primary anchors' read phases were client-CPU throttled by a
+	// design-dependent amount, and each gained a limit saying those read figures
+	// are not quotable. Their statements, confounds and anchors are untouched.
 	changed := map[string]bool{
-		"v2-13-trigger-rollup-cost":             true,
-		"v2-06-hot-drop-designs":                true,
-		"v2-11-section-seat-map":                true,
-		"v2-08-ledger-race-cost-128-buyers":     true,
-		"v2-09-postgres-ledger-ratio-unsettled": true,
+		"v2-13-trigger-rollup-cost":                 true,
+		"v2-06-hot-drop-designs":                    true,
+		"v2-11-section-seat-map":                    true,
+		"v2-08-ledger-race-cost-128-buyers":         true,
+		"v2-09-postgres-ledger-ratio-unsettled":     true,
+		"v2-07-refund-answerability-and-storage":    true,
+		"v2-gap-01-ledger-load-multiplier-unstable": true,
 	}
 	// Claims whose wording was made plainer without touching the evidence. Their
 	// statement and limits may differ from v5; their confounds, trial counts and
@@ -110,24 +116,22 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// change of substance. Listed here and in the ledger, so neither a rewording
 	// nor a re-scoping can pass as a silent edit.
 	reworded := map[string]bool{
-		"v2-01-normalized-index-first":              true,
-		"v2-02-rollup-family":                       true,
-		"v2-04-recency-maintained-index":            true,
-		"v2-05-d3-read-advantage-repeated":          true,
-		"v2-06-hot-drop-designs":                    true,
-		"v2-07-refund-answerability-and-storage":    true,
-		"v2-10-guarded-confirm-refusals":            true,
-		"v2-13-trigger-rollup-cost":                 true,
-		"v2-14-cache-throughput-gain":               true,
-		"v2-15-three-instance-staleness":            true,
-		"v2-gap-01-ledger-load-multiplier-unstable": true,
-		"v3-01-churn-crosses-real-ttl":              true,
-		"v3-02-churn-600-through-vs-aside":          true,
-		"v3-03-equal-total-framing-labelled":        true,
-		"v3-04-yb-single-strict-relaxed":            true,
-		"v3-05-yb-cluster3-strict-relaxed":          true,
-		"v3-06-colocated-vs-noncolocated-locality":  true,
-		"v3-gap-01-study05-remaining-regimes":       true,
+		"v2-01-normalized-index-first":             true,
+		"v2-02-rollup-family":                      true,
+		"v2-04-recency-maintained-index":           true,
+		"v2-05-d3-read-advantage-repeated":         true,
+		"v2-06-hot-drop-designs":                   true,
+		"v2-10-guarded-confirm-refusals":           true,
+		"v2-13-trigger-rollup-cost":                true,
+		"v2-14-cache-throughput-gain":              true,
+		"v2-15-three-instance-staleness":           true,
+		"v3-01-churn-crosses-real-ttl":             true,
+		"v3-02-churn-600-through-vs-aside":         true,
+		"v3-03-equal-total-framing-labelled":       true,
+		"v3-04-yb-single-strict-relaxed":           true,
+		"v3-05-yb-cluster3-strict-relaxed":         true,
+		"v3-06-colocated-vs-noncolocated-locality": true,
+		"v3-gap-01-study05-remaining-regimes":      true,
 	}
 	for i := range v5.Claims {
 		a, b := v6.Claims[i], v5.Claims[i]

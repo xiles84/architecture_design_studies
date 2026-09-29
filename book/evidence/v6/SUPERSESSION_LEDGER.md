@@ -136,6 +136,21 @@ happened to be the last three and so set the cell median. Conclusion: the low mo
 only a description of where the event fell in a five-trial cell. `v2-09` gained six anchors and three limits
 (one of which corrects the earlier limit that called it the ledger arm's), and no statement changed.
 
+**The client-quota audit (2026-09-29).** The same session then read the `client_cpu` accounting the harness
+has written since the study's first commit — one entry per **trial** for the race phase, per phase elsewhere
+— which no analysis had used, and which had refuted the previous paragraph's own inference: the 8-buyer
+slow trials show **zero** client throttling and *more* client CPU (2.6–2.8 s against ~1.9 s), so the client
+was waiting, not starved. Scanning all 775 recorded client-CPU cells found **35 throttled**, concentrated in
+the **read phase** of two anchors, `20260920T234953Z` and `20260913T021206Z`, and throttled by a
+**design-dependent** amount within one run (2.3 s for `p2_precreated_skip_locked` to 58.1 s for
+`r1_inventory_row`, out of ~1085 periods). Consequences recorded in the registry: `v2-09`'s limit about the
+8-buyer cause was **corrected** (it had said the client was not recorded), and `v2-06`, `v2-07` and
+`v2-gap-01` — the claims anchored to those two runs — each gained a limit stating that their reports' **read
+figures are not quotable** because the client's quota set them. No statement, strength, confound or anchor
+changed for any of the three: `v2-06` rests on race-phase sell rate, `v2-07` on answerability and storage,
+`v2-gap-01` on the load phase, and none of those phases was throttled. The superseded inference is preserved
+in `reports/outdated/20260929T-v2-09-8buyer-recurrence--deepseek-flash--2026-09-29.md`.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,
