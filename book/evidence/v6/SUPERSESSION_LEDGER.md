@@ -78,7 +78,7 @@ because it was true of the v6 tag.
 |---|---|---|
 | `v2-06-hot-drop-designs` | `study-02/v2-06-replication` (2026-09-26) | strength → `run_replicated` (3 runs, AB/BA); statement re-scoped to carry the reproduced 4–8x range and the fact that absolute throughput fell 26–72% between sessions; limits extended |
 | `v2-08-ledger-race-cost-128-buyers` | `study-02/v2-08-replication`, `study-02/v2-08-tier100-settle`, `study-02/v2-08-tier-axis` (2026-09-27) | strength → `run_replicated` (12 whole runs); statement re-scoped (below); anchors and limits extended |
-| `v2-09-postgres-ledger-ratio-unsettled` | `study-02/v2-09-buyer-sweep` (2026-09-28) | strength `single_run_directional` → `run_replicated` (11 runs, alternating order); statement re-scoped (below) after its headline swap was falsified; a recorded prediction with verdict `falsified` added; 11 anchors and 6 limits |
+| `v2-09-postgres-ledger-ratio-unsettled` | `study-02/v2-09-buyer-sweep`, `study-02/v2-09-lowbuyer-tiers` (2026-09-28/29) | strength `single_run_directional` → `run_replicated` (11 runs, alternating order); statement re-scoped (below) after its headline swap was falsified; a recorded prediction with verdict `falsified` added; the 32-buyer tier coverage then extended by a second tranche (two anchors, two limits, no further statement change) |
 | `v2-11-section-seat-map` | `study-03/v2-11-memory-envelope`, `study-03/close-out` (2026-09-27) | strength → `run_replicated` (5 runs, both engines, AB/BA); the engine contrast is the replicated element; limits extended |
 
 Each claim's own signed analyses are the primary record; this table is the registry-side index of them.
@@ -115,6 +115,15 @@ across 8–128 buyers in both orders and that the primary's apparent swap came f
 moves to `run_replicated` (11 runs, alternating order), with B2 recorded as a falsified `prediction` and the
 ratio's non-portability as a limit. Nothing was retired, and the superseded wording is preserved here and in
 the sweep's signed analysis.
+
+**The `v2-09` tier extension (2026-09-29).** The sweep's first stated weakness was that it isolated the
+confound at one tier. Two further whole runs at **32 buyers across all five tiers** (tag
+`study-02/v2-09-lowbuyer-tiers`) show the same stable direction at every one: all ten tier × order cells
+above 1 (1.021–1.606), the 32-buyer ratio below the 128-buyer one at every tier. The primary's tier-wide
+reversal therefore does not reproduce **anywhere** on the axis. The tranche added two anchors and two limits
+and changed no statement; it also fixed a caveat the sweep could not see — at 10 and 100 seats only 3 of 10
+and 6 of 10 trial pairs favour CAS (cell spreads 86–174%), so the direction there sits at the measurement's
+floor, while the 1,000-seat cell reproduced the sweep's ratio a day later within 1%.
 
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,

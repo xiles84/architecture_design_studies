@@ -508,6 +508,15 @@ B2 recorded as a falsified prediction and the ratio's non-portability as a limit
 v6 ledger's post-tag section now records four re-scopings, and the two book prose sites that called the
 ledger cost "order-sensitive" were corrected. Merged into local `main` and tagged; the tracked draft was
 rebuilt on the new registry.
+
+**The sweep's tier weakness was then closed (2026-09-29, two runs `20260929T00*`, tag
+`study-02/v2-09-lowbuyer-tiers`).** Two more whole runs at 32 buyers across all five tiers show the same
+stable direction at every tier: all ten tier × order cells above 1 (1.021–1.606) and the 32-buyer ratio below
+the 128-buyer one everywhere, so the primary's **tier-wide reversal does not reproduce anywhere** on the
+axis. T1–T5 all confirmed. The tranche added two anchors and two limits to `v2-09` and changed no statement;
+it also found the small-tier floor — at 10 and 100 seats only 3/10 and 6/10 trial pairs favour CAS, with
+spreads of 86–174% — while the 1,000-seat cell reproduced the sweep's ratio a day later within 1%. Analysis
+`studies/02-ticket-booking/reports/analyses/20260929T-v2-09-lowbuyer-tiers--deepseek-flash--2026-09-29.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
