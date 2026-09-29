@@ -2096,3 +2096,17 @@ findings are the opposite shape (a slow first trial); this is a *late* break, wh
 protects against and which a spread check only reports after the fact. Two guards apply: read the per-trial
 series, not only the median, before quoting a cell, and prefer a cell whose trials agree — the tier-axis
 tranche's cells did, and their ratios survived a 2.5x shift in the absolutes.
+
+### A slow trial is not a slow design, and its position decides its name
+The 8-buyer cell that fell 5x mid-run looked like a ledger-arm state change, and the corpus kept it flagged
+rather than explained. A recurrence test settled it the other way: six runs, twelve cells, sixty trials
+produced **four** low readings (619–655 ops/s against a session normal of ~2,500), and three of the four
+were in the **CAS** arm; the pre-registered "it is the ledger's" and "it favours one order" predictions were
+both falsified. Three of the four events were a single trial that recovered on the next one; the original
+looked persistent only because its slow trials were the cell's **last three**, so they set the cell median
+and the two normal trials read as the anomaly. Two rules follow. **A name for an event in a short cell is a
+description of where it fell, not a mechanism** — "collapse" and "spike" are the same measurement at
+different positions in a five-trial median, and a ~7% event rate makes position decisive. And **before
+attributing a slow cell to a design, look for the same event in the other arm**: if it is there too, the
+design is not the explanation, and the honest next step is instrumentation (the client container's own
+cgroup counters beside the database's) rather than more cells.

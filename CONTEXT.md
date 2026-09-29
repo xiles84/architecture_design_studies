@@ -517,6 +517,18 @@ axis. T1–T5 all confirmed. The tranche added two anchors and two limits to `v2
 it also found the small-tier floor — at 10 and 100 seats only 3/10 and 6/10 trial pairs favour CAS, with
 spreads of 86–174% — while the 1,000-seat cell reproduced the sweep's ratio a day later within 1%. Analysis
 `studies/02-ticket-booking/reports/analyses/20260929T-v2-09-lowbuyer-tiers--deepseek-flash--2026-09-29.md`.
+
+**The 8-buyer collapse was explained, not a ledger effect (2026-09-29, six runs `20260929T01*`, tag
+`study-02/v2-09-8buyer`).** The sweep's 8-buyer cell had fallen 5x mid-cell and was kept unexplained. Six
+alternating runs (twelve cells, sixty trials) found **four** low-throughput events (619–655 ops/s against a
+session normal of ~2,500) falling in **both designs** — three of the four in the CAS arm — and both orders,
+falsifying the pre-registered arm-specificity and order predictions. Three events were a single trial that
+recovered; the original three-trial run looked persistent only because its slow trials were the cell's last
+three and so set its median. So the low mode belongs to the 8-buyer level's very short trials, **not to the
+ledger**, and no 8-buyer magnitude is quoted. `v2-09` gained six anchors and three limits with no statement
+change; the `v2-09` limit that had called it the ledger arm's is corrected. Cause still open — the artifact
+carries the database's cgroup counters but not the client's, so the fix is instrumentation, not more cells.
+Analysis `studies/02-ticket-booking/reports/analyses/20260929T-v2-09-8buyer-recurrence--deepseek-flash--2026-09-29.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

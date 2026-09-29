@@ -125,6 +125,17 @@ and changed no statement; it also fixed a caveat the sweep could not see — at 
 and 6 of 10 trial pairs favour CAS (cell spreads 86–174%), so the direction there sits at the measurement's
 floor, while the 1,000-seat cell reproduced the sweep's ratio a day later within 1%.
 
+**The 8-buyer collapse, explained (2026-09-29).** The sweep had kept an 8-buyer cell whose ledger arm fell
+5x mid-cell, and neither discarded nor explained it. A recurrence test — six runs, twelve cells, sixty
+trials, tag `study-02/v2-09-8buyer` — found **four low-throughput events** (619–655 ops/s against a session
+normal of ~2,500) and they fall in **both** designs (three of the four in the CAS arm) and both orders. The
+pre-registered arm-specificity and order predictions were falsified. Three of the four events were a single
+trial that recovered; the one that spanned consecutive trials was the original cell, where the slow trials
+happened to be the last three and so set the cell median. Conclusion: the low mode is a property of the
+8-buyer level's very short trials, **not of the ledger**, and neither "collapse" nor "spike" is a mechanism —
+only a description of where the event fell in a five-trial cell. `v2-09` gained six anchors and three limits
+(one of which corrects the earlier limit that called it the ledger arm's), and no statement changed.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,
