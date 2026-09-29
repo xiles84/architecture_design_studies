@@ -319,7 +319,8 @@ summary, not a second ledger.
   read as a continuous block because their surrounding gaps were too narrow. The shared Typst heading
   styles now give levels 1, 2 and 3 more room above and below, while preserving the chapter page break.
   A pinned Typst scratch compile produced a 76-page review PDF with the revised hierarchy visible;
-  no claim, figure or evidence-package content changed.
+  no claim, figure or evidence-package content changed. Integrated into local `main` at `59dead0` and
+  tagged `repo/book-heading-spacing-v1`.
 - **Found and fixed on this task:** `book/CHANGELOG.md` named a fixed registry path
   (`book/evidence/v5/`), which fails the `registry-literal` rule in `book/evidence/check.sh` on `main`
   itself. Reworded to name the then-active package without a path literal.
