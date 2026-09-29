@@ -1459,6 +1459,14 @@ non-breakable Typst blocks, so the renderer inserts the page break before the wh
 artefacts need this check: text extraction can prove a card's words exist, but it cannot show that their
 label was stranded on the preceding page.
 
+### Heading hierarchy needs a visible pause at every level
+
+The book's level-2 and level-3 headings initially had enough space to avoid collisions but not enough
+to separate consecutive ideas after a dense paragraph. Define the hierarchy gaps once in the shared
+Typst heading styles, then inspect a dense chapter page as well as a chapter opener. The chapter's
+page-break policy and the subsection rhythm are complementary: the first controls entry to a chapter,
+and the second helps readers scan its internal structure.
+
 ### The queue CLI can leave a stale git lock behind on WSL + Windows podman
 
 Four queue commands in a row failed with "Another git process seems to be running", naming a

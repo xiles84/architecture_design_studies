@@ -64,20 +64,22 @@
   set text(font: fonts, size: 10.5pt, fill: palette.ink, lang: "en")
   set par(justify: true, leading: 0.72em)
   set heading(numbering: "1.1")
+  // Give each level enough room to read as a new thought. These gaps apply in every
+  // chapter, rather than relying on local vertical spacers that drift as text changes.
   show heading.where(level: 1): it => {
     pagebreak(weak: true)
-    block(above: 0.6em, below: 0.8em)[
+    block(above: 0.8em, below: 1.15em)[
       #set text(size: 19pt, weight: "bold", fill: palette.accent)
       #it
       #v(1mm)
       #line(length: 100%, stroke: 1.2pt + palette.accent)
     ]
   }
-  show heading.where(level: 2): it => block(above: 0.9em, below: 0.5em)[
+  show heading.where(level: 2): it => block(above: 1.3em, below: 0.7em)[
     #set text(size: 14pt, weight: "bold", fill: palette.ink)
     #it
   ]
-  show heading.where(level: 3): it => block(above: 0.7em, below: 0.4em)[
+  show heading.where(level: 3): it => block(above: 0.95em, below: 0.55em)[
     #set text(size: 11.5pt, weight: "bold", fill: palette.muted)
     #it
   ]

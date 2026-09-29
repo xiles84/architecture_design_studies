@@ -315,6 +315,11 @@ summary, not a second ledger.
   scratch compile produced a 76-page review PDF with the affected cards and callouts intact; no claim,
   figure or evidence-package content changed. Integrated into local `main` at `e3e3606` and tagged
   `repo/book-pdf-page-breaks-v1`.
+- **Heading rhythm pass (2026-09-29):** visual review found that consecutive chapter subsections
+  read as a continuous block because their surrounding gaps were too narrow. The shared Typst heading
+  styles now give levels 1, 2 and 3 more room above and below, while preserving the chapter page break.
+  A pinned Typst scratch compile produced a 76-page review PDF with the revised hierarchy visible;
+  no claim, figure or evidence-package content changed.
 - **Found and fixed on this task:** `book/CHANGELOG.md` named a fixed registry path
   (`book/evidence/v5/`), which fails the `registry-literal` rule in `book/evidence/check.sh` on `main`
   itself. Reworded to name the then-active package without a path literal.
