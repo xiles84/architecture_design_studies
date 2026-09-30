@@ -165,6 +165,19 @@ read penalty **does not** reproduce (0.77–1.05 and 0.97–1.05 against the pri
 the primary analysis's own suspicion that it was a cell-level effect. No claim's statement, strength,
 confound or anchor changed; only the three read-hazard limits were extended.
 
+**The client-budget calibration (2026-09-30), which corrects the paragraph above.** The audit and the re-run
+both read the client's throttling as the read phase's ceiling. Varying the client's budget — possible only
+after `ADS_CLIENT_CPUS` was added to `infra/lib.sh` in the same change — shows otherwise: at **three client
+cores** the client is throttled **0 of 633 periods** and the reads are **slower** across every tier
+(`r1`'s `q01` 52,884 → 43,726 at 10 seats), because the third core is taken from the database's share of the
+machine's four CPUs (its throttled periods 238 → 847 → 1052). `r1`'s flat `q01` therefore survives with an
+unthrottled client (ratio 1.05), so it is a ceiling *or* an O(1) design and no longer evidence about the
+client. The three read-hazard limits were rewritten accordingly (their claim-specific tails unchanged: none
+of `v2-06`, `v2-07`, `v2-gap-01` rests on a read level, and `v2-07`'s answerability and ~32k `r05` result
+reproduce), and the superseded re-run analysis moved to `reports/outdated/`. The operational conclusion is
+that the read family's levels cannot be fixed by re-allocating cores on a machine whose budgets already sum
+to its CPU count: the options are a smaller client read footprint or a larger machine.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

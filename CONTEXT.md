@@ -570,9 +570,25 @@ answered only by the ledger at 30.3k/33.0k against 32.2k), and X1's "~2x slower 
 does **not** reproduce (0.77–1.05, 0.97–1.05 against 0.29–0.73), confirming the primary analysis's own
 suspicion. No claim statement, strength, confound or anchor changed; the three read-hazard limits were
 extended. Analysis
-`studies/02-ticket-booking/reports/analyses/20260929T-read-family-rerun--deepseek-flash--2026-09-29.md`. **Open
-for the owner: the read phase needs a client sizing decision** (raise the client budget or cut its read
-connections) before any read level is quoted again.
+`studies/02-ticket-booking/reports/analyses/20260929T-read-family-rerun--deepseek-flash--2026-09-29.md`
+— **superseded** the next day by the budget calibration below.
+
+**Client budget calibration: the quota was a symptom, not the ceiling (2026-09-30, three runs
+`20260930T00*`, tag `study-02/read-client-sizing`).** `infra/lib.sh` could vary the database's budget from the
+environment but not the client's, so the question had never been asked. Three budgets (client 1 / 2 / 3 cores
+against a fixed two-core database on the **4-CPU** machine): at **three cores the client is throttled 0 times
+in 633 periods** and the reads are **slower** (52,884 → 43,726 ops/s at 10 seats), because the core comes out
+of the database's share (its throttled periods rise **238 → 847 → 1052**). S1/S2/S4/S5 confirmed; **S3
+falsified** — `r1`'s `q01` is still flat when the client is unthrottled (43.7k → 41.6k), so my earlier "the
+floor is the client" reading was wrong: a flat cell is a ceiling *or* a genuinely O(1) design, and this one
+needs a plan check to separate. Consequence: on this machine the read family's **levels** cannot be repaired
+by re-allocating cores (the budgets already sum to 4 CPUs, and the declared memories 3g+2g are 2.5× the 2 GiB
+present); the actionable options are a **smaller client read footprint** (fewer, longer-lived connections) or
+a **bigger machine** — both owner decisions. The family's **orderings** remain quotable. `CONTEXT` and
+`LESSONS` corrected; the three read-hazard limits were rewritten to the corrected attribution. **Owner
+decisions open: (1) client read footprint or machine size for the read phase; (2) the 2 GiB podman machine.**
+Analysis
+`studies/02-ticket-booking/reports/analyses/20260930T-read-client-sizing--deepseek-flash--2026-09-30.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

@@ -2143,17 +2143,20 @@ is generated into every report — the CPU-quota section has been there since th
 part of analysing the run**, not an optional extra; the numbers were one `jq` away for thirteen days while a
 mechanism was recorded as "unresolved".
 
-### A flat cell over a wide input range is a ceiling, not a cost
-The client-quota audit found study 02's read phase throttled in two old anchors, and the obvious reading was
-"that session was unlucky". Re-running four designs on today's harness, both orders, same phases and scale,
-falsified it: `r1_inventory_row` still loses **420 of 634** and **422 of 633** client CFS periods, and its
-`q01_event_availability` cell sits at **37.7–38.7k ops/s at every one of the five tiers** — 10, 100, 1,000,
-10,000 and 100,000 seats — while the baseline falls from 25,967 to 595 over the same range. **A number that
-does not move when the query gets 10,000x harder is not a measurement of the query**; it is whatever ceiling
-the cell hit, and here that ceiling was the client's two-core quota. Two rules follow. **Read a flat cell as
-a ceiling and go looking for the binding resource** (the report prints client and database throttling beside
-the cell precisely for this). And **when a hazard turns out to be reproducible, the fix is sizing, not a
-re-run**: the tranche that "restored quotability" by measuring again would only have produced a second set of
-client-bound numbers. What survived the re-run is the part with a mechanism — an ordering (`q05` fast where
-there are no per-seat rows, `r03` slow where a per-customer sort is unavoidable) — which is the corpus's
-ratio-over-absolute lesson arriving through a quota floor rather than through session drift.
+### A flat cell is a ceiling *or* an O(1) design — and a throttled client may be neither the cause nor the fix
+This entry was first written as "a flat cell over a wide input range is a ceiling, not a cost", on the
+strength of `r1_inventory_row`'s `q01_event_availability` sitting at 37.7–38.7k ops/s across five tiers while
+the baseline fell from 25,967 to 595, *and* the same design losing half its client CFS periods to throttling.
+Varying the client's budget the next day falsified the causal half: at three client cores the client is
+throttled **0 times in 633 periods** and the cell is **still flat** (43.7k → 41.6k, ratio 1.05) — and every
+tier is *slower* than at two cores, because the third core came out of the database's share of the machine's
+four CPUs (its throttled periods rose 238 → 847 → 1052). Three rules. **Flatness is a symptom with at least
+two causes** — a ceiling, or a query whose cost genuinely does not grow (a precreated inventory row is the
+design's stated point) — so it needs a plan check, not an inference. **Correlation with a quota is not
+causation by that quota**: the client was throttled *and* flat, and removing the throttle left it flat;
+before blaming a resource, vary that resource. And **when the budgets already sum to the whole machine, the
+fix is a smaller footprint or a bigger machine, never a re-allocation** — giving one container a core is
+taking a core from another, which the same measurement shows in the other container's counters. What survived
+all three tranches is the part with a mechanism: the *ordering* (`q05` fast where there are no per-seat rows,
+`r03` slow where a per-customer sort is unavoidable), which is the corpus's ratio-over-absolute lesson
+arriving through a quota floor rather than through session drift.
