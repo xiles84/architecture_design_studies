@@ -633,6 +633,17 @@ quantified at **1.09x to 2.22x, in rank order with the periods its client lost p
 read-hazard limits are complete (fifteen designs at footprint 2; the primary anchors' own figures still not
 quotable). Analysis
 `studies/02-ticket-booking/reports/analyses/20260930T-read-family-11-footprint2--deepseek-flash--2026-09-30.md`.
+
+**One read worker, and a correction (2026-09-30, two runs `20260930T23*`, tag `study-02/read-one-worker`).**
+The tranche meant to separate store-bound cells from client-bound ones falsified the separation instead: with
+the **mean** latency, in-flight is **1.000 in all 72 cells** at one worker and **2.00** at two, so every read
+cell in the family is a store measurement at a stated footprint. The previous day's claim that `q02`/`q05`
+were client-bound was wrong twice — `q05` returns one row, not 28, and the low counts came from using the
+**median** in Little's law on a skewed distribution (`mean/p50` up to 2.7x). **The registry caveat is
+withdrawn** (`q02`/`q05` levels are store numbers, quotable with the footprint attached) and `LESSONS` carries
+the corrected entry plus "Little's law wants the mean". Read-phase client CPU 25.6–41.9 s, 0 throttled periods.
+Analysis
+`studies/02-ticket-booking/reports/analyses/20260930T-read-one-worker--deepseek-flash--2026-09-30.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

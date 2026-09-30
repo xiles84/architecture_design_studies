@@ -2198,13 +2198,24 @@ a genuinely store-bound cell is footprint-invariance**: `p3` at 100,000 seats re
 checking before quoting any ratio as a design property.
 
 ### In-flight counts tell you *what* bounds a cell, not just whether the generator does
-The 2-worker read runs gave a second reading of the same diagnostic. For the point-lookup and single-row
-queries `ops_per_sec × p50` sits at 1.8–2.0 against 2 workers: the workers wait on the store. For the two
-queries that **return 28 rows** it sits at **0.7–1.5**, and the level there is the client's row decoding, not
-the store — the workers are busy in the harness between fetches, so the cell would not change if the database
-got faster. Two consequences. **`in-flight ≈ workers` means the store bounds the cell; `in-flight < workers`
-means the client's own per-operation work does**, and only the first kind is a store measurement worth
-quoting as a level (the second is still worth quoting as an *ordering*). And **a single cell is not enough to
-characterise a design**: my previous entry said "every read cell is latency-bound" on the strength of one
-query (`q01`), and the other two measurement kinds in the same design were not. Read the diagnostic across
-every cell before generalising it to a design or a family.
+**Corrected 2026-09-30** — this entry originally claimed that the two queries returning many rows had
+client-bound levels. Both halves were wrong and the correction is the lesson below. The part that survives is
+the *shape* of the reasoning: a cell can in principle be bounded by the store or by the harness, and the way to
+tell them apart is to measure the loop's store share — at one worker, `ops/mean latency` is that share
+directly, and it came out at 1.000 for all 72 cells of four designs (see "Little's law wants the mean"). What
+does **not** survive is diagnosing it from `ops_per_sec × p50`, or from a plausible story about how many rows
+the query returns (it was one row, and I never checked).
+
+### Little's law wants the mean — a median-based in-flight count fakes client overhead
+`ops_per_sec × p50` is only an in-flight count when the latency distribution is tight. Where it is not, the
+product measures the *median* concurrency, and where the two-worker read runs showed `q05_band_tickets_sold` at
+0.76 against 2 workers, the same JSON recorded `p50 = 0.275 ms` beside `mean = 0.744 ms` — a 2.7x skew, and
+0.76 × 2.7 = 2.0. Recomputing with the mean gave **1.000 in all 72 cells at one worker and exactly 2.00 at
+two**: every cell was perfectly latency-bound all along, and the "client overhead" I inferred was the skew.
+Three rules. **Use the mean for Little's law, never the median** — the median is the robust statistic and the
+wrong one here, and the mean is already recorded beside it in every result. **Pick an instrument whose scale
+answers the question**: one worker bounds the concurrency above by 1, so agreement with 1.000 cannot be an
+artefact of the worker count. And **a mechanism that fits the numbers is not evidence for it** — "the client
+decodes 28 rows" explained the gap neatly, the query returned one row, and the check would have taken one
+`awk` over the SQL. The corpus's rule about naming the statistic bites hardest when the wrong statistic
+produces a *plausible finding* rather than an absurd one.

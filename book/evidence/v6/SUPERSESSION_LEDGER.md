@@ -225,6 +225,19 @@ footprint-2 footing, that the primary anchors' own footprint-8 read figures rema
 design-dependent inflation named, and that `q02`/`q05` levels are not store numbers while their orderings
 are. No claim's statement, strength, confound or anchor changed.
 
+**The one-worker tranche, and a correction to the entry above (2026-09-30).** A fourth tranche dropped the read
+footprint to **one worker** precisely to separate store-bound cells from client-bound ones, and instead
+falsified the separation: with the **mean** latency, in-flight is **1.000 in all 72 cells** at one worker and
+**2.00** in every cell at two, so every read cell in the family is a store measurement at a stated footprint.
+The previous entry's claim that the two many-row queries had client-bound levels was wrong twice — `q05` does
+not return 28 rows (all three variants return one, `COUNT`/`SUM` with no `GROUP BY`), and the low in-flight
+counts were an artefact of using the **median** in Little's law on a skewed distribution (`mean/p50` up to
+2.7x). The registry caveat that clause produced has been **withdrawn**: `q02`/`q05` levels are store numbers
+like every other cell's, quotable with the footprint attached, and only their magnitude depends on the
+concurrency (`throughput ≈ workers ÷ mean latency`). Read-phase client CPU at one worker was 25.6–41.9 s of a
+126 s allowance with 0 throttled periods in all eight read phases. No claim's statement, strength, confound or
+anchor changed; two limit texts were corrected.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,
