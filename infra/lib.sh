@@ -21,6 +21,14 @@ source "$INFRA_DIR/versions.env"
 # per-node experiment; each alternative is inspected and named in its results.
 DB_CPUS="${ADS_DB_CPUS:-$DB_CPUS}"
 DB_MEMORY="${ADS_DB_MEMORY:-$DB_MEMORY}"
+# The client's budget is an alternative resource condition too, not only the
+# database's. Study 02's read phase throttles its client under a two-core quota
+# (2026-09-29 audit), and on this host the two budgets already sum to the podman
+# machine's whole CPU count, so the question "is the client or the machine the
+# bind?" can only be asked by varying the client's share. Overridable, recorded
+# in every manifest (`budget_client`) and result, never defaulted away.
+CLIENT_CPUS="${ADS_CLIENT_CPUS:-$CLIENT_CPUS}"
+CLIENT_MEMORY="${ADS_CLIENT_MEMORY:-$CLIENT_MEMORY}"
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m warn\033[0m %s\n' "$*" >&2; }
