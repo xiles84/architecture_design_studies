@@ -39,6 +39,15 @@ SCALE="small"
 DURATION="5s"
 WARMUP="2s"
 CONNS="8"
+# The read phase's own footprint, from the 2026-09-30 calibration: at 8 workers
+# the read client saturates its two-core quota (422 of 633 periods throttled,
+# 111.6 s CPU in a 63.3 s window) and its throughput then measures the client, not
+# the store; at 2 workers the client is unthrottled (0 of 631), the database's
+# throttling falls from 900 to 109 periods, and every read cell becomes
+# latency-bound with 1.9 operations in flight for 2 workers. The write, race and
+# hold phases keep -conns 8, so their published numbers stay comparable. Owner
+# decision 2026-09-30: fix the footprint, not the machine. 0 = follow --conns.
+READ_CONNS="2"
 LOAD_CONNS="4"
 TRIALS="1"
 TOPOLOGIES="pg-single,yb-single,yb-cluster3"
@@ -54,6 +63,7 @@ while [[ $# -gt 0 ]]; do
     --duration) DURATION="$2"; shift 2 ;;
     --warmup) WARMUP="$2"; shift 2 ;;
     --conns) CONNS="$2"; shift 2 ;;
+    --read-conns) READ_CONNS="$2"; shift 2 ;;
     --load-conns) LOAD_CONNS="$2"; shift 2 ;;
     --trials) TRIALS="$2"; shift 2 ;;
     --topologies) TOPOLOGIES="$2"; shift 2 ;;
@@ -152,6 +162,7 @@ fi
   echo "  duration_per_measurement: $DURATION"
   echo "  warmup: $WARMUP"
   echo "  client_conns: $CONNS"
+  echo "  client_read_conns: $READ_CONNS"
   echo "  trials: $TRIALS"
   echo "  phases: $PHASES"
   echo "  extra_flags: \"$EXTRA\""
@@ -196,7 +207,7 @@ run_cell() {
     -v "$(hostpath "$jdir"):/results" -v "$(hostpath "$pdir"):/plans" \
     "$BENCH_IMAGE" \
       -cmd full -engine "$engine" -topology "$topo" -design "$design" \
-      -scale "$SCALE" -conns "$CONNS" -load-conns "$LOAD_CONNS" \
+      -scale "$SCALE" -conns "$CONNS" -read-conns "$READ_CONNS" -load-conns "$LOAD_CONNS" \
       -duration "$DURATION" -warmup "$WARMUP" -trials "$TRIALS" -phases "$PHASES" \
       -environment "$ENVIRONMENT" -run-id "$RUN_ID" \
       -repo-commit "$REPO_COMMIT" -repo-describe "$REPO_DESCRIBE" -repo-dirty="$REPO_DIRTY" -run-tag "$RUN_TAG" \

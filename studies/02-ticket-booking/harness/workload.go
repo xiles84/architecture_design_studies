@@ -17,14 +17,17 @@ import (
 )
 
 type Settings struct {
-	Workers   int
-	Duration  time.Duration
-	Warmup    time.Duration
-	Trials    int
-	Streams   int
-	Tiers     []int
-	WriteOps  []string
-	RaceTiers []int
+	Workers int
+	// ReadWorkers, when > 0, replaces Workers for the read phase only: see the
+	// -read-conns flag for why the phase has its own footprint.
+	ReadWorkers int
+	Duration    time.Duration
+	Warmup      time.Duration
+	Trials      int
+	Streams     int
+	Tiers       []int
+	WriteOps    []string
+	RaceTiers   []int
 
 	RaceBuyers     int
 	RaceTimeout    time.Duration
@@ -42,6 +45,16 @@ type Settings struct {
 	HoldSweepEvery    time.Duration
 	HoldEventsPerTier int
 	HoldTiers         []int
+}
+
+// readWorkers is the read phase's concurrency: its own where set, the published
+// -conns otherwise. Only the read phase uses it; the write, race and hold phases
+// keep Workers so their published numbers stay comparable.
+func (s Settings) readWorkers() int {
+	if s.ReadWorkers > 0 {
+		return s.ReadWorkers
+	}
+	return s.Workers
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +85,7 @@ func BenchmarkReads(ctx context.Context, db ports.DB, d Design, ds *Dataset, s S
 	}
 	sort.Slice(custList, func(i, j int) bool { return custList[i] < custList[j] })
 
-	budget := measure.Budget{Workers: s.Workers, Warmup: s.Warmup, Duration: s.Duration, Trials: s.Trials}
+	budget := measure.Budget{Workers: s.readWorkers(), Warmup: s.Warmup, Duration: s.Duration, Trials: s.Trials}
 	run := func(name string, tier int, key func(r *rand.Rand) any) ReadResult {
 		st := q[name]
 		label := name

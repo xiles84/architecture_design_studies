@@ -75,14 +75,21 @@ type Run struct {
 
 func main() {
 	var (
-		dsn         = flag.String("dsn", os.Getenv("BENCH_DSN"), "PostgreSQL-protocol connection string")
-		engine      = flag.String("engine", "postgres", "postgres | yugabyte")
-		topology    = flag.String("topology", "pg-single", "topology id, e.g. pg-single | yb-single | yb-cluster3")
-		designID    = flag.String("design", "", "design id (see -cmd list)")
-		scale       = flag.String("scale", "small", "tiny | small")
-		seed        = flag.Int64("seed", 42, "dataset seed; changing it invalidates comparisons")
-		tiers       = flag.String("tiers", "", "restrict the dataset to these event sizes, e.g. 10,100,1000")
-		workers     = flag.Int("conns", 8, "concurrent workers for reads and isolated writes")
+		dsn      = flag.String("dsn", os.Getenv("BENCH_DSN"), "PostgreSQL-protocol connection string")
+		engine   = flag.String("engine", "postgres", "postgres | yugabyte")
+		topology = flag.String("topology", "pg-single", "topology id, e.g. pg-single | yb-single | yb-cluster3")
+		designID = flag.String("design", "", "design id (see -cmd list)")
+		scale    = flag.String("scale", "small", "tiny | small")
+		seed     = flag.Int64("seed", 42, "dataset seed; changing it invalidates comparisons")
+		tiers    = flag.String("tiers", "", "restrict the dataset to these event sizes, e.g. 10,100,1000")
+		workers  = flag.Int("conns", 8, "concurrent workers for reads and isolated writes")
+		// The read phase's own footprint. It is separate because the two phases
+		// have different constraints: a read phase at 8 workers saturates this
+		// host's two-core client (422 of 633 periods throttled, 2026-09-29) and
+		// its throughput then describes the client, while the write and race
+		// phases' published numbers were measured at 8 and must stay comparable.
+		// 0 keeps the old behaviour (use -conns).
+		readWorkers = flag.Int("read-conns", 0, "concurrent workers for the read phase only (0 = same as -conns)")
 		streams     = flag.Int("load-conns", 4, "concurrent COPY streams during load")
 		duration    = flag.Duration("duration", 5*time.Second, "measured duration per read query / write op trial")
 		warmup      = flag.Duration("warmup", 2*time.Second, "discarded warmup per read query / write op")
@@ -164,7 +171,7 @@ func main() {
 		*p = time.Duration(float64(*p) * *holdScale)
 	}
 	s := Settings{
-		Workers: *workers, Duration: *duration, Warmup: *warmup, Trials: *trials, Streams: *streams,
+		Workers: *workers, ReadWorkers: *readWorkers, Duration: *duration, Warmup: *warmup, Trials: *trials, Streams: *streams,
 		Tiers: parseInts(*tiers), WriteOps: splitList(*writeOps), RaceTiers: parseInts(*raceTiers),
 		RaceBuyers: *raceBuyers, RaceTimeout: *raceTimeout, RaceTrials: *raceTrials, RaceTierBudget: *tierBudget, ChurnPct: *churnPct, EditorInterval: *editorEvery,
 		HoldBuyers: *holdBuyers, HoldTTL: *holdTTL, HoldThinkMax: *holdThink, HoldPayMin: *holdPayMin,
@@ -181,7 +188,7 @@ func main() {
 		DesignID: d.ID, DesignTitle: d.Title, DesignFamily: d.Family, DesignSummary: d.Summary,
 		Isolation: string(d.Isolation), NegativeControl: d.NegativeControl, Scale: *scale,
 		Options: map[string]any{
-			"conns": *workers, "load_conns": *streams, "duration": duration.String(), "warmup": warmup.String(),
+			"conns": *workers, "read_conns": s.readWorkers(), "load_conns": *streams, "duration": duration.String(), "warmup": warmup.String(),
 			"trials": *trials, "seed": *seed, "tiers": *tiers, "write_ops": *writeOps, "phases": *phases,
 			"race_buyers": *raceBuyers, "race_timeout": raceTimeout.String(), "race_trials": *raceTrials, "race_tier_budget": tierBudget.String(), "churn_pct": *churnPct,
 			"editor_interval": editorEvery.String(), "hold_buyers": *holdBuyers, "hold_ttl": holdTTL.String(),
@@ -199,7 +206,7 @@ func main() {
 	// Pool sized over every concurrent user of it -- workers, race buyers, the
 	// editor, the sweeper, the monitor -- so the pool is never the bottleneck.
 	db, err := pgxdb.Open(ctx, pgxdb.Config{
-		DSN: *dsn, MaxConns: max(*workers, *raceBuyers, *holdBuyers) + *streams + 8,
+		DSN: *dsn, MaxConns: max(*workers, *readWorkers, *raceBuyers, *holdBuyers) + *streams + 8,
 		StatementTimeoutMS: *stmtTimeout, ApplicationName: "ticketbooking-bench",
 	})
 	if err != nil {
