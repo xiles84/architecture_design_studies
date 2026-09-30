@@ -2152,7 +2152,10 @@ throttled **0 times in 633 periods** and the cell is **still flat** (43.7k → 4
 tier is *slower* than at two cores, because the third core came out of the database's share of the machine's
 four CPUs (its throttled periods rose 238 → 847 → 1052). Three rules. **Flatness is a symptom with at least
 two causes** — a ceiling, or a query whose cost genuinely does not grow (a precreated inventory row is the
-design's stated point) — so it needs a plan check, not an inference. **Correlation with a quota is not
+design's stated point) — so it needs a plan check, not an inference. That check cost one `grep` in the run
+directory and settled it: `r1`'s `q01` is `Index Scan using event_inventory_pkey … rows=1`, cost 2.49,
+0.012 ms, three buffers, against a table that holds one row per event at every tier — O(1) by construction,
+with the *level* being the machine's point-lookup rate. **Correlation with a quota is not
 causation by that quota**: the client was throttled *and* flat, and removing the throttle left it flat;
 before blaming a resource, vary that resource. And **when the budgets already sum to the whole machine, the
 fix is a smaller footprint or a bigger machine, never a re-allocation** — giving one container a core is

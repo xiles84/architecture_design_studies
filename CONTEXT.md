@@ -580,8 +580,12 @@ against a fixed two-core database on the **4-CPU** machine): at **three cores th
 in 633 periods** and the reads are **slower** (52,884 → 43,726 ops/s at 10 seats), because the core comes out
 of the database's share (its throttled periods rise **238 → 847 → 1052**). S1/S2/S4/S5 confirmed; **S3
 falsified** — `r1`'s `q01` is still flat when the client is unthrottled (43.7k → 41.6k), so my earlier "the
-floor is the client" reading was wrong: a flat cell is a ceiling *or* a genuinely O(1) design, and this one
-needs a plan check to separate. Consequence: on this machine the read family's **levels** cannot be repaired
+floor is the client" reading was wrong: a flat cell is a ceiling *or* a genuinely O(1) design. **Resolved the
+same day by a plan check** (`20260930T-read-q01-plan-check`, no new measurement): `r1`'s `q01` is
+`Index Scan using event_inventory_pkey … rows=1`, cost **2.49**, **0.012 ms**, 3 buffers, against a 690-row
+table that no tier changes — **O(1) by construction**, while `p3`'s `COUNT(*)` over tickets touches 58,927
+rows for cost 4,517 and 6.774 ms. So the flatness is the design's point and the *level* is the machine's
+point-lookup rate. Consequence: on this machine the read family's **levels** cannot be repaired
 by re-allocating cores (the budgets already sum to 4 CPUs, and the declared memories 3g+2g are 2.5× the 2 GiB
 present); the actionable options are a **smaller client read footprint** (fewer, longer-lived connections) or
 a **bigger machine** — both owner decisions. The family's **orderings** remain quotable. `CONTEXT` and

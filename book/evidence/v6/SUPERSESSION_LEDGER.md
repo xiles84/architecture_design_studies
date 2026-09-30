@@ -171,8 +171,11 @@ after `ADS_CLIENT_CPUS` was added to `infra/lib.sh` in the same change — shows
 cores** the client is throttled **0 of 633 periods** and the reads are **slower** across every tier
 (`r1`'s `q01` 52,884 → 43,726 at 10 seats), because the third core is taken from the database's share of the
 machine's four CPUs (its throttled periods 238 → 847 → 1052). `r1`'s flat `q01` therefore survives with an
-unthrottled client (ratio 1.05), so it is a ceiling *or* an O(1) design and no longer evidence about the
-client. The three read-hazard limits were rewritten accordingly (their claim-specific tails unchanged: none
+unthrottled client (ratio 1.05), so it is no longer evidence about the client; a plan check the same day
+(`20260930T-read-q01-plan-check`, no new measurement) settled which: `r1`'s `q01` is a primary-key lookup of a
+pre-aggregated counter in a 690-row table (cost 2.49, rows=1, 0.012 ms) against the baseline's `COUNT(*)` over
+58,927 ticket rows (cost 4,517, 6.774 ms) — **O(1) by construction**, with the cell's level being the
+machine's point-lookup rate. The three read-hazard limits were rewritten accordingly (their claim-specific tails unchanged: none
 of `v2-06`, `v2-07`, `v2-gap-01` rests on a read level, and `v2-07`'s answerability and ~32k `r05` result
 reproduce), and the superseded re-run analysis moved to `reports/outdated/`. The operational conclusion is
 that the read family's levels cannot be fixed by re-allocating cores on a machine whose budgets already sum
