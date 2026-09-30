@@ -621,6 +621,18 @@ at footprint 8 but 1.16x / 1.48x here, because the old margin was partly the cli
 **footprint-explicit** (four designs at footprint 2; the eleven not re-measured, including both primary
 anchors, still not quotable); no claim statement, strength, confound or anchor changed. Analysis
 `studies/02-ticket-booking/reports/analyses/20260930T-read-family-footprint2--deepseek-flash--2026-09-30.md`.
+
+**The read family is complete at footprint 2 (2026-09-30, two runs `20260930T20*`, tag
+`study-02/read-family-11`).** The remaining eleven designs, both orders: **0 throttled periods in all 22 read
+phases**, so all fifteen designs now share one non-client-bound footing (client read CPU 40.8–68.0 s against
+a 126 s allowance), and the orders agree on `q01` to within 0.91–1.03. Two refinements: the in-flight
+diagnostic distinguishes store-bound cells (1.8–2.0, the point-lookup and single-row queries) from
+**client-decode-bound** ones (0.7–1.5, `q02`/`q05`, the two 28-row queries) — correcting the previous
+comment that every cell was latency-bound — and the primary anchor's per-design read inflation is now
+quantified at **1.09x to 2.22x, in rank order with the periods its client lost per design**. The three
+read-hazard limits are complete (fifteen designs at footprint 2; the primary anchors' own figures still not
+quotable). Analysis
+`studies/02-ticket-booking/reports/analyses/20260930T-read-family-11-footprint2--deepseek-flash--2026-09-30.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

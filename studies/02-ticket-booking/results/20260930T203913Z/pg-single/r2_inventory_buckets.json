@@ -1,0 +1,839 @@
+{
+  "study": "02-ticket-booking",
+  "run_id": "20260930T203913Z",
+  "repo": {
+    "commit": "c5c6452d29d66097d35edea7b9f0f7df152d9499",
+    "describe": "run/02-ticket-booking/20260930T201732Z",
+    "dirty": false,
+    "tag": "run/02-ticket-booking/20260930T203913Z"
+  },
+  "started_at": "2026-09-30T20:41:23.970135261Z",
+  "finished_at": "2026-09-30T20:43:17.380583225Z",
+  "environment": "host-zenbook-ux5406sa",
+  "engine": "postgres",
+  "topology": "pg-single",
+  "engine_info": {
+    "version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+    "default_isolation": "read committed"
+  },
+  "design_id": "r2_inventory_buckets",
+  "design_title": "inventory-buckets",
+  "design_family": "extra inventory table",
+  "design_summary": "R1 split into up to 8 bucket rows per event, taken with SKIP LOCKED: a sharded counter.",
+  "isolation": "rc",
+  "scale": "small",
+  "dataset": {
+    "bands": 40,
+    "customers": 20000,
+    "events": 690,
+    "events_by_kind": {
+      "catalogue": 500,
+      "churn": 62,
+      "race": 128
+    },
+    "events_by_kind_tier": {
+      "catalogue_10": 400,
+      "catalogue_100": 80,
+      "catalogue_1000": 16,
+      "catalogue_10000": 3,
+      "catalogue_100000": 1,
+      "churn_10": 50,
+      "churn_100": 10,
+      "churn_1000": 2,
+      "race_10": 100,
+      "race_100": 20,
+      "race_1000": 5,
+      "race_10000": 2,
+      "race_100000": 1
+    },
+    "scale": "small",
+    "seats_by_kind": {
+      "catalogue": 158000,
+      "churn": 3500,
+      "race": 128000
+    },
+    "seats_total": 289500,
+    "seed": 42,
+    "tickets_sold_at_load": 65388
+  },
+  "options": {
+    "churn_pct": 10,
+    "conns": 8,
+    "duration": "5s",
+    "editor_interval": "20ms",
+    "hold_abandon_pct": 25,
+    "hold_buyers": 32,
+    "hold_events_per_tier": 10,
+    "hold_pay": "20ms-100ms",
+    "hold_sweep_every": "50ms",
+    "hold_think_max": "200ms",
+    "hold_tiers": "10,100,1000",
+    "hold_time_scale": 1,
+    "hold_ttl": "250ms",
+    "load_conns": 4,
+    "phases": "verify,explain,read",
+    "race_buyers": 32,
+    "race_tier_budget": "3m0s",
+    "race_timeout": "1m0s",
+    "race_trials": 1,
+    "read_conns": 2,
+    "seed": 42,
+    "statement_timeout_ms": 300000,
+    "tiers": "",
+    "trials": 1,
+    "warmup": "2s",
+    "write_ops": "book,cancel,publish"
+  },
+  "load": {
+    "drop_ms": 9.862,
+    "schema_ms": 5.321,
+    "copy_ms": 150.844,
+    "index_ms": 66.987,
+    "analyze_ms": 29.503,
+    "total_ms": 262.521,
+    "rows_loaded": {
+      "band": 40,
+      "event": 690,
+      "event_inventory_bucket": 5520,
+      "ticket": 65388
+    }
+  },
+  "verify": {
+    "passed": 46,
+    "failed": 0,
+    "checks": [
+      {
+        "query": "q01_event_availability",
+        "key": "event 3 (catalogue, 10 seats)",
+        "ok": true,
+        "expect": "5",
+        "got": "5"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 501 (race, 10 seats)",
+        "ok": true,
+        "expect": "10",
+        "got": "10"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 405 (catalogue, 100 seats)",
+        "ok": true,
+        "expect": "44",
+        "got": "44"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 601 (race, 100 seats)",
+        "ok": true,
+        "expect": "100",
+        "got": "100"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 482 (catalogue, 1000 seats)",
+        "ok": true,
+        "expect": "417",
+        "got": "417"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 621 (race, 1000 seats)",
+        "ok": true,
+        "expect": "1000",
+        "got": "1000"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 497 (catalogue, 10000 seats)",
+        "ok": true,
+        "expect": "4368",
+        "got": "4368"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 626 (race, 10000 seats)",
+        "ok": true,
+        "expect": "10000",
+        "got": "10000"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 500 (catalogue, 100000 seats)",
+        "ok": true,
+        "expect": "58927",
+        "got": "58927"
+      },
+      {
+        "query": "q01_event_availability",
+        "key": "event 628 (race, 100000 seats)",
+        "ok": true,
+        "expect": "100000",
+        "got": "100000"
+      },
+      {
+        "query": "q02_band_events",
+        "key": "band 1 (145 events)",
+        "ok": true,
+        "expect": "464:100:69,661:10:10,517:10:10,64:10:7,572:10:10,35:10:8,122:10:5,303:10:7,537:10:10,567:10:10,540:10:10,182:10:7,383:10:8,518:10:10,44:10:8,93:10:8,145:10:5... (145 rows)",
+        "got": "464:100:69,661:10:10,517:10:10,64:10:7,572:10:10,35:10:8,122:10:5,303:10:7,537:10:10,567:10:10,540:10:10,182:10:7,383:10:8,518:10:10,44:10:8,93:10:8,145:10:5... (145 rows)"
+      },
+      {
+        "query": "q05_band_tickets_sold",
+        "key": "band 1",
+        "ok": true,
+        "expect": "11450",
+        "got": "11450"
+      },
+      {
+        "query": "q02_band_events",
+        "key": "band 21 (8 events)",
+        "ok": true,
+        "expect": "628:100000:100000,663:10:10,363:10:8,612:100:100,186:10:6,71:10:7,670:10:10,570:10:10",
+        "got": "628:100000:100000,663:10:10,363:10:8,612:100:100,186:10:6,71:10:7,670:10:10,570:10:10"
+      },
+      {
+        "query": "q05_band_tickets_sold",
+        "key": "band 21",
+        "ok": true,
+        "expect": "9",
+        "got": "9"
+      },
+      {
+        "query": "q03_customer_tickets",
+        "key": "customer 1 (2298 tickets)",
+        "ok": true,
+        "expect": "43:5:3,121:13:1,162:17:2,235:24:5,402:41:2,442:45:2,443:45:3,572:58:2,621:63:1,653:66:3,703:71:3,783:79:3,851:86:1,875:88:5,882:89:2,1063:107:3,1072:108:2,12... (2298 rows)",
+        "got": "43:5:3,121:13:1,162:17:2,235:24:5,402:41:2,442:45:2,443:45:3,572:58:2,621:63:1,653:66:3,703:71:3,783:79:3,851:86:1,875:88:5,882:89:2,1063:107:3,1072:108:2,12... (2298 rows)"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 79169",
+        "ok": true,
+        "expect": "79169:500:21169:286",
+        "got": "79169:500:21169:286"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 60038",
+        "ok": true,
+        "expect": "60038:500:2038:4478",
+        "got": "60038:500:2038:4478"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 50799",
+        "ok": true,
+        "expect": "50799:499:2799:5123",
+        "got": "50799:499:2799:5123"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 97090",
+        "ok": true,
+        "expect": "97090:500:39090:8",
+        "got": "97090:500:39090:8"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 25118",
+        "ok": true,
+        "expect": "25118:494:118:44",
+        "got": "25118:494:118:44"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 92163",
+        "ok": true,
+        "expect": "92163:500:34163:14443",
+        "got": "92163:500:34163:14443"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 82764",
+        "ok": true,
+        "expect": "82764:500:24764:401",
+        "got": "82764:500:24764:401"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 49915",
+        "ok": true,
+        "expect": "49915:499:1915:1",
+        "got": "49915:499:1915:1"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 86614",
+        "ok": true,
+        "expect": "86614:500:28614:191",
+        "got": "86614:500:28614:191"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 97213",
+        "ok": true,
+        "expect": "97213:500:39213:1203",
+        "got": "97213:500:39213:1203"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 98291",
+        "ok": true,
+        "expect": "98291:500:40291:487",
+        "got": "98291:500:40291:487"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 88094",
+        "ok": true,
+        "expect": "88094:500:30094:3249",
+        "got": "88094:500:30094:3249"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 94742",
+        "ok": true,
+        "expect": "94742:500:36742:13",
+        "got": "94742:500:36742:13"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 9641",
+        "ok": true,
+        "expect": "9641:457:41:7",
+        "got": "9641:457:41:7"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 75291",
+        "ok": true,
+        "expect": "75291:500:17291:2148",
+        "got": "75291:500:17291:2148"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 30910",
+        "ok": true,
+        "expect": "30910:497:2910:21",
+        "got": "30910:497:2910:21"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 67350",
+        "ok": true,
+        "expect": "67350:500:9350:2",
+        "got": "67350:500:9350:2"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 70259",
+        "ok": true,
+        "expect": "70259:500:12259:16740",
+        "got": "70259:500:12259:16740"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 93875",
+        "ok": true,
+        "expect": "93875:500:35875:21",
+        "got": "93875:500:35875:21"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 69166",
+        "ok": true,
+        "expect": "69166:500:11166:8",
+        "got": "69166:500:11166:8"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 39471",
+        "ok": true,
+        "expect": "39471:498:1471:46",
+        "got": "39471:498:1471:46"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 77310",
+        "ok": true,
+        "expect": "77310:500:19310:1",
+        "got": "77310:500:19310:1"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 65425",
+        "ok": true,
+        "expect": "65425:500:7425:620",
+        "got": "65425:500:7425:620"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 96089",
+        "ok": true,
+        "expect": "96089:500:38089:205",
+        "got": "96089:500:38089:205"
+      },
+      {
+        "query": "q04_ticket_by_id",
+        "key": "ticket 72246",
+        "ok": true,
+        "expect": "72246:500:14246:565",
+        "got": "72246:500:14246:565"
+      }
+    ]
+  },
+  "load_audit": {
+    "phase": "load",
+    "events_checked": 690,
+    "seats_sold": 65388,
+    "overbooked_events": 0,
+    "overbooked_seats": 0,
+    "duplicate_seats": 0,
+    "derived_drift_events": 0,
+    "ledger_mismatch_events": 0
+  },
+  "stats": {
+    "relations": [
+      {
+        "name": "band",
+        "kind": "table",
+        "total_bytes": 32768
+      },
+      {
+        "name": "event",
+        "kind": "table",
+        "total_bytes": 204800
+      },
+      {
+        "name": "event_inventory_bucket",
+        "kind": "table",
+        "total_bytes": 671744
+      },
+      {
+        "name": "ticket",
+        "kind": "table",
+        "total_bytes": 8708096
+      },
+      {
+        "name": "band_pkey",
+        "kind": "index",
+        "table": "band",
+        "total_bytes": 16384
+      },
+      {
+        "name": "event_band_idx",
+        "kind": "index",
+        "table": "event",
+        "total_bytes": 40960
+      },
+      {
+        "name": "event_inventory_bucket_pkey",
+        "kind": "index",
+        "table": "event_inventory_bucket",
+        "total_bytes": 188416
+      },
+      {
+        "name": "event_pkey",
+        "kind": "index",
+        "table": "event",
+        "total_bytes": 32768
+      },
+      {
+        "name": "ticket_customer_idx",
+        "kind": "index",
+        "table": "ticket",
+        "total_bytes": 679936
+      },
+      {
+        "name": "ticket_event_idx",
+        "kind": "index",
+        "table": "ticket",
+        "total_bytes": 483328
+      },
+      {
+        "name": "ticket_pkey",
+        "kind": "index",
+        "table": "ticket",
+        "total_bytes": 2359296
+      }
+    ],
+    "total_bytes": 9617408
+  },
+  "reads": [
+    {
+      "name": "q01_event_availability@10",
+      "ops": 85413,
+      "errors": 0,
+      "duration_s": 5.001471655,
+      "ops_per_sec": 17077.573540702193,
+      "latency": {
+        "count": 85413,
+        "min_ms": 0.022902,
+        "mean_ms": 0.11676982239237588,
+        "p50_ms": 0.111213,
+        "p90_ms": 0.157651,
+        "p95_ms": 0.178779,
+        "p99_ms": 0.248696,
+        "p999_ms": 0.363085,
+        "max_ms": 2.198867
+      },
+      "trials_ops_per_sec": [
+        17077.573540702193
+      ],
+      "query": "q01_event_availability",
+      "tier": 10
+    },
+    {
+      "name": "q01_event_availability@100",
+      "ops": 87285,
+      "errors": 0,
+      "duration_s": 5.000788703,
+      "ops_per_sec": 17454.24675664406,
+      "latency": {
+        "count": 87285,
+        "min_ms": 0.034401,
+        "mean_ms": 0.11425271346737699,
+        "p50_ms": 0.108822,
+        "p90_ms": 0.154488,
+        "p95_ms": 0.174244,
+        "p99_ms": 0.236731,
+        "p999_ms": 0.340354,
+        "max_ms": 0.672626
+      },
+      "trials_ops_per_sec": [
+        17454.24675664406
+      ],
+      "query": "q01_event_availability",
+      "tier": 100
+    },
+    {
+      "name": "q01_event_availability@1000",
+      "ops": 88550,
+      "errors": 0,
+      "duration_s": 5.000455467,
+      "ops_per_sec": 17708.386882830328,
+      "latency": {
+        "count": 88550,
+        "min_ms": 0.02455,
+        "mean_ms": 0.11263148722755506,
+        "p50_ms": 0.107172,
+        "p90_ms": 0.152726,
+        "p95_ms": 0.172751,
+        "p99_ms": 0.233216,
+        "p999_ms": 0.334382,
+        "max_ms": 1.319786
+      },
+      "trials_ops_per_sec": [
+        17708.386882830328
+      ],
+      "query": "q01_event_availability",
+      "tier": 1000
+    },
+    {
+      "name": "q01_event_availability@10000",
+      "ops": 87881,
+      "errors": 0,
+      "duration_s": 5.000997198,
+      "ops_per_sec": 17572.695308676713,
+      "latency": {
+        "count": 87881,
+        "min_ms": 0.022626,
+        "mean_ms": 0.11349563460816331,
+        "p50_ms": 0.108301,
+        "p90_ms": 0.153273,
+        "p95_ms": 0.172971,
+        "p99_ms": 0.237868,
+        "p999_ms": 0.353078,
+        "max_ms": 2.003507
+      },
+      "trials_ops_per_sec": [
+        17572.695308676713
+      ],
+      "query": "q01_event_availability",
+      "tier": 10000
+    },
+    {
+      "name": "q01_event_availability@100000",
+      "ops": 87219,
+      "errors": 0,
+      "duration_s": 5.0016364190000004,
+      "ops_per_sec": 17438.092794725388,
+      "latency": {
+        "count": 87219,
+        "min_ms": 0.034312,
+        "mean_ms": 0.11434588810924225,
+        "p50_ms": 0.108404,
+        "p90_ms": 0.154919,
+        "p95_ms": 0.175978,
+        "p99_ms": 0.245828,
+        "p999_ms": 0.382715,
+        "max_ms": 1.319945
+      },
+      "trials_ops_per_sec": [
+        17438.092794725388
+      ],
+      "query": "q01_event_availability",
+      "tier": 100000
+    },
+    {
+      "name": "q02_band_events",
+      "ops": 56417,
+      "errors": 0,
+      "duration_s": 5.00105781,
+      "ops_per_sec": 11281.01336625021,
+      "latency": {
+        "count": 56417,
+        "min_ms": 0.037345,
+        "mean_ms": 0.17690946663239804,
+        "p50_ms": 0.159315,
+        "p90_ms": 0.25633,
+        "p95_ms": 0.312528,
+        "p99_ms": 0.441937,
+        "p999_ms": 0.61149,
+        "max_ms": 0.974287
+      },
+      "trials_ops_per_sec": [
+        11281.01336625021
+      ],
+      "query": "q02_band_events"
+    },
+    {
+      "name": "q03_customer_tickets",
+      "ops": 83825,
+      "errors": 0,
+      "duration_s": 5.000893525,
+      "ops_per_sec": 16762.00454597761,
+      "latency": {
+        "count": 83825,
+        "min_ms": 0.027635,
+        "mean_ms": 0.1189855064002386,
+        "p50_ms": 0.112107,
+        "p90_ms": 0.16061,
+        "p95_ms": 0.184825,
+        "p99_ms": 0.265572,
+        "p999_ms": 0.507392,
+        "max_ms": 1.499609
+      },
+      "trials_ops_per_sec": [
+        16762.00454597761
+      ],
+      "query": "q03_customer_tickets"
+    },
+    {
+      "name": "q04_ticket_by_id",
+      "ops": 90373,
+      "errors": 0,
+      "duration_s": 5.000170523,
+      "ops_per_sec": 18073.98359401912,
+      "latency": {
+        "count": 90373,
+        "min_ms": 0.032069,
+        "mean_ms": 0.11034520801566838,
+        "p50_ms": 0.104982,
+        "p90_ms": 0.149906,
+        "p95_ms": 0.168243,
+        "p99_ms": 0.2284,
+        "p999_ms": 0.321038,
+        "max_ms": 0.637065
+      },
+      "trials_ops_per_sec": [
+        18073.98359401912
+      ],
+      "query": "q04_ticket_by_id"
+    },
+    {
+      "name": "q05_band_tickets_sold",
+      "ops": 62725,
+      "errors": 0,
+      "duration_s": 5.000599979,
+      "ops_per_sec": 12543.49483330268,
+      "latency": {
+        "count": 62725,
+        "min_ms": 0.041294,
+        "mean_ms": 0.15911373390195296,
+        "p50_ms": 0.145419,
+        "p90_ms": 0.226293,
+        "p95_ms": 0.278252,
+        "p99_ms": 0.375645,
+        "p999_ms": 0.555701,
+        "max_ms": 1.587539
+      },
+      "trials_ops_per_sec": [
+        12543.49483330268
+      ],
+      "query": "q05_band_tickets_sold"
+    }
+  ],
+  "reports": [
+    {
+      "name": "r01_event_sales_window@trailing",
+      "ops": 97680,
+      "errors": 0,
+      "duration_s": 5.002067899,
+      "ops_per_sec": 19527.923645244384,
+      "latency": {
+        "count": 97680,
+        "min_ms": 0.022924,
+        "mean_ms": 0.4091513999180999,
+        "p50_ms": 0.180167,
+        "p90_ms": 0.319528,
+        "p95_ms": 0.390089,
+        "p99_ms": 0.704914,
+        "p999_ms": 51.905935,
+        "max_ms": 55.709219
+      },
+      "trials_ops_per_sec": [
+        19527.923645244384
+      ],
+      "query": "r01_event_sales_window@trailing"
+    },
+    {
+      "name": "r01_event_sales_window@historical",
+      "ops": 93971,
+      "errors": 0,
+      "duration_s": 5.001935578,
+      "ops_per_sec": 18786.927287370992,
+      "latency": {
+        "count": 93971,
+        "min_ms": 0.024244,
+        "mean_ms": 0.4253219458982026,
+        "p50_ms": 0.190711,
+        "p90_ms": 0.335439,
+        "p95_ms": 0.413279,
+        "p99_ms": 0.830491,
+        "p999_ms": 50.028418,
+        "max_ms": 53.641158
+      },
+      "trials_ops_per_sec": [
+        18786.927287370992
+      ],
+      "query": "r01_event_sales_window@historical"
+    },
+    {
+      "name": "r02_event_recent_buyers",
+      "ops": 91110,
+      "errors": 0,
+      "duration_s": 5.00283645,
+      "ops_per_sec": 18211.66870246178,
+      "latency": {
+        "count": 91110,
+        "min_ms": 0.023408,
+        "mean_ms": 0.43866030784765664,
+        "p50_ms": 0.194898,
+        "p90_ms": 0.351608,
+        "p95_ms": 0.440503,
+        "p99_ms": 0.960747,
+        "p999_ms": 49.569998,
+        "max_ms": 54.643995
+      },
+      "trials_ops_per_sec": [
+        18211.66870246178
+      ],
+      "query": "r02_event_recent_buyers"
+    },
+    {
+      "name": "r03_customers_last_purchase_window@trailing",
+      "ops": 1083,
+      "errors": 0,
+      "duration_s": 5.006688333,
+      "ops_per_sec": 216.31064847031692,
+      "latency": {
+        "count": 1083,
+        "min_ms": 5.765892,
+        "mean_ms": 36.96008189658356,
+        "p50_ms": 9.958232,
+        "p90_ms": 87.220385,
+        "p95_ms": 89.004991,
+        "p99_ms": 92.962606,
+        "max_ms": 100.521575
+      },
+      "trials_ops_per_sec": [
+        216.31064847031692
+      ],
+      "query": "r03_customers_last_purchase_window@trailing"
+    },
+    {
+      "name": "r03_customers_last_purchase_window@historical",
+      "ops": 1152,
+      "errors": 0,
+      "duration_s": 5.007315153,
+      "ops_per_sec": 230.06341019095026,
+      "latency": {
+        "count": 1152,
+        "min_ms": 5.47019,
+        "mean_ms": 34.74888575260417,
+        "p50_ms": 9.145466,
+        "p90_ms": 86.883451,
+        "p95_ms": 88.755765,
+        "p99_ms": 91.227761,
+        "max_ms": 97.801371
+      },
+      "trials_ops_per_sec": [
+        230.06341019095026
+      ],
+      "query": "r03_customers_last_purchase_window@historical"
+    },
+    {
+      "name": "r04_band_sellthrough",
+      "ops": 26365,
+      "errors": 0,
+      "duration_s": 5.003855901,
+      "ops_per_sec": 5268.936700341644,
+      "latency": {
+        "count": 26365,
+        "min_ms": 0.024721,
+        "mean_ms": 1.5174999355964345,
+        "p50_ms": 0.289526,
+        "p90_ms": 0.775158,
+        "p95_ms": 1.8293,
+        "p99_ms": 68.248789,
+        "p999_ms": 73.98401,
+        "max_ms": 78.816245
+      },
+      "trials_ops_per_sec": [
+        5268.936700341644
+      ],
+      "query": "r04_band_sellthrough"
+    }
+  ],
+  "report_coverage": {
+    "r01": {
+      "status": "partial",
+      "note": "a ticket sold in the window and later refunded is not counted, because cancellation erases the sale"
+    },
+    "r02": {
+      "status": "answerable"
+    },
+    "r03": {
+      "status": "partial",
+      "note": "a customer whose most recent purchase was refunded is dated by an earlier purchase, or drops out, because cancellation erases the sale"
+    },
+    "r04": {
+      "status": "answerable"
+    },
+    "r05": {
+      "status": "unanswerable",
+      "note": "cancellation deletes or resets the sale; nothing records that it happened"
+    },
+    "r06": {
+      "status": "unanswerable",
+      "note": "no reservation table in this design"
+    }
+  },
+  "client_cpu": {
+    "read": {
+      "usage_usec": 63685956,
+      "nr_periods": 631,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    },
+    "reports": {
+      "usage_usec": 27904258,
+      "nr_periods": 422,
+      "nr_throttled": 0,
+      "throttled_usec": 0
+    }
+  }
+}

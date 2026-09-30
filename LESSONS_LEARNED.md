@@ -2196,3 +2196,15 @@ mechanism is in the thing being compared, and here the two that were (`c1` ≫ `
 a genuinely store-bound cell is footprint-invariance**: `p3` at 100,000 seats read 623 at footprint 8 and
 680 / 629 at footprint 2 across two orders, which is what a cell whose cost is in the store looks like — worth
 checking before quoting any ratio as a design property.
+
+### In-flight counts tell you *what* bounds a cell, not just whether the generator does
+The 2-worker read runs gave a second reading of the same diagnostic. For the point-lookup and single-row
+queries `ops_per_sec × p50` sits at 1.8–2.0 against 2 workers: the workers wait on the store. For the two
+queries that **return 28 rows** it sits at **0.7–1.5**, and the level there is the client's row decoding, not
+the store — the workers are busy in the harness between fetches, so the cell would not change if the database
+got faster. Two consequences. **`in-flight ≈ workers` means the store bounds the cell; `in-flight < workers`
+means the client's own per-operation work does**, and only the first kind is a store measurement worth
+quoting as a level (the second is still worth quoting as an *ordering*). And **a single cell is not enough to
+characterise a design**: my previous entry said "every read cell is latency-bound" on the strength of one
+query (`q01`), and the other two measurement kinds in the same design were not. Read the diagnostic across
+every cell before generalising it to a design or a family.

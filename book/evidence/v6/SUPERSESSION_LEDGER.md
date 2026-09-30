@@ -209,6 +209,22 @@ statement: four designs have a footprint-2 footing, the eleven not re-measured �
 anchors — remain not quotable, and no read level may be quoted without its footprint. No claim's statement,
 strength, confound or anchor changed.
 
+**The family complete at footprint 2 (2026-09-30).** The remaining eleven designs were re-measured in both
+orders at the same footprint (tag `study-02/read-family-11`): all 22 read phases record **0 throttled
+periods**, so every one of the study's fifteen designs now has a footprint-2 foot, and the two orders agree
+on `q01` to within **0.91–1.03**. Two refinements came out of it. First, the diagnostic: in-flight
+(`ops_per_sec × p50`) is 1.8–2.0 — store-bound — for the point-lookup and single-row cells but **0.7–1.5**
+for `q02_band_events` and `q05_band_tickets_sold`, the two queries that return 28 rows, whose loop the
+client's row decoding bounds; `in-flight ≈ workers` means the store, `in-flight < workers` means the client's
+per-fetch work, and only the first is a store measurement. This corrects an over-broad sentence in the
+previous entry ("every cell is latency-bound"), which had been measured on `q01` alone. Second, the
+quantification of the old table's defect: against `20260920T234953Z` every design's `q01` level falls, from
+**1.09x** (`p1`, 121 throttled periods then) to **2.22x** (`c4`, 714), in exact rank order with how much the
+old client was throttled per design. The read-hazard limits now state that all fifteen designs have a
+footprint-2 footing, that the primary anchors' own footprint-8 read figures remain not quotable with that
+design-dependent inflation named, and that `q02`/`q05` levels are not store numbers while their orderings
+are. No claim's statement, strength, confound or anchor changed.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,
