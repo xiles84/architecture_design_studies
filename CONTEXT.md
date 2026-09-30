@@ -589,10 +589,26 @@ point-lookup rate. Consequence: on this machine the read family's **levels** can
 by re-allocating cores (the budgets already sum to 4 CPUs, and the declared memories 3g+2g are 2.5× the 2 GiB
 present); the actionable options are a **smaller client read footprint** (fewer, longer-lived connections) or
 a **bigger machine** — both owner decisions. The family's **orderings** remain quotable. `CONTEXT` and
-`LESSONS` corrected; the three read-hazard limits were rewritten to the corrected attribution. **Owner
-decisions open: (1) client read footprint or machine size for the read phase; (2) the 2 GiB podman machine.**
+`LESSONS` corrected; the three read-hazard limits were rewritten to the corrected attribution.
 Analysis
 `studies/02-ticket-booking/reports/analyses/20260930T-read-client-sizing--deepseek-flash--2026-09-30.md`.
+
+**Owner decision, 2026-09-30: the machine is fixed, and the read phase gets a smaller client footprint.**
+The project assumes the computer it has and will not spend on more resources, so neither open question about
+bigger hardware is open any more: `DB_CPUS=2 + CLIENT_CPUS=2` on the 4-CPU / 2 GiB podman machine is the
+environment, and the read family's levels are to be repaired by sizing the generator down. Calibrated the
+same day at three read-worker counts (tag `study-02/read-client-footprint`, three runs plus a verification
+run): **client throttling 422/633 → 33/632 → 0/631** at 8/4/2 workers, the database's own throttling
+**900 → 560 → 109** periods, and at 2 workers every read cell is latency-bound (`ops/s × p50 = 1.9` for 2
+workers, for both designs at every tier) — the diagnostic that says the client is no longer the constraint.
+`r1`'s lead over `p3` on `q01` survives every footprint, and `p3`'s 100,000-seat cell is 621–631 ops/s at all
+three, i.e. genuinely store-bound. **Implemented**: the harness gained `-read-conns` and `run-study.sh` now
+defaults `READ_CONNS=2` for the read phase only, leaving the write, race and hold phases at the published
+`-conns 8` so their published numbers stay comparable; every manifest records `client_read_conns`, and read
+levels are comparable only within one footprint. F1–F5 all confirmed. **Owed next: the read family's
+re-measurement at the new footprint** (the four designs of the 2026-09-29 re-run first, then the remaining
+eleven). Analysis
+`studies/02-ticket-booking/reports/analyses/20260930T-read-client-footprint--deepseek-flash--2026-09-30.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

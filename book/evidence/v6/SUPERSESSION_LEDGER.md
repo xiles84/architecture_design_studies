@@ -181,6 +181,20 @@ reproduce), and the superseded re-run analysis moved to `reports/outdated/`. The
 that the read family's levels cannot be fixed by re-allocating cores on a machine whose budgets already sum
 to its CPU count: the options are a smaller client read footprint or a larger machine.
 
+**The owner's decision and the footprint change (2026-09-30).** The owner fixed the environment — the project
+assumes the computer it has and will not spend on more resources — and directed the read phase at a **smaller
+client footprint**. Calibrated at three read-worker counts (tag `study-02/read-client-footprint`): client
+throttling **422/633 → 33/632 → 0/631** at 8/4/2 workers, the database's own throttling **900 → 560 → 109**
+periods, and at 2 workers every read cell is latency-bound (`ops_per_sec × p50 = 1.9` against 2 workers, both
+designs, every tier). `r1`'s lead over `p3` on `q01` survives all three footprints and `p3`'s 100,000-seat
+cell reads 621–631 ops/s in all three, so the *ordering* is what the read family should be read for.
+Implemented: `-read-conns` in the harness and `READ_CONNS=2` as the runner's read-phase default (`--read-conns`
+overrides; `0` follows `--conns`), leaving write, race and hold at the published 8; `client_read_conns` is
+recorded in every manifest, so a reader can tell a footprint-2 read level from a footprint-8 one. **This is the
+first change to a study phase's client configuration in this program**, and it is deliberately scoped to the
+read phase only. No claim changed; the read-hazard limits that say read levels are not quotable stand until the
+family is re-measured at the new footprint.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

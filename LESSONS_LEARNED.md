@@ -2163,3 +2163,22 @@ taking a core from another, which the same measurement shows in the other contai
 all three tranches is the part with a mechanism: the *ordering* (`q05` fast where there are no per-seat rows,
 `r03` slow where a per-customer sort is unavoidable), which is the corpus's ratio-over-absolute lesson
 arriving through a quota floor rather than through session drift.
+
+## Sizing the generator (2026-09-30)
+
+### The worker count is a measurement parameter, and Little's law says whether you sized it right
+Study 02's read phase ran **8 workers** against a **two-core** client on a four-CPU machine: the client used
+111.6 s of CPU inside a 63.3 s window and lost **422 of 633 periods** to throttling, so the read tables were
+describing the client. Dropping to 2 workers changed every number in the expected direction — client
+throttling 422/633 → 33/632 → **0/631** at 8/4/2, the database's own throttling **900 → 560 → 109** periods —
+and it also revealed the diagnostic worth keeping: **operations in flight**, `ops_per_sec × p50`, came out at
+**1.9 for 2 workers** in every cell of both designs, i.e. Little's law holding, which is what "this cell
+measures the store's latency" looks like. At 8 workers the same product was 3.2–5.3 *against 8 workers*: a
+generator that cannot keep its own connections busy is measuring itself. Three rules. **Check the generator's
+own saturation before quoting its levels** (the counters and the hazard table are in every result). **Use
+`ops/s × latency ≈ workers` as the sizing check**, because it is a property of the *cell*, not of the host,
+so it travels. And **when you resize the generator, keep the other phases untouched and label the change in
+every manifest** — the read footprint is now 2 with `client_read_conns` recorded, while write, race and hold
+stay at the published 8, so a reader can tell which footing a number stands on. The corollary for this corpus:
+a level is only quotable within one footprint, and it is the **ratios** (design orderings, and store-bound
+cells like `p3`'s 621–631 ops/s at 100,000 seats across all three footprints) that travel between them.

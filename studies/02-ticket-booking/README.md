@@ -177,6 +177,20 @@ working tree is never tagged, and every result records whether the tree was dirt
 ```
 
 ```bash
+# the read phase has its own client footprint (2 workers by default since
+# 2026-09-30; see V2-READ-CLIENT-FOOTPRINT notes in CONTEXT.md)
+./run-study.sh --phases verify,read --read-conns 4
+```
+
+The read phase runs at **2 read workers** by default, not the 8 the write and race
+phases use. At 8 the read client saturated its two-core quota (422 of 633 periods
+throttled) and its throughput described the client rather than the store; at 2 the
+client is unthrottled and every read cell is latency-bound (1.9 operations in flight
+for 2 workers). Write, race and hold phases keep `-conns 8`, so their published
+numbers stay comparable with earlier runs. Every manifest records
+`client_read_conns`, and read levels are only comparable within one footprint.
+
+```bash
 # regenerate the diagrams
 ./diagrams/render.sh svg
 ```
