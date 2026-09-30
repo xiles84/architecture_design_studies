@@ -2182,3 +2182,17 @@ every manifest** — the read footprint is now 2 with `client_read_conns` record
 stay at the published 8, so a reader can tell which footing a number stands on. The corollary for this corpus:
 a level is only quotable within one footprint, and it is the **ratios** (design orderings, and store-bound
 cells like `p3`'s 621–631 ops/s at 100,000 seats across all three footprints) that travel between them.
+
+### A resized generator changes the effect size, not just the level
+Re-measuring the four read designs at footprint 2 — client unthrottled, every cell pinned at 1.9 operations in
+flight — reproduced every ordering and then moved one of them by nearly half: `r1_inventory_row` over `p3`
+on `q01` was **2.07x at footprint 8 and 1.16x / 1.48x at footprint 2**. The reason is worth keeping: at 8
+workers the client's throttle bit the two designs *unequally* (`r1` kept 5.3 requests in flight, `p3` only
+3.2), so part of the old margin was the generator's parallelism rather than the query's cost — a comparison
+that was contaminated could still be directionally right and 80% too large. Two rules. **When a generator is
+resized, re-derive the margins, not just the levels**: a ratio is portable across footprints only if its
+mechanism is in the thing being compared, and here the two that were (`c1` ≫ `p3` on `q05`, the ledger's
+`r05` at ~32k) held to within ~30%, while the one that was partly the client's did not. And **the signature of
+a genuinely store-bound cell is footprint-invariance**: `p3` at 100,000 seats read 623 at footprint 8 and
+680 / 629 at footprint 2 across two orders, which is what a cell whose cost is in the store looks like — worth
+checking before quoting any ratio as a design property.

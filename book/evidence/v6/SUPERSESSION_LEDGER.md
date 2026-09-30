@@ -195,6 +195,20 @@ first change to a study phase's client configuration in this program**, and it i
 read phase only. No claim changed; the read-hazard limits that say read levels are not quotable stand until the
 family is re-measured at the new footprint.
 
+**The family's first re-measurement at footprint 2 (2026-09-30).** The four designs of the 2026-09-29 re-run
+(`p3`, `x1`, `c1`, `r1`), both orders, at the new default: all eight read phases record **0 throttled
+periods** and every cell is latency-bound (`ops_per_sec × p50 = 1.9` against 2 workers). Three things follow,
+and the third is the one to carry forward. (1) The **store-bound cell is footprint-invariant** — `p3` at
+100,000 seats reads 623 at footprint 8 and 680 / 629 at footprint 2. (2) The orderings with a mechanism
+reproduce (`c1` ≫ `p3` on `q05`; the ledger's `r05` at 32,164 against 30,322 at footprint 8). (3) **The
+design margin is not portable**: `r1` over `p3` on `q01` was 2.07x at footprint 8 and is 1.16x / 1.48x at
+footprint 2, because at 8 workers the client's throttle bit the two designs unequally (5.3 operations in
+flight against 3.2), so part of the old margin was client parallelism rather than query cost. The three
+read-hazard limits were therefore relaxed from "the read figures are not quotable" to a **footprint-explicit**
+statement: four designs have a footprint-2 footing, the eleven not re-measured — including both primary
+anchors — remain not quotable, and no read level may be quoted without its footprint. No claim's statement,
+strength, confound or anchor changed.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

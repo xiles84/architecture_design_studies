@@ -609,6 +609,18 @@ levels are comparable only within one footprint. F1–F5 all confirmed. **Owed n
 re-measurement at the new footprint** (the four designs of the 2026-09-29 re-run first, then the remaining
 eleven). Analysis
 `studies/02-ticket-booking/reports/analyses/20260930T-read-client-footprint--deepseek-flash--2026-09-30.md`.
+
+**The read family's first footprint-2 re-measurement (2026-09-30, two runs `20260930T16*`, tag
+`study-02/read-family-footprint2`).** The four designs of the 2026-09-29 re-run, both orders, at the new
+default: **0 throttled periods in all eight read phases** and every cell latency-bound (`ops/s × p50 = 1.9`
+for 2 workers), so G1/G2/G5 confirmed and G4 confirmed (`r1` at 17–18k against 38.2k at footprint 8). Two
+findings to carry: the **store-bound cell is footprint-invariant** (`p3` at 100,000 seats: 623 at footprint
+8, 680 / 629 at footprint 2), and **the design margin is not portable** — `r1` over `p3` on `q01` was 2.07x
+at footprint 8 but 1.16x / 1.48x here, because the old margin was partly the client's unequal throttling
+(5.3 operations in flight against 3.2) rather than query cost. The three read-hazard limits are now
+**footprint-explicit** (four designs at footprint 2; the eleven not re-measured, including both primary
+anchors, still not quotable); no claim statement, strength, confound or anchor changed. Analysis
+`studies/02-ticket-booking/reports/analyses/20260930T-read-family-footprint2--deepseek-flash--2026-09-30.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
