@@ -251,6 +251,17 @@ index score, Study 05's cache reads and `v2-11`'s YugabyteDB map, none from this
 `v2-07` gains the two `x1` runs as corroborating anchors for its refund-answer result, which reproduces at
 32,164 / 32,362 ops/s against the primary's 30.3k/33.0k.
 
+**All fifteen in one session, and the reading that changed (2026-10-01).** The joint run
+(20261001T100948Z/20261001T103931Z, tag `study-02/read-all15`) closed the "complete per design, not jointly"
+caveat: 0 throttled periods in 30 read phases, all 270 cells store-bound at 2.00 operations in flight by the
+mean, no ≥1.5x pair swaps. Two results matter more than the table. **`r1` and `p4`, which the split sessions
+had put 5–10% apart, are tied within one session** (1.5% / 7.7%) — the apparent lead was a session artefact,
+and the cross-set ordering in the re-statement entry is superseded. And **the top five designs differ by 4%,
+inside the session's own order term**, so the family's quotable structure is groups and the 1.5x gap between
+the top group and the per-seat group, not a ranking; `c1_count_naive` adds a 40% **position** term (first of
+one order, last of the other) and its `q01` level should not be quoted from these runs. All six predictions
+confirmed.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

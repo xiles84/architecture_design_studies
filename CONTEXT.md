@@ -654,6 +654,18 @@ fifteen designs (cross-set orderings carry a session term), and both anchors' **
 read arms remain uncovered** — a resource gap on the fixed 2 GiB machine. The book needed no change (checked:
 its read figures come from Study 01, Study 05 and `v2-11`, not this family). Analysis
 `studies/02-ticket-booking/reports/analyses/20261001T-read-cells-restated--deepseek-flash--2026-10-01.md`.
+
+**All fifteen read designs in one session (2026-10-01, runs `20261001T1009*`/`20261001T1039*`, tag
+`study-02/read-all15`).** The joint run closes the "complete per design, not jointly" gap: **0 throttled
+periods in 30 read phases**, all **270 cells store-bound at 2.00** operations in flight (by the mean), no
+≥1.5x pair swaps between the two orders (agreement 0.92–1.40). Two substantive readings: **`r1` and `p4` are
+tied within one session (1.5% / 7.7%)** — the 5–10% gap seen across sessions was an artefact, superseding the
+cross-set ordering in the previous entry — and **the top five designs (`h0`, `h1`, `r1`, `r2`, `p4`) differ by
+4%, inside the session's own order term**, so the family should be quoted as **groups** separated by 1.5x, not
+as a ranking. **`c1_count_naive` carries a 40% position term** (first of order A against last of order B), so
+its `q01` level is not quotable from these runs. `q05`'s structure separation reproduces within one session at
+3.4–3.9x. The three read-hazard limits now carry the joint run and the quoting rules. Analysis
+`studies/02-ticket-booking/reports/analyses/20261001T-read-all15--deepseek-flash--2026-10-01.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

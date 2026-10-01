@@ -2219,3 +2219,15 @@ artefact of the worker count. And **a mechanism that fits the numbers is not evi
 decodes 28 rows" explained the gap neatly, the query returned one row, and the check would have taken one
 `awk` over the SQL. The corpus's rule about naming the statistic bites hardest when the wrong statistic
 produces a *plausible finding* rather than an absurd one.
+
+### A design's position inside a run is part of its measurement
+The all-fifteen read run put the same design at the two ends of the order: `c1_count_naive` read **19,068
+ops/s as the first design of one order and 13,653 as the last of the other** — a 40% swing, larger than any
+design difference among the top five, and enough to invert a ranking. The same pair showed the top five
+designs within **4%** of one another while the session's own order term was 4–13%, which means **a rank inside
+such a group is not a measurement at all**. Three rules. **Report groups, not ranks**, when the spread inside
+a group is smaller than the run-to-run term — the quotable fact here is the 1.5x gap between groups, not
+`h1` beating `r1` by 0.2%. **Reverse the order and compare ends**: the pair of orders is what exposed the
+position term; a single order would have shown a clean, false ranking. And **a design that moves position
+between the runs cannot have a level quoted from them** — with two orders there is no way to separate position
+from design for `c1`, and settling it would need three positions, not two.
