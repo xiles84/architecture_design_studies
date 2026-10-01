@@ -12,6 +12,11 @@
 #import "../lib/config.typ": *
 #import "../lib/evidence.typ": claim-badge, registry-card
 
+// Edition 3 chapters carry their number in the opener, not in a heading counter, so
+// their sections are unnumbered: without this they print as 0.1, 0.2 ... because the
+// level-1 heading that would own the counter is unnumbered.
+#set heading(numbering: none)
+
 #concept-opener(4, "Rollup",
   [Store a total on the parent so reads skip the children — and pay for it on every child write.])
 
@@ -113,6 +118,9 @@ contributing child.
   [The penalty is a function of write size, so measure your write.],
 )
 
+// Kept in one unbreakable group: a checklist that splits after seven rows leaves the eighth
+// alone on a page, which reads as an afterthought rather than the chapter's frame.
+#block(breakable: false)[
 #heading(level: 2, "The checklist")
 
 The eight questions every concept chapter answers, with the evidence behind each answer in brackets.
@@ -135,3 +143,4 @@ The eight questions every concept chapter answers, with the evidence behind each
   ("Which experiment would prove it?",
    [One controlled pair maintained by trigger against application.], "direct"),
 ))
+]

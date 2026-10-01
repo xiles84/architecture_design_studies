@@ -13,6 +13,11 @@
 #import "../lib/config.typ": *
 #import "../lib/evidence.typ": active-claims, strength-label, gap-kind-label, registry-version
 
+// Edition 3 chapters carry their number in the opener, not in a heading counter, so
+// their sections are unnumbered: without this they print as 0.1, 0.2 ... because the
+// level-1 heading that would own the counter is unnumbered.
+#set heading(numbering: none)
+
 // The kinds of gap the page explains are the ones the registry actually uses. A new
 // kind therefore cannot appear without someone writing its definition: the build
 // fails and names the missing one, instead of the page quietly listing three kinds
@@ -62,14 +67,11 @@
 
 #heading(level: 1, numbering: none, "How to use this book")
 
-This book teaches one concept per chapter and then shows the case studies that tested it. Read a
-concept chapter to decide *what to do*; read the case boxes in it to see when that decision was
-measured to pay off, and when it did not.
+One concept per chapter; the case studies show when it was measured to pay off.
 
 #heading(level: 2, "The anatomy of a concept chapter")
 
-Every concept chapter answers the same ten things, in the same order. Once you know the shape, you can
-read any chapter in a few minutes and stop where your decision is made.
+Every concept chapter answers the same ten things, in the same order.
 
 #set text(size: 9.5pt)
 #table(
@@ -91,8 +93,7 @@ read any chapter in a few minutes and stop where your decision is made.
 
 #heading(level: 2, "How to read a badge")
 
-A badge appears beside a sentence or a box and points at its evidence card in the index at the back of
-the book. The badge names the claim, says how strong the evidence is in plain words, and gives the
+A badge points at its evidence card in the index at the back: the claim, how strong it is, and the
 card's page.
 
 #set text(size: 9.5pt)
@@ -119,11 +120,10 @@ differently: #gap-kinds-in-use.map(k => [*#gap-kind-label(k)* — #gap-kind-desc
 #heading(level: 2, "Rules that hold everywhere")
 
 #list(
-  [A number appears only in a case box or a study profile, beside the badge of the claim that
-    measured it.],
-  [The number is copied from that claim's statement or limits. Nothing is recomputed for the page.],
-  [A value a claim says did not reproduce is never quoted.],
-  [Caveats live on the card. Each box carries the one limit that most changes how you read it.],
+  [A number appears only in a case box or a study profile, beside the badge of the claim that measured
+    it, copied from that claim's statement or limits. Nothing is recomputed for the page.],
+  [A value a claim says did not reproduce is never quoted, and caveats live on the card: each box
+    carries the one limit that most changes how you read it.],
   [No cross-study numeric ranking appears anywhere, because no comparability record exists.],
   [A gap is never a null result: "not measured" must not be read as "would not change this".],
 )
@@ -133,22 +133,22 @@ differently: #gap-kinds-in-use.map(k => [*#gap-kind-label(k)* — #gap-kind-desc
 #set text(size: 9.5pt)
 #table(
   columns: (auto, 1fr, 1fr),
-  inset: 5pt,
+  inset: 4pt,
   stroke: 0.4pt + palette.rule,
   align: (left + top, left + top, left + top),
   table.header(
     [Study], [The business], [Concepts it tests],
   ),
-  [01 · charity donations], [Charities, donors and donations, with totals per charity and per donor.],
-  [Where a fact lives · Indexes · Rolldown · Rollup · Embedding],
-  [02 · ticket booking], [Events with seats, buyers racing for them, refunds and organiser edits.],
-  [Hot rows · History vs current state],
-  [03 · reserved seating], [Holds that must expire, and the clock that decides when.],
+  [01 · charity donations], [Charities, donors and their totals.],
+  [Placement · Indexes · Rolldown · Rollup · Embedding],
+  [02 · ticket booking], [Seats, contention, refunds and edits.],
+  [Hot rows · History and current state],
+  [03 · reserved seating], [Holds that expire on a clock.],
   [Expiry and the clock],
-  [04 · configuration portal], [Products that read their configuration, and an overview that rolls it up.],
-  [Rollup (trigger vs application) · Optimistic vs pessimistic],
-  [05 · cache consistency], [Warm reads served from a cache that may lag its source.],
-  [Caches and freshness · Where a cluster puts data],
+  [04 · configuration portal], [Product configuration and its overview.],
+  [Rollup · Optimistic vs pessimistic],
+  [05 · cache consistency], [Warm reads from a cache that lags.],
+  [Caches and freshness · Cluster placement],
 )
 
 The study paths, the designs each one compares and the runs behind every number are in chapter 12 and in

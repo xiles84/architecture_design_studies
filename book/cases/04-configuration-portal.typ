@@ -10,6 +10,11 @@
 #import "../lib/config.typ": *
 #import "../lib/evidence.typ": claim-badge
 
+// Edition 3 chapters carry their number in the opener, not in a heading counter, so
+// their sections are unnumbered: without this they print as 0.1, 0.2 ... because the
+// level-1 heading that would own the counter is unnumbered.
+#set heading(numbering: none)
+
 #heading(level: 1, numbering: none, "Study 04 · configuration portal")
 #marker("study", "04 · configuration portal")
 

@@ -258,11 +258,14 @@
   let n = word-count(idea)
   enforce(n <= 25, "concept-opener " + title + ": the key idea has " + str(n) +
     " words; STYLE.md allows 25. Shorten it, or move the detail to the prose below.")
-  block(above: 0em)[
-    #text(size: 8.5pt, tracking: 0.4pt, fill: palette.muted)[CHAPTER #number]
-    #v(1pt)
-  ]
+  // The number belongs above the title, but a level-1 heading breaks the page first
+  // (page-setup's show rule), so an eyebrow emitted before it lands on the previous
+  // page. It is emitted after the heading instead, under the rule, where it reads as
+  // the chapter's label without risking the contents entry.
   heading(level: 1, numbering: none, title)
+  block(above: 0em, below: 0.2em)[
+    #text(size: 8.5pt, tracking: 0.4pt, fill: palette.muted)[CHAPTER #number]
+  ]
   block(
     width: 100%,
     inset: 8pt,
@@ -359,7 +362,7 @@
       align: (left, right),
       text(weight: "bold", fill: palette.accent)[#study],
       box(inset: (x: 5pt, y: 2pt), radius: 2pt, fill: colour.transparentize(85%))[
-        #text(size: 8.5pt, weight: "bold", fill: colour)[#upper(verdict)],
+        #text(size: 8.5pt, weight: "bold", fill: colour)[#upper(verdict)]
       ],
     )
     #v(4pt)
