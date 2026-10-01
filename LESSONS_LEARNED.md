@@ -2287,3 +2287,34 @@ plainly there on the host. **`created_at` and `not_before` must be full RFC3339*
 the compact `20261001T133759Z` form the run ids and task ids use — the id keeps the compact form while the
 timestamp field rejects it. All three are cheap to satisfy once known, and none is discoverable from
 `queue --help`.
+### A verification that disagrees with a careful measurement is more often the verification's fault
+Reviewing the t1 replication I re-derived both claims from the committed results and got 2.03–2.52x where the
+worker had 1.59–1.84x, and briefly believed a promoted claim was wrong. The cause was my own shortcut: I matched
+the core read queries by **prefix** (`q08`, `q12`), so the score also swept in the
+`q08_total_donated_charity@largest` and `q12_charity_recent_feed@smallest` regime variants that share those
+cells — 4,167 ops/s for `q12@largest` against 1,070 for plain `q12` drags a geomean a long way. Matching the
+**exact query names** reproduced the worker's numbers to the digit. Two rules follow. **A read score is defined
+by an explicit list, and the run's own `cells.tsv` is the authority for it** — a prefix, a family name or a
+"core queries" assumption is not. And **when a re-derivation disagrees, suspect the re-derivation first**: the
+worker who ran the cells usually has the simpler explanation, and a reviewer who publishes a false alarm costs
+more than the check did.
+
+### Never name a milestone tag the same as the task's branch
+The t1 worker tagged its milestone `study-01/t1-remaining` while the task's canonical branch had the same name.
+That made every bare reference ambiguous (`warning: refname … is ambiguous`), so the worker renamed the branch
+to escape it — and then the queue's own completion step refused to run, because it resolves the task's
+`canonical_branch` as a branch (`queue integrate: branch study-01/t1-remaining does not resolve`, and
+`queue complete` checks the same). The fix was to recreate the branch at the merged commit, but the cheap fix is
+upstream: **`queue publish` already generates a collision-free `required_tag`** (the branch name with slashes
+turned into dashes, plus `-v1`), so tag the milestone with that and leave the branch name alone. **A task's
+canonical branch is part of its interface**; renaming it mid-task breaks bookkeeping that warns you only later.
+
+### The source checks cannot see a page
+The Edition 3 pilot passed `book/evidence/check.sh`, every build gate and the author's own acceptance run — and
+still shipped a front page that spilled its last table row onto a second page, a checklist split after seven of
+eight rows, a verdict tag printing `FITS,`, section headings numbered `0.5` under an unnumbered chapter, and the
+`CHAPTER 4` eyebrow on the previous page. Not one of those is visible to a source rule: they are consequences of
+*where the page breaks*. **A layout acceptance criterion is only verified by rendering the artefact and looking
+at it**, which is what the review did. The cheap mechanical version, worth adding at phase 2: assert that the
+front page is one page and that no table's rows straddle two pages.
+

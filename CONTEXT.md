@@ -699,7 +699,25 @@ also carries the owner's optimistic/pessimistic requirement) · `…-t5-study05-
 strict/relaxed and colocation claims, which also carries the colocated/non-colocated requirement). Each is
 `minimum_capability: LOW`, `work_role: executor`, and carries the same acceptance shape: a protocol with
 predictions committed before any run, ≥2 whole runs in reversed order, honest scoring, promotion or a limit
-naming what did not reproduce, book prose re-scoped, and a merged, tagged result. The queue now dispatches
+naming what did not reproduce, book prose re-scoped, and a merged, tagged result.
+
+**T1 completed, and the Edition 3 pilot reviewed (2026-10-01, HIGH).**
+`task-20261001T133759Z-t1-study01-replication` is **completed**: its two claims are `run_replicated` on main at
+`88a9c04` (tag `study-01/t1-remaining`), with the task's required tag `study-01-t1-remaining-v1` on the merge
+commit. The HIGH review re-derived both claims from the committed results with its own script and they match to
+the digit (1.59/1.72/1.64/1.84; group 1.44/1.43; q13-trailing 1.92/2.33); the reviewer's *first* script
+disagreed because it matched query names by prefix and swept in the `q08@largest`/`q12@smallest` regime
+variants — the worker was right and the reviewer was wrong, so the run's own `cells.tsv` is the authority for
+what a score contains. `queue integrate` could not run because the canonical branch had been renamed mid-task
+to stop a branch/tag name clash; the branch was restored at the merged commit.
+`…-t2-study02-replication` was claimed and then **yielded unstarted** when the concurrent HIGH session published
+the higher-priority Edition 3 pilot; `t2`–`t5` are `ready`.
+`task-20261001T155900Z-book-ed3-pilot` is **approved_for_integration**, with integration deliberately deferred
+to the owner's approval of the preview style as its brief requires. The review rendered the pages and found five
+defects no source check could see (headings numbered `0.x`, a stray comma in the verdict tag, the front page
+overflowing to a second page, the checklist split orphaning a row, the `CHAPTER 4` eyebrow on the previous
+page); all five are fixed on `book/ed3-pilot` at `6b6dd6d`. The preview is 90 pages (front p. 3, chapter 4
+pp. 8–9, Study 04 profile p. 13), 31/31 claims, 6/6 fonts, no banner, and stays untracked in the task worktree.
 one order, last of the other) and its `q01` level should not be quoted from these runs. All six predictions
 confirmed.
 
