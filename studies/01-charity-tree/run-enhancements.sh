@@ -246,7 +246,11 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-while IFS=$'\t' read -r topo budget condition design mode scale trial order extra; do
+# The plan is read on its own descriptor: every podman invocation on this host reads
+# the shell's stdin (podman --version alone ends a while-read loop after one line), and
+# this loop's body calls podman many times. Found 2026-10-01, when a 60-cell plan ran
+# one cell and the manifest still reported "failed processes 0".
+while IFS=$'\t' read -r topo budget condition design mode scale trial order extra <&3; do
   # Scoped-replication filters: skip this cell unless it is named. Both unset is the
   # published matrix.
   if [[ -n "$FILTER_DESIGNS" && ",$FILTER_DESIGNS," != *",$design,"* ]]; then continue; fi
@@ -325,7 +329,7 @@ while IFS=$'\t' read -r topo budget condition design mode scale trial order extr
     podman logs --tail 150 "$c" > "$dir/logs/$name-$c.log" 2>&1 || true
     podman exec "$c" cat /sys/fs/cgroup/cpu.stat /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.stat /sys/fs/cgroup/io.stat > "$dir/logs/$name-$c-after.txt" || true
   done
-done < "$OUT/ordered-cells.tsv"
+done 3< "$OUT/ordered-cells.tsv"
 echo "finished_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$OUT/manifest.yaml"
 echo "failed_processes: $failed" >> "$OUT/manifest.yaml"
 podman run --rm -v "$(hostpath "$STUDY_DIR"):/study" "$IMAGE" -cmd report-enhancements \
