@@ -12,9 +12,16 @@ DURATION=3s
 WARMUP=1s
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-v3"
 TAG=no
+FILTER_DESIGNS=""
+FILTER_TOPOLOGIES=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --experiments) EXPERIMENTS="$2"; shift 2 ;;
+    # Optional filters, added 2026-10-01 for scoped T1 replications of one or two
+    # claims. Unset means the published matrix, unchanged; a filtered run is a
+    # labelled subset and its manifest records what was left out.
+    --designs) FILTER_DESIGNS="$2"; shift 2 ;;
+    --topologies) FILTER_TOPOLOGIES="$2"; shift 2 ;;
     --trials) TRIALS="$2"; shift 2 ;;
     --duration) DURATION="$2"; shift 2 ;;
     --warmup) WARMUP="$2"; shift 2 ;;
@@ -62,6 +69,8 @@ export YB_EXTRA_TSERVER_FLAGS=yb_enable_read_committed_isolation=true
   echo "image_id: $IMAGE"
   echo "started_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "experiments: $EXPERIMENTS"
+  echo "design_filter: ${FILTER_DESIGNS:-all}"
+  echo "topology_filter: ${FILTER_TOPOLOGIES:-all}"
   echo "independent_trials: $TRIALS"
   echo "duration: $DURATION"
   echo "warmup: $WARMUP"
@@ -238,6 +247,10 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 while IFS=$'\t' read -r topo budget condition design mode scale trial order extra; do
+  # Scoped-replication filters: skip this cell unless it is named. Both unset is the
+  # published matrix.
+  if [[ -n "$FILTER_DESIGNS" && ",$FILTER_DESIGNS," != *",$design,"* ]]; then continue; fi
+  if [[ -n "$FILTER_TOPOLOGIES" && ",$FILTER_TOPOLOGIES," != *",$topo,"* ]]; then continue; fi
   if [[ "$active/$active_budget" != "$topo/$budget" ]]; then
     if [[ -n "$active" ]]; then bash "$REPO/infra/$active.sh" down; fi
     active=""; active_budget="$budget"
