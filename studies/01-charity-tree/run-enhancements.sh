@@ -305,7 +305,10 @@ while IFS=$'\t' read -r topo budget condition design mode scale trial order extr
       -conns 8 -load-conns 4 -duration "$DURATION" -warmup "$WARMUP" -trials 1 \
       -run-id "$RUN_ID" -environment "$ENVIRONMENT" -condition "$condition" -trial-id "$trial" -order "$order" \
       -db-memory-bytes "$memory" "${args[@]}" -out "/results/$name.json" -explain-out "/results/plans/$name.txt" \
-      > "$dir/logs/$name-client.txt" 2>&1; then
+      # </dev/null: podman reads stdin, and this loop IS the plan file, so without this
+      # redirect the loop ends after the first cell and the run reports "0 failed".
+      # Found 2026-10-01 when a scoped replication produced a single cell.
+      </dev/null > "$dir/logs/$name-client.txt" 2>&1; then
     echo "    process_status: completed" >> "$OUT/manifest.yaml"
   else
     echo "    process_status: failed" >> "$OUT/manifest.yaml"
