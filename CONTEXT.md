@@ -42,6 +42,14 @@ summary, not a second ledger.
   — an evidence-backed data-architecture book built with Typst in Podman, with every claim traceable
   to a run, tag, digest and signed analysis.
 - Planning checkpoint integrated and tagged `repo/data-architecture-book-handoff-v1`.
+- **Edition 3 — concept first (planned 2026-10-01, HIGH claude-opus-5-5):** the owner asked for the book
+  to teach concepts first, use the case studies to show when each fits, and keep text short. Rules:
+  [`book/STYLE.md`](book/STYLE.md); goal amendment `20261001T155900Z-concept-first-edition-3`. Phase 1 is
+  the pilot task `task-20261001T155900Z-book-ed3-pilot` (ready, LOW): template macros, compact claim
+  badges, "How to use this book", chapter 4 Rollup and the Study 04 profile; the owner approves the style
+  before phase 2 converts the rest. Tag `repo/data-architecture-book-ed3-plan`. **T2–T5 workers:** the
+  book's prose is being moved into concept chapters; re-scope a changed number wherever it is quoted,
+  including the new case boxes.
 - The queue CLI (v1) is **complete and integrated**, tagged `repo/ai-task-queue-v1`, with capability
   aliases tagged `repo/ai-capability-aliases`.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
