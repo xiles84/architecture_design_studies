@@ -97,6 +97,9 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// anchors. v2-09 was reworded at the v6 tag and then re-scoped on 2026-09-28,
 	// when the buyer-count sweep falsified its headline ("the designs change places")
 	// and changed its strength, trials, limits and anchors.
+	// v2-04 and v2-05 moved here on 2026-10-01: the second T1 tranche replicated them
+	// run-level (two whole runs in reversed order), re-scoped v2-04 to its query dependence
+	// and added two anchors to each.
 	// v2-01, v2-02 and v2-03 moved here on 2026-10-01: the T1 run-level replication
 	// (two whole runs, reversed order) re-scoped their statements to replicated bands,
 	// promoted them to run_replicated and added two anchors.
@@ -106,6 +109,8 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// are not quotable. Their statements, confounds and anchors are untouched.
 	changed := map[string]bool{
 		"v2-13-trigger-rollup-cost":                 true,
+		"v2-04-recency-maintained-index":            true,
+		"v2-05-d3-read-advantage-repeated":          true,
 		"v2-01-normalized-index-first":              true,
 		"v2-02-rollup-family":                       true,
 		"v2-03-embedding-not-ahead":                 true,
@@ -122,8 +127,6 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// change of substance. Listed here and in the ledger, so neither a rewording
 	// nor a re-scoping can pass as a silent edit.
 	reworded := map[string]bool{
-		"v2-04-recency-maintained-index":           true,
-		"v2-05-d3-read-advantage-repeated":         true,
 		"v2-06-hot-drop-designs":                   true,
 		"v2-10-guarded-confirm-refusals":           true,
 		"v2-13-trigger-rollup-cost":                true,

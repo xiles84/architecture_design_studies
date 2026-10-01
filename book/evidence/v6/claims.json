@@ -372,13 +372,13 @@
     },
     {
       "claim_id": "v2-04-recency-maintained-index",
-      "statement": "The recency flag works, but an index on the rollup column answers the same question faster: comparing d20_recency_flag with d22_recency_rollup_idx in the same run gives the reported read speedup on PostgreSQL and YugabyteDB.",
+      "statement": "The recency flag works, but an index on the rollup column answers the window questions faster, and by how much depends on the question: across two whole runs on PostgreSQL (d20_recency_flag against d22_recency_rollup_idx) the index is 1.9-2.3x on q13 (the primary's quoted 2.9x is this query in its trailing regime), 2.6-3.1x on q15 trailing, level on q14 (0.98-1.24x) and slightly slower on q16 (0.85-0.94x), so the group-wide ratio is about 1.4x. The YugabyteDB half (quoted 7.9x) is unreplicated.",
       "family": "rollups-materialized",
       "study": "01-charity-tree",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 3,
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 2,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -390,7 +390,8 @@
       "limits": [
         "we cannot say how much of d22's write cost comes from the index, because d22 also maintains D4's multi-column rollup: the two designs differ by more than the index",
         "three repeats of the measurement per configuration",
-        "claim-02's v1 trials field was recorded as 1 and is corrected here"
+        "claim-02's v1 trials field was recorded as 1 and is corrected here",
+        "the quoted 2.9x and 7.9x are single-query, single-engine figures (q13 trailing): the recency group geomean is about 1.4x here and 1.52x recomputed from the primary, and on q16 the flag is marginally FASTER than the index in both runs - quote the query, not one headline"
       ],
       "anchors": [
         {
@@ -403,15 +404,37 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+yugabytedb-1node",
           "role": "primary"
+        },
+        {
+          "run_id": "20261001T144451Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T144451Z-t1",
+          "repo_commit": "49dde3bd",
+          "inputs_digest": "57459a8619328b01",
+          "report": "studies/01-charity-tree/reports/20261001T144451Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-recency-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T145914Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T145914Z-t1",
+          "repo_commit": "49dde3bd",
+          "inputs_digest": "ab92855a27c3f94b",
+          "report": "studies/01-charity-tree/reports/20261001T145914Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-recency-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": null,
-        "reported_failed": null,
+        "reported_cells": 36,
+        "reported_failed": 0,
         "source": "report Completeness section",
         "controls_present": 0,
         "controls_fired": 0,
-        "note": "Completeness and failures are declared in the report; the unguarded d21 arm records one FAILED/diagnostic trial."
+        "note": "The primary is the first measurement of each relation; two whole runs on 2026-10-01 (20261001T144451Z-t1, 20261001T145914Z-t1), tagged run/01-charity-tree/<run-id> at 49dde3bd with 18 cells each and no failures, carry the replication. Both ran the study's own v3/v4 protocol at its own settings through run-enhancements.sh, which was found to be truncating every run to a single cell on this host and fixed in the same tranche (the plan is now read on fd 3)."
       },
       "support": [
         {
@@ -454,20 +477,25 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 41.2,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "L3 was confirmed - d22 above d20 on the recency group in both whole runs and in every trial - and L4 was falsified as stated: it required the group ratio to be at least 1.5x, while the replication gives 1.37-1.53x and the primary's own data gives 1.52x, so the floor was mine and the primary's headline is its best query rather than the group.",
+        "source": "studies/01-charity-tree/T1-RECENCY-REPLICATION.md",
+        "verdict": "falsified"
       }
     },
     {
       "claim_id": "v2-05-d3-read-advantage-repeated",
-      "statement": "D3's (d3_flattened_fk) read advantage over the normalized indexed design survives five fresh loads; the recency SQL and actual heap avoidance explain the gain, while its insert cost remains imprecise.",
+      "statement": "D3's (d3_flattened_fk) read advantage over the normalized indexed design survives five fresh loads in one session and reproduces across two whole runs in reversed order, at 1.59x, 1.72x, 1.64x and 1.84x in its four further fresh loads against the primary's 2.47x; the recency SQL and actual heap avoidance explain the gain, while its insert cost remains imprecise.",
       "family": "rolldown-duplicated",
       "study": "01-charity-tree",
-      "strength": "repeated_controlled",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 3,
         "fresh_load_trials_per_cell": 5,
         "inner_iterations": 1
       },
@@ -477,7 +505,8 @@
       "confounds": [],
       "limits": [
         "five fresh loads per configuration, all in one session",
-        "the insert-cost estimate is imprecise and must not be quoted as a ratio"
+        "the insert-cost estimate is imprecise and must not be quoted as a ratio",
+        "the magnitude came down on replication: 1.59-1.84x against the primary's 2.47x, so the direction and the survival are what a reader should carry, and the ratio itself is a band that a future run could move again"
       ],
       "anchors": [
         {
@@ -490,15 +519,37 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node",
           "role": "primary"
+        },
+        {
+          "run_id": "20261001T144451Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T144451Z-t1",
+          "repo_commit": "49dde3bd",
+          "inputs_digest": "57459a8619328b01",
+          "report": "studies/01-charity-tree/reports/20261001T144451Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-recency-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T145914Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T145914Z-t1",
+          "repo_commit": "49dde3bd",
+          "inputs_digest": "ab92855a27c3f94b",
+          "report": "studies/01-charity-tree/reports/20261001T145914Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-recency-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": null,
-        "reported_failed": null,
+        "reported_cells": 36,
+        "reported_failed": 0,
         "source": "report Completeness and failures section",
         "controls_present": 0,
         "controls_fired": 0,
-        "note": "Fewer than five valid trials are explicitly counted in the report; failed cells are excluded from valid-rate summaries."
+        "note": "The primary is the first measurement of each relation; two whole runs on 2026-10-01 (20261001T144451Z-t1, 20261001T145914Z-t1), tagged run/01-charity-tree/<run-id> at 49dde3bd with 18 cells each and no failures, carry the replication. Both ran the study's own v3/v4 protocol at its own settings through run-enhancements.sh, which was found to be truncating every run to a single cell on this host and fixed in the same tranche (the plan is now read on fd 3)."
       },
       "support": [
         {
@@ -542,10 +593,15 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
+        "runs": 3,
         "order": "abba",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "across_run_spread_pct": 51.2,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "L1 and L2 were confirmed: d3 above d2 in every trial of both runs, with the ratio inside the predicted 1.2-3x band. L5 (d1 slowest of the five designs) was not measurable - the scoped plan contained no d1 cell, which is a defect in the protocol rather than in the claim.",
+        "source": "studies/01-charity-tree/T1-RECENCY-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {

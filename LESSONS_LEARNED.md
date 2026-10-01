@@ -2247,6 +2247,29 @@ required `d6`'s insert ratio to be under half of `d1`'s while the primary's own 
 measurement reproduced the claim and my threshold was wrong, which is worth stating plainly rather than
 quietly widening the band afterwards.
 
+### A run that reports success can still have run nothing
+`run-enhancements.sh` reads its cell plan from a file with `while read ... done < plan`, and **on this host
+every podman invocation consumes the shell's stdin** — `podman --version` alone ends such a loop after one
+line. So a scoped replication with a 60-cell plan executed **one cell**, tagged the run, wrote a report and
+printed "completed ... failed processes 0". Proven by a three-line loop (1 of 3 iterations without a private
+descriptor, 3 of 3 with it) and fixed by reading the plan on **fd 3**, which no child can steal; adding
+`</dev/null` to the cell invocation alone was not enough, because the loop body's `podman exec` and
+`podman inspect` calls eat stdin too. Three rules. **Never let a loop's stdin be the plan** when the loop calls
+a container tool — use a private descriptor (`done 3< plan`). **Treat a cell count far below the plan as a
+failure**, not as a fast run: the runner's own completion line and failed-cell count say nothing about cells
+that were never attempted. And **check the published runs still add up** before trusting a clean summary —
+here the older manifests count 100 and 192 cells, so they predate the behaviour, but that was verified rather
+than assumed.
+
+### A prediction must name only what the plan actually runs
+The same tranche falsified a prediction of mine because it asked for something the scoped plan never
+contained: `L5` predicted that `d1_normalized_minimal` would be the slowest of five designs on the core read
+score, but the runner's `reads` block never lists `d1` for those conditions, so no `d1` cell existed and the
+prediction was untestable as written. **Read the plan the runner will build before writing predictions** (the
+runner writes `cells.tsv` before it executes anything), because a prediction about a design that is not in the
+plan is not a falsifiable claim, it is a defect in the protocol — and it costs a reader the same effort to
+discover as a real failure.
+
 ### The queue's publish path is HIGH-only, containerised and strict about timestamps
 Three things cost time on 2026-10-01 publishing the five T1 tasks. **`queue publish` is capability-gated**:
 a LOW session gets "only a HIGH session publishes or releases tasks", so a LOW worker that plans replication

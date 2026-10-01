@@ -275,6 +275,19 @@ the top group and the per-seat group, not a ranking; `c1_count_naive` adds a 40%
 one order, last of the other) and its `q01` level should not be quoted from these runs. All six predictions
 confirmed.
 
+**Study 01's last two claims replicated, and a runner defect (2026-10-01, runs `20261001T1444*`/`20261001T1459*`,
+tag `study-01/t1-remaining`).** `v2-04` and `v2-05` are now `run_replicated`. `v2-05`'s `d3`-over-`d2` read
+advantage held in **all four fresh loads across two whole runs** (1.59x, 1.72x, 1.64x, 1.84x) against the
+primary's 2.47x — the direction robust, the magnitude down about 30%. `v2-04` replicated **as a query-specific
+result**: the rollup index beats the flag on q13 (1.9–2.3x) and q15 trailing (2.6–3.1x), ties it on q14 and is
+marginally *slower* on q16, so its statement was re-scoped from the 2.9x headline to the query dependence and
+the ~1.4x group ratio (the primary's own data gives 1.52x for the group), with the 7.9x YugabyteDB figure left
+unreplicated. **The tranche also found and fixed a runner defect**: `run-enhancements.sh` reads its cell plan
+from a file and, on this host, every podman invocation consumes the shell's stdin — so it ran exactly one cell
+per run and still reported "failed processes 0". Proven with `podman --version` alone; the plan is now read on
+fd 3. The published matrices are unaffected (their manifests count 100 and 192 cells), and two one-cell
+diagnostic runs from before the fix are kept in `results/` as the evidence.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

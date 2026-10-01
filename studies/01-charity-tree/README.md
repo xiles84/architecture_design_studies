@@ -18,8 +18,12 @@ and the limitations.
 ([report](reports/20260916T090036Z-v3.md), digest `1b05f142fd9e06ef`).
 **[Read the signed analysis](reports/analyses/20260916T090036Z-v3--claude-opus-5--2026-09-16.md)**
 — in short: the flag works and is cheap, but where the parent row already carries
-`last_donation_at`, **one index on it answers the same question 2.9x faster on PostgreSQL
-and 7.9x faster on YugabyteDB**, with no new column, trigger or write path. The guard on
+`last_donation_at`, **one index on it answers the window questions faster on PostgreSQL — 2.9x on the
+window query the analysis quotes, about 1.4x across the whole recency group — and 7.9x faster on
+YugabyteDB**, with no new column, trigger or write path. The 2026-10-01 T1 replication reproduced that
+query dependence (q13 1.9–2.3x, q15 trailing 2.6–3.1x, level on q14, marginally behind on q16) in two
+whole runs: [the analysis](reports/analyses/20261001T-t1-recency-replication--deepseek-flash--2026-10-01.md).
+The guard on
 the flag's trigger costs nothing measurable and the unguarded control corrupted donors in
 every trial. Embedding buys nothing for this question, and the "obvious" per-donor index
 probe (D18) is slower than the naive aggregate — catastrophically so on YugabyteDB.

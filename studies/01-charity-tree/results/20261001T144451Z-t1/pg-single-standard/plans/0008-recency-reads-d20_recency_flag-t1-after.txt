@@ -1,0 +1,134 @@
+# Targeted plans — after
+run: 20261001T144451Z-t1; commit: 49dde3bdbd327ef44d61d1120663299435eb28cb; preparation: analyze
+
+## after/largest/q08_total_donated_charity; charity_id=1
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Aggregate  (cost=793.93..793.94 rows=1 width=32) (actual time=4.015..4.016 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared hit=125
+  ->  Index Only Scan using donation_charity_amount_idx on public.donation  (cost=0.42..716.24 rows=31077 width=8) (actual time=0.020..2.702 rows=31293 loops=1)
+        Output: charity_id, amount_cents
+        Index Cond: (donation.charity_id = '1'::bigint)
+        Heap Fetches: 60
+        Buffers: shared hit=125
+Planning Time: 0.093 ms
+Execution Time: 4.035 ms
+
+
+## after/largest/q12_charity_recent_feed; charity_id=1
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d3's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- The owner's proposal: donation.is_last_donation, maintained by a trigger
+-- (see triggers.sql) that locks the donor's person row before moving the
+-- flag. Exactly one flagged row per donor holds under concurrency because of
+-- that lock -- d21_recency_flag_unguarded is this same design with the lock
+-- removed, and is expected to fail the recency audit under contention
+-- (RECENCY.md section 5, the negative control).
+-- ---------------------------------------------------------------------------
+
+Limit  (cost=0.71..7.10 rows=50 width=37) (actual time=0.024..0.113 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=137
+  ->  Nested Loop  (cost=0.71..3973.97 rows=31077 width=37) (actual time=0.024..0.108 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=137
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.42..1987.77 rows=31077 width=32) (actual time=0.008..0.013 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note, d.is_last_donation
+              Index Cond: (d.charity_id = '1'::bigint)
+              Buffers: shared hit=5
+        ->  Memoize  (cost=0.29..0.31 rows=1 width=21) (actual time=0.002..0.002 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 6  Misses: 44  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+              Buffers: shared hit=132
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.30 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=44)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=132
+Planning:
+  Buffers: shared hit=14
+Planning Time: 0.183 ms
+Execution Time: 0.130 ms
+
+
+## after/smallest/q08_total_donated_charity; charity_id=10
+
+SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+  FROM donation
+ WHERE charity_id = $1
+
+Aggregate  (cost=80.09..80.10 rows=1 width=32) (actual time=0.250..0.251 rows=1 loops=1)
+  Output: COALESCE(sum(amount_cents), '0'::numeric)
+  Buffers: shared hit=13
+  ->  Index Only Scan using donation_charity_amount_idx on public.donation  (cost=0.42..75.52 rows=1827 width=8) (actual time=0.012..0.155 rows=1756 loops=1)
+        Output: charity_id, amount_cents
+        Index Cond: (donation.charity_id = '10'::bigint)
+        Heap Fetches: 3
+        Buffers: shared hit=13
+Planning Time: 0.051 ms
+Execution Time: 0.262 ms
+
+
+## after/smallest/q12_charity_recent_feed; charity_id=10
+
+SELECT d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  FROM donation d
+  JOIN person p ON p.person_id = d.person_id
+ WHERE d.charity_id = $1
+ ORDER BY d.donated_at DESC
+ LIMIT 50;
+
+-- ---------------------------------------------------------------------------
+-- Recency-window questions (study 01 v4, RECENCY.md). See d3's queries.sql
+-- for the full explanation of the two window regimes.
+--
+-- The owner's proposal: donation.is_last_donation, maintained by a trigger
+-- (see triggers.sql) that locks the donor's person row before moving the
+-- flag. Exactly one flagged row per donor holds under concurrency because of
+-- that lock -- d21_recency_flag_unguarded is this same design with the lock
+-- removed, and is expected to fail the recency audit under contention
+-- (RECENCY.md section 5, the negative control).
+-- ---------------------------------------------------------------------------
+
+Limit  (cost=0.71..47.80 rows=50 width=37) (actual time=0.036..0.124 rows=50 loops=1)
+  Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+  Buffers: shared hit=88
+  ->  Nested Loop  (cost=0.71..1721.43 rows=1827 width=37) (actual time=0.034..0.120 rows=50 loops=1)
+        Output: d.donation_id, d.amount_cents, d.donated_at, p.full_name
+        Inner Unique: true
+        Buffers: shared hit=88
+        ->  Index Scan using donation_charity_time_idx on public.donation d  (cost=0.42..1168.02 rows=1827 width=32) (actual time=0.018..0.040 rows=50 loops=1)
+              Output: d.donation_id, d.person_id, d.charity_id, d.amount_cents, d.currency, d.donated_at, d.note, d.is_last_donation
+              Index Cond: (d.charity_id = '10'::bigint)
+              Buffers: shared hit=28
+        ->  Memoize  (cost=0.29..0.35 rows=1 width=21) (actual time=0.001..0.001 rows=1 loops=50)
+              Output: p.full_name, p.person_id
+              Cache Key: d.person_id
+              Cache Mode: logical
+              Hits: 30  Misses: 20  Evictions: 0  Overflows: 0  Memory Usage: 3kB
+              Buffers: shared hit=60
+              ->  Index Scan using person_pkey on public.person p  (cost=0.28..0.34 rows=1 width=21) (actual time=0.002..0.002 rows=1 loops=20)
+                    Output: p.full_name, p.person_id
+                    Index Cond: (p.person_id = d.person_id)
+                    Buffers: shared hit=60
+Planning:
+  Buffers: shared hit=14
+Planning Time: 1.214 ms
+Execution Time: 0.157 ms
+
