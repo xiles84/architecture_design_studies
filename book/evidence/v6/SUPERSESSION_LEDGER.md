@@ -238,6 +238,19 @@ concurrency (`throughput ≈ workers ÷ mean latency`). Read-phase client CPU at
 126 s allowance with 0 throttled periods in all eight read phases. No claim's statement, strength, confound or
 anchor changed; two limit texts were corrected.
 
+**The primary anchors' PostgreSQL read cells, re-stated (2026-10-01).** Both anchors ran three topologies with
+the throttled client, so their read figures carry the same defect; all fifteen designs now have a
+**`pg-single` footprint-2** read measurement (four runs in two orders, plus the two one-worker runs), which
+makes the footprint-8 `pg-single` read figures and ratios **replaceable rather than merely caveated**. The
+replacement's size is measured, not assumed: a level moves by 1.09x–2.22x depending on the design, and a
+*ratio* moves too (`r1` over `p3` on `q01` was 2.07x, is 1.16–1.48x). Two limits stand: **no single run covers
+all fifteen designs**, so comparisons spanning the four-design and eleven-design sets carry a session term;
+and the anchors' **`yb-single` and `yb-cluster3` read arms have no replacement** — a resource gap on the fixed
+2 GiB machine, recorded rather than papered over. The book needed no change: its read figures are Study 01's
+index score, Study 05's cache reads and `v2-11`'s YugabyteDB map, none from this family (checked, not assumed).
+`v2-07` gains the two `x1` runs as corroborating anchors for its refund-answer result, which reproduces at
+32,164 / 32,362 ops/s against the primary's 30.3k/33.0k.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

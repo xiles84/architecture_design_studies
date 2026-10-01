@@ -644,6 +644,16 @@ withdrawn** (`q02`/`q05` levels are store numbers, quotable with the footprint a
 the corrected entry plus "Little's law wants the mean". Read-phase client CPU 25.6–41.9 s, 0 throttled periods.
 Analysis
 `studies/02-ticket-booking/reports/analyses/20260930T-read-one-worker--deepseek-flash--2026-09-30.md`.
+
+**The primary anchors' read cells re-stated (2026-10-01, tag `study-02/read-restate`).** No new measurement:
+an integration analysis over the six footprint-2 runs. All fifteen designs now have a **`pg-single`
+footprint-2** read footing, so the anchors' footprint-8 read figures (inflated 1.09x–2.22x per design, and
+their ratios along with them) are **replaceable rather than caveated**; `v2-07` gains the two `x1` runs as
+corroborating anchors and its limit states the replacement rule. Two gaps stand: no single run covers all
+fifteen designs (cross-set orderings carry a session term), and both anchors' **`yb-single`/`yb-cluster3`
+read arms remain uncovered** — a resource gap on the fixed 2 GiB machine. The book needed no change (checked:
+its read figures come from Study 01, Study 05 and `v2-11`, not this family). Analysis
+`studies/02-ticket-booking/reports/analyses/20261001T-read-cells-restated--deepseek-flash--2026-10-01.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
