@@ -204,12 +204,21 @@
 // The index of every claim that may appear as evidence, grouped by the fixed six
 // families. This is the reader-facing map from prose to data; a rendered page
 // proves the registry compiled into the PDF.
+// The label the badge links to. One derivation, used by both sides, so a card
+// and its badges can never disagree about where the card is.
+#let card-label(id) = "claim-card-" + id
+
 #let evidence-index() = {
   for f in loaded.taxonomy.families [
     #heading(level: 2, f.name)
     #for c in claims {
       if c.family == f.id [
+        // The label is what an inline `claim-badge` links to and what gives the
+        // badge the card's page number (STYLE.md, evidence on the page). It is
+        // derived from the id in one place, so a badge cannot point at another
+        // claim's card.
         #full-card(c)
+        #label(card-label(c.claim_id))
         #v(4pt)
       ]
     }
@@ -223,4 +232,57 @@
       ]
     ]),
   )
+}
+
+// ---- Edition 3: the inline evidence badge ------------------------------
+//
+// Owner decision 2026-10-01 (STYLE.md): a chapter cites a claim inline with
+// `claim-badge(id)`, and the full card appears only in the registry index.
+// The badge resolves the claim through `claim-by-id`, so an unknown or retired
+// id panics here exactly as it does for a full card; and it links to the card's
+// page, so a reader can always reach the statement and the limits a badge
+// compresses. A strength the registry gains later has no label here: the badge
+// then fails the build rather than printing a strength a reader cannot weigh.
+
+#let strength-label(s) = {
+  if s == "run_replicated" { "replicated" }
+  else if s == "single_run_directional" { "single run — direction only" }
+  else if s == "repeated_controlled" { "repeated within one run" }
+  else if s == "mechanism_supported" { "mechanism" }
+  else if s == "hardware_replicated" { "replicated on independent hardware" }
+  else if s == "analogy" { "analogy" }
+  else if s == "gap" { "gap" }
+  else {
+    panic("strength \"" + s + "\" has no plain-language label in lib/evidence.typ; " +
+      "add one to strength-label before citing it (STYLE.md, evidence on the page)")
+  }
+}
+
+#let claim-badge(id) = {
+  let c = claim-by-id(id)
+  let plain = strength-label(c.strength)
+  let kind = gap-kind-text(c)
+  context {
+    let hits = query(label(card-label(id)))
+    let colour = if c.strength == "gap" { rgb("#9a2f3b") }
+      else if c.strength == "run_replicated" { rgb("#1f6f4a") }
+      else if c.strength == "analogy" { rgb("#8a5a00") }
+      else { rgb("#2b4b8f") }
+    box(
+      inset: (x: 5pt, y: 3pt),
+      radius: 2pt,
+      stroke: 0.4pt + colour.transparentize(45%),
+      fill: colour.transparentize(92%),
+    )[
+      #set text(size: 8pt, fill: rgb("#5b6470"))
+      #raw(c.claim_id) · #text(fill: colour, weight: "bold")[#plain]#if kind != none [
+        · #kind
+      ]#if hits.len() > 0 [
+        #let loc = hits.first().location()
+        · #link(loc)[card, p. #loc.page()]
+      ] else [
+        · card in the evidence registry index
+      ]
+    ]
+  }
 }

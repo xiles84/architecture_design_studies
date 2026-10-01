@@ -9,13 +9,21 @@ is rendered from the active evidence package under `book/evidence/`, which is va
 
 ```text
 book/
-  main.typ                 title page, edition/provenance page, contents, includes, evidence index
-  lib/config.typ           the visual system: page geometry, type scale, callouts
-  lib/evidence.typ         loads the active evidence package and renders the confidence cards
-  chapters/*.typ           7 chapters (how to choose, families, variants, comparisons,
-                           topologies, scenarios, evidence and reproduction)
-  concepts/*.typ           8 concepts (placement, indexes, concurrency, derived state,
-                           expiry, cache consistency, distributed placement, reading benchmarks)
+  STYLE.md                 the didactic contract: structure, chapter template, writing rules
+  main.typ                 title page, edition/provenance page, contents, the Edition 3 parts,
+                           the Edition 2 divider, glossary, evidence index
+  front/*.typ              Edition 3 front matter (how to use this book, with the badge legend)
+  lib/config.typ           the visual system, the callouts, and the Edition 3 components
+                           (concept-opener, fit-table, cost-table, case-box, remember,
+                           checklist-table, part-opener) — each validating its input
+  lib/evidence.typ         loads the active evidence package, renders the confidence cards, and
+                           renders inline `claim-badge` citations that link to the card's page
+  cases/*.typ              Edition 3 study profiles (one page per study with claims)
+  chapters/*.typ           7 Edition 2 chapters (how to choose, families, variants, comparisons,
+                           topologies, scenarios, evidence and reproduction) — awaiting conversion
+  concepts/*.typ           Edition 3 concept chapters (rollup) plus the 8 Edition 2 concepts
+                           (placement, indexes, concurrency, derived state, expiry, cache
+                           consistency, distributed placement, reading benchmarks)
   evidence/                the frozen v1-v4 packages, the active v5 package, and check.sh
   assets/                  generated figures, their canonical .puml sources and the manifest
   Containerfile            pinned Typst image (by immutable manifest digest)
@@ -30,6 +38,20 @@ book/build.sh
 book/build.sh --out dist/preview.pdf --manifest dist/preview-manifest.json   # scratch build
 book/evidence/check.sh                                                       # source rules only
 ```
+
+## Editions
+
+`book-edition` in `lib/config.typ` names the edition the sources build. **Edition 3 (draft)** is the
+concept-first edition (owner decision 2026-10-01, `STYLE.md`): each chapter teaches one concept and the
+studies show when it fits. It is being built part by part — a part opener names the chapters it will
+hold, a converted chapter appears in its part, and the Edition 2 chapters follow a divider that says
+they await conversion. The first converted part is part I's chapter 4 (Rollup) plus the Study 04
+profile; `front/how-to-use.typ` explains the shape to the reader.
+
+The pilot of that edition is built separately and is *not* the tracked release artefact:
+`book/build.sh --out dist/edition3-pilot.pdf --manifest dist/edition3-pilot-manifest.json`. The pilot
+output stays untracked in its task worktree for the owner's review; `dist/data-architecture-reference.pdf`
+remains the Edition 2 release until the conversion is complete.
 
 Nothing runs on the host: the script builds the pinned image, compiles `main.typ` to
 `dist/data-architecture-reference.pdf`, verifies the result, and writes `dist/build-manifest.json`.
@@ -56,6 +78,10 @@ provenance page full of placeholders.
   input. No other file may name a version — `book/evidence/check.sh` fails the build if one does,
   because Edition 1 printed a v2 path in a chapter while the cover said v3.
 - No number without a claim: a claim id that is unknown, retired or superseded aborts the build.
+- Edition 3 components validate their input: a key idea over 25 words, a fit table without
+  3-4 rows per side, a verdict outside {fits, does not fit, depends}, a checklist with other
+  than 8 rows, an unknown evidence status, more than 3 remember bullets or a row longer than
+  its word limit panics with the rule and the offending value.
 - A gap states what sort of gap it is (`gap_kind`), so a schema limitation is not badged as a regime
   that was simply not run.
 - Gaps and analogies are labelled on the page, never smoothed into the prose.

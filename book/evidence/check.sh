@@ -74,10 +74,12 @@ done < <(grep -rEn 'evidence/v[0-9]' "$BOOK_DIR" --include='*.typ' --include='*.
   grep -v '^'"$HERE"'/' || true)
 
 # --- quoted claim ids ----------------------------------------------------
-# Every id a chapter renders must exist in the active package and must not be
-# retired or superseded. The Typst loader also panics on an unknown id; this runs
+# Every id a page renders must exist in the active package and must not be
+# retired or superseded. Edition 3 cites a claim inline with `claim-badge(id)`,
+# which makes the same promise as `registry-card(id)` in one line, so it is
+# scanned by the same rule. The Typst loader also panics on an unknown id; this runs
 # earlier and names the retired case specifically.
-quoted="$(grep -rhoE '(registry-card|claim-by-id)\("[^"]+"\)' "$BOOK_DIR" --include='*.typ' 2>/dev/null |
+quoted="$(grep -rhoE '(registry-card|claim-by-id|claim-badge)\("[^"]+"\)' "$BOOK_DIR" --include='*.typ' 2>/dev/null |
   sed -E 's/.*\("([^"]+)"\)/\1/' | sort -u || true)"
 while IFS= read -r id; do
   [[ -z "$id" ]] && continue

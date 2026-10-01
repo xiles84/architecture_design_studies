@@ -45,11 +45,23 @@ summary, not a second ledger.
 - **Edition 3 — concept first (planned 2026-10-01, HIGH claude-opus-5-5):** the owner asked for the book
   to teach concepts first, use the case studies to show when each fits, and keep text short. Rules:
   [`book/STYLE.md`](book/STYLE.md); goal amendment `20261001T155900Z-concept-first-edition-3`. Phase 1 is
-  the pilot task `task-20261001T155900Z-book-ed3-pilot` (ready, LOW): template macros, compact claim
-  badges, "How to use this book", chapter 4 Rollup and the Study 04 profile; the owner approves the style
-  before phase 2 converts the rest. Tag `repo/data-architecture-book-ed3-plan`. **T2–T5 workers:** the
-  book's prose is being moved into concept chapters; re-scope a changed number wherever it is quoted,
-  including the new case boxes.
+  the pilot task `task-20261001T155900Z-book-ed3-pilot`: template macros, compact claim badges, "How to use
+  this book", chapter 4 Rollup and the Study 04 profile; the owner approves the style before phase 2
+  converts the rest. Tag `repo/data-architecture-book-ed3-plan`. **T2–T5 workers:** the book's prose is
+  being moved into concept chapters; re-scope a changed number wherever it is quoted, including the new
+  case boxes.
+  - **Pilot delivered for review (2026-10-01, LOW deepseek-flash), awaiting HIGH review and the owner's
+    approval of the style.** Seven validated components in `lib/config.typ` (each panics on out-of-rule
+    input), `claim-badge(id)` in `lib/evidence.typ` that links to its card and prints the card's page,
+    `check.sh` extended to scan `claim-badge("…")` (proved by a bogus id failing the check), the front page
+    `front/how-to-use.typ`, chapter 4 `concepts/rollup.typ` (template, 3 pages) and the profile
+    `cases/04-configuration-portal.typ` (1 page). Main.typ now builds the Edition 3 parts first and keeps
+    every Edition 2 chapter after a divider that says they await conversion. Preview:
+    `book/dist/edition3-pilot.pdf` + `dist/edition3-pilot-manifest.json`, **untracked in the task worktree**
+    by the task's own rule — 92 pages, 31/31 claims, 6/6 fonts, no banner. Evidence: the attempt's
+    `RESULT.md` and `PROGRESS.md` (D1–D9) under
+    `docs/ai-work/tasks/2026/10/task-20261001T155900Z-book-ed3-pilot/`. The tracked Edition 2 release
+    artefact was not rebuilt; that is phase 3.
 - The queue CLI (v1) is **complete and integrated**, tagged `repo/ai-task-queue-v1`, with capability
   aliases tagged `repo/ai-capability-aliases`.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
