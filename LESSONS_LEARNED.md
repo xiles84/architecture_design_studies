@@ -1170,6 +1170,13 @@ the repository's `user.name`/`user.email` lived in the host's global config, whi
 container does not see. Forward `GIT_AUTHOR_*`/`GIT_COMMITTER_*` from the host repository's
 own identity in the wrapper; do not invent an author inside the tool.
 
+The forwarding itself failed silently under Git Bash (2026-10-01, publishing the Edition 3 pilot):
+`infra/lib.sh` exports `MSYS_NO_PATHCONV`, so the wrapper's `git -C /c/...` reached `git.exe`
+unconverted, failed, and `|| true` turned the failure into an empty identity. The publish wrote and
+staged its files, then its commit failed; the commit was finished by hand. **Route every host path
+through `hostpath()` before git, including in a lookup whose errors are suppressed** — a swallowed
+error is how this survived the WSL sessions that never hit it.
+
 ### An event that cites a file must commit the file
 
 The queue's `publish`, `review` and `escalate` wrote `task.json`/`REVIEW.md`/`ESCALATIONS.md`
