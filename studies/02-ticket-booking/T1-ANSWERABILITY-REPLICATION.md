@@ -11,11 +11,18 @@ relation-size difference … not a repeated timed result"*. A claim whose eviden
 rests on one run, so this tranche re-derives the fact in **two whole runs in both design orders** and reports
 what the current code and schema produce.
 
-**What is held constant.** The study's own runner, harness, correctness gates, dataset at scale `small`, and
-the published budgets (client 2 CPUs / 2 GiB against the fixed host). **Varied: the run and the design order**
-(15 designs forward, then 15 in reverse). **Phases: `verify` only** — the load, the correctness gates, the
-relation sizes and the report coverage all come from the load path, and no part of this claim depends on a
-timing, so running the read/write/race phases would add cost and nothing to the question.
+**What is held constant.** The study's own runner, harness, correctness gates, dataset at scale `small`, the
+published read footprint (2 workers) and the published budgets (client 2 CPUs / 2 GiB against the fixed host).
+**Varied: the run and the design order** (15 designs forward, then 15 in reverse).
+
+**Phases: `verify,read` — amended before the measurement was used.** The first pair of runs used
+`--phases verify` on the reasoning that the load path produces the relation sizes and the correctness gates,
+and that no part of this claim depends on a timing. That was half right: the relation sizes (`stats`) and the
+gates do come from the load, but **`report_coverage` is emitted inside the read phase** (`harness/main.go`
+computes it there, although it is a pure function of the design and needs no measurement). Those two runs
+therefore have no answerability data, and they are kept as a **pre-check** — they establish the storage figures
+(M3–M6) — while the two runs that carry the answerability half use `verify,read` at the study's published
+settings. The read timings they produce are not used by this claim; they are incidental.
 
 **Measurement definitions, fixed before running** (this is where the primary is ambiguous — its analysis says
 "35% storage", which is the tables-only figure, while all relations give 36.2%):
