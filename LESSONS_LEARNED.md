@@ -2231,3 +2231,18 @@ a group is smaller than the run-to-run term — the quotable fact here is the 1.
 position term; a single order would have shown a clean, false ranking. And **a design that moves position
 between the runs cannot have a level quoted from them** — with two orders there is no way to separate position
 from design for `c1`, and settling it would need three positions, not two.
+
+### A claim can replicate and still need re-scoping — the band travels, the point does not
+Study 01's three oldest claims went from one run to three (the primary plus two whole runs in reversed order)
+on 2026-10-01, and every ordering they assert reproduced. Every **point figure** moved: `d2`/`d1` read 13.3x in
+the primary and 10.6x / 9.7x in the replications; `d3`/`d1` 20.5x against 13.7x / 15.5x; `d6` 2.4x against
+2.2x / 1.7x. Within one run the same designs' absolute read scores differed by **40-45%** between the two
+orders. So "the claim replicated" is not the same statement as "the claim's numbers were right": the replicated
+thing is the **relation** — the ordering and the band — and the registry now says so in the statement itself
+rather than only in a limit. Three rules. **Write the claim's statement in the units that replicated** (a band
+and an ordering), and leave the single run's point figures in the limit that names them. **Check both orders
+before promoting anything**: here the reversed run was uniformly ~40% lower in level, which a single run would
+have published as a design fact. And **when a prediction falsifies, ask whose it was**: `K4` failed because it
+required `d6`'s insert ratio to be under half of `d1`'s while the primary's own measured value was 0.57x — the
+measurement reproduced the claim and my threshold was wrong, which is worth stating plainly rather than
+quietly widening the band afterwards.

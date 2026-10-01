@@ -13,8 +13,9 @@ the rest are named with their evidence status so a reader can tell the differenc
 queries. It compares variants inside one run and nothing else: it is not the throughput or the
 latency of any single query, and it must not be quoted across runs.
 
-Adding the query index was the first large read win in the charity tree (D2 indexed, 13.3x the
-minimal design's read score); flattening the foreign key reached 20.5x.
+Adding the query index was the first large read win in the charity tree (D2 indexed, about 10-11x the
+minimal design's read score in two whole runs, 13.3x in the first); flattening the foreign key reached
+about 14-16x (20.5x in the first).
 #registry-card("v2-01-normalized-index-first")
 
 #heading(level: 3, "Optimistic versus pessimistic concurrency")

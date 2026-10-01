@@ -32,12 +32,12 @@
   "claims": [
     {
       "claim_id": "v2-01-normalized-index-first",
-      "statement": "In the charity -> person -> donation tree, the first large read win is the query index: D2 indexed scores 13.3x D1 minimal's read score; flattening the foreign key instead (D3 flat+FK) reaches 20.5x.",
+      "statement": "In the charity -> person -> donation tree, the first large read win is the query index: D2 indexed scores about 10-11x D1 minimal's read score in two whole runs (13.3x in the first), and flattening the foreign key instead (D3 flat+FK) reaches about 14-16x (20.5x in the first). The orderings and the bands replicated in both design orders; the point figures were single-run levels.",
       "family": "normalized-facts",
       "study": "01-charity-tree",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 3,
         "fresh_load_trials_per_cell": 1,
         "inner_iterations": 1
       },
@@ -51,7 +51,8 @@
         "PostgreSQL 1 node and YugabyteDB 1/3 nodes in one run",
         "small scale",
         "a single measurement per configuration, not a repeat",
-        "read score is a blended measure, not one query"
+        "read score is a blended measure, not one query",
+        "the quoted point figures (13.3x, 20.5x) are the primary run's single levels: the whole-run replication of 2026-10-01 measured 9.7-15.5x for the same two relations while the absolute read scores moved 40-45% between its two runs, so the band and the ordering are what may be quoted, not the points"
       ],
       "anchors": [
         {
@@ -64,15 +65,37 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+yugabytedb-1node+yugabytedb-3node",
           "role": "primary"
+        },
+        {
+          "run_id": "20261001T112526Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T112526Z-t1",
+          "repo_commit": "9356884",
+          "inputs_digest": "f725ccae64c1fa76",
+          "report": "studies/01-charity-tree/reports/20261001T112526Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T121054Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T121054Z-t1",
+          "repo_commit": "9356884",
+          "inputs_digest": "39767ca6e590b357",
+          "report": "studies/01-charity-tree/reports/20261001T121054Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": 21,
-        "reported_failed": null,
+        "reported_cells": 37,
+        "reported_failed": 0,
         "source": "gate table rows in the report",
         "controls_present": 0,
         "controls_fired": 0,
-        "note": "The report is a pre-v3 artefact with no manifest; the producing run has no tag and no commit, so this claim is legacy_provenance_incomplete."
+        "note": "The primary run is the pre-v3 artefact with no tag and no commit; two whole runs on 2026-10-01 (20261001T112526Z-t1, 20261001T121054Z-t1), tagged run/01-charity-tree/<run-id> at commit 9356884 and with all 16 cells passing their gates, now carry this claim's replicated bands. Study 01's runner records neither repo_commit nor repo_dirty in its manifest, so those tags are the provenance."
       },
       "support": [
         {
@@ -115,20 +138,25 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 43.9,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "source": "studies/01-charity-tree/T1-READ-REPLICATION.md",
+        "verdict": "confirmed",
+        "text": "K1 (the orderings d3 > d2 > d6 > d1 and the rollup family above d2, in both runs), K2 and K3 (the stated ratio bands) and K5 (each ratio within a factor of 2 between runs, no >=1.5x pair swaps) were confirmed; K4 was falsified as stated, because it required d6's insert ratio to be below half of d1's, while the primary's own figure and this replication both put it near 0.57x."
       }
     },
     {
       "claim_id": "v2-02-rollup-family",
-      "statement": "Parent rollups win the aggregate read score (D4 rollup/trg 73.8x and D5 rollup/app 69.9x against D1 minimal) and pay for it on inserts (2.6k/s and 2.1k/s against 6.2k/s).",
+      "statement": "Parent rollups win the aggregate read score - D4 rollup/trg about 61-85x and D5 rollup/app about 64-83x D1 minimal in two whole runs (73.8x and 69.9x in the first) - and pay for it on inserts: about a third to two-fifths of D1's insert rate in the same two runs (2.6k/s and 2.1k/s against 6.2k/s in the first).",
       "family": "rollups-materialized",
       "study": "01-charity-tree",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 3,
         "fresh_load_trials_per_cell": 1,
         "inner_iterations": 1
       },
@@ -139,7 +167,8 @@
       "limits": [
         "one run of the experiment, a single measurement per configuration",
         "PostgreSQL 1 node numbers shown; YugabyteDB in the same report",
-        "the write cost is per-insert on a fresh load"
+        "the write cost is per-insert on a fresh load",
+        "the quoted rates (2.6k/s, 2.1k/s, 6.2k/s) are the primary run's levels: the 2026-10-01 replication measured D1 inserting at 6.1k/s and 4.9k/s with D4/D5 at 0.29-0.37x of it, so the read band and the write penalty ratio reproduce while the absolute rates do not"
       ],
       "anchors": [
         {
@@ -152,15 +181,37 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node",
           "role": "primary"
+        },
+        {
+          "run_id": "20261001T112526Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T112526Z-t1",
+          "repo_commit": "9356884",
+          "inputs_digest": "f725ccae64c1fa76",
+          "report": "studies/01-charity-tree/reports/20261001T112526Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T121054Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T121054Z-t1",
+          "repo_commit": "9356884",
+          "inputs_digest": "39767ca6e590b357",
+          "report": "studies/01-charity-tree/reports/20261001T121054Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": 21,
-        "reported_failed": null,
+        "reported_cells": 37,
+        "reported_failed": 0,
         "source": "gate table rows in the report",
         "controls_present": 0,
         "controls_fired": 0,
-        "note": "Same legacy run as v2-01."
+        "note": "The primary run is the pre-v3 artefact with no tag and no commit; two whole runs on 2026-10-01 (20261001T112526Z-t1, 20261001T121054Z-t1), tagged run/01-charity-tree/<run-id> at commit 9356884 and with all 16 cells passing their gates, now carry this claim's replicated bands. Study 01's runner records neither repo_commit nor repo_dirty in its manifest, so those tags are the provenance."
       },
       "support": [
         {
@@ -204,20 +255,25 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 32.1,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "source": "studies/01-charity-tree/T1-READ-REPLICATION.md",
+        "verdict": "confirmed",
+        "text": "K1 (the orderings d3 > d2 > d6 > d1 and the rollup family above d2, in both runs), K2 and K3 (the stated ratio bands) and K5 (each ratio within a factor of 2 between runs, no >=1.5x pair swaps) were confirmed; K4 was falsified as stated, because it required d6's insert ratio to be below half of d1's, while the primary's own figure and this replication both put it near 0.57x."
       }
     },
     {
       "claim_id": "v2-03-embedding-not-ahead",
-      "statement": "Embedding the donation child in the donor row (D6 embedded) never came out ahead of the normalized designs on reads: 2.4x D1 minimal's read score, below both indexed designs, with a 0.57x insert rate.",
+      "statement": "Embedding the donation child in the donor row (D6 embedded) never came out ahead of the normalized designs on reads: about 1.7-2.2x D1 minimal's read score in two whole runs (2.4x in the first), below both indexed designs, with about 0.57-0.60x D1's insert rate (0.57x in the first).",
       "family": "embedded-documents",
       "study": "01-charity-tree",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 3,
         "fresh_load_trials_per_cell": 1,
         "inner_iterations": 1
       },
@@ -227,7 +283,8 @@
       "confounds": [],
       "limits": [
         "one run, one trial",
-        "embedding here means a JSON/array child column, not a native document database"
+        "embedding here means a JSON/array child column, not a native document database",
+        "the band moved down on replication (1.7-2.2x against the quoted 2.4x) while staying below both indexed designs, so the finding is the ordering and the sub-multiple, not the 2.4x"
       ],
       "anchors": [
         {
@@ -240,15 +297,37 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node",
           "role": "primary"
+        },
+        {
+          "run_id": "20261001T112526Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T112526Z-t1",
+          "repo_commit": "9356884",
+          "inputs_digest": "f725ccae64c1fa76",
+          "report": "studies/01-charity-tree/reports/20261001T112526Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T121054Z-t1",
+          "run_tag": "run/01-charity-tree/20261001T121054Z-t1",
+          "repo_commit": "9356884",
+          "inputs_digest": "39767ca6e590b357",
+          "report": "studies/01-charity-tree/reports/20261001T121054Z-t1.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": 21,
-        "reported_failed": null,
+        "reported_cells": 37,
+        "reported_failed": 0,
         "source": "gate table rows in the report",
         "controls_present": 0,
         "controls_fired": 0,
-        "note": "Same legacy run as v2-01."
+        "note": "The primary run is the pre-v3 artefact with no tag and no commit; two whole runs on 2026-10-01 (20261001T112526Z-t1, 20261001T121054Z-t1), tagged run/01-charity-tree/<run-id> at commit 9356884 and with all 16 cells passing their gates, now carry this claim's replicated bands. Study 01's runner records neither repo_commit nor repo_dirty in its manifest, so those tags are the provenance."
       },
       "support": [
         {
@@ -280,10 +359,15 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 31.8,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "source": "studies/01-charity-tree/T1-READ-REPLICATION.md",
+        "verdict": "confirmed",
+        "text": "K1 (the orderings d3 > d2 > d6 > d1 and the rollup family above d2, in both runs), K2 and K3 (the stated ratio bands) and K5 (each ratio within a factor of 2 between runs, no >=1.5x pair swaps) were confirmed; K4 was falsified as stated, because it required d6's insert ratio to be below half of d1's, while the primary's own figure and this replication both put it near 0.57x."
       }
     },
     {

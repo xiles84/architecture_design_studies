@@ -666,6 +666,20 @@ as a ranking. **`c1_count_naive` carries a 40% position term** (first of order A
 its `q01` level is not quotable from these runs. `q05`'s structure separation reproduces within one session at
 3.4–3.9x. The three read-hazard limits now carry the joint run and the quoting rules. Analysis
 `studies/02-ticket-booking/reports/analyses/20261001T-read-all15--deepseek-flash--2026-10-01.md`.
+
+**Study 01 T1 replication (2026-10-01, runs `20261001T1125*`/`20261001T1210*`, tag
+`study-01/t1-read-replication`).** The three oldest claims — `v2-01`, `v2-02`, `v2-03`, all
+`single_run_directional` from one 2026-09-12 run — were re-run as **two whole runs in reversed design order**
+at the primary's own settings (`pg-single`, scale small, 10 s per op, the same eight designs). Every ordering
+reproduced (`d3 > d2 > d6 > d1`; the rollup family far above `d2`) and every ratio held within 1.4x between the
+runs, while absolute read scores moved 40-45% — so the claims were **re-scoped to bands** (`d2`/`d1` 10-11x
+against the quoted 13.3x; `d3`/`d1` 14-16x against 20.5x; `d4`/`d5` 61-85x against 73.8x/69.9x; `d6` 1.7-2.2x
+against 2.4x) and promoted to **`run_replicated`** with the two runs as anchors; the book sentence quoting them
+was re-scoped too. Two predictions were falsified, both mine rather than the claims' (`K4`'s `d6` threshold
+contradicted the primary's own 0.57x). **Study 01's runner records no `repo_commit`/`repo_dirty`**, so the runs
+carry a manually created tag at commit `9356884` — a named harness weakness. The YB arms stay unreplicated
+(2 GiB machine). Analysis
+`studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md`.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**

@@ -251,6 +251,19 @@ index score, Study 05's cache reads and `v2-11`'s YugabyteDB map, none from this
 `v2-07` gains the two `x1` runs as corroborating anchors for its refund-answer result, which reproduces at
 32,164 / 32,362 ops/s against the primary's 30.3k/33.0k.
 
+**Study 01's three oldest claims, replicated (2026-10-01, runs `20261001T1125*`/`20261001T1210*`, tag
+`study-01/t1-read-replication`).** `v2-01`, `v2-02` and `v2-03` were `single_run_directional` from one
+2026-09-12 run with a single measurement per configuration. Two whole runs of that run's own configuration
+(scale `small`, 10 s per op, the same eight designs) in **reversed design order** reproduce every ordering they
+assert — `d3 > d2 > d6 > d1`, and the rollup family far above `d2` — while the **point figures moved**: `d2`/`d1`
+10.6x and 9.7x against the quoted 13.3x, `d3`/`d1` 13.7x and 15.5x against 20.5x, `d4`/`d5` 61–85x against
+73.8x/69.9x, `d6` 1.7–2.2x against 2.4x. Every ratio stayed within 1.4x between the runs while the absolute
+read scores moved 40–45%, so the three statements were **re-scoped to the replicated bands**, promoted to
+`run_replicated` and given the two runs as anchors; the book's one sentence quoting them was re-scoped too.
+The two runs' provenance is a **manually created** tag: Study 01's runner records neither `repo_commit` nor
+`repo_dirty` in its manifest, which is a named weakness of the older harness rather than a property of the
+claims. The primary's `yb-single`/`yb-cluster3` arms remain unreplicated on the fixed 2 GiB machine.
+
 **All fifteen in one session, and the reading that changed (2026-10-01).** The joint run
 (20261001T100948Z/20261001T103931Z, tag `study-02/read-all15`) closed the "complete per design, not jointly"
 caveat: 0 throttled periods in 30 read phases, all 270 cells store-bound at 2.00 operations in flight by the
