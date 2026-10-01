@@ -2246,3 +2246,14 @@ have published as a design fact. And **when a prediction falsifies, ask whose it
 required `d6`'s insert ratio to be under half of `d1`'s while the primary's own measured value was 0.57x — the
 measurement reproduced the claim and my threshold was wrong, which is worth stating plainly rather than
 quietly widening the band afterwards.
+
+### The queue's publish path is HIGH-only, containerised and strict about timestamps
+Three things cost time on 2026-10-01 publishing the five T1 tasks. **`queue publish` is capability-gated**:
+a LOW session gets "only a HIGH session publishes or releases tasks", so a LOW worker that plans replication
+work can write the protocol but not the task record — plan for the handover rather than discovering it at the
+end. **The CLI runs in a container with only the repository mounted**, so `--spec` and `--brief` must point at
+paths *inside the repo*; a spec staged in `/tmp` fails with "no such file or directory" even though the file is
+plainly there on the host. **`created_at` and `not_before` must be full RFC3339** (`2026-10-01T13:37:59Z`), not
+the compact `20261001T133759Z` form the run ids and task ids use — the id keeps the compact form while the
+timestamp field rejects it. All three are cheap to satisfy once known, and none is discoverable from
+`queue --help`.

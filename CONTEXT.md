@@ -680,6 +680,19 @@ contradicted the primary's own 0.57x). **Study 01's runner records no `repo_comm
 carry a manually created tag at commit `9356884` — a named harness weakness. The YB arms stay unreplicated
 (2 GiB machine). Analysis
 `studies/01-charity-tree/reports/analyses/20261001T-t1-read-replication--deepseek-flash--2026-10-01.md`.
+
+**T1–T5 published (2026-10-01, HIGH).** A LOW session cannot publish — `queue publish` refuses any session that
+is not HIGH — so the five T1 replication tasks were written by a HIGH session and published **ready**, one per
+study whose claims are still `single_run_directional`:
+`task-20261001T133759Z-t1-study01-replication` (v2-04, v2-05) · `…-t2-study02-replication` (v2-07 and a survey
+of what the fixed machine can carry) · `…-t3-study03-replication` (v2-10, with a mandated feasibility check and
+a coverage gap instead of a partial run if it does not fit) · `…-t4-study04-replication` (v2-12, v2-17, which
+also carries the owner's optimistic/pessimistic requirement) · `…-t5-study05-replication` (the cache, churn,
+strict/relaxed and colocation claims, which also carries the colocated/non-colocated requirement). Each is
+`minimum_capability: LOW`, `work_role: executor`, and carries the same acceptance shape: a protocol with
+predictions committed before any run, ≥2 whole runs in reversed order, honest scoring, promotion or a limit
+naming what did not reproduce, book prose re-scoped, and a merged, tagged result. The queue now dispatches
+`t1-study01-replication` as the next eligible LOW task.
 → [Study](studies/02-ticket-booking/) · [reports](studies/02-ticket-booking/reports/) · [REPORTS.md](studies/02-ticket-booking/REPORTS.md)
 
 ### Study 03 — reserved seating — **complete and HIGH-validated**
