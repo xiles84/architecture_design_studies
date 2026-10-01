@@ -10,8 +10,8 @@
 |---|---|
 | Preview PDF | `book/dist/edition3-pilot.pdf` (**untracked**, in this worktree) |
 | Preview manifest | `book/dist/edition3-pilot-manifest.json` (**untracked**) |
-| Total pages | **92** |
-| New pages | **p. 3** How to use this book (1 page) · **pp. 9–11** chapter 4 Rollup (3 pages, part I opener on p. 8) · **p. 15** Study 04 profile (1 page) · Edition 2 divider starts **p. 16** |
+| Total pages | **90** (after the review fixes in section 6) |
+| New pages | **p. 3** How to use this book (1 page) · **pp. 8–9** chapter 4 Rollup (2 pages, part I opener on p. 7) · **p. 13** Study 04 profile (1 page) · Edition 2 divider starts **p. 14** |
 | Build | `book/build.sh --out dist/edition3-pilot.pdf --manifest dist/edition3-pilot-manifest.json` |
 | Open it | `xdg-open book/dist/edition3-pilot.pdf`, or copy the file out of the worktree; the text layer can be read with `pdftotext -layout` inside the pinned image |
 
@@ -46,14 +46,14 @@ check: OK
 ```
 
 **2.3 Badges link to the card and print its page.** Rendered on chapter 4's case-box page: 
-`v2-02-rollup-family · replicated · card, p. 84`, `v2-13-trigger-rollup-cost · replicated · card, p. 85`,
+`v2-02-rollup-family · replicated · card, p. 82`, `v2-13-trigger-rollup-cost · replicated · card, p. 83`,
 `v2-18-maintenance-size-interaction · replicated · card, …`, `v2-gap-03-study04-missing-designs · gap ·
-coverage gap · card, p. 82`. The link targets are the labelled cards in `evidence-index()`.
+coverage gap · card, p. 80`. The link targets are the labelled cards in `evidence-index()`.
 
 **2.4 Chapter 4 follows the template and cites its four claims (acceptance 2).** Ten sections in order:
 opener (25-word key idea), the problem, the figure (`assets/fig-rollup-vs-rolldown.svg`, reused, with a text
 equivalent), five "how it works" bullets, a 3×4 fit table, the five-row cost table, two case boxes, a gap
-callout, three remember bullets, the checklist with its eight rows. Pages **9–11**.
+callout, three remember bullets, the checklist with its eight rows. Pages **8–9**.
 
 **2.5 Numbers in the new pages, and the claim each appears in (acceptance 4).** Copied as written; no value
 a claim says did not reproduce is quoted (in particular **6.85x is absent**).
@@ -75,8 +75,9 @@ in the profile bullets above. Paragraph limits were checked mechanically over th
 paragraph over 60 words or 3 sentences** (the one reported hit is a Typst code block in the front page that
 the checker mistook for prose).
 
-**2.6 The front page is one page, the profile is one page (acceptance 3).** p. 3 and p. 15, confirmed by the
-page map above.
+**2.6 The front page is one page, the profile is one page (acceptance 3).** p. 3 and p. 13, confirmed by the
+page map above. The first build failed this: the front page ran to a second page, found in review and fixed
+(section 6).
 
 **2.7 The build verifies (acceptance 5).** 31/31 claims indexed, 6/6 fonts, no banner, checker OK.
 
@@ -114,3 +115,22 @@ carries its numbers beside its badges — a style judgement the owner may revers
   chapter-specific one.
 - No owner review of the *look* has happened yet: colours, spacing and the verdict tag are my choices within
   STYLE.md, and the brief says those are decide-and-continue rather than escalate.
+
+## 6. What the HIGH review found, and the fixes
+
+The review was not a source read: the pages were rendered and looked at. Four defects came out of that, all
+fixed in the same branch (commit `6b6dd6d`), and all verified by re-rendering.
+
+| # | defect | why it mattered | fix |
+|---|---|---|---|
+| 1 | level-2 headings printed **0.5 How it works**, **0.10 The business** … in all three new files | the chapters' level-1 heading is unnumbered, so the shared counter stayed at zero and every section was numbered under a chapter that has no number | `#set heading(numbering: none)` in the three new files; the chapter number lives in its opener |
+| 2 | the verdict tag rendered **`FITS,`** / **`DEPENDS,`** | a stray comma inside a content block, visible on every case box | removed; the tags now read `FITS`, `DEPENDS` |
+| 3 | "How to use this book" **overflowed onto a second page** | acceptance 3 requires one page; the spill was only the studies table's last row and the closing line | intro, badge paragraph, rules list and studies table tightened; the table's inset reduced; now one page |
+| 4 | chapter 4's checklist **split after seven rows**, leaving the eighth alone on a page | the checklist is the chapter's frame, and an orphaned row reads as an afterthought | the heading, intro and table are one unbreakable group; the chapter is now a clean 2 pages |
+
+One more, found while fixing 1: the **`CHAPTER 4` eyebrow was on the wrong page**, because a level-1 heading
+breaks the page first and the eyebrow was emitted before it. It is now emitted after the heading, under the
+rule, where it reads as the chapter's label without touching the contents entry.
+
+**Effect:** 90 pages instead of 92; front page p. 3, chapter 4 pp. 8–9, profile p. 13. The badge page numbers
+in section 2.3 were updated to the corrected build (p. 82, p. 83, p. 80).

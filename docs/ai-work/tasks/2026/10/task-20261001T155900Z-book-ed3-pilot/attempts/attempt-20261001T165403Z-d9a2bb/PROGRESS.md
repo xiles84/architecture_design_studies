@@ -63,3 +63,25 @@ the new chapter has its `CHECKLIST.md` row; a waiver would hide a real rule. *Co
 - `book/STYLE.md`, `book/evidence/v*` and every report/analysis are untouched, as the brief requires.
 - The tracked Edition 2 release artefact (`dist/data-architecture-reference.pdf`) was **not** rebuilt: the
   pilot is a separate output, and rebuilding the release artefact is phase 3 of the rollout.
+
+**D10 — the chapter eyebrow is emitted after the heading, not before.** *Why:* `page-setup` breaks the page
+before a level-1 heading, so an eyebrow emitted before it landed on the previous page (the "CHAPTER 4" label
+was on the part-opener page). *Alternative:* put the eyebrow inside the heading content, which would have put
+"CHAPTER 4" into the contents entry. *Confidence:* high. *Affects:* `lib/config.typ`, every concept opener.
+
+**D11 — `set heading(numbering: none)` in each Edition 3 file, rather than a numbering override on every
+heading.** *Why:* the first build printed sections as `0.5`, `0.10` because the unnumbered level-1 heading
+leaves the level-2 counter at zero; a file-level set fixes all of them at once and leaves the Edition 2
+chapters numbered as before. *Alternative:* `numbering: none` on each heading — more edits, and the checklist
+heading's literal form is required by `check.sh`, so editing it would have broken a build gate. *Confidence:*
+high. *Affects:* the three new files.
+
+**D12 — the checklist section is one unbreakable group.** *Why:* the table split after seven rows and left the
+eighth alone on a page. *Alternative:* shrink the table until it fits — brittle, and it would re-break at the
+next wording change. *Confidence:* high. *Affects:* `concepts/rollup.typ`.
+
+**D13 — the front page was trimmed rather than allowed to run to two pages.** *Why:* acceptance 3 says one
+page, and the owner is being asked to approve a *style*: a front page that spills its last table row is
+exactly the kind of thing that reads as unfinished. *Confidence:* medium — the trimming removed some
+explanation the owner may want back, in which case the page needs a different structure, not more text.
+*Affects:* `front/how-to-use.typ`.
