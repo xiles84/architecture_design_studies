@@ -109,6 +109,7 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// are not quotable. Their statements, confounds and anchors are untouched.
 	changed := map[string]bool{
 		"v2-13-trigger-rollup-cost":                 true,
+		"v2-10-guarded-confirm-refusals":            true,
 		"v2-07-refund-answerability-and-storage":    true,
 		"v2-04-recency-maintained-index":            true,
 		"v2-05-d3-read-advantage-repeated":          true,
@@ -128,7 +129,6 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// nor a re-scoping can pass as a silent edit.
 	reworded := map[string]bool{
 		"v2-06-hot-drop-designs":                   true,
-		"v2-10-guarded-confirm-refusals":           true,
 		"v2-13-trigger-rollup-cost":                true,
 		"v2-14-cache-throughput-gain":              true,
 		"v2-15-three-instance-staleness":           true,

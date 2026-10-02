@@ -9,7 +9,9 @@ being philosophical: the sweeper, the application clock and the database all dis
 and the design must say who is allowed to decide.
 
 #heading(level: 2, "What the corpus shows")
-YugabyteDB refused valid hold confirmations under a guarded design, and retrying the refused
+YugabyteDB refused valid hold confirmations under a guarded design — every refusal of that kind was
+*transient*, meaning the identical statement re-issued inside the refusing transaction matched every
+seat — and retrying the refused
 statement once removed every refusal at no measurable cost. The practical lesson is smaller than it
 sounds: an expiry design needs a retry story, because the mechanism can refuse a correct write.
 

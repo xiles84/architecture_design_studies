@@ -429,6 +429,10 @@ summary, not a second ledger.
   environment change: runs before and after are not comparable, and the change must be recorded as such.
   Consequences: study 07's 3-node topology cannot be attempted here at all, and every published run's
   declared envelope carries this gap.
+  **Scope refined 2026-10-02 (t3):** the blocker is a **multi-node** limit. A single-node YugabyteDB arm
+  starts, runs and completes cleanly here — `20261002T150337Z-feas` on `yb-single` did, which is what made the
+  `v2-10` replication possible — so `yb-cluster3` and study 07's three-node topology remain unmeasurable while
+  `yb-single` does not. Every published YB run before this date still carries the declared-envelope gap.
 - **Study 03's replication history, corrected (passes `study-03/v2-11-replication`, `…-order-reversed`;
   both superseded by `study-03/v2-11-memory-envelope` and then `study-03/close-out`).** An earlier version of
   this bullet said neither pass registered, which was true when written and is not true now: `v2-11` is

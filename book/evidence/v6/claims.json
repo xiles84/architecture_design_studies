@@ -1462,12 +1462,12 @@
     },
     {
       "claim_id": "v2-10-guarded-confirm-refusals",
-      "statement": "On YugabyteDB a guarded confirmation is not enough: correct designs refused valid holds, and retrying the refused statement once removed every refusal; on PostgreSQL the guarantee held everywhere. This claim is about refusals, not throughput, so no cost conclusion follows from it.",
+      "statement": "On YugabyteDB a guarded confirmation is not enough, but the refusals are spurious rather than a design fault: at the 10,000-seat tier the correct designs refused valid holds (s1_conditional_update 2 refusals in one whole run and 3 in the reversed run, s2_lock_then_update 1 in each), and every refusal is classified transient - the identical statement re-issued inside the refusing transaction matched every seat - while the retry-once variant s1r_confirm_retry refused nothing and every retry it made succeeded (5 across the forward run). On PostgreSQL the same three designs refused nothing at any of five tiers from 10 to 100,000 seats in two whole runs, so the guarantee held everywhere there. The study's negative control s0_check_then_hold_rc refused at every tier on both engines and stole 474-599 holds per tier on YugabyteDB and 1,168-6,231 on PostgreSQL, so the audit detects both the spurious refusal and the real theft. This claim is about refusals, not throughput, and no cost conclusion follows from it.",
       "family": "normalized-facts",
       "study": "03-reserved-seating",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 3,
         "fresh_load_trials_per_cell": 1,
         "inner_iterations": 1
       },
@@ -1478,7 +1478,12 @@
       "limits": [
         "v1 matrix run, a single measurement per configuration",
         "the claim is about refusals, not throughput",
-        "retry-once is a design variant (S1r), not a tuning flag"
+        "retry-once is a design variant (S1r), not a tuning flag",
+        "the replicated refusals are few and tier-bound: 2, 3 and 1 refusal events in the correct designs across two whole runs, all at the 10,000-seat tier except s2's single 1,000-seat refusal in the reversed order, so the claim is that refusals happen and are transient - not a rate, and not a tier law",
+        "the YugabyteDB arm measured four tiers (10 to 10,000 seats) while the PostgreSQL control measured five (10 to 100,000), because that is how the study configures its tiers per engine; 'the guarantee held everywhere' therefore means everywhere the PostgreSQL arm ran",
+        "the refusals are the harness's own classification of its own designs, and the transient sub-class is decided by re-issuing the statement inside the refusing transaction (AM-01), so this replicates the mechanism and its detection, not an independent definition of a valid hold",
+        "the 2 GiB podman-machine blocker recorded in CONTEXT.md is a multi-node limit: a single-node YugabyteDB arm fits and completes here, which is what makes this replication possible, while yb-cluster3 remains unmeasurable on this machine",
+        "the spread figure is the refusal count's own movement, not a throughput spread: s1_conditional_update refused 2 times in the forward run and 3 in the reversed one, so the count moves 40% across the two runs and the phenomenon is established, not quantified"
       ],
       "anchors": [
         {
@@ -1491,15 +1496,59 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+yugabytedb-1node+yugabytedb-3node",
           "role": "primary"
+        },
+        {
+          "run_id": "20261002T150903Z-t1yb",
+          "run_tag": "run/03-reserved-seating/20261002T150903Z-t1yb",
+          "report": "studies/03-reserved-seating/reports/20261002T150903Z-t1yb.md",
+          "analysis": "studies/03-reserved-seating/reports/analyses/20261002T-t1-refusal-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "repo_commit": "0d57e6ef",
+          "inputs_digest": "5603bdaa1e6045cb",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T152604Z-t1yb",
+          "run_tag": "run/03-reserved-seating/20261002T152604Z-t1yb",
+          "report": "studies/03-reserved-seating/reports/20261002T152604Z-t1yb.md",
+          "analysis": "studies/03-reserved-seating/reports/analyses/20261002T-t1-refusal-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "repo_commit": "0d57e6ef",
+          "inputs_digest": "f4e6b822c66767c2",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T154340Z-t1pg",
+          "run_tag": "run/03-reserved-seating/20261002T154340Z-t1pg",
+          "report": "studies/03-reserved-seating/reports/20261002T154340Z-t1pg.md",
+          "analysis": "studies/03-reserved-seating/reports/analyses/20261002T-t1-refusal-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "repo_commit": "0d57e6ef",
+          "inputs_digest": "a6759a618001f494",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T155134Z-t1pg",
+          "run_tag": "run/03-reserved-seating/20261002T155134Z-t1pg",
+          "report": "studies/03-reserved-seating/reports/20261002T155134Z-t1pg.md",
+          "analysis": "studies/03-reserved-seating/reports/analyses/20261002T-t1-refusal-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "repo_commit": "0d57e6ef",
+          "inputs_digest": "aaa426d437c3c060",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": null,
-        "reported_failed": null,
+        "reported_cells": 16,
+        "reported_failed": 0,
         "source": "report gate table",
         "controls_present": 3,
         "controls_fired": 3,
-        "note": "S0, E0 and K0 are the deliberate wrong controls and all fired in this run."
+        "note": "The primary is 20260915T002411Z (a v1 matrix run). Four whole runs on 2026-10-02 carry the replication: two on yb-single (20261002T150903Z-t1yb forward, 20261002T152604Z-t1yb reversed) and two on pg-single as the control (20261002T154340Z-t1pg, 20261002T155134Z-t1pg), each with four designs at scale small and phases verify,race, tagged run/03-reserved-seating/<run-id>. A tiny-scale feasibility run (20261002T150337Z-feas) preceded them and is labelled a pre-check."
       },
       "support": [
         {
@@ -1542,10 +1591,15 @@
       },
       "control_coverage": "present",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 40.0,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "N1, N2, N5 and N6 were confirmed: correct designs refused valid confirms on YugabyteDB in both orders, every refusal was classified transient, every retry succeeded, the correct designs were clean on both engines and the declared negative control fired on both, and the refusals appeared in both design orders. N3 was confirmed for the three correct designs (zero refusals, retries and correctness failures on PostgreSQL at all five tiers in both runs) and falsified as literally written, because I forgot that the study's negative control is supposed to refuse. N4 was falsified as stated: the correct designs' refusals do concentrate at the largest tier in the forward run, but the reversed run put s2's single refusal at the 1,000-seat tier while its 10,000-seat cell refused nothing, and a refusal at a smaller tier is exactly N4's stated falsifier.",
+        "source": "studies/03-reserved-seating/T1-REFUSAL-REPLICATION.md",
+        "verdict": "falsified"
       }
     },
     {

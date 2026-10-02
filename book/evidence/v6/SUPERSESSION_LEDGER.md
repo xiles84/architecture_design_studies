@@ -302,6 +302,21 @@ reading of a page layout rather than a constant of the schema. The runner phase 
 evidence was used: `report_coverage` is emitted inside the **read** phase, not by the load, so the first
 `verify`-only pair is a labelled pre-check and only the `verify,read` pair carries the answerability half.
 
+**Study 03's last single-run claim replicated — and the machine record corrected (2026-10-02, tag
+`study-03/t1-replication`).** `v2-10` is now `run_replicated`. Its assertion is about **refusals**, and the
+replication sharpened it: on `yb-single` the correct guarded designs refused valid holds (s1 two refusals in
+one whole run and three in the reversed run, s2 one in each) and **every refusal was classified `transient`** —
+the identical statement re-issued inside the refusing transaction matched every seat — while the retry variant
+`s1r_confirm_retry` refused nothing and every retry it made succeeded. On PostgreSQL the same three designs
+refused nothing at any of five tiers from 10 to 100,000 seats in two whole runs, and the study's declared
+negative control refused at every tier on **both** engines and stole holds on both (474-599 per tier on
+YugabyteDB, 1,168-6,231 on PostgreSQL), so the silence on PostgreSQL is evidence rather than a quieter
+instrument. **The run also corrected the machine record**: the 2 GiB podman-machine blocker is a *multi-node*
+limit, because a single-node YugabyteDB arm starts and completes cleanly here; `yb-cluster3` stays
+unmeasurable, and the two anchors of this claim are the first YB runs the corpus has added since the blocker
+was written. Two of the tranche's own predictions were falsified and are recorded as such (N3 forgot that the
+negative control must refuse on PostgreSQL too; N4's "largest tier" rule failed in the reversed order).
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,
