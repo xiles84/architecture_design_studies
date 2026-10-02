@@ -2349,5 +2349,8 @@ consequences worth planning for. **Heartbeat during anything long**: the queue h
 worker that will spend an hour in a benchmark should call it rather than discover the expiry afterwards. And
 **the expiry is not an emergency**: recovery is idempotent-ish, the work in the tree is untouched, and the
 recovered attempt simply needs the RESULT.md copied forward so the reviewer finds it under the attempt the
-queue now considers active.
+queue now considers active. One wart to know about: because the submit then raced a compare-and-swap on the
+live claim ref, the ref kept the pre-submit event and `queue audit` now reports one `live_ref_drift` warning
+for that task. It is cosmetic — the committed event record is right, the task is `awaiting_review` — and it
+clears when the task is completed, but a worker who sees it should say so rather than try to hand-edit the ref.
 
