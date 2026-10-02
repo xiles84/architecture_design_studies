@@ -2339,3 +2339,15 @@ for every claim that quotes storage: **name the rule** (which relation kinds are
 tighter figure than about a percentage point per run** unless the comparison was made on a vacuumed database,
 which is a different measurement.
 
+### A long run outlives the claim lease unless you heartbeat
+The t2 replication's read phase took **59 minutes**, and the task's claim lease is two hours from the moment of
+claiming — but the work before the run (recon, the protocol, a first wasted run pair) had already used part of
+it, so the lease expired mid-run. The next queue command then failed with *"lease expired; run `queue recover`"*,
+and the queue's recovery is deliberately two-step: the first `recover` marks the claim `recovery_pending` and
+sets a grace window, and only a **second** `recover` after that window actually reopens the task. Two
+consequences worth planning for. **Heartbeat during anything long**: the queue has a `heartbeat` command, and a
+worker that will spend an hour in a benchmark should call it rather than discover the expiry afterwards. And
+**the expiry is not an emergency**: recovery is idempotent-ish, the work in the tree is untouched, and the
+recovered attempt simply needs the RESULT.md copied forward so the reviewer finds it under the attempt the
+queue now considers active.
+
