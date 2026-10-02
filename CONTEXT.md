@@ -46,8 +46,10 @@ summary, not a second ledger.
   Scope extends Study 01's existing relational domain and preserves Edition 3's pilot gate;
   priority remains below the existing T1 workers. Task ids start `task-20261002T131729Z-select-`.
   Publication is planning only: no new measured numbers or book claims. First downstream
-  action is HIGH `select-protocol`; milestone `repo/select-query-task-program-v1` is the
-  required publication/integration tag. Queue state remains authoritative.
+  action is HIGH `select-protocol`. The publication's local-main integration is recorded
+  by [its queue receipt](docs/ai-work/tasks/2026/10/task-20261002T131729Z-select-query-task-publication/STATUS.md)
+  and annotated milestone `repo/select-query-task-program-v1`; only this publication is
+  complete, while the eight scientific/book tasks remain queued. Queue state remains authoritative.
 
 - Goal: [`goal-20260922T025912Z-data-architecture-book`](docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/GOAL.md)
   — an evidence-backed data-architecture book built with Typst in Podman, with every claim traceable
