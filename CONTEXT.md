@@ -687,6 +687,7 @@ as a ranking. **`c1_count_naive` carries a 40% position term** (first of order A
 its `q01` level is not quotable from these runs. `q05`'s structure separation reproduces within one session at
 3.4–3.9x. The three read-hazard limits now carry the joint run and the quoting rules. Analysis
 `studies/02-ticket-booking/reports/analyses/20261001T-read-all15--deepseek-flash--2026-10-01.md`.
+All six predictions were confirmed; the first/last position warning above remains applicable.
 
 **Study 01 T1 replication (2026-10-01, runs `20261001T1125*`/`20261001T1210*`, tag
 `study-01/t1-read-replication`).** The three oldest claims — `v2-01`, `v2-02`, `v2-03`, all
@@ -723,8 +724,8 @@ disagreed because it matched query names by prefix and swept in the `q08@largest
 variants — the worker was right and the reviewer was wrong, so the run's own `cells.tsv` is the authority for
 what a score contains. `queue integrate` could not run because the canonical branch had been renamed mid-task
 to stop a branch/tag name clash; the branch was restored at the merged commit.
-`…-t2-study02-replication` was claimed and then **yielded unstarted** when the concurrent HIGH session published
-the higher-priority Edition 3 pilot; `t2`–`t5` are `ready`.
+`…-t2-study02-replication` was initially claimed and then **yielded unstarted** for the higher-priority
+Edition 3 pilot; it later completed with HIGH review as recorded below. `t3`–`t5` remain `ready`.
 `task-20261001T155900Z-book-ed3-pilot` is **approved_for_integration**, with integration deliberately deferred
 to the owner's approval of the preview style as its brief requires. The review rendered the pages and found five
 defects no source check could see (headings numbered `0.x`, a stray comma in the verdict tag, the front page
@@ -761,8 +762,6 @@ records the *prediction's* verdict and not the *claim's*, so a reader scanning s
 a contradiction the registry has no field to explain; and the queue has no way to reap the live slot ref of a
 completed task, so `queue audit` keeps reporting `expired_lease` and `live_ref_drift` for
 `task-20261001T133759Z-t2-study02-replication` after its completion — a tooling gap, not project state.
-one order, last of the other) and its `q01` level should not be quoted from these runs. All six predictions
-confirmed.
 
 **Study 01's last two claims replicated, and a runner defect (2026-10-01, runs `20261001T1444*`/`20261001T1459*`,
 tag `study-01/t1-remaining`).** `v2-04` and `v2-05` are now `run_replicated`. `v2-05`'s `d3`-over-`d2` read

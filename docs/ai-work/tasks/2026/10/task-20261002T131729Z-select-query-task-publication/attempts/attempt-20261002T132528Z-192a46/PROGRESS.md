@@ -26,6 +26,16 @@ Normal submit releases the owned live ref. Brainstorm audit: 3 records, 0 errors
 Dependency/uniqueness/role/link and scoped-diff checks passed. The read-only diagnostic
 container that displayed line-ending noise was stopped; it was owned by this task.
 
+## Concurrent integration reconciliation
+
+The peer's Study 02 review/completion and context update advanced main after the first
+integration snapshot. The queue refused that merge and released its lock; no peer files
+were discarded. Integrated ad727c5 into this owned branch and preserved its signed review,
+registry edits, immutable events and two tooling observations. Reconciled the stale T2-ready
+sentence with its completed state. Moved the orphaned read-all15 prediction sentence back
+to that result after verifying J1-J6 in its signed analysis; retained the first/last position
+warning already stated there. This changes living status only, not another analyst's file.
+
 ## Routing
 
 Task publication finishes with local-main integration; downstream execution remains queued.
