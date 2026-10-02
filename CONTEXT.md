@@ -748,6 +748,19 @@ carries the load's free space. Analysis
 The task's survey ranks what remains measurable on the fixed 2 GiB machine: `v2-08`'s PostgreSQL refund and
 organiser-edit arms first, then `v2-09`'s buyer×tier surface; the `yb-cluster3` and `v2-11` YugabyteDB arms
 **do not fit** and stay recorded as coverage gaps.
+
+**T2 completed and reviewed (2026-10-02, HIGH).** The HIGH review re-derived every number independently: `r05`
+unanswerable in 14 of 15 designs with `x1_cas_ledger` the only design answering it, `r01`/`r03` partial in the
+same 14, tables-only storage +33.4%/+34.8% (primary 35.2%), all relations +35.0%/+35.9% (primary 36.2%), and
+the index-only figure +37.4% to +37.9% across the five runs. That last one was quoted as a point (37.7%) in the
+submitted statement, which undercut the claim's own band thesis; the review tightened it to the band. `v2-07`
+is `run_replicated` on `main` at `fed5a06` (merge state `35877d8`), tags `study-02-t1-remaining-v1` and
+`study-02/v2-07-answerability-replication` unchanged on it. **Two registry observations for the next
+revision:** two `run_replicated` claims (`v2-04`, `v2-07`) now carry `verdict: falsified` because the corpus
+records the *prediction's* verdict and not the *claim's*, so a reader scanning strengths against verdicts sees
+a contradiction the registry has no field to explain; and the queue has no way to reap the live slot ref of a
+completed task, so `queue audit` keeps reporting `expired_lease` and `live_ref_drift` for
+`task-20261001T133759Z-t2-study02-replication` after its completion — a tooling gap, not project state.
 one order, last of the other) and its `q01` level should not be quoted from these runs. All six predictions
 confirmed.
 
