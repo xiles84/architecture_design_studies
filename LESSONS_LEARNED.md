@@ -2386,3 +2386,33 @@ recording "not measurable on this machine", name the topology it binds and try t
 would answer the question. The same check carried the opposite risk — the pre-check reproduced the claim's
 mechanism, which is why the tranche could be planned as a real replication rather than a coverage-gap note.
 
+## A design-order control that was not one (2026-10-02)
+
+### "Both design orders" means the executed order, not the seed
+Study 04's runner shuffles the design list per run from `--order-seed`, and eight runs with eight different
+seeds were taken as "both design orders". Every one of them executed `c2_pessimistic_lock` before
+`c1_optimistic_version`. A seed does not reverse a *pair* — the seed sets a permutation of the whole list,
+and the pair's relative order is an outcome, not an input. **Read the control from the executed order** (the
+manifest's `design_order_<topology>` line, which the runner writes from the list it actually loops over) and
+verify the pair order before analysing; if it never reversed, the tranche has a fixed order and its
+"reversed pass" is a second session, not a second order. Here the fixed order also produced the wrong
+finding: an outlier was attributed to design order when both "orders" had the same executed order.
+
+### An outlier is not an order effect until the order actually differs
+The same tranche's 1-writer anomaly read as an order effect for a day: 0.94x in one order and 3.85x in the
+other. The measured difference was not the order — `c1` itself read 306 ops/s in one run against 1,286 in
+another run with the *same* design order, and the client and database cgroup counters recorded no
+throttling. The added reversed-order runs put that level at 0.905x and 0.948x. **Before naming a mechanism
+for a difference, verify the treatment actually differed, and prefer a new control to an explanation.** The
+outlier is still reported and still scored; what changed is that it is called unexplained.
+
+### A negative control can be structurally not applicable at a sweep's boundary
+`x1_lost_update_control` lost 93.7% of acknowledged updates at 16 writers and 50.0% at 2, but it *cannot*
+lose one at 1 writer, where no concurrent overwrite exists. The study's correctness gate treats a
+non-firing declared control as a cell failure (methodology 5a) and so failed three 1-writer runs. The gate
+is right; the protocol was wrong to include the control at a level where it cannot fire. **A protocol that
+sweeps a level axis must either exclude a negative control from the levels where its invariant cannot
+break, or declare that cell not-applicable**; otherwise a correct gate reports expected physics as a
+failed run and a reader may mistake it for a defect in the design under test.
+
+

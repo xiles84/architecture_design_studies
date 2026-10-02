@@ -109,6 +109,7 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// are not quotable. Their statements, confounds and anchors are untouched.
 	changed := map[string]bool{
 		"v2-13-trigger-rollup-cost":                 true,
+		"v2-12-lock-vs-version-upper-bound":         true,
 		"v2-10-guarded-confirm-refusals":            true,
 		"v2-07-refund-answerability-and-storage":    true,
 		"v2-04-recency-maintained-index":            true,

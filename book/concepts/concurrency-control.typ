@@ -10,9 +10,9 @@ the same invariant; they differ in where contention is paid and what the failure
 #heading(level: 2, "Optimistic (version-checked)")
 The writer reads, checks that the version is unchanged, writes conditionally, and retries on a
 mismatch. Under low contention it is close to free; under high contention retries become the
-workload. The measured upper bound put lock-before-update at 1.76x the optimistic design under one
-hot key and 16 writers, with the caveat that the run could not separate the lock's advantage from
-extra per-retry harness work.
+workload. Under one hot key and 16 writers, lock-before-update measured about 1.6–1.8x the optimistic
+design across four fresh runs in both design orders, and the retry budget does not explain the gap:
+removing it moves the ratio by 1.1% to 3.2%.
 
 #heading(level: 2, "Pessimistic (lock-before-update)")
 The writer waits for the row, then updates. With pessimistic locking, contention is primarily paid as
@@ -45,18 +45,24 @@ lock advantage. A concurrency result without its lost-update control is not evid
 
 #heading(level: 2, "Where the two designs cross")
 
-The lock is not simply faster. Swept across concurrent writers on one hot key, the pessimistic lock
-gives up **11%** of the version check's throughput at one writer and leads from two writers on, reaching
-1.68x at 32. The movement is on the optimistic side: its throughput falls 2.9x across the sweep while its
-conflict count rises from 0 to 21,301. That correlation is not an explanation, and the obvious one was
-tested and rejected — with the retry budget set to zero the ratio at 16 writers does not narrow (1.60
-against 1.61), and the design that never retries moves by the same amount as the one that does. So
-"which is faster" has no answer without the concurrency level, and the interval where the ordering
-reverses is what a recommendation should name.
+The lock is not simply faster. Swept across concurrent writers on one hot key, it gives up about 5–10%
+of the version check's throughput at one writer — 0.905x, 0.939x and 0.948x in three whole runs — and
+leads from two writers up: 1.035x, 1.106x and 1.166x at 2, 1.56x–1.69x at 16, and 1.73x–1.96x at 64,
+reaching 1.68x at 32 in the first sweep. The movement is on the optimistic side: its throughput falls
+about 2.3x from one writer to 64 while its conflict count rises from 0 to about 25,000. That
+correlation is not an explanation, and the obvious one was tested and rejected — with the retry budget
+set to zero the ratio at 16 writers does not narrow (1.60 against 1.61 in the first control, 1.1%–3.2%
+in the replications), and the design that never retries moves by the same amount as the one that does.
+One run is an exception worth naming: a single 1-writer run measured 3.85x, not because its order
+changed but because the version check itself read 306 ops/s there against 1,286 in another run at the
+same level and order, with no throttling recorded. So "which is faster" has no answer without the
+concurrency level, and the interval where the ordering reverses — between one and two writers — is what
+a recommendation should name.
 #registry-card("v2-17-optimistic-pessimistic-crossover")
 
 #heading(level: 2, "Boundaries")
-One key, one engine, one trial, small scale. The ratio is an upper bound and a point, not a curve.
+One key, one engine, small scale. The 16-writer ratio is a band of five whole runs on two days; the
+32-writer point rests on the primary alone, and one 1-writer run is an unexplained exception.
 
 #heading(level: 2, "The checklist")
 

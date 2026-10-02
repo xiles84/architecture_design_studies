@@ -19,9 +19,11 @@ about 14-16x (20.5x in the first).
 #registry-card("v2-01-normalized-index-first")
 
 #heading(level: 3, "Optimistic versus pessimistic concurrency")
-Under one hot key and 16 writers, lock-before-update delivered 1.76x the version-checked design — an
-upper bound, because the run could not separate the lock's advantage from extra per-retry work. An
-unchecked read-modify-write lost 93.7% of acknowledged updates.
+Under one hot key and 16 writers, lock-before-update delivered about 1.6–1.8x the version-checked design
+(1.76x in the first run, 1.56x–1.69x in four fresh runs in both design orders). The obvious explanation —
+that the version check pays for its retries — was tested and rejected: with the retry budget at zero the
+ratio moves by 1.1%–3.2%. An unchecked read-modify-write lost 93.7% of acknowledged updates, and both
+correct designs lost none.
 #registry-card("v2-12-lock-vs-version-upper-bound")
 
 #heading(level: 3, "Trigger versus application maintenance")

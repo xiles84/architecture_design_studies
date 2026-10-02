@@ -317,6 +317,25 @@ unmeasurable, and the two anchors of this claim are the first YB runs the corpus
 was written. Two of the tranche's own predictions were falsified and are recorded as such (N3 forgot that the
 negative control must refuse on PostgreSQL too; N4's "largest tier" rule failed in the reversed order).
 
+**Study 04's two concurrency claims replicated, and one registry tension resolved (2026-10-02, tag
+`study-04/t1-replication`).** `v2-12` and `v2-17` disagreed about their own confound: `v2-12` called its 1.76x
+an **upper bound** because the run could not separate the lock's advantage from per-retry harness work, while
+`v2-17`'s limit recorded that the retry explanation had been tested and failed. Fourteen whole runs on
+2026-10-02 (1, 2, 16 and 64 writers, both design orders, plus zero-retry controls at 16 writers in both
+orders) settle it: at 16 writers the ratio is **1.64x and 1.57x at the default budget against 1.69x and 1.56x
+at zero**, 1.1% to 3.2% in a matched order, so **the upper-bound wording comes out of `v2-12`** and the book's
+hedge with it; the claim's ratio is now a band of five whole runs (1.56x-1.76x). The negative control
+reproduced its own figure to a tenth — 93.7% and 93.9% of acknowledged updates lost at 16 writers against the
+claim's 93.7% — with no lost update in either correct design at any level, though at **one** writer the
+control cannot fire because there is no concurrency, and the gate fails that cell by design. **The crossover
+also reproduces**: the version-check-first runs read **0.948x and 0.905x at 1 writer** and 1.035x at 2, and
+the lock-first runs 0.939x at 1 and 1.106x/1.166x at 2, with 1.56x-1.69x at 16 and 1.73x-1.96x at 64 in both
+orders. One 1-writer run measured 3.85x — but not because of its order: `c1` itself read 306 ops/s there
+against 1,286 in another run with the same design order, no throttling was recorded, and the added
+version-check-first runs put that level at 0.905x and 0.948x, so the excursion is recorded as unexplained.
+Both claims are `run_replicated`; `v2-12`'s attribution is no longer withheld, and `v2-17` records the
+control coverage its primary sweep lacked.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

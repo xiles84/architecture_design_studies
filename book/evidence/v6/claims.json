@@ -1731,12 +1731,12 @@
     },
     {
       "claim_id": "v2-12-lock-vs-version-upper-bound",
-      "statement": "Under one hot key with 16 writers a lock-before-update (c2_pessimistic_lock) delivered 1.76x the throughput of a version check (c1_optimistic_version), an UPPER BOUND on the lock's advantage because the run could not separate it from extra per-retry harness work; an unchecked read-modify-write (x1_lost_update_control) lost 93.7% of acknowledged updates.",
+      "statement": "Under one hot key at 16 writers a lock-before-update (c2_pessimistic_lock) delivered about 1.6-1.8x the throughput of a version check (c1_optimistic_version): 1.76x in the primary run and 1.56x, 1.57x, 1.64x and 1.69x in four whole runs on 2026-10-02 that crossed the two design orders with the retry budget at its default and at zero. The retry budget does not explain the advantage - at a matched design order removing it moves the ratio by 1.1% to 3.2% - so the earlier wording calling the figure an upper bound because of per-retry harness work is retired by its own control. An unchecked read-modify-write (x1_lost_update_control) lost 93.7% of acknowledged updates in the primary run and 93.7% and 93.9% in the replications, while both correct designs lost none.",
       "family": "normalized-facts",
       "study": "04-configuration-portal",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 5,
         "fresh_load_trials_per_cell": 1,
         "inner_iterations": 1
       },
@@ -1747,8 +1747,10 @@
       "limits": [
         "one key, one installed product, 16 writers",
         "PostgreSQL single node, small scale",
-        "one trial; -retries 1 control not run",
-        "1.76x is one point on a writer curve, not a curve"
+        "one fresh-load trial per run; five whole runs now support the ratio, but no run repeats the cell, and the -retries 1 setting was not among the controls (the budget controls used the default 8 against -retries 0)",
+        "1.76x is one point on a writer curve, not a curve",
+        "the upper-bound hedge is retired: the retry budget was re-run on 2026-10-02 at 16 writers in both design orders, default against -retries 0 (1.64x against 1.69x with the lock first, 1.57x against 1.56x with the version check first), a 1.1% to 3.2% difference, which agrees with the primary's own retry control (1.60x against 1.61x) and means the advantage is not per-retry harness work",
+        "the re-scoped figure is a band of five whole runs on two days (1.56x, 1.57x, 1.64x, 1.69x, 1.76x); absolute throughput is day-specific, so only the within-run ratio travels"
       ],
       "anchors": [
         {
@@ -1761,15 +1763,59 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node",
           "role": "primary"
+        },
+        {
+          "run_id": "20261002T162526Z-w16",
+          "run_tag": "run/04-configuration-portal/20261002T162526Z-w16",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "22884211c56091ea",
+          "report": "studies/04-configuration-portal/reports/20261002T162526Z-w16.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165607Z",
+          "run_tag": "run/04-configuration-portal/20261002T165607Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "804bf1be7a4d0de1",
+          "report": "studies/04-configuration-portal/reports/20261002T165607Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162654Z-w16-r0",
+          "run_tag": "run/04-configuration-portal/20261002T162654Z-w16-r0",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "c38e261dbe5ecf42",
+          "report": "studies/04-configuration-portal/reports/20261002T162654Z-w16-r0.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165735Z",
+          "run_tag": "run/04-configuration-portal/20261002T165735Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "08278634fcad3d29",
+          "report": "studies/04-configuration-portal/reports/20261002T165735Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": 10,
+        "reported_cells": 34,
         "reported_failed": 0,
-        "source": "report TL;DR 'cells that failed: 0'",
+        "source": "the primary report's TL;DR 'cells that failed: 0'",
         "controls_present": 2,
         "controls_fired": 2,
-        "note": "x1 and x2 both fired. The read table carries a ~1.7x identical-SQL attribution floor."
+        "note": "The primary is 20260921T1215Z-small. Four whole runs on 2026-10-02 re-measure the 16-writer ratio in both design orders with the budget at its default and at zero; all five runs are tagged run/04-configuration-portal/<run-id> and were produced from clean trees. The tranche's 1, 2 and 64-writer runs support v2-17."
       },
       "support": [
         {
@@ -1815,19 +1861,24 @@
       "status": "active",
       "evidence_form": "isolate",
       "attribution": {
-        "withheld": true,
+        "withheld": false,
         "isolated_by": [
           "04 c1->c2",
           "04 c1->x1 lost-update control"
         ],
-        "note": "1.76x is an upper bound because the run could not separate the lock's effect from per-retry harness work; the v2 retries-disabled control narrows the attributable advantage to about 1.19x."
+        "note": "c1 and c2 differ in one decision, how the publication is guarded, so the 16-writer ratio is attributable to that decision; the retry-budget control (default against -retries 0, both design orders) leaves the ratio within 3.2%, and x1 shows the invariant is real."
       },
       "control_coverage": "present",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 5,
+        "order": "abba",
+        "across_run_spread_pct": 12.4,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P2 was confirmed (the 16-writer ratio is 1.56x-1.69x, above the predicted 1.4x floor, in both design orders), P3 was confirmed at both orders (removing the retry budget moves the ratio by 1.1% to 3.2%, inside the 10% band, so the hedge v2-12 carried is refuted by a fresh control), and P5 was confirmed (the negative control lost 93.7% to 93.9% of acknowledged updates at 16 writers and both correct designs lost nothing). P1, P4 and P6 belong to the same tranche and are scored under v2-17.",
+        "source": "studies/04-configuration-portal/T1-CONCURRENCY-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {
@@ -3354,12 +3405,12 @@
     },
     {
       "claim_id": "v2-17-optimistic-pessimistic-crossover",
-      "statement": "Under one hot key, a bounded-retry version check (c1_optimistic_version) and a lock-before-update (c2_pessimistic_lock) cross over between one and two concurrent writers: the lock delivers 0.89x the version check's throughput at 1 writer (1,177 against 1,329 ops/s) and 1.10x at 2 writers (1,285 against 1,167), rising to 1.68x at 32 writers (877 against 523) and 1.60x at 64, while the version check's own throughput falls 2.9x across the sweep (1,329 to 466 ops/s) and its conflict count rises from 0 to 21,301.",
+      "statement": "Under one hot key a bounded-retry version check (c1_optimistic_version) and a lock-before-update (c2_pessimistic_lock) cross over between one and two writers: in the primary sweep the lock delivered 0.89x the version check's throughput at 1 writer (1,177 against 1,329 ops/s) and 1.10x at 2 (1,285 against 1,167), rising to 1.68x at 32 and 1.60x at 64, while the version check's throughput fell 2.9x across the sweep and its conflict count rose from 0 to 21,301. Three whole runs on 2026-10-02 reproduced the crossing (0.905x, 0.939x and 0.948x at 1 writer; 1.035x, 1.106x and 1.166x at 2) and the divergence above it (1.56x-1.69x at 16 writers and 1.73x-1.96x at 64, in both design orders), with the version check's conflicts rising from 0 to about 25,000 and its throughput falling from 1,286 to 563 ops/s. One further 1-writer run measured 3.85x because c1 itself read 306 ops/s there while another run at the same level and design order read 1,286; no client or database throttling was recorded, and the added version-check-first runs read 0.905x and 0.948x at that level, so the excursion is reported as unexplained rather than as an order effect.",
       "family": "normalized-facts",
       "study": "04-configuration-portal",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 23,
         "fresh_load_trials_per_cell": 1,
         "inner_iterations": 1
       },
@@ -3368,12 +3419,12 @@
       "comparability_record": null,
       "confounds": [],
       "limits": [
-        "PostgreSQL single node, small scale, one hot key, one measurement per level across seven runs (1, 2, 4, 8, 16, 32 and 64 writers), so the curve carries no spread at any level",
-        "we tested the obvious explanation for the lock's advantage and it failed: with the retry budget set to zero the c2/c1 ratio at 16 writers is 1.60 against 1.61 with retries, and c2_pessimistic_lock, which never retries either way, moved by the same 10% as c1 between the two same-day runs, so the advantage cannot be put down to retry work (analysis 20260926T-retry-control, runs 20260926T142926Z and 20260926T143014Z)",
-        "the seven runs used two phase sets (the first four also ran read and write phases); the contention metric should not depend on that, but it is an assumption rather than a measurement",
-        "no negative control in this sweep; control_coverage is recorded absent rather than implied",
-        "the 1-writer point is the edge of the sweep, so the optimistic side is bracketed by one level only",
-        "absolute numbers are a laptop comparison; the shape of the curve is what transfers",
+        "PostgreSQL single node, small scale, one hot key",
+        "one fresh-load trial per run; the 2026-10-02 tranche measured the pair at 1, 2, 16 and 64 writers in both design orders, and at 16 writers with the retry budget at zero, but the primary's 4, 8 and 32-writer levels were not re-measured, so the claim's 32-writer point (1.68x) rests on the primary alone",
+        "we tested the obvious explanation for the lock's advantage and it failed: with the retry budget set to zero the c2/c1 ratio at 16 writers is unchanged within 1.1% to 3.2% in both design orders, and c2_pessimistic_lock, which never retries either way, moved by the same amount as c1, so the advantage cannot be put down to retry work",
+        "the primary's seven runs used two phase sets (the first four also ran read and write phases); the contention metric should not depend on that, but it is an assumption rather than a measurement",
+        "at 1 writer the unsafe control x1_lost_update_control cannot lose an update because there is no concurrency, so its gate cannot fire: three runs that included it at that level (20261002T162400Z-w1, 20261002T162737Z-w1 and 20261002T165329Z) record a failed x1 cell, and the claim's control_coverage comes from the levels at two writers and above, where x1 lost 50.0% and 93.7%-98.0% of acknowledged updates",
+        "one 1-writer run (20261002T162737Z-w1) measured 3.85x because c1 read 306 ops/s there against 1,286 in the other run with the same design order; the version-check-first runs gave 0.905x and 0.948x at that level and no client or database throttling was recorded in any of them, so the excursion is reported as unexplained",
         "absolute throughput is day-specific: c2 measured 869 ops/s on 2026-09-23 and 1,056 on 2026-09-26 at identical settings, phases and writer count, so only the within-run ratio is carried across days"
       ],
       "anchors": [
@@ -3475,15 +3526,169 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "pg-single",
           "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162400Z-w1",
+          "run_tag": "run/04-configuration-portal/20261002T162400Z-w1",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "da1a30a97de074bf",
+          "report": "studies/04-configuration-portal/reports/20261002T162400Z-w1.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162443Z-w2",
+          "run_tag": "run/04-configuration-portal/20261002T162443Z-w2",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "afb049c763e4f0e9",
+          "report": "studies/04-configuration-portal/reports/20261002T162443Z-w2.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162526Z-w16",
+          "run_tag": "run/04-configuration-portal/20261002T162526Z-w16",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "22884211c56091ea",
+          "report": "studies/04-configuration-portal/reports/20261002T162526Z-w16.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162608Z-w64",
+          "run_tag": "run/04-configuration-portal/20261002T162608Z-w64",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "61056c05852d204f",
+          "report": "studies/04-configuration-portal/reports/20261002T162608Z-w64.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162654Z-w16-r0",
+          "run_tag": "run/04-configuration-portal/20261002T162654Z-w16-r0",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "c38e261dbe5ecf42",
+          "report": "studies/04-configuration-portal/reports/20261002T162654Z-w16-r0.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162737Z-w1",
+          "run_tag": "run/04-configuration-portal/20261002T162737Z-w1",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "b9b7c3c225a511e4",
+          "report": "studies/04-configuration-portal/reports/20261002T162737Z-w1.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162821Z-w2",
+          "run_tag": "run/04-configuration-portal/20261002T162821Z-w2",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "4d94712efae8dfb4",
+          "report": "studies/04-configuration-portal/reports/20261002T162821Z-w2.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T162904Z-w64",
+          "run_tag": "run/04-configuration-portal/20261002T162904Z-w64",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "c26038b1e316b4de",
+          "report": "studies/04-configuration-portal/reports/20261002T162904Z-w64.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165329Z",
+          "run_tag": "run/04-configuration-portal/20261002T165329Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "2e97f90971fc1e6c",
+          "report": "studies/04-configuration-portal/reports/20261002T165329Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165416Z",
+          "run_tag": "run/04-configuration-portal/20261002T165416Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "eaf2b2d139e53514",
+          "report": "studies/04-configuration-portal/reports/20261002T165416Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165533Z",
+          "run_tag": "run/04-configuration-portal/20261002T165533Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "a7adefb1c521d044",
+          "report": "studies/04-configuration-portal/reports/20261002T165533Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165607Z",
+          "run_tag": "run/04-configuration-portal/20261002T165607Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "804bf1be7a4d0de1",
+          "report": "studies/04-configuration-portal/reports/20261002T165607Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165652Z",
+          "run_tag": "run/04-configuration-portal/20261002T165652Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "4800ccd6280e6e9a",
+          "report": "studies/04-configuration-portal/reports/20261002T165652Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T165735Z",
+          "run_tag": "run/04-configuration-portal/20261002T165735Z",
+          "repo_commit": "9d47a109",
+          "inputs_digest": "08278634fcad3d29",
+          "report": "studies/04-configuration-portal/reports/20261002T165735Z.md",
+          "analysis": "studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": 7,
+        "reported_cells": 31,
         "reported_failed": 0,
-        "source": "the seven contention reports in this sweep",
-        "controls_present": 0,
-        "controls_fired": 0,
-        "note": "No negative control ran in this sweep; the lost-update control belongs to the v2 tranche and is not reused as evidence here."
+        "source": "the seven contention reports of the primary sweep",
+        "controls_present": 1,
+        "controls_fired": 1,
+        "note": "The primary sweep is seven runs at 1, 2, 4, 8, 16, 32 and 64 writers (plus the 20260926 retry control). Fourteen whole runs on 2026-10-02 re-measure 1, 2, 16 and 64 writers in both design orders and add zero-retry controls at 16 writers in both orders; the sweep's shape reproduces. The three failed cells are the x1 negative control at 1 writer, where no lost update is possible; every c1/c2 cell passed its gate and audit."
       },
       "support": [
         {
@@ -3524,18 +3729,23 @@
         ],
         "note": "c1 and c2 differ in one decision: whether the current row is guarded by a version check or by a lock."
       },
-      "control_coverage": "absent",
+      "control_coverage": "present",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 23,
+        "order": "abba",
+        "across_run_spread_pct": 8.3,
+        "tier": "run-level"
       },
       "crossover": {
         "dimension": "concurrent writers on one hot key",
         "levels": 7,
         "reversal_observed": true,
         "crossing_interval": "[1, 2] writers"
+      },
+      "prediction": {
+        "text": "P1's falsifier fired once: the 1-writer ratio was below 1 in three of four runs (0.905x, 0.939x, 0.948x) but one run measured 3.85x because c1 read 306 ops/s there against 1,286 in another run at the same level and design order; no throttling was recorded and the added version-check-first runs reproduce the crossing, so the excursion is unexplained rather than an order effect. P2 was confirmed at both orders (16-writer ratio 1.56x-1.69x), P3 was confirmed at both orders (the retry budget moves the ratio by 1.1% to 3.2%), P4 was confirmed (c1 falls from 1,286 to 563 ops/s and its conflicts rise from 0 to about 25,000), P5 was confirmed from 2 writers up (x1 lost 50.0% at 2 and 93.7%-98.0% at 16 and 64; at 1 writer the control cannot fire), and P6 was confirmed (every c1/c2 cell passed its gate and audit and every run was tagged from a clean tree).",
+        "source": "studies/04-configuration-portal/T1-CONCURRENCY-REPLICATION.md",
+        "verdict": "falsified"
       }
     },
     {

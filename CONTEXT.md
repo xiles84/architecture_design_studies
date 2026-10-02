@@ -868,6 +868,26 @@ apply* table. Verified in one run with the control included: `c1_optimistic_vers
 `contention: ran` and is not listed, `n3_rollup_trigger` records
 `contention: not_applicable (design has no arbitration to contend over)` and does appear.
 
+**T1 concurrency replication: `v2-12` and `v2-17` are `run_replicated` (2026-10-02, LOW deepseek-flash, tag
+`study-04/t1-replication`).** `task-20261001T133759Z-t4-study04-replication` re-ran the
+optimistic-versus-pessimistic pair on `pg-single` at 1, 2, 16 and 64 writers, both design orders, with
+zero-retry controls at 16 writers. The lock's 16-writer advantage replicated in all four fresh runs
+(1.64x/1.57x at the default budget against 1.69x/1.56x at zero) and the retry budget moved the ratio by
+only 1.1%–3.2% in a matched order, so **`v2-12`'s "upper bound" hedge is retired** by the control its own
+text said it could not run; its ratio is now a band of five whole runs (1.56x–1.76x). The negative control
+reproduced the claim's figure to a tenth (93.7%/93.9% lost at 16 writers; none in either correct design at
+any level). The **crossover between one and two writers reproduces** (0.905x/0.939x/0.948x at 1 writer;
+1.035x/1.106x/1.166x at 2; 1.56x–1.69x at 16; 1.73x–1.96x at 64) and is not order-dependent. Two
+corrections worth carrying: the tranche's first eight runs had all executed the pair in the **same** design
+order, so the pre-registered "both orders" control was re-run and the order read from each manifest before
+this analysis was trusted; and **one 1-writer run (3.85x) is an unexplained excursion** (`c1` read 306
+ops/s there against 1,286 at the same level and order) rather than the order effect the first draft
+reported. The runner's gate **refuses a negative control that cannot fire**, so `x1` at 1 writer is a
+failed, not-applicable cell; the analysis reports it. 14 runs tagged; analysis
+`studies/04-configuration-portal/reports/analyses/20261002T-t1-concurrency-replication--deepseek-flash--2026-10-02.md`;
+registry and supersession ledger updated; book concurrency prose re-scoped. The 32-, 8- and 4-writer levels
+remain primary-only.
+
 Next: the v2 completion protocol's remaining items — recover the seven unbuilt designs (`d3`, `d4`,
 `h1`, `s1`, `s2`, `y1`, `y2`), equal-total resources, verified placement, and the three controls the
 review requires (repeated-design instrument control, `-retries 1`, writer sweep).
