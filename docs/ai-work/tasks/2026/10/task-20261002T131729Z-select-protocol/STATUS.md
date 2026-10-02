@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261002T131729Z-select-protocol` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=GPT-6 tool=Codex-desktop effort=unknown session=session-20261002-select-query-tasks capability=HIGH role=planner` |
-| Last event | `event-20261002T132846Z-published` |
-| Updated at | `2026-10-02T13:28:46Z` |
-| Next capability | HIGH |
-| Next work role | planner |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20261002T212601Z-361d67` |
+| Active worker | `model=deepseek-flash tool=Deep Code CLI effort=unknown session=unknown capability=HIGH role=planner` |
+| Last event | `event-20261002T212601Z-claimed` |
+| Updated at | `2026-10-02T21:26:01Z` |
+| Next capability | LOW |
+| Next work role | executor |
 | Branch | `study-01/select-protocol` |
 | Worktree | `.worktrees/select-protocol` |
 
-Published by model=GPT-6 tool=Codex-desktop effort=unknown session=session-20261002-select-query-tasks capability=HIGH role=planner. The immutable event files are authoritative for history.
+Claimed by model=deepseek-flash tool=Deep Code CLI effort=unknown session=unknown capability=HIGH role=planner until 2026-10-02T23:26:01Z. Worktree `.worktrees/select-protocol`.
