@@ -57,8 +57,8 @@ summary, not a second ledger.
   seven-form atlas with exact fixture outputs (NULLs, duplicate child matches, unmatched parents, ties,
   empty sets), the sizing/placement and rollup/rolldown/embedding coverage, non-applicability of
   optimistic/pessimistic concurrency, and bounded LOW handoffs for the four measuring families. No
-  measurement has run; the four LOW measurement tasks stay blocked on `select-harness` until this
-  protocol is reviewed and integrated under tag `study-01/select-v0-protocol`.
+  measurement has run. Reviewed (self-review) and merged into local `main` at `b405f88a` under tag
+  `study-01/select-v0-protocol`; `select-harness` is now unblocked for a LOW executor.
 
 - Goal: [`goal-20260922T025912Z-data-architecture-book`](docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/GOAL.md)
   — an evidence-backed data-architecture book built with Typst in Podman, with every claim traceable
