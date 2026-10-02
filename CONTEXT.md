@@ -51,6 +51,15 @@ summary, not a second ledger.
   and annotated milestone `repo/select-query-task-program-v1`; only this publication is
   complete, while the eight scientific/book tasks remain queued. Queue state remains authoritative.
 
+- **SELECT protocol published (2026-10-02, HIGH deepseek-flash):** `select-protocol` is claimed and its
+  deliverable [`select-query-templates.md`](studies/01-charity-tree/protocols/select-query-templates.md)
+  is written — premeasurement predictions P1–P12 with falsifiers, six result contracts, the REQUEST
+  seven-form atlas with exact fixture outputs (NULLs, duplicate child matches, unmatched parents, ties,
+  empty sets), the sizing/placement and rollup/rolldown/embedding coverage, non-applicability of
+  optimistic/pessimistic concurrency, and bounded LOW handoffs for the four measuring families. No
+  measurement has run; the four LOW measurement tasks stay blocked on `select-harness` until this
+  protocol is reviewed and integrated under tag `study-01/select-v0-protocol`.
+
 - Goal: [`goal-20260922T025912Z-data-architecture-book`](docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/GOAL.md)
   — an evidence-backed data-architecture book built with Typst in Podman, with every claim traceable
   to a run, tag, digest and signed analysis.
