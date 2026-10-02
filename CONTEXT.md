@@ -911,6 +911,23 @@ added requirements (repeated trials/second machine, real-TTL churn, equal-total 
 placement pair).
 → [Study](studies/05-cache-consistency/) · [reports](studies/05-cache-consistency/reports/)
 
+**T1 replication of the cache, churn and engine claims (2026-10-02, HIGH deepseek-flash, tag
+`study-05-t1-replication-v1`).** `task-20261001T133759Z-t5-study05-replication` ran eight whole runs in
+reversed pair order and re-tested five of the eight single-run targets. **Promoted to `run_replicated`:**
+`v2-16` (strict/relaxed read difference 7.3%/5.7%, sign flipping, inside the 8.7%-22.8% spread), `v3-02`
+(both churn strategies crossed 2.0 real TTL boundaries with 0 wrong reads in both orders), `v3-03` (both
+resource framings recorded and kept apart, 8.2k against 7.9k), `v3-04` (yb-single strict/relaxed 1.043 and
+1.105, inside spread). **Re-scoped:** `v2-14`'s throughput band reproduced (2.24x/2.54x) but its **p99
+clause did not** (27 ms → 9-10 ms, about 3x, not an order of magnitude), so the claim now carries the band
+and records the tail as not reproduced under this client. **Two findings to carry:** `v3-02`'s aside cell
+recorded **1 impossible cache value** in 1.17M churn reads while its gate passed — the study's floor says
+impossible values must be zero, so the claim keeps a limit and the **gate's coverage of impossible values
+during churn is a new gap**; and the book's "p99 falls an order of magnitude" prose was corrected in the
+same change. **Deferred/gaps:** `v3-01`'s 1800 s horizon was not re-run; `v3-05` and `v3-06` need
+`yb-cluster3`, which the fixed 2 GiB machine cannot carry, and no tablet/leader placement record exists, so
+the required colocated/non-colocated comparison remains an explicit coverage gap. Eight runs tagged; analysis
+`studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md`.
+
 ### Infrastructure and environment
 
 - Environments: [`docs/environments/`](docs/environments/) — one page per machine, with the ways it

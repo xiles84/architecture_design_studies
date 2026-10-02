@@ -195,7 +195,8 @@ change-observation completeness, read the source's capabilities, then choose top
 versus shared) and the fill path (cache-aside versus write-through). Topology and fill path are not
 guarantees; performance controls (fill lease, TTL, early expiry) are added separately.
 #heading(level: 3, "Costs")
-Reads gain 2.2–3.5x and p99 drops an order of magnitude; a strict protocol adds a write-path fence;
+Reads gain about 2.2–2.5x in two whole replications, with the tail improving about 3x rather than an order
+of magnitude; a strict protocol adds a write-path fence;
 storage moves to the cache (whose budget is outside the `db-only` comparison); operations gain a new
 failure domain.
 #heading(level: 3, "Direct evidence")

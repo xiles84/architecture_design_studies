@@ -43,7 +43,8 @@ is a small-scale result at one cardinality, and the trigger's own trials were im
 #registry-card("v2-13-trigger-rollup-cost")
 
 #heading(level: 2, "Donor portal with an external cache")
-Serve warm profile reads from a cache. Throughput rose 2.2–3.5x and p99 fell an order of magnitude.
+Serve warm profile reads from a cache. Throughput rose about 2.2–2.5x in two whole replications, with the
+tail improving about 3x rather than an order of magnitude.
 Three instances sharing one relaxed cache recorded 87.81% wrong reads on the owned model and 87.24% on
 the legacy model: the publication must be fenced against the stale-fill race — a reader republishing
 S0 after a writer commits S1 and invalidates — not merely ordered after the commit. The single-instance

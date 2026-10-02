@@ -336,6 +336,21 @@ version-check-first runs put that level at 0.905x and 0.948x, so the excursion i
 Both claims are `run_replicated`; `v2-12`'s attribution is no longer withheld, and `v2-17` records the
 control coverage its primary sweep lacked.
 
+**Study 05's cache, churn and engine claims replicated, four promoted and one clause retired (2026-10-02,
+tag `study-05/t1-replication`).** Eight whole runs on 2026-10-02 re-tested five of the eight single-run
+targets and recorded three as deferred or gaps. `v2-14`'s **throughput band reproduced** (cached warm read
+2.54x and 2.24x the no-cache baseline) but its **p99 clause did not** (27 ms → 9-10 ms, about 3x, not the
+primary's order of magnitude), so the claim now carries the band and records the tail as not reproduced.
+`v2-16`'s null reproduced (strict/relaxed 7.3% and 5.7%, sign flipping, inside 8.7%-22.8%). `v3-03`'s
+labelling reproduced (both framings recorded, 8.2k against 7.9k, never pooled) but its 11k/8.0k point
+figures did not. `v3-04`'s null reproduced (strict/relaxed 1.043 and 1.105, inside spread) while the
+primary's direction did not. `v3-02`'s 600 s TTL crossings and 0 wrong reads reproduced in both orders, but
+**one aside cell recorded 1 impossible cache value that its gate did not classify** — a correctness breach
+the study's own floor forbids, carried as a limit and as a gate coverage gap. `v3-01`'s 1800 s horizon was
+not re-run; `v3-05` and `v3-06` could not run (`yb-cluster3` does not fit the fixed 2 GiB machine, and no
+tablet/leader placement record exists) and remain explicit coverage gaps. Four claims are now
+`run_replicated`; `v3-01`, `v3-05` and `v3-06` keep their strength with new limits.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

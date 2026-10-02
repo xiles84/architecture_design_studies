@@ -279,13 +279,14 @@ freshness is free".
 #registry-card("v2-16-strict-freshness-read-cost")
 
 #heading(level: 2, "The gain, and what the gain leaves out")
-Adding a cache to warm cacheable reads bought 2.2–3.5x throughput and an order of magnitude in p99
-(15.8–27.1 ms to 0.8–2.0 ms). One thing is left out of that number: the cache's own CPU and memory are
-not counted against the database side, so the ratio compares a database with a database *plus* a cache,
-rather than the same total resources arranged two ways (`conf-04`). A second comparison now counts the
-resources the other way — both sides given the same total — and there the same design reads 11k ops/s
-against 8.0k when the cache's resources are not counted. The two ways of counting are kept apart and never
-averaged together.
+Adding a cache to warm cacheable reads bought about 2.2–2.5x throughput in two whole replications
+(2.24x and 2.54x over the no-cache baseline). The tail did not reproduce as strongly: p99 fell from
+27 ms to 9–10 ms, about 3x, not the order of magnitude the first run recorded. One thing is left out of
+the ratio: the cache's own CPU and memory are not counted against the database side, so it compares a
+database with a database *plus* a cache, rather than the same total resources arranged two ways
+(`conf-04`). A second comparison counts the resources the other way — both sides given the same total —
+and the two ways are labelled and never averaged together; the ratio between them (8.2k against 7.9k
+ops/s in the replications) is inside the run's spread and is not attributed.
 #registry-card("v2-14-cache-throughput-gain")
 #registry-card("v3-03-equal-total-framing-labelled")
 
@@ -298,8 +299,9 @@ configuration running on a single instance recorded none.
 strict rule stated above: a read that starts after a write is acknowledged must not return an older
 value. In this configuration the offending values had been committed, just earlier — which is exactly
 what choosing a relaxed contract permits — and were *not* dirty, torn, uncommitted or impossible values.
-Read it as those broken promises, never as corruption: no configuration measured here produced an
-impossible value. Where a contract promises staleness bounded to a window, a further question arises that
+Read it as those broken promises, never as corruption: no configuration in that survey produced an
+impossible value, though the 2026-10-02 churn replication later recorded exactly one, reported with
+`v3-02`. Where a contract promises staleness bounded to a window, a further question arises that
 this run cannot answer — whether the stale values also stayed inside that window — so the counter is only
 evidence about staleness once the window is known.
 
@@ -332,15 +334,17 @@ cache strict.
 #registry-card("v2-15-three-instance-staleness")
 
 #heading(level: 2, "Churn, engines and placement (2026-09-23)")
-Sustained churn crossed real 300 s TTL boundaries under load and stayed correct: one write-through
-configuration ran 1,801 s and crossed 6.0 boundaries with 0 wrong reads in 2,879,077 reads, and the two
-601 s write-through / write-aside configurations crossed 2.0 each with 0 wrong reads. The hard-expiry path fired
-*0* times — only probabilistic early expiry did — so "an entry reached its hard TTL" is still not
-demonstrated and is carried as a gap below. The strict/relaxed pair now also runs per engine, with the
-client spread over the endpoints: on YugabyteDB 1-node strict read 514 against relaxed 596 app-99
-ops/s, on 3-node 942 against 846; the direction differs per engine and neither is attributed. The
-colocated/non-colocated key pair favours the colocated layout (warm 882 against 673 ops/s,
-cacheable-99 852 against 520) as engine locality on one host, not verified colocation.
+Sustained churn crossed real 300 s TTL boundaries under load: the 1,801 s write-through configuration
+first recorded 6.0 boundaries with 0 wrong reads in 2,879,077 reads, and two fresh 601 s replications in
+reversed order crossed 2.0 boundaries each with 0 wrong reads for both write-through and write-aside. The
+hard-expiry path fired *0* times again — only probabilistic early expiry did — so "an entry reached its
+hard TTL" is still not demonstrated. One aside cell published a single impossible cache value that its
+gate did not classify; it is reported with `v3-02` and is why that claim keeps a limit. The strict/relaxed
+pair's YugabyteDB 1-node direction (relaxed 596 against strict 514) did not reproduce: two fresh runs put
+strict slightly ahead (1.04x, 1.11x), inside the spread, so neither is named. The 3-node pair (942 against
+846) and the colocated/non-colocated layout (882 against 673) were not re-measured — both need a
+three-node cluster this machine cannot carry, and the placement itself was never observed — and remain
+coverage gaps.
 #registry-card("v3-01-churn-crosses-real-ttl")
 #registry-card("v3-02-churn-600-through-vs-aside")
 #registry-card("v3-04-yb-single-strict-relaxed")

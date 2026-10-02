@@ -122,6 +122,14 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		"v2-08-ledger-race-cost-128-buyers":         true,
 		"v2-09-postgres-ledger-ratio-unsettled":     true,
 		"v2-gap-01-ledger-load-multiplier-unstable": true,
+		// Study 05's T1 replication (2026-10-02): five claims re-scoped or
+		// promoted run-level, so their statements, limits, trial counts and
+		// anchors may all move.
+		"v2-14-cache-throughput-gain":               true,
+		"v2-16-strict-freshness-read-cost":          true,
+		"v3-02-churn-600-through-vs-aside":          true,
+		"v3-03-equal-total-framing-labelled":        true,
+		"v3-04-yb-single-strict-relaxed":            true,
 	}
 	// Claims whose wording was made plainer without touching the evidence. Their
 	// statement and limits may differ from v5; their confounds, trial counts and
@@ -131,12 +139,8 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	reworded := map[string]bool{
 		"v2-06-hot-drop-designs":                   true,
 		"v2-13-trigger-rollup-cost":                true,
-		"v2-14-cache-throughput-gain":              true,
 		"v2-15-three-instance-staleness":           true,
 		"v3-01-churn-crosses-real-ttl":             true,
-		"v3-02-churn-600-through-vs-aside":         true,
-		"v3-03-equal-total-framing-labelled":       true,
-		"v3-04-yb-single-strict-relaxed":           true,
 		"v3-05-yb-cluster3-strict-relaxed":         true,
 		"v3-06-colocated-vs-noncolocated-locality": true,
 		"v3-gap-01-study05-remaining-regimes":      true,

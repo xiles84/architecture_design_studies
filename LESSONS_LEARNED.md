@@ -2415,4 +2415,22 @@ sweeps a level axis must either exclude a negative control from the levels where
 break, or declare that cell not-applicable**; otherwise a correct gate reports expected physics as a
 failed run and a reader may mistake it for a defect in the design under test.
 
+## A gate can pass a cell that breached the floor (2026-10-02)
+
+### A green gate is only as wide as the checks it runs
+Study 05's churn replication recorded **1 impossible cache value** in 1,173,729 reads, in an
+`aside-strict` cell, and the cell's gate still passed: its 14 checks cover the portal read statements and
+outbox orphans, not the cache's own invariant during churn. The study's own definition says an impossible
+value "must always be zero", so a reader who trusted the gate would have called the cell clean while its
+floor was breached. **Enumerate what each correctness gate actually checks, and make the gate cover every
+invariant the study's own floor asserts** — especially one that can be observed only inside the phase that
+produces it. The breach is recorded as a limit on the claim and as a gate gap, not smoothed away; a
+follow-up must make an impossible value fail the cell and name its phase before the result can be called
+clean.
+
+### Replication is what finds the unexercised check
+Nothing in the primary run or in its review produced this value; eight fresh runs did, in one cell out of
+four. A replication that only re-reads the primary's numbers cannot find it, which is the case for running
+the workload again rather than re-deriving the ratio.
+
 

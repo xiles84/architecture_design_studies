@@ -2015,13 +2015,13 @@
     },
     {
       "claim_id": "v2-14-cache-throughput-gain",
-      "statement": "Adding a cache to warm cacheable reads buys 2.2-3.5x in throughput and an order of magnitude in the slowest 1% (15.8-27.1 ms to 0.8-2.0 ms). The cache's own CPU and memory are not counted against the database side, so this measures the gain from adding a cache, not the efficiency of the same total resources arranged two ways; and Redis here is a shared cache, never an authoritative key-value store.",
+      "statement": "Adding a cache to warm cacheable reads buys 2.2-2.5x in throughput: two whole pg-single + Redis runs on 2026-10-02 measured the cached warm read at 2.54x and 2.24x the no-cache owned baseline, inside the primary's 2.2-3.5x band. The primary's p99 clause did not reproduce: the cached tail here was 8.5-10.1 ms against the baseline's 26.9-27.6 ms, a cut of about 3x rather than the primary's order of magnitude (0.8-2.0 ms against 15.8-27.1 ms), so the claim carries the throughput band and records the tail as not reproduced under this client. The cache's own CPU and memory are not counted against the database side (db-only framing), and Redis here is a shared cache, never an authoritative key-value store.",
       "family": "external-read-copies",
       "study": "05-cache-consistency",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -2031,10 +2031,11 @@
         "conf-04-study05-db-only-cache"
       ],
       "limits": [
-        "one trial per measurement, one machine, closed loop",
-        "small scale (800 donors), PostgreSQL + Redis cache only",
-        "warm cacheable reads only; the Redis container's budget is outside the comparison (gap)",
-        "this 2.2-3.5x range is supported only by the PostgreSQL single-node + Redis cells; do not transfer the range to YugabyteDB, to a cluster, or to open-loop demand"
+        "one machine, closed loop, small scale (800 donors), PostgreSQL + Redis cache only",
+        "the p99 clause did not reproduce: cached p99 8.5-10.1 ms against the baseline's 26.9-27.6 ms (about 3x), where the primary recorded 0.8-2.0 ms against 15.8-27.1 ms; the tail is suspected client-bound at this client budget and was not isolated with a plan or a footprint cell",
+        "warm cacheable reads only; the Redis container's budget is outside the db-only comparison (the equal-total framing is a separate claim, v3-03)",
+        "absolute throughput is session-specific; only the within-run ratio travels",
+        "the 2.2-3.5x range remains supported only by the PostgreSQL single-node + Redis cells; do not transfer it to YugabyteDB, a cluster, or open-loop demand"
       ],
       "anchors": [
         {
@@ -2047,6 +2048,28 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+redis",
           "role": "primary"
+        },
+        {
+          "run_id": "20261002T185604Z",
+          "run_tag": "run/05-cache-consistency/20261002T185604Z",
+          "repo_commit": "37ce688b",
+          "inputs_digest": "a8684db17dce1b34",
+          "report": "studies/05-cache-consistency/reports/20261002T185604Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T185911Z",
+          "run_tag": "run/05-cache-consistency/20261002T185911Z",
+          "repo_commit": "37ce688b",
+          "inputs_digest": "6d9110fa6e235d18",
+          "report": "studies/05-cache-consistency/reports/20261002T185911Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
         }
       ],
       "run_level": {
@@ -2109,10 +2132,15 @@
       },
       "control_coverage": "present",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 12.6,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P1 was confirmed on throughput: the cached warm read was 2.54x and 2.24x the no-cache baseline, above the predicted 1.5x floor in both design orders. The claim's p99 clause is not part of P1 and did not reproduce; it is recorded in the statement and limits rather than scored as a prediction.",
+        "source": "studies/05-cache-consistency/T1-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {
@@ -2207,13 +2235,13 @@
     },
     {
       "claim_id": "v2-16-strict-freshness-read-cost",
-      "statement": "The strict-freshness contract cost nothing measurable in READ throughput: every controlled strict/relaxed pair differs by between -14.2% and +12.3%, inside the run's ~20% single-trial noise floor. This claim measures read throughput only: it does not quantify the write-path cost of a strict protocol, and it must never be restated as 'strict freshness is free'.",
+      "statement": "The strict-freshness contract cost nothing measurable in READ throughput: the controlled strict/relaxed pair differed by 7.3% in one whole run and 5.7% in the other with the sign flipping, inside the cells' 8.7%-22.8% trial spread, so the null reproduced in both design orders. This claim measures read throughput only: it does not quantify the write-path cost of a strict protocol, and it must never be restated as 'strict freshness is free'.",
       "family": "external-read-copies",
       "study": "05-cache-consistency",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -2225,8 +2253,9 @@
       ],
       "limits": [
         "read throughput only",
-        "one trial per measurement; the range is noise, not an error bar",
-        "small scale, closed loop"
+        "the two fresh runs' trial spreads reached 22.8%, so only an effect larger than that could have been seen",
+        "small scale, closed loop, one machine",
+        "the strict/relaxed pair here is the owned write-through pair; a strict protocol's write-path cost is not measured"
       ],
       "anchors": [
         {
@@ -2239,6 +2268,28 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+redis",
           "role": "primary"
+        },
+        {
+          "run_id": "20261002T185604Z",
+          "run_tag": "run/05-cache-consistency/20261002T185604Z",
+          "repo_commit": "37ce688b",
+          "inputs_digest": "a8684db17dce1b34",
+          "report": "studies/05-cache-consistency/reports/20261002T185604Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T185911Z",
+          "run_tag": "run/05-cache-consistency/20261002T185911Z",
+          "repo_commit": "37ce688b",
+          "inputs_digest": "6d9110fa6e235d18",
+          "report": "studies/05-cache-consistency/reports/20261002T185911Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
         }
       ],
       "run_level": {
@@ -2290,10 +2341,15 @@
       },
       "control_coverage": "present",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 3,
+        "order": "abba",
+        "across_run_spread_pct": 12.9,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P2 was confirmed: the strict/relaxed read difference was 7.3% and 5.7% with the sign flipping between the two design orders, inside the cells' own trial spread, so no consistent direction appeared.",
+        "source": "studies/05-cache-consistency/T1-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {
@@ -2589,7 +2645,8 @@
         "one PostgreSQL + Redis configuration at small scale; one sustained measurement, never repeated",
         "hard expiry fired zero times; that clause is an open gap, not a confirmation",
         "closed loop, so read volumes are a floor",
-        "the 5x-for-120 s burst has no write-rate knob and was not run"
+        "the 5x-for-120 s burst has no write-rate knob and was not run",
+        "the 1800 s horizon was not re-run on 2026-10-02: the 600 s pair recorded for v3-02 re-tests the same mechanism at a shorter horizon, and this claim's 1801 s / 6.0-boundary figure remains the primary's single run"
       ],
       "anchors": [
         {
@@ -2671,13 +2728,13 @@
     },
     {
       "claim_id": "v3-02-churn-600-through-vs-aside",
-      "statement": "At 601 s the write-through and write-aside churn cells both crossed 2.0 real TTL boundaries with 0 wrong reads (1,467,721 reads / 197,196 writes for write-through; 1,364,997 reads / 182,282 writes for write-aside), and neither strategy is claimed to win: the study has no head-to-head fill/publication ratio.",
+      "statement": "At 601 s the write-through and write-aside churn cells each crossed 2.0 real 300 s TTL boundaries with 0 wrong reads, in two whole runs in reversed order (through 2.004/2.003 boundaries with 1,326,612 and 885,864 reads; aside 2.003/2.004 with 1,173,729 and 1,156,637), and neither strategy is claimed to win. One aside cell recorded 1 impossible cache value in 1,173,729 reads while its gate passed, so the study's floor that an impossible value must always be zero did not hold cleanly and the gate does not classify impossible values during churn.",
       "family": "external-read-copies",
       "study": "05-cache-consistency",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 4,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -2685,10 +2742,10 @@
       "comparability_record": null,
       "confounds": [],
       "limits": [
-        "two separate single runs, not a controlled head-to-head pair",
-        "write-aside numbers come from a sibling run with its own digest; both are single trials",
         "the cache container's own resources are not counted in this comparison",
-        "hard expiry fired zero times in both cells"
+        "hard expiry fired 0 times in every cell; only probabilistic early expiry fired, and the 5x burst was not run",
+        "closed loop, so read volumes are a floor",
+        "one cell (20261002T191609Z, aside-strict) recorded 1 impossible cache value that the gate did not catch; it is not repeated in the other three cells and has no identified cause, and the gate's coverage of impossible values during churn is a recorded gap"
       ],
       "anchors": [
         {
@@ -2711,6 +2768,28 @@
           "analysis": "book/evidence/v3/ANALYSIS.md",
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+redis",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T191609Z",
+          "run_tag": "run/05-cache-consistency/20261002T191609Z",
+          "repo_commit": "29a262d9",
+          "inputs_digest": "a9f216283e7ff7e2",
+          "report": "studies/05-cache-consistency/reports/20261002T191609Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T194046Z",
+          "run_tag": "run/05-cache-consistency/20261002T194046Z",
+          "repo_commit": "29a262d9",
+          "inputs_digest": "95c934ce25faf269",
+          "report": "studies/05-cache-consistency/reports/20261002T194046Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
           "role": "corroborating"
         }
       ],
@@ -2773,21 +2852,26 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
+        "runs": 4,
+        "order": "abba",
         "across_run_spread_pct": null,
-        "tier": "single-run"
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P5 was confirmed on its named relations: both strategies crossed 2.0 TTL boundaries and recorded 0 wrong reads in every cell, and no winner was named. The impossible cache value found in one aside cell is outside P5's named falsifiers and is recorded as a limit and a gate gap, not scored as a prediction.",
+        "source": "studies/05-cache-consistency/T1-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {
       "claim_id": "v3-03-equal-total-framing-labelled",
-      "statement": "Cache resource accounting now includes a second, separately labelled comparison in which both sides are given the same total resources: with the same design and topology the warm cacheable read is 11k ops/s when the two sides' totals are equal and 8.0k when the cache's own resources are not counted. Which way the resources were counted is recorded in every result, and the two are never averaged together.",
+      "statement": "Cache resource accounting carries a second, separately labelled comparison in which both sides are given the same total resources: two whole runs on 2026-10-02 recorded the db-only framing at 8,199 warm ops/s (cache budget none) and the equal-total framing at 7,931 (cache 1 CPU / 768 MiB), 3.3% apart inside the 17.7%/18.4% trial spread, with resource_framing and both budgets recorded in every result. What the claim asserts is that the two ways of counting resources are labelled and never pooled; the primary's 11k/8.0k point figures did not reproduce and are not quoted.",
       "family": "external-read-copies",
       "study": "05-cache-consistency",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 4,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -2795,9 +2879,9 @@
       "comparability_record": null,
       "confounds": [],
       "limits": [
-        "one run for each way of counting resources, on one host at small scale, each side measured once",
-        "what matters here is that the two ways of counting resources are labelled and kept apart, not the ratio between them",
-        "the difference is inside the run's spread and is not attributed"
+        "what matters is that the two framings are labelled and kept apart, not the ratio between them",
+        "the fresh runs are 3.3% apart, inside the 17.7%/18.4% spread; the primary's 11k/8.0k figures did not reproduce",
+        "one host, small scale, each framing measured once per session"
       ],
       "anchors": [
         {
@@ -2820,6 +2904,28 @@
           "analysis": "book/evidence/v3/ANALYSIS.md",
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node+redis",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T191221Z",
+          "run_tag": "run/05-cache-consistency/20261002T191221Z",
+          "repo_commit": "93cca7ed",
+          "inputs_digest": "d94ceb9845fcf33c",
+          "report": "studies/05-cache-consistency/reports/20261002T191221Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T191405Z",
+          "run_tag": "run/05-cache-consistency/20261002T191405Z",
+          "repo_commit": "93cca7ed",
+          "inputs_digest": "62a4db1d826c6a9b",
+          "report": "studies/05-cache-consistency/reports/20261002T191405Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "pg-single",
           "role": "corroborating"
         }
       ],
@@ -2871,21 +2977,26 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
+        "runs": 4,
+        "order": "abba",
         "across_run_spread_pct": null,
-        "tier": "single-run"
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P3 was confirmed: both runs record resource_framing and both budgets and the two framings are reported separately, never pooled, and no ratio was claimed.",
+        "source": "studies/05-cache-consistency/T1-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {
       "claim_id": "v3-04-yb-single-strict-relaxed",
-      "statement": "On YugabyteDB 1-node (RF=1) one run recorded the relaxed write-through read at 596 ops/s against the strict configuration's 514; the scatter is large, this is a single run, and no design is named the more consistent one.",
+      "statement": "On YugabyteDB 1-node (RF=1) the strict and relaxed write-through reads differ by 1.043x and 1.105x, both inside the cells' 21.7%-74.7% trial spread, so the strict/relaxed read difference is a null on one node too. The primary's direction (relaxed 596 above strict 514) did not reproduce: both fresh runs lean strict-slightly-ahead, also inside spread, so no design is named the more consistent one.",
       "family": "external-read-copies",
       "study": "05-cache-consistency",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
-        "fresh_load_trials_per_cell": 1,
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 3,
         "inner_iterations": 1
       },
       "transfer": "direct",
@@ -2893,9 +3004,9 @@
       "comparability_record": null,
       "confounds": [],
       "limits": [
-        "one run per freshness policy on one engine; the strict/relaxed direction is not repeated",
         "single endpoint (RF=1); this is not a cluster result",
-        "app-99 phase is a small mixed sample (spread 29.5% relaxed, 15.9% strict)"
+        "the trial spreads are large (up to 74.7%), so the null is weak evidence",
+        "the primary's direction (relaxed ahead) did not reproduce; the fresh runs lean strict-ahead, still inside spread"
       ],
       "anchors": [
         {
@@ -2908,6 +3019,28 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "yugabytedb-1node+redis",
           "role": "primary"
+        },
+        {
+          "run_id": "20261002T190350Z",
+          "run_tag": "run/05-cache-consistency/20261002T190350Z",
+          "repo_commit": "c7fb9aba",
+          "inputs_digest": "d92f414e80be3b12",
+          "report": "studies/05-cache-consistency/reports/20261002T190350Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yb-single",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261002T190748Z",
+          "run_tag": "run/05-cache-consistency/20261002T190748Z",
+          "repo_commit": "c7fb9aba",
+          "inputs_digest": "a67c106081445252",
+          "report": "studies/05-cache-consistency/reports/20261002T190748Z.md",
+          "analysis": "studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yb-single",
+          "role": "corroborating"
         }
       ],
       "run_level": {
@@ -2960,10 +3093,15 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "randomized",
+        "runs": 3,
+        "order": "abba",
         "across_run_spread_pct": null,
-        "tier": "single-run"
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P4 was confirmed as a null: the strict/relaxed difference was 4.3% and 10.5%, inside the cells' large trial spreads; the primary's direction did not reproduce, and no same-sign-beyond-spread difference appeared.",
+        "source": "studies/05-cache-consistency/T1-REPLICATION.md",
+        "verdict": "confirmed"
       }
     },
     {
@@ -2984,7 +3122,8 @@
       "limits": [
         "one run per freshness policy; direction is not repeated and differs from the 1-node pair",
         "three containers on one host, no real network; endpoint spread is round-robin by construction",
-        "app-99 phases have large spread (50.4% relaxed, 49.4% strict)"
+        "app-99 phases have large spread (50.4% relaxed, 49.4% strict)",
+        "not re-measured on 2026-10-02: yb-cluster3 RF=3 does not fit the fixed 2 GiB podman machine, so the opposite-direction result remains the primary's single run and this target is an explicit coverage gap"
       ],
       "anchors": [
         {
@@ -3075,7 +3214,8 @@
         "physical tablet/leader placement was not observed: the runner could not produce a tablet/leader distribution (its placeholder held only the three server names), so this is engine locality on one host, not verified colocation",
         "all containers run on one WSL2 host; one host is not colocation evidence",
         "one run per layout, no cache in this scenario, no repeat",
-        "spreads are large (warm 40.0% y1, 22.2% y2)"
+        "spreads are large (warm 40.0% y1, 22.2% y2)",
+        "not re-measured on 2026-10-02: the pair needs yb-cluster3, which the fixed machine cannot carry, and the harness still has no tablet/leader placement record, so the placement mechanism remains an unsupported coverage gap rather than a completed comparison"
       ],
       "anchors": [
         {
