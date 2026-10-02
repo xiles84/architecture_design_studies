@@ -38,6 +38,17 @@ summary, not a second ledger.
 
 ### Book initiative and the AI work pipeline — **in progress, next task ready**
 
+- **SELECT templates requested (2026-10-02, HIGH GPT-6 / Codex desktop):** the owner asked
+  for alternative SELECT forms, examples and measured regimes where they fit or fail.
+  [Eight-task program](docs/select-query-templates/PLAN.md): HIGH protocol/semantic atlas,
+  LOW Go oracle/harness, four LOW measurement families (join/CTE, existence/absence,
+  aggregates/top-N, access paths/pagination), HIGH evidence synthesis, LOW book integration.
+  Scope extends Study 01's existing relational domain and preserves Edition 3's pilot gate;
+  priority remains below the existing T1 workers. Task ids start `task-20261002T131729Z-select-`.
+  Publication is planning only: no new measured numbers or book claims. First downstream
+  action is HIGH `select-protocol`; milestone `repo/select-query-task-program-v1` is the
+  required publication/integration tag. Queue state remains authoritative.
+
 - Goal: [`goal-20260922T025912Z-data-architecture-book`](docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/GOAL.md)
   — an evidence-backed data-architecture book built with Typst in Podman, with every claim traceable
   to a run, tag, digest and signed analysis.

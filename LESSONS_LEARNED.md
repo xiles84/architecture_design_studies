@@ -10,6 +10,17 @@ experiments**.
 
 ## Measurement
 
+### SELECT comparisons need the same answer contract before timing
+
+The SELECT task program (2026-10-02, `docs/select-query-templates/PLAN.md`) separates
+query spelling from the answer's grain, multiplicity, NULL and ordering contract. A
+parent-membership EXISTS, a child-row join and an outer join with a WHERE predicate
+can answer different questions. Plan equality is also separate from answer equality
+and timing equality. The new program therefore requires independent Go bag/set/order
+oracles and deliberately wrong read-path fixtures before comparisons. This is a
+protocol decision, not new measurement evidence; slower, equivalent and unresolved
+outcomes must survive the report alongside successful regimes.
+
 ### A model handoff must preserve decisions, evidence and the next role
 
 The owner separates expensive reasoning from routine execution: HIGH writes an
