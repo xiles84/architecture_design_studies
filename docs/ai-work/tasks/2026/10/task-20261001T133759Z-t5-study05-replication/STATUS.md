@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261001T133759Z-t5-study05-replication` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=deepseek-flash tool=Deep Code CLI effort=high session=unknown capability=HIGH role=planner` |
-| Last event | `event-20261001T134852Z-published` |
-| Updated at | `2026-10-01T13:48:52Z` |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20261002T184227Z-2c6d80` |
+| Active worker | `model=deepseek-flash tool=Deep Code CLI effort=unknown session=unknown capability=HIGH role=executor` |
+| Last event | `event-20261002T184227Z-claimed` |
+| Updated at | `2026-10-02T18:42:27Z` |
 | Next capability | LOW |
 | Next work role | executor |
 | Branch | `study-05/t1-replication` |
 | Worktree | `.worktrees/t1-study05` |
 
-Published by model=deepseek-flash tool=Deep Code CLI effort=high session=unknown capability=HIGH role=planner. The immutable event files are authoritative for history.
+Claimed by model=deepseek-flash tool=Deep Code CLI effort=unknown session=unknown capability=HIGH role=executor until 2026-10-02T20:42:27Z. Worktree `.worktrees/t1-study05`.
