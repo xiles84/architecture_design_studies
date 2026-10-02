@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261001T133759Z-t5-study05-replication` |
-| State | `awaiting_review` |
-| Sequence | `5` |
+| State | `approved_for_integration` |
+| Sequence | `6` |
 | Active attempt | none |
-| Active worker | `model=deepseek-flash tool=Deep Code CLI effort=unknown session=unknown capability=HIGH role=reviewer` |
-| Last event | `event-20261002T203120Z-reviewed` |
-| Updated at | `2026-10-02T20:31:20Z` |
+| Active worker | `model=deepseek-flash tool=Deep Code CLI effort=unknown session=unknown capability=HIGH role=integrator` |
+| Last event | `event-20261002T203512Z-approved` |
+| Updated at | `2026-10-02T20:35:12Z` |
 | Next capability | HIGH |
-| Next work role | reviewer |
+| Next work role | integrator |
 | Branch | `study-05/t1-replication` |
 | Worktree | `.worktrees/t1-study05` |
 
-Review `review-20261002T203120Z-f6ef` recorded; next: approve or request-changes.
+Approved for integration. NEXT: `queue integrate`.
