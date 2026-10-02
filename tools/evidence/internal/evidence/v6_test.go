@@ -109,6 +109,7 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	// are not quotable. Their statements, confounds and anchors are untouched.
 	changed := map[string]bool{
 		"v2-13-trigger-rollup-cost":                 true,
+		"v2-07-refund-answerability-and-storage":    true,
 		"v2-04-recency-maintained-index":            true,
 		"v2-05-d3-read-advantage-repeated":          true,
 		"v2-01-normalized-index-first":              true,
@@ -118,7 +119,6 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		"v2-11-section-seat-map":                    true,
 		"v2-08-ledger-race-cost-128-buyers":         true,
 		"v2-09-postgres-ledger-ratio-unsettled":     true,
-		"v2-07-refund-answerability-and-storage":    true,
 		"v2-gap-01-ledger-load-multiplier-unstable": true,
 	}
 	// Claims whose wording was made plainer without touching the evidence. Their

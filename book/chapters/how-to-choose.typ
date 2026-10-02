@@ -62,7 +62,7 @@ measured. A recommendation that does not say what is missing claims more than th
 #heading(level: 2, "A worked decision")
 #list(
   [A ticketing system must never oversell and must report refunds → append-only ledger plus a
-   pre-created-seat arbiter, +33–35% storage.],
+   pre-created-seat arbiter, +33–38% storage — about 35% by table size, 38% counting indexes too.],
   [A configuration portal reads its overview far more than it writes → application-maintained
    rollup; a trigger only if a forgotten write is unacceptable.],
   [A public donor portal serves warm profiles → cache with a named contract and a publication fence

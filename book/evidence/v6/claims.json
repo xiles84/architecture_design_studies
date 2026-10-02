@@ -744,12 +744,12 @@
     },
     {
       "claim_id": "v2-07-refund-answerability-and-storage",
-      "statement": "A ticketing database chosen only to prevent overbooking cannot report refunds at all: in 14 of 15 designs the refunds window is unanswerable and the sales/revenue and last-purchase reports are wrong across a refund. The append-only ledger (X1 CAS+ledger) that fixes it costs about 33-35% more storage.",
+      "statement": "A ticketing database chosen only to prevent overbooking cannot report refunds at all: in 14 of 15 designs the refunds report (r05) is unanswerable and the sales/revenue (r01) and last-purchase (r03) reports are wrong across a refund, reproduced in two whole runs in both design orders on PostgreSQL at scale small, with the append-only ledger (X1 CAS+ledger) the only design that answers r05. The ledger's storage cost depends on which relations are counted and moves about a percentage point between runs: about 33-35% more than P3 by table size (33.4% and 34.8% in the two runs, 35.2% in the primary), about 35-36% counting every relation, and 37.7% by index size alone.",
       "family": "append-only-history",
       "study": "02-ticket-booking",
-      "strength": "single_run_directional",
+      "strength": "run_replicated",
       "trials": {
-        "whole_run_replications": 1,
+        "whole_run_replications": 5,
         "fresh_load_trials_per_cell": 1,
         "inner_iterations": 1
       },
@@ -761,7 +761,9 @@
         "answerability is a schema fact, not a timing",
         "the +33-35% storage delta is a relation-size difference measured in the primary run and deterministic for the same dataset and design; it is not a repeated timed result",
         "the P3 -> X1 read rows of this run are excluded, because the difference belongs to the configuration as a whole rather than to one decision inside it",
-        "the read phase of this claim's primary anchor 20260920T234953Z was client-CPU throttled by a design-dependent amount (2.3 s for p2_precreated_skip_locked to 58.1 s for r1_inventory_row, out of about 1085 CFS periods), so that report's read figures are not quotable: the hazard reproduces on the current harness (20260929T165533Z, 20260929T170353Z: r1_inventory_row 32.3 s of ~63 s of periods, both orders), and the 2026-09-30 budget calibration shows the client's quota is a symptom rather than the ceiling - the read level on this machine is set by the database's share of four CPUs, and adding a client core removes the client's throttling while making the reads slower. Answerability and the r05 storage/speed result are unaffected: the ledger still answers r05 at 30.3k and 33.0k ops/s against the primary's 32.2k, and at the new 2-worker read footprint the r05 result reproduces independently at 32,164 ops/s (20260930T164028Z), so that number has a footprint-2 footing; all fifteen designs now have one (the eleven-design tranche 20260930T201732Z/20260930T203913Z adds the rest, unthrottled), while this claim's primary anchor's own footprint-8 read figures remain not quotable (design-dependent inflation, 1.09x to 2.22x). **Correction, 2026-09-30: an earlier caveat here said the two many-row queries (q02_band_events, q05_band_tickets_sold) had client-bound levels; it is withdrawn.** A one-worker tranche (20260930T232926Z, 20260930T233744Z) shows that in-flight measured with the **mean** latency is exactly 1.000 in all 72 cells at one worker and 2.00 at two, so every read cell in the family is a store measurement at a stated footprint, and only its magnitude depends on the concurrency. Two errors produced the withdrawn caveat: q05 does not return 28 rows (all three variants return one - COUNT/SUM with no GROUP BY), and in-flight computed from the **median** understates the concurrency by the latency skew (mean/p50 up to 2.7x), which reads exactly like a worker idling between fetches. The primary anchor's **PostgreSQL read cells have since been re-stated** on the footprint-2 footing (analysis 20261001T-read-cells-restated: all fifteen designs, both orders, every cell store-bound at 2.00 operations in flight), so its `pg-single` read figures may be replaced rather than caveated. All fifteen designs have since been measured in a **single run**, twice and in reversed order (20261001T100948Z, 20261001T103931Z): 0 throttled periods in all 30 read phases and every one of the 270 cells store-bound at 2.00 operations in flight by the mean latency, so the family's levels are jointly comparable within that session. Two consequences for quoting: the top group (h0, h1, r1, r2, p4) differs by 4%, inside that session's own order term, so its internal ranking is not quotable - only the 1.5x gap between that group and the per-seat group is; and c1_count_naive carries a 40% position term (first of one order against last of the other), so its q01 level should not be quoted from these runs. Its two **YugabyteDB read arms have no replacement** and remain an explicit coverage gap"
+        "the read phase of this claim's primary anchor 20260920T234953Z was client-CPU throttled by a design-dependent amount (2.3 s for p2_precreated_skip_locked to 58.1 s for r1_inventory_row, out of about 1085 CFS periods), so that report's read figures are not quotable: the hazard reproduces on the current harness (20260929T165533Z, 20260929T170353Z: r1_inventory_row 32.3 s of ~63 s of periods, both orders), and the 2026-09-30 budget calibration shows the client's quota is a symptom rather than the ceiling - the read level on this machine is set by the database's share of four CPUs, and adding a client core removes the client's throttling while making the reads slower. Answerability and the r05 storage/speed result are unaffected: the ledger still answers r05 at 30.3k and 33.0k ops/s against the primary's 32.2k, and at the new 2-worker read footprint the r05 result reproduces independently at 32,164 ops/s (20260930T164028Z), so that number has a footprint-2 footing; all fifteen designs now have one (the eleven-design tranche 20260930T201732Z/20260930T203913Z adds the rest, unthrottled), while this claim's primary anchor's own footprint-8 read figures remain not quotable (design-dependent inflation, 1.09x to 2.22x). **Correction, 2026-09-30: an earlier caveat here said the two many-row queries (q02_band_events, q05_band_tickets_sold) had client-bound levels; it is withdrawn.** A one-worker tranche (20260930T232926Z, 20260930T233744Z) shows that in-flight measured with the **mean** latency is exactly 1.000 in all 72 cells at one worker and 2.00 at two, so every read cell in the family is a store measurement at a stated footprint, and only its magnitude depends on the concurrency. Two errors produced the withdrawn caveat: q05 does not return 28 rows (all three variants return one - COUNT/SUM with no GROUP BY), and in-flight computed from the **median** understates the concurrency by the latency skew (mean/p50 up to 2.7x), which reads exactly like a worker idling between fetches. The primary anchor's **PostgreSQL read cells have since been re-stated** on the footprint-2 footing (analysis 20261001T-read-cells-restated: all fifteen designs, both orders, every cell store-bound at 2.00 operations in flight), so its `pg-single` read figures may be replaced rather than caveated. All fifteen designs have since been measured in a **single run**, twice and in reversed order (20261001T100948Z, 20261001T103931Z): 0 throttled periods in all 30 read phases and every one of the 270 cells store-bound at 2.00 operations in flight by the mean latency, so the family's levels are jointly comparable within that session. Two consequences for quoting: the top group (h0, h1, r1, r2, p4) differs by 4%, inside that session's own order term, so its internal ranking is not quotable - only the 1.5x gap between that group and the per-seat group is; and c1_count_naive carries a 40% position term (first of one order against last of the other), so its q01 level should not be quoted from these runs. Its two **YugabyteDB read arms have no replacement** and remain an explicit coverage gap",
+        "the storage percentage depends on the rule and on the page layout, and must not be quoted as one number: tables only 33.4-35.2%, every relation 35.0-36.2%, indexes alone 37.7%; the same pair's relation sizes moved 0.26% (p3) and 0.41% (x1) between two runs 29 minutes apart, so the delta moved 0.9 percentage points, and the 2026-10-02 replication's M4 (reproducible within 1%) is falsified by that movement - a tighter figure would need a vacuumed comparison, which is a different measurement",
+        "the answerability statuses are the harness's own audit of its own schema, computed as a pure function of the design and emitted inside the read phase; the 2026-10-02 replication therefore tests reproducibility across two whole runs and not the independence of the audit's rule, and it re-measured no timing"
       ],
       "anchors": [
         {
@@ -796,15 +798,59 @@
           "environment": "host-zenbook-ux5406sa",
           "topology": "postgresql-1node",
           "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T191704Z-t1",
+          "run_tag": "run/02-ticket-booking/20261001T191704Z-t1",
+          "repo_commit": "fcab38dc",
+          "inputs_digest": "02a64483f9516a93",
+          "report": "studies/02-ticket-booking/reports/20261001T191704Z-t1.md",
+          "analysis": "studies/02-ticket-booking/reports/analyses/20261002T-t1-answerability-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T194638Z-t1",
+          "run_tag": "run/02-ticket-booking/20261001T194638Z-t1",
+          "repo_commit": "d0b4747a",
+          "inputs_digest": "f879f1cb732ebe49",
+          "report": "studies/02-ticket-booking/reports/20261001T194638Z-t1.md",
+          "analysis": "studies/02-ticket-booking/reports/analyses/20261002T-t1-answerability-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T191132Z-t1",
+          "run_tag": "run/02-ticket-booking/20261001T191132Z-t1",
+          "repo_commit": "fcab38dc",
+          "inputs_digest": "d5d39748f0846f1c",
+          "report": "studies/02-ticket-booking/reports/20261001T191132Z-t1.md",
+          "analysis": "studies/02-ticket-booking/reports/analyses/20261002T-t1-answerability-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "20261001T191256Z-t1",
+          "run_tag": "run/02-ticket-booking/20261001T191256Z-t1",
+          "repo_commit": "fcab38dc",
+          "inputs_digest": "dedd99c0ae0863ba",
+          "report": "studies/02-ticket-booking/reports/20261001T191256Z-t1.md",
+          "analysis": "studies/02-ticket-booking/reports/analyses/20261002T-t1-answerability-replication--deepseek-flash--2026-10-02.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
         }
       ],
       "run_level": {
-        "reported_cells": 45,
+        "reported_cells": 105,
         "reported_failed": 0,
         "source": "report cell count (15 designs x 3 topologies)",
         "controls_present": 2,
         "controls_fired": 0,
-        "note": "The two controls could not fire in a read-only phase; recorded as a gap, not evidence of correctness."
+        "note": "The primary is 20260920T234953Z. Two whole runs of all fifteen designs on 2026-10-01 (20261001T191704Z-t1 forward, 20261001T194638Z-t1 reversed, phases verify,read at the published footprint) carry the replication of the answerability statuses and the storage band; a pre-check pair with the same design set (20261001T191132Z-t1, 20261001T191256Z-t1, phases verify) carries storage and gate evidence but no answerability data, because report_coverage is emitted in the read phase. All four runs are tagged run/02-ticket-booking/<run-id>, clean at their own commits, with 15 clean verify cells each."
       },
       "support": [
         {
@@ -845,10 +891,15 @@
       },
       "control_coverage": "absent",
       "replication": {
-        "runs": 1,
-        "order": "fixed",
-        "across_run_spread_pct": null,
-        "tier": "single-run"
+        "runs": 5,
+        "order": "abba",
+        "across_run_spread_pct": 2.6,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "M1, M2, M3, M5 and M6 were confirmed: r05 unanswerable in exactly 14 of 15 designs with x1 the only design answering it, r01/r03 partial in the same 14 and r02/r04 answerable in all 15, in both whole runs and both orders; every storage rule inside the predicted 32-38%; the ledger the largest design with the p-family spread under 1%; and 15/15 clean verify cells with zero over-booked, duplicate or ledger-mismatched rows. M4 was falsified as stated - it required the all-relations delta to move less than 1% between runs and it moved 2.6% relative (35.0% to 35.9%), because PostgreSQL relation size carries the free space the load left behind.",
+        "source": "studies/02-ticket-booking/T1-ANSWERABILITY-REPLICATION.md",
+        "verdict": "falsified"
       }
     },
     {
