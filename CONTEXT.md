@@ -927,6 +927,7 @@ same change. **Deferred/gaps:** `v3-01`'s 1800 s horizon was not re-run; `v3-05`
 `yb-cluster3`, which the fixed 2 GiB machine cannot carry, and no tablet/leader placement record exists, so
 the required colocated/non-colocated comparison remains an explicit coverage gap. Eight runs tagged; analysis
 `studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md`.
+Merged into local `main` at `7c53e24`; the task is complete and the worktree removed.
 
 ### Infrastructure and environment
 
