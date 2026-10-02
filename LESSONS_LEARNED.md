@@ -2365,3 +2365,24 @@ live claim ref, the ref kept the pre-submit event and `queue audit` now reports 
 for that task. It is cosmetic — the committed event record is right, the task is `awaiting_review` — and it
 clears when the task is completed, but a worker who sees it should say so rather than try to hand-edit the ref.
 
+### A refusal count is not a grade until the audit classifies it
+Study 03's `s0_check_then_hold_rc` refuses valid holds hundreds of times per tier and, on the same cells,
+records `errors` in the thousands — which reads like a broken design and is in fact the study's **declared
+negative control** doing its job: the audit's `thefts` counter (474-599 per tier on YugabyteDB, 1,168-6,231 on
+PostgreSQL) is the correctness gate, and the client's `errors` counter is not. The correct designs' refusals,
+by contrast, are the claim itself: 2, 3 and 1 events, every one flagged `transient`, which the harness defines
+as the identical statement re-issued inside the refusing transaction matching every seat. Two rules follow.
+**Quote a refusal from the audit's classification, never from an error counter**, and **check whether a design
+is the control before treating its failures as findings** — `designs.go` says so explicitly for s0, and reading
+it first would have saved a wrong first pass at this analysis.
+
+### A resource blocker has a shape: check which topology it binds
+`CONTEXT.md` recorded a 2 GiB podman-machine blocker and the working assumption that it ruled out the
+YugabyteDB half of several claims. The t3 task's mandated feasibility check falsified that broad reading in
+five minutes: a **single-node** YugabyteDB arm starts, loads, runs its race phase and completes with a
+consistent audit, so `v2-10` could be replicated at all; what the 2 GiB machine cannot carry is **`yb-cluster3`**
+and any three-node topology. **A blocker is a statement about a configuration, not about an engine**: before
+recording "not measurable on this machine", name the topology it binds and try the cheapest configuration that
+would answer the question. The same check carried the opposite risk — the pre-check reproduced the claim's
+mechanism, which is why the tranche could be planned as a real replication rather than a coverage-gap note.
+
