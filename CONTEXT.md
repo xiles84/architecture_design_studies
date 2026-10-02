@@ -718,6 +718,23 @@ defects no source check could see (headings numbered `0.x`, a stray comma in the
 overflowing to a second page, the checklist split orphaning a row, the `CHAPTER 4` eyebrow on the previous
 page); all five are fixed on `book/ed3-pilot` at `6b6dd6d`. The preview is 90 pages (front p. 3, chapter 4
 pp. 8–9, Study 04 profile p. 13), 31/31 claims, 6/6 fonts, no banner, and stays untracked in the task worktree.
+
+**T2 — Study 02's `v2-07` replicated, its storage figure re-scoped (2026-10-02, LOW deepseek-flash).**
+`task-20261001T133759Z-t2-study02-replication` re-derived `v2-07` in **four whole runs of all fifteen designs**
+on `pg-single` — two with `verify,read` (both design orders, the evidence) and two `verify`-only (a pre-check).
+The answerability half reproduced exactly in both orders: `r05` unanswerable in 14 of 15 designs with
+`x1_cas_ledger` the only design answering it, `r01`/`r03` partial in the same 14, `r02`/`r04` answerable in all
+15; 15/15 clean verify cells per run, 0 over-booked, 0 duplicate seats, 0 ledger mismatches. The storage half
+replicated as a **band whose value depends on the rule**: tables only +33.4%/+34.8% (primary 35.2%), all
+relations +35.0%/+35.9% (primary 36.2%), indexes alone +37.7%. The claim is now `run_replicated` with its
+statement naming the rule, `book/chapters/how-to-choose.typ`'s "+33–35% storage" re-scoped to "+33–38% storage
+— about 35% by table size, 38% counting indexes too", and its `M4` (reproducible within 1%) recorded as
+**falsified**: the delta moved 0.9 percentage points between two runs 29 minutes apart, because relation size
+carries the load's free space. Analysis
+`studies/02-ticket-booking/reports/analyses/20261002T-t1-answerability-replication--deepseek-flash--2026-10-02.md`.
+The task's survey ranks what remains measurable on the fixed 2 GiB machine: `v2-08`'s PostgreSQL refund and
+organiser-edit arms first, then `v2-09`'s buyer×tier surface; the `yb-cluster3` and `v2-11` YugabyteDB arms
+**do not fit** and stay recorded as coverage gaps.
 one order, last of the other) and its `q01` level should not be quoted from these runs. All six predictions
 confirmed.
 

@@ -288,6 +288,20 @@ per run and still reported "failed processes 0". Proven with `podman --version` 
 fd 3. The published matrices are unaffected (their manifests count 100 and 192 cells), and two one-cell
 diagnostic runs from before the fix are kept in `results/` as the evidence.
 
+**Study 02's last single-run claim replicated, with its storage figure re-scoped (2026-10-02, tag
+`study-02/t1-remaining`).** `v2-07` is now `run_replicated`, but it was two claims in one: an answerability
+count and a storage percentage. The **count replicated exactly** — `r05` unanswerable in 14 of 15 designs with
+`x1_cas_ledger` the only design that answers it, `r01`/`r03` partial in the same 14 and `r02`/`r04` answerable
+in all 15, in two whole runs of all fifteen designs in both design orders. The **percentage needed the same
+treatment the other post-v6 claims have needed**: the primary's "35% storage" is the tables-only figure (35.2%
+in its own data), every relation gives 36.2%, and indexes alone 37.7%, and the two replications land at
+33.4-34.8% (tables) and 35.0-35.9% (all). The statement now names the rule. The tranche's `M4` — that the
+delta would reproduce within 1% — is **falsified**: it moved 2.6% relative (0.9 percentage points) because
+PostgreSQL relation size carries the free space the load left behind, so a single-run storage percentage is a
+reading of a page layout rather than a constant of the schema. The runner phase was also corrected before the
+evidence was used: `report_coverage` is emitted inside the **read** phase, not by the load, so the first
+`verify`-only pair is a labelled pre-check and only the `verify,read` pair carries the answerability half.
+
 **Evidence.** Protocols `studies/02-ticket-booking/V2-08-REPLICATION.md`, `…-TIER100-SETTLE.md`,
 `…-TIER-AXIS.md`, `…-BUYER-SWEEP.md`; signed analyses `20260927T-v2-08-replication--deepseek-flash--2026-09-27`,
 `20260927T-v2-08-tier100-settle--deepseek-flash--2026-09-27`,

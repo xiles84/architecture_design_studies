@@ -2318,3 +2318,24 @@ eight rows, a verdict tag printing `FITS,`, section headings numbered `0.5` unde
 at it**, which is what the review did. The cheap mechanical version, worth adding at phase 2: assert that the
 front page is one page and that no table's rows straddle two pages.
 
+### The phase that emits a fact is not always the phase that sounds like it
+The t2 replication ran `--phases verify` on the reasoning that the relation sizes and the correctness gates
+come from the load path and that no part of the claim depended on a timing. The relation sizes and the gates
+did — but the **answerability table did not exist at all**, because `harness/main.go` computes
+`report_coverage` inside the **read** phase even though it is a pure function of the design and measures
+nothing. Two runs and 15 loads were spent before the missing key was noticed. **The cheap rule: before choosing
+phases, grep the harness for the field you intend to quote and read the block it sits in**; the phase list in
+`--help` describes cost, not provenance. The evidence pair was re-run with `verify,read`, and the wasted pair
+was kept as a labelled pre-check rather than discarded.
+
+### A relation size is a page layout, not a schema constant
+`v2-07`'s storage half was predicted to reproduce within 1% between runs, because the same dataset and the same
+schema should give the same bytes. It moved **2.6% relative** (35.0% to 35.9% of the ledger's delta over P3):
+`p3` measured 76,251,136 against 76,054,528 bytes and `x1` 102,907,904 against 103,333,888, in two runs 29
+minutes apart. PostgreSQL's `pg_total_relation_size` includes the free space the load left behind, so **a
+single-run storage percentage is a reading of a page layout and only a band is portable**: the same pair gives
+33.4-35.2% by table size, 35.0-36.2% counting every relation and 37.7% by index size alone. Two things follow
+for every claim that quotes storage: **name the rule** (which relation kinds are summed) and **do not quote a
+tighter figure than about a percentage point per run** unless the comparison was made on a vacuumed database,
+which is a different measurement.
+
