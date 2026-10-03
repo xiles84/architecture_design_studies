@@ -48,6 +48,16 @@ the DB execution, plan capture and report layers are not written yet. Committed 
 13 tests pass in the pinned image; the check report was extended. Remaining item 3 below is now
 **half done** — capture (`EXPLAIN (ANALYZE, BUFFERS)` per cell, stored beside the timing) is still to do.
 
+## Update (2026-10-03, third increment)
+
+`report.go` + `report_test.go` committed (`74009573`): `Status`/`Provenance`/`Cell` and
+`RenderComparison`, the measurements-only generated report. It names invalid/unsupported/timed-out
+cells and never ranks them, refuses cross-group and control pairs, classifies each comparable pair as
+`same plan structure`, `no resolved difference` (difference inside the trial spread) or a resolved
+difference, and **refuses a non-empty interpretation** so the generated file cannot absorb the
+analysis. 6 new tests; **19 total pass in `golang:1.26-bookworm`**; check report extended. Remaining
+item 4 is now mostly built; the DB execution (items 1–3) is still the gap.
+
 ## Remaining work (for the next session on this branch)
 
 1. `-cmd select` (or an equivalent subcommand) in the harness `main.go`: bind `:pred`/`:n`/`:limit`
