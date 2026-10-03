@@ -328,3 +328,146 @@ func Page(fx Fixture, limit, offset int) []PageRow {
 	}
 	return out
 }
+
+// --- aggregate / top-N sweep oracles (task select-aggregate-topn) ----------
+//
+// The sweep restricts the answer to a prefix of parent ids (`maxParent`, 0 =
+// all), so one deterministic fixture serves parent-count levels 1..10,000
+// without reloading. The unsuffixed Aggregate/TopN oracles remain the
+// harness-validation contracts; these are the sweep contracts.
+
+func parentSelected(id, maxParent int) bool {
+	return maxParent <= 0 || id <= maxParent
+}
+
+// selectParents returns a fixture restricted to parents with id <= maxParent
+// and the orders that belong to them. Orphan orders (NULL parent) are excluded:
+// they belong to no parent, so no parent aggregate can see them.
+func selectParents(fx Fixture, maxParent int) Fixture {
+	sub := Fixture{}
+	for _, c := range fx.Customers {
+		if parentSelected(c.ID, maxParent) {
+			sub.Customers = append(sub.Customers, c)
+		}
+	}
+	for _, o := range fx.Orders {
+		if o.CustomerID != nil && parentSelected(*o.CustomerID, maxParent) {
+			sub.Orders = append(sub.Orders, o)
+		}
+	}
+	return sub
+}
+
+// AggregateUpTo is Aggregate restricted to a prefix of parent ids.
+func AggregateUpTo(fx Fixture, maxParent int) []AggRow {
+	return Aggregate(selectParents(fx, maxParent))
+}
+
+// TopNUpTo is TopN restricted to a prefix of parent ids.
+func TopNUpTo(fx Fixture, n, maxParent int) []TopRow {
+	return TopN(selectParents(fx, maxParent), n)
+}
+
+// DoubleCountAggregate is the deliberately-wrong pre-aggregation grain: it
+// answers as if orders had been joined to a second one-to-many collection, so
+// every parent's SUM and COUNT are multiplied by its child count. It is a
+// control: it must differ from the aggregate oracle wherever a parent has more
+// than one child, and must never be shown as a faster aggregate.
+func DoubleCountAggregate(fx Fixture, maxParent int) []AggRow {
+	base := AggregateUpTo(fx, maxParent)
+	counts := map[int]int{}
+	for _, o := range fx.Orders {
+		if o.CustomerID != nil && parentSelected(*o.CustomerID, maxParent) {
+			counts[*o.CustomerID]++
+		}
+	}
+	out := make([]AggRow, 0, len(base))
+	for _, r := range base {
+		n := counts[r.CustomerID]
+		out = append(out, AggRow{CustomerID: r.CustomerID, CustomerName: r.CustomerName,
+			Total: r.Total * n, Children: r.Children * n})
+	}
+	return out
+}
+
+// RankTiesTopN is the deliberately-wrong top-N tie behaviour: RANK keeps every
+// tied row (a separate contract), so a parent whose tied group starts at rank 1
+// returns more than N rows. It must be detected wherever the fixture holds a
+// tie, which GuaranteedTie ensures.
+func RankTiesTopN(fx Fixture, n, maxParent int) []TopRow {
+	byCust := map[int][]Order{}
+	for _, o := range fx.Orders {
+		if o.CustomerID == nil || !parentSelected(*o.CustomerID, maxParent) {
+			continue
+		}
+		byCust[*o.CustomerID] = append(byCust[*o.CustomerID], o)
+	}
+	var out []TopRow
+	for _, c := range fx.Customers {
+		if !parentSelected(c.ID, maxParent) {
+			continue
+		}
+		rows := byCust[c.ID]
+		sort.Slice(rows, func(i, j int) bool {
+			return orderLess(rows[i].Amount, rows[i].ID, rows[j].Amount, rows[j].ID)
+		})
+		rank := 0
+		havePrev := false
+		var prev *int
+		for _, o := range rows {
+			if !havePrev || !sameAmount(prev, o.Amount) {
+				rank++
+			}
+			prev, havePrev = o.Amount, true
+			if rank <= n {
+				out = append(out, TopRow{CustomerID: c.ID, OrderID: o.ID, Amount: o.Amount})
+			}
+		}
+	}
+	return out
+}
+
+func sameAmount(a, b *int) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
+// GuaranteedTie makes the smallest parent with at least two children hold two
+// equal amounts, so the tie control (x06) always has a tie to violate. It is a
+// fixture shape for the control, not a workload change, and it is reflected in
+// the dataset fingerprint.
+func GuaranteedTie(fx Fixture) Fixture {
+	byCust := map[int][]int{}
+	for i, o := range fx.Orders {
+		if o.CustomerID != nil {
+			byCust[*o.CustomerID] = append(byCust[*o.CustomerID], i)
+		}
+	}
+	best := 0
+	for id, idx := range byCust {
+		if len(idx) >= 2 && (best == 0 || id < best) {
+			best = id
+		}
+	}
+	if best == 0 {
+		return fx
+	}
+	idx := byCust[best]
+	// Tie at the TOP of the parent's order: give the first two orders the
+	// parent's maximum amount. A tie anywhere lower would not make RANK keep an
+	// extra row at rank 1, so the control would not fire.
+	max := 0
+	for _, i := range idx {
+		if a := fx.Orders[i].Amount; a != nil && *a > max {
+			max = *a
+		}
+	}
+	if max == 0 {
+		max = 100
+	}
+	fx.Orders[idx[0]].Amount = ip(max)
+	fx.Orders[idx[1]].Amount = ip(max)
+	return fx
+}

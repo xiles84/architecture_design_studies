@@ -44,7 +44,9 @@ func (a Args) ParamMap(s Statement) map[string]string {
 		case "pred":
 			m[p] = firstNonEmpty(a.PredSQL, "amount > 100")
 		case "n":
-			m[p] = strconv.Itoa(a.N)
+			m[p] = strconv.Itoa(topNArg(a))
+		case "parent_max":
+			m[p] = strconv.Itoa(a.ParentMax)
 		case "limit":
 			m[p] = strconv.Itoa(a.Limit)
 		case "offset":

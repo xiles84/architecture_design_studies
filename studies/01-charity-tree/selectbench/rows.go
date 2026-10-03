@@ -159,7 +159,7 @@ func Canonicalize(group string, rows [][]any) (any, error) {
 		})
 		return out, nil
 
-	case "sel_aggregate":
+	case "sel_aggregate", "sel_aggregate_sel":
 		out := make([]AggRow, 0, len(rows))
 		for _, r := range rows {
 			if err := need(r, 4, group); err != nil {
@@ -186,7 +186,7 @@ func Canonicalize(group string, rows [][]any) (any, error) {
 		sort.Slice(out, func(i, j int) bool { return out[i].CustomerID < out[j].CustomerID })
 		return out, nil
 
-	case "sel_topn":
+	case "sel_topn", "sel_topn_sel", "sel_topn_one":
 		out := make([]TopRow, 0, len(rows))
 		for _, r := range rows {
 			if err := need(r, 3, group); err != nil {

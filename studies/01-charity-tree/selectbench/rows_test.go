@@ -29,14 +29,14 @@ func rowsFromOracle(t *testing.T, group string, want any, fx Fixture) [][]any {
 			out = append(out, []any{r.CustomerID, r.CustomerName, nv(r.OrderID), nv(r.Amount)})
 		}
 		return out
-	case "sel_aggregate":
+	case "sel_aggregate", "sel_aggregate_sel":
 		v := want.([]AggRow)
 		out := make([][]any, 0, len(v))
 		for _, r := range v {
 			out = append(out, []any{r.CustomerID, r.CustomerName, r.Total, r.Children})
 		}
 		return out
-	case "sel_topn":
+	case "sel_topn", "sel_topn_sel", "sel_topn_one":
 		v := want.([]TopRow)
 		out := make([][]any, 0, len(v))
 		for _, r := range v {

@@ -42,6 +42,15 @@ func oracleFor(group string, fx Fixture, a Args) (any, error) {
 		return TopN(fx, a.N), nil
 	case "sel_pagination":
 		return Page(fx, a.Limit, a.Offset), nil
+	case "sel_aggregate_sel":
+		return AggregateUpTo(fx, a.ParentMax), nil
+	case "sel_topn_sel":
+		return TopNUpTo(fx, topNArg(a), a.ParentMax), nil
+	case "sel_topn_one":
+		// DISTINCT ON is an N=1-only spelling; its contract fixes N=1 rather
+		// than reading Args.N, so it stays comparable to the other top-N
+		// spellings at N=1 and only at N=1.
+		return TopNUpTo(fx, 1, a.ParentMax), nil
 	case ControlGroup:
 		return nil, fmt.Errorf("a deliberately wrong control has no oracle: it must be seen to FAIL, not to match")
 	}

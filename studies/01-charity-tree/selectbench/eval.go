@@ -12,6 +12,10 @@ type Args struct {
 	Limit  int
 	Offset int
 	Last   *PageRow
+	// ParentMax restricts the aggregate/top-N sweep to parents with id <=
+	// ParentMax (0 = every parent). It is the parent-selection / parent-count
+	// axis of the aggregate-topn matrix.
+	ParentMax int
 	// SQL-side parameters, rendered into the statement by Bind.
 	PredSQL          string
 	LastAmount       int
@@ -53,14 +57,35 @@ var Evaluators = map[string]EvalFunc{
 	// top-N per parent
 	"s14_topn_rownumber": func(fx Fixture, a Args) any { return TopN(fx, a.N) },
 	"s15_topn_lateral":   func(fx Fixture, a Args) any { return TopN(fx, a.N) },
+	// aggregate / top-N sweep family (task select-aggregate-topn): the same
+	// contracts restricted to a parent prefix, so one fixture serves the
+	// parent-selection and parent-count axes.
+	"a01_aggregate_join_sel":       func(fx Fixture, a Args) any { return AggregateUpTo(fx, a.ParentMax) },
+	"a02_aggregate_preagg_sel":     func(fx Fixture, a Args) any { return AggregateUpTo(fx, a.ParentMax) },
+	"a03_aggregate_correlated_sel": func(fx Fixture, a Args) any { return AggregateUpTo(fx, a.ParentMax) },
+	"a04_topn_rownumber_sel":       func(fx Fixture, a Args) any { return TopNUpTo(fx, topNArg(a), a.ParentMax) },
+	"a05_topn_lateral_sel":         func(fx Fixture, a Args) any { return TopNUpTo(fx, topNArg(a), a.ParentMax) },
+	"a06_topn_distinct_on_sel":     func(fx Fixture, a Args) any { return TopNUpTo(fx, 1, a.ParentMax) },
 	// pagination
 	"s16_page_offset": func(fx Fixture, a Args) any { return Page(fx, a.Limit, a.Offset) },
 	"s17_page_keyset": func(fx Fixture, a Args) any { return KeysetPage(fx, a.Limit, a.Last) },
 	// deliberately wrong controls
-	"x01_optional_where":    func(fx Fixture, a Args) any { return ControlOptionalWhere(fx, a.Pred) },
-	"x02_not_in_nullable":   func(fx Fixture, a Args) any { return ControlNotNullIn(fx, a.Pred) },
-	"x03_distinct_on_name":  func(fx Fixture, a Args) any { return ControlDistinctOnName(fx, a.Pred) },
-	"x04_limit_before_join": func(fx Fixture, a Args) any { return ControlLimitBeforeJoin(fx, a.Pred, a.Limit) },
+	"x01_optional_where":         func(fx Fixture, a Args) any { return ControlOptionalWhere(fx, a.Pred) },
+	"x02_not_in_nullable":        func(fx Fixture, a Args) any { return ControlNotNullIn(fx, a.Pred) },
+	"x03_distinct_on_name":       func(fx Fixture, a Args) any { return ControlDistinctOnName(fx, a.Pred) },
+	"x04_limit_before_join":      func(fx Fixture, a Args) any { return ControlLimitBeforeJoin(fx, a.Pred, a.Limit) },
+	"x05_aggregate_double_count": func(fx Fixture, a Args) any { return DoubleCountAggregate(fx, a.ParentMax) },
+	"x06_topn_rank_ties":         func(fx Fixture, a Args) any { return RankTiesTopN(fx, topNArg(a), a.ParentMax) },
+}
+
+// topNArg normalises the requested per-parent N to at least one. The sweep
+// statements and their oracles share it, so an unset N can never make the SQL
+// and the oracle disagree about how many rows a parent may contribute.
+func topNArg(a Args) int {
+	if a.N < 1 {
+		return 1
+	}
+	return a.N
 }
 
 // KeysetPage returns the page strictly after the cursor under the declared order.
