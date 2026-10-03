@@ -45,3 +45,12 @@ tag because `/c/...` was passed to native Podman without `hostpath` conversion.
 Corrected only this task's build-path calls. Confidence: High; affects runner
 portability, no scientific design or acceptance condition. Failure report:
 `protocolbench/VALIDATION-02.md`.
+
+Control checkpoint: `cache-v5-controls-20261003-r1` passed 10 cells and 57
+controls; digest `02900bf8b0429be4`. The 500-ms control phases are excluded from
+the final performance synthesis. `VALIDATION-03.md` records the source-container
+resource-probe correction, reserved SSH artifact removal, audit-error accounting
+and whole-run median/position reduction. No protocol contract or acceptance
+criterion changed. Confidence: High. The full three-restart matrix is next.
+
+NEXT MODEL: HIGH

@@ -20,6 +20,7 @@ import (
 )
 
 type result struct {
+	CellID                        string                 `json:"cell_id,omitempty"`
 	RunID                         string                 `json:"run_id"`
 	Environment                   string                 `json:"environment"`
 	CreatedAt                     string                 `json:"created_at"`
@@ -51,7 +52,7 @@ func main() {
 	}
 }
 func run() error {
-	cmd := flag.String("cmd", "run", "run, order, report, or verify")
+	cmd := flag.String("cmd", "run", "run, order, report, summary, or verify")
 	dsn := flag.String("dsn", "postgres://bench:bench@cp-pg:5432/bench?sslmode=disable", "source")
 	addr := flag.String("redis", "cp-redis:6379", "shared cache")
 	arm := flag.String("arm", "A", "A publication or B deletion")
@@ -85,6 +86,9 @@ func run() error {
 	}
 	if *cmd == "report" {
 		return writeReport(*inputs, *analyses, *out)
+	}
+	if *cmd == "summary" {
+		return summarize(*inputs, *runID, *out)
 	}
 	if *cmd == "verify" {
 		return verifyResults(*inputs)
@@ -263,6 +267,7 @@ func readResults(root string) ([]result, error) {
 			return e
 		}
 		if r.RunID != "" && r.Protocol != "" {
+			r.CellID = strings.TrimSuffix(filepath.Base(p), ".json")
 			all = append(all, r)
 		}
 		return nil

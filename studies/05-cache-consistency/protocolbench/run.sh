@@ -82,8 +82,8 @@ for ((whole=1;whole<=WHOLE_RUNS;whole++)); do
  git -C "$gitroot" tag -a "$TAG" "$COMMIT" -m "Study 05 bounded cache protocol run $RUN; GPT-6 via Codex desktop"
  start_services
  podman machine inspect > "$OUT/resources/machine-config.json"
- podman machine ssh cat /proc/meminfo > "$OUT/resources/podman-guest-memory.txt"
- podman machine ssh nproc > "$OUT/resources/podman-guest-cpus.txt"
+ podman exec "$PG" cat /proc/meminfo > "$OUT/resources/podman-guest-memory.txt"
+ podman exec "$PG" getconf _NPROCESSORS_ONLN > "$OUT/resources/podman-guest-cpus.txt"
  record_host_state "$OUT/resources/runner-host.txt"
  podman image inspect "$PG_IMAGE" "$REDIS_IMAGE" "$IMAGE" > "$OUT/resources/images.json"
  # Bind-mount proof is read back in the container before admitting measurements.

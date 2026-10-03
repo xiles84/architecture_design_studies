@@ -726,5 +726,15 @@ func (b *bench) measure(ctx context.Context, phase string, number, readers, writ
 		t.ImpossibleReads = all.impossible
 		return t, all.err
 	}
-	return t, b.audit(ctx)
+	if e := b.audit(ctx); e != nil {
+		t.Errors = 1
+		if stringsHas(e.Error(), "stale-after-ack") {
+			t.WrongReads = 1
+		}
+		if stringsHas(e.Error(), "impossible") {
+			t.ImpossibleReads = 1
+		}
+		return t, e
+	}
+	return t, nil
 }
