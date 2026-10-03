@@ -39,3 +39,9 @@ unknown. Queue claim: `claim-f22601f822ed6d18`, epoch 1. Worktree:
   untouched.
 
 NEXT MODEL: HIGH
+
+2026-10-03 runner checkpoint: first invocation failed before a database or run
+tag because `/c/...` was passed to native Podman without `hostpath` conversion.
+Corrected only this task's build-path calls. Confidence: High; affects runner
+portability, no scientific design or acceptance condition. Failure report:
+`protocolbench/VALIDATION-02.md`.

@@ -45,7 +45,7 @@ done
 ! podman volume exists "$VOL" || die "owned data volume already exists; inspect before retry"
 net_ensure
 log "building separate protocol client"
-podman build -t "$IMAGE" -f "$(buildpath "$HERE/Containerfile")" "$(buildpath "$REPO_ROOT")"
+podman build -t "$IMAGE" -f "$(buildpath "$(hostpath "$HERE/Containerfile")")" "$(buildpath "$(hostpath "$REPO_ROOT")")"
 IMAGE_ID="$(podman image inspect "$IMAGE" --format '{{.Id}}')"
 start_services(){
  podman volume create "$VOL" >/dev/null
