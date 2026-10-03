@@ -14,14 +14,16 @@ package selectbench
 // harness, so every cell here can be planned and reported without an engine.
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
 
-// PredShape is one SQL spelling of the same logical disjunction. The Go
-// predicates A and B are identical across shapes; only ASQL/BSQL differ, which
-// is what makes a timing difference attributable to the spelling rather than to
-// a different answer.
+// PredShape is one SQL spelling of the same logical disjunction, at one
+// selectivity regime. The Go predicates A and B are the same logical conditions
+// wherever the thresholds match; only ASQL/BSQL differ between the indexable,
+// expression and cast spellings, which is what makes a timing difference
+// attributable to the spelling rather than to a different answer.
 type PredShape struct {
 	Name string
 	A    Pred
@@ -30,18 +32,46 @@ type PredShape struct {
 	BSQL string
 }
 
-// DefaultPredicateShapes are the three bounded shapes from the protocol.
-// The arms `amount <= 100` and `amount >= 400` are disjoint by construction, so
-// UNION ALL answers the same bag as OR and is a valid competing spelling.
-func DefaultPredicateShapes() []PredShape {
-	return []PredShape{
-		{Name: "indexable", A: AmountLE(100), B: AmountGE(400),
-			ASQL: "amount <= 100", BSQL: "amount >= 400"},
-		{Name: "expression", A: AmountLE(100), B: AmountGE(400),
-			ASQL: "(amount + 0) <= 100", BSQL: "(amount + 0) >= 400"},
-		{Name: "cast", A: AmountLE(100), B: AmountGE(400),
-			ASQL: "(amount)::bigint <= 100", BSQL: "(amount)::bigint >= 400"},
+// PredRegime is one selectivity regime: the two arm thresholds. The arms
+// `amount <= Lo` and `amount >= Hi` stay disjoint by construction, so UNION ALL
+// answers the same bag as OR and is a valid competing spelling at every regime.
+type PredRegime struct {
+	Name string
+	Lo   int
+	Hi   int
+}
+
+// DefaultPredicateRegimes cross the acceptance's selective/broad requirement.
+// `selective` picks about 1% of rows per arm; `broad` about 20% per arm. The
+// thresholds are workload levels, not results.
+func DefaultPredicateRegimes() []PredRegime {
+	return []PredRegime{
+		{Name: "selective", Lo: 5, Hi: 496},
+		{Name: "broad", Lo: 100, Hi: 400},
 	}
+}
+
+// DefaultPredicateShapes are the bounded shapes from the protocol, crossed with
+// the two selectivity regimes: {selective, broad} x {indexable, expression,
+// cast}. The shape name keeps both coordinates so a report and a pair can never
+// pool a selective cell with a broad one.
+func DefaultPredicateShapes() []PredShape {
+	spellings := []struct{ name, fmtA, fmtB string }{
+		{"indexable", "amount <= %d", "amount >= %d"},
+		{"expression", "(amount + 0) <= %d", "(amount + 0) >= %d"},
+		{"cast", "(amount)::bigint <= %d", "(amount)::bigint >= %d"},
+	}
+	var out []PredShape
+	for _, reg := range DefaultPredicateRegimes() {
+		for _, sp := range spellings {
+			out = append(out, PredShape{
+				Name: reg.Name + "/" + sp.name,
+				A:    AmountLE(reg.Lo), B: AmountGE(reg.Hi),
+				ASQL: fmt.Sprintf(sp.fmtA, reg.Lo), BSQL: fmt.Sprintf(sp.fmtB, reg.Hi),
+			})
+		}
+	}
+	return out
 }
 
 // DefaultPageDepths are the five protocol levels for P11.

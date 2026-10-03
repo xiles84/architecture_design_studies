@@ -67,8 +67,36 @@ Each entry: decision — reason — confidence — alternative considered — af
    that limit. Confidence Medium. Alternative: a full write phase (out of scope
    for a syntax-isolate task). Affects: index-cost section.
 
+8. **Added a second selectivity regime (`selective`, arms `amount <= 5` /
+   `amount >= 496`), making the P10 matrix {selective, broad} x {indexable,
+   expression, cast}.** Rationale: the task acceptance requires the reports to
+   expose **selective/broad** regimes, and a pilot with broad arms only showed
+   every spelling collapsing to the same sequence-scan plan (39% selectivity), so
+   P10's "OR can block an index / UNION ALL can use two index arms" mechanism was
+   untested. The selective arms are ~1% each. This **expands** the reviewed
+   matrix; it changes no contract, prediction, control or gate, and the regimes
+   are never pooled in a pair. Confidence High that it is required for the
+   acceptance; flagged for HIGH review as an interpretation of the protocol's
+   `select-access-paths` row. Alternative: keep broad arms only and record the
+   selective regime as a gap (rejected: the acceptance asks for it explicitly).
+   Affects: all P10 cells and the run's cell count (28 matrix cells + index arm).
+
+## Pilot tranche (broad arms only, earlier binary)
+
+Before the selective regime was added, four whole runs were completed with the
+broad arms only: `select-access-pg-r1/-r2/-r3-20261003` and
+`select-access-yb-r1-20261003`, all 22/22 valid. Their broad-regime cells and
+pagination cells use the same statements, fixture and code path as the final
+matrix, so they are retained as a labelled pilot that corroborates the broad and
+deep-depth results; the primary replicated set is the final two-regime runs.
+Tagging them keeps them immutable.
+
 ## Checkpoints
 
 - Matrix/oracle logic and unit tests committed (`2b0abbfd`).
 - Harness `-cmd select-access`, runner `--family access`, reports and docs
-  committed as the premeasurement checkpoint (hash in `RESULT.md`).
+  committed as the premeasurement checkpoint `68b09e6d`.
+- Report renderer fix and single-run regeneration committed (`2dae4b5a`).
+- Two-regime expansion committed as the final premeasurement checkpoint (hash in
+  `RESULT.md`); final runs started from it.
+

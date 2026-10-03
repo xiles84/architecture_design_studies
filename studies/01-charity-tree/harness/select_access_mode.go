@@ -165,9 +165,13 @@ func runSelectAccessMode(dsn, engine, topology, scale, out, reportOut string, se
 		if err := q.Exec(ctx, "ANALYZE "+selectbench.TeachingSchema+".orders"); err != nil {
 			result.Notes = append(result.Notes, "ANALYZE after creating the expression index failed: "+err.Error())
 		}
-		exprShape := shapes[1]
-		indexSpecs := shapeSpecsForIndex(base, exprShape, trials, "expression_index")
-		result.Cells = append(result.Cells, selectbench.RunSpecs(ctx, q, cat, fx, indexSpecs, runID, topology)...)
+		for _, exprShape := range shapes {
+			if !strings.HasSuffix(exprShape.Name, "/expression") {
+				continue
+			}
+			indexSpecs := shapeSpecsForIndex(base, exprShape, trials, "expression_index")
+			result.Cells = append(result.Cells, selectbench.RunSpecs(ctx, q, cat, fx, indexSpecs, runID, topology)...)
+		}
 		result.Index = measureIndexCost(ctx, pool, fx, 500)
 	}
 

@@ -17,27 +17,32 @@ introduces this file and is recorded in the task `RESULT.md`.
 
 ### 1.1 P10 — OR vs overlap-safe UNION / UNION ALL
 
-One logical disjunction, three SQL spellings, three predicate shapes. The arms
-are `amount <= 100` (A) and `amount >= 400` (B). They are **disjoint by
-construction** (no value can be ≤100 and ≥400), so `UNION ALL` answers exactly
-the OR bag and is a competing spelling; `UNION` de-duplicates and is the
-answer-safe fallback when the arms might overlap. The independent Go oracle
-(`PredicateAlt`) computes the bag from the fixture, and `OverlapCount` records
-the disjointness proof per shape.
+One logical disjunction, three SQL spellings, crossed with **two selectivity
+regimes** so the comparison exposes the acceptance's selective and broad
+regimes. The arms `amount <= Lo` and `amount >= Hi` are **disjoint by
+construction**, so `UNION ALL` answers exactly the OR bag and is a competing
+spelling; `UNION` de-duplicates and is the answer-safe fallback when the arms
+might overlap. The independent Go oracle (`PredicateAlt`) computes the bag from
+the fixture, and `OverlapCount` records the disjointness proof per shape.
 
-| Shape | Arm A SQL | Arm B SQL |
-|---|---|---|
-| `indexable` | `amount <= 100` | `amount >= 400` |
-| `expression` | `(amount + 0) <= 100` | `(amount + 0) >= 400` |
-| `cast` | `(amount)::bigint <= 100` | `(amount)::bigint >= 400` |
+| Regime | Lo | Hi | Arm A SQL (indexable shape) | Arm B SQL |
+|---|---|---|---|---|
+| `selective` | 5 | 496 | `amount <= 5` | `amount >= 496` |
+| `broad` | 100 | 400 | `amount <= 100` | `amount >= 400` |
+
+Each regime is measured in each of the three SQL spellings, giving six shapes:
+`selective/indexable`, `selective/expression`, `selective/cast`,
+`broad/indexable`, `broad/expression`, `broad/cast`. The spelling changes only
+the SQL text: the `expression` shape wraps the arm as `(amount + 0) <= Lo`, and
+the `cast` shape as `(amount)::bigint <= Lo`.
 
 Statements (group `sel_predicate_alt`, bag of `(order id, amount)`): `s18_or_predicate`,
 `s19_union_all_predicate`, `s20_union_predicate`.
 
 **Required negative control:** `x05_union_all_overlap` is `UNION ALL` of one arm
 with itself; every matching order appears twice, so it must fail the bag oracle.
-It must fire in **every** predicate shape against the measured data, or the run
-is refused. `x01`–`x04` continue to be gated live on the teaching fixture.
+It must fire in **every** shape against the measured data, or the run is refused.
+`x01`–`x04` continue to be gated live on the teaching fixture.
 
 ### 1.2 P11 — OFFSET vs keyset pagination
 
@@ -52,11 +57,12 @@ writers).
 ### 1.3 Expression index — a labelled physical arm
 
 `CREATE INDEX orders_amount_expr_idx ON selectbench.orders ((amount + 0))` can
-serve the expression shape. The query text is unchanged, so any gain belongs to
-the **index**, never to the syntax: the arm is labelled `index=expression_index`
-and reported separately from the default arm. Its storage (`pg_relation_size`)
-and insert cost (a 500-row batch inserted with and without the index) are
-recorded. The default arm runs with the index dropped.
+serve the `expression` shapes. The query text is unchanged, so any gain belongs
+to the **index**, never to the syntax: the arm is labelled
+`index=expression_index` and reported separately from the default arm, for both
+the selective and broad expression shapes. Its storage (`pg_relation_size`) and
+insert cost (a 500-row batch inserted with and without the index) are recorded.
+The default arm runs with the index dropped.
 
 ## 2. Data, resources and topology
 
