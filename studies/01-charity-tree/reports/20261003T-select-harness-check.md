@@ -70,6 +70,11 @@ shape. A plan difference is therefore reported only when the plan really changed
   invalid/unsupported/timed-out cells and excludes them from ranking, refuses cross-group and
   control pairs, recognises two runs of the same plan as `same plan structure`, resolves a
   difference only when it exceeds the cells' spread, and otherwise reports `no resolved difference`.
+- **Parameters bind strictly and the catalogue's declarations match its placeholders** (`bind.go`,
+  5 tests): `:pred` is inlined as an expression while other parameters become literals, `::type`
+  casts are never mistaken for placeholders, a missing or unused parameter is an error, and a test
+  walks the whole catalogue asserting each statement's declared params equal its actual placeholders
+  — it caught two aggregate statements that declared `pred` without using it, now corrected.
 
 ## Not covered by this check (recorded as remaining work)
 

@@ -92,7 +92,6 @@ FROM customers c LEFT JOIN orders o ON o.customer_id = c.id AND (:pred);
 
 -- name: s12_aggregate_join
 -- group: sel_aggregate
--- params: pred
 -- Post-join aggregate: correct only because one child collection is aggregated.
 SELECT c.id, c.name, COALESCE(SUM(o.amount), 0) AS total, COUNT(o.id) AS children
 FROM customers c LEFT JOIN orders o ON o.customer_id = c.id
@@ -100,7 +99,6 @@ GROUP BY c.id, c.name;
 
 -- name: s13_aggregate_preagg
 -- group: sel_aggregate
--- params: pred
 -- Pre-aggregate the child side, then join: no row multiplication.
 SELECT c.id, c.name, COALESCE(a.total, 0) AS total, COALESCE(a.children, 0) AS children
 FROM customers c
