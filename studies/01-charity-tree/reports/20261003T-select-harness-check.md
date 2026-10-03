@@ -65,6 +65,11 @@ shape. A plan difference is therefore reported only when the plan really changed
   or an all-miss set — a passing test on inadequate data would prove nothing.
 - **Old Study 01 execution remains reproducible.** `go build ./...` compiles the historical harness
   unchanged; `selectbench` is a separate package with no edits to existing files.
+- **The comparison report cannot carry an interpretation, pool a control or rank a failed cell**
+  (`report.go`, 6 tests): `RenderComparison` refuses a non-empty interpretation, names
+  invalid/unsupported/timed-out cells and excludes them from ranking, refuses cross-group and
+  control pairs, recognises two runs of the same plan as `same plan structure`, resolves a
+  difference only when it exceeds the cells' spread, and otherwise reports `no resolved difference`.
 
 ## Not covered by this check (recorded as remaining work)
 
