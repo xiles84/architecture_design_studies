@@ -2491,4 +2491,34 @@ Nothing in the primary run or in its review produced this value; eight fresh run
 four. A replication that only re-reads the primary's numbers cannot find it, which is the case for running
 the workload again rather than re-deriving the ratio.
 
+## Engine-specific crossings and control-sweep arguments (2026-10-03)
+
+### A crossing measured on one engine is not a property of the query shape
+The aggregate/top-N sweep asked whether a correlated scalar aggregate wins at small parent sets and loses
+at large. On PostgreSQL it does: 0.70-0.98x post-join at one parent, crossing between 10 and 100 parents.
+On YugabyteDB the same query crossed between 1 and 10 parents and then collapsed to **8,460 ms at 10,000
+parents** (489-507x post-join), while PostgreSQL's was 20 ms. Pre-aggregation reversed only on PostgreSQL
+(winning at 10,000 parents) and never won on YugabyteDB. **The shape-level prediction was a PostgreSQL
+fact, not a general one.** A per-parent subquery pays the engine's per-statement overhead - on this YB
+build roughly 0.5-0.8 ms for every extra parent - so a prediction about a per-parent probe must name the
+engine and the parent count, and a study that only runs one engine must say the sign is unmeasured
+elsewhere.
+
+### A constant-cost arm meets a growing arm at a measurable crossing
+Pre-aggregation's cost was nearly flat across the whole sweep (2.80 ms at one parent to 6.21 ms at 10,000)
+because it aggregates the entire child set regardless of how many parents are selected, while the post-join
+aggregate grew from 0.27 ms to 7.53 ms. Their crossing is a real design boundary, not noise: below it the
+constant cost is wasted work, above it the constant cost is the cheaper path. **When one spelling's cost is
+independent of the axis and another's grows, the useful question is not "which is faster" but "at what
+level do they cross", and that needs at least five levels.**
+
+### A run-level control sweep inherits predicates the family does not use
+The aggregate mode called the shared `RunControls`, which runs *every* catalogue control, not only the two
+belonging to that family, and passed an Args without a predicate. The `x01` control's oracle dereferenced
+the nil predicate and panicked, so the first whole run died with exit 2 before measuring. **A mode that runs
+the shared control list must supply a complete Args, and an oracle should return an error rather than
+dereference a missing argument.** The failed run's tag and log were retained as a harness-defect record; the
+fix was to bind the same predicate the teaching gate uses.
+
+
 

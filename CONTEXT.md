@@ -43,14 +43,24 @@ summary, not a second ledger.
 
 ## Current state
 
-### Running now — do not start databases
+### Aggregate / top-N sweep measured — **task submitted for HIGH review (2026-10-03)**
 
-`task-20261002T131729Z-select-aggregate-topn` (LOW deepseek-flash) is measuring
-the aggregate/per-parent-top-N sweep: PostgreSQL single-node and YugabyteDB
-single-node, scale `sweep` (10,000 parents), five trials, holding
-`ads-run-lock`. Run tags
-`run/study-01/select-agg-{pg-1..3,yb-1..3}-20261003`. A second runner refuses
-while the lock is held.
+`task-20261002T131729Z-select-aggregate-topn` (LOW deepseek-flash) measured the
+parent-aggregate and per-parent top-N sweep on a 10,000-parent fixture at levels
+{1,10,100,1000,10000}: six whole runs (PG 30/30/31 valid, YB 30/31/30 valid),
+both controls fired 6/6. Tags
+`run/study-01/select-agg-{pg-1b,pg-2,pg-3,yb-1,yb-2,yb-3}-20261003`. Findings:
+P8's reversal holds on PostgreSQL (correlated below ~10 parents, pre-aggregation
+only at 10,000) but not on YugabyteDB, where pre-aggregation never wins and the
+correlated subquery collapses to 8,460 ms at 10,000 parents; P9's LATERAL probe
+wins only at one parent and `DISTINCT ON` is the fastest top-N spelling at scale
+on both engines. Evidence: replicated report
+`studies/01-charity-tree/reports/20261003T-select-agg-replicated.md`, signed
+analysis
+`studies/01-charity-tree/reports/analyses/20261003T-select-agg--deepseek-flash--2026-10-03.md`.
+The benchmark lock is free; local-main integration and tag
+`study-01/select-v4-aggregate-topn` follow HIGH review. Remaining SELECT
+measuring families (join/CTE, existence) are still queued.
 
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 

@@ -11,11 +11,24 @@ LOW executor (deepseek-flash / opencode CLI). Milestone tag:
 2. Catalogue + oracles + controls + pure tests. **[done, 57c10e3a]**
 3. Spec-based runner, P8/P9 matrix, measurement report. **[done, d13ce296]**
 4. Harness mode, 10,000-parent sweep scale, runner family. **[done, 00f2aa3d]**
-5. PostgreSQL single-node: ≥3 whole runs, 5 trials, one position control.
-6. YugabyteDB single-node: 3 whole runs.
-7. Per-run and per-engine replicated reports.
-8. Signed analysis with P8/P9 verdicts; RESULT.md; BOOK.md integration.
-9. Submit for HIGH review.
+5. PostgreSQL single-node: 3 whole runs, 5 trials, one position control.
+   **[done, 08a3c553 then 33b76901; a first attempt panicked in the harness]**
+6. YugabyteDB single-node: 3 whole runs. **[done, 33b76901]**
+7. Per-run and per-engine replicated reports. **[done]**
+8. Signed analysis with P8/P9 verdicts; RESULT.md. **[done; BOOK.md integration
+   belongs to the later select-book task]**
+9. Submit for HIGH review. **[done]**
+
+## Checkpoints
+
+- `57c10e3a` catalogue/oracles/controls; `d13ce296` runner/matrix/report;
+  `00f2aa3d` harness mode/scale/runner family; `ad048e0c` plan/env/Decision Log.
+- `08a3c553` fixed a nil-predicate panic in the run-level control sweep found by
+  the first (failed, exit 2) PostgreSQL attempt.
+- `33b76901` added the opt-in position control.
+- Six primary runs valid (PG 30/30/31, YB 30/31/30), both controls fired 6/6;
+  replicated report and signed analysis written.
+
 
 ## Decision Log
 
