@@ -91,9 +91,19 @@ func Prepare(ctx context.Context, q Querier, fx Fixture) error {
 	return q.Exec(ctx, "ANALYZE "+TeachingSchema+".customers; ANALYZE "+TeachingSchema+".orders;")
 }
 
-// RunCells executes the named statements and returns one cell each. It never
-// returns an error for an individual failing statement: a failure becomes the
-// cell's status, so a run reports the failure instead of losing it.
+// CellSpec is one cell to execute: a statement plus the exact Args it is bound
+// with. The aggregate/top-N sweep binds a different parent prefix per cell, so
+// the runner works from specs rather than one shared Args for every name.
+type CellSpec struct {
+	Statement string
+	Axis      string
+	Args      Args
+}
+
+// RunCells executes the named statements with one shared Args and returns one
+// cell each. It never returns an error for an individual failing statement: a
+// failure becomes the cell's status, so a run reports the failure instead of
+// losing it.
 func RunCells(ctx context.Context, q Querier, c *Catalog, fx Fixture, a Args, names []string, runID, topology string) []Cell {
 	if len(names) == 0 {
 		for _, n := range c.Order {
@@ -104,100 +114,106 @@ func RunCells(ctx context.Context, q Querier, c *Catalog, fx Fixture, a Args, na
 			names = append(names, n)
 		}
 	}
-	cells := make([]Cell, 0, len(names))
+	specs := make([]CellSpec, 0, len(names))
 	for _, name := range names {
-		s, ok := c.Statements[name]
-		if !ok {
-			cells = append(cells, Cell{RunID: runID, Topology: topology, Statement: name,
-				Status: StatusInvalid, Note: "unknown statement"})
-			continue
-		}
-		cell := Cell{RunID: runID, Topology: topology, Statement: name, Group: s.Group,
-			Params: describeParams(a.ParamMap(s))}
+		specs = append(specs, CellSpec{Statement: name, Args: a})
+	}
+	return RunSpecs(ctx, q, c, fx, specs, runID, topology)
+}
 
-		bound, _, err := Bind(s.SQL, a.ParamMap(s))
-		if err != nil {
-			cell.Status, cell.Note = StatusInvalid, err.Error()
-			cells = append(cells, cell)
-			continue
-		}
-		budget := a.StatementTimeout
-		if budget <= 0 {
-			budget = 2 * time.Minute
-		}
-		cellCtx, cancel := context.WithTimeout(ctx, budget)
-		rows, err := q.Query(cellCtx, bound)
-		if err != nil {
-			cell.Status, cell.Note = failureStatus(err), err.Error()
-			cancel()
-			cells = append(cells, cell)
-			continue
-		}
-		if err := VerifyRows(c, name, fx, a, rows); err != nil {
-			cell.Status, cell.Note = StatusInvalid, err.Error()
-			cancel()
-			cells = append(cells, cell)
-			continue
-		}
-		cell.ResultRows = len(rows)
-		encoded, _ := json.Marshal(rows)
-		cell.ResultJSONBytes = len(encoded)
-		plan, err := q.Explain(cellCtx, bound)
-		if err != nil {
-			cell.Status, cell.Note = failureStatus(err), err.Error()
-			cancel()
-			cells = append(cells, cell)
-			continue
-		}
-		cell.Plan = plan
-		if plan == "" {
-			cell.Status, cell.Note = StatusError, "missing EXPLAIN evidence"
-			cancel()
-			cells = append(cells, cell)
-			continue
-		}
-		cell.PlanningMS, cell.ExecutionMS = planTimes(plan)
-		cell.Status = StatusValid
-		if !a.ValidateOnly {
-			trials := a.Trials
-			if trials < 1 {
-				trials = 1
-			}
-			for trial := 0; trial < trials; trial++ {
-				start := time.Now()
-				observed, err := q.Query(cellCtx, bound)
-				elapsed := float64(time.Since(start).Nanoseconds()) / 1e6
-				if err != nil {
-					cell.Status, cell.Note = failureStatus(err), err.Error()
-					break
-				}
-				if err := VerifyRows(c, name, fx, a, observed); err != nil {
-					cell.Status, cell.Note = StatusInvalid, err.Error()
-					break
-				}
-				cell.SamplesMS = append(cell.SamplesMS, elapsed)
-			}
-			if cell.Status == StatusValid {
-				cell.Trials = len(cell.SamplesMS)
-				cell.TimingMeasured = true
-				ordered := append([]float64(nil), cell.SamplesMS...)
-				sort.Float64s(ordered)
-				cell.MedianMS = ordered[len(ordered)/2]
-				if len(ordered)%2 == 0 {
-					cell.MedianMS = (ordered[len(ordered)/2-1] + cell.MedianMS) / 2
-				}
-				if cell.MedianMS > 0 {
-					cell.SpreadPct = 100 * (ordered[len(ordered)-1] - ordered[0]) / cell.MedianMS
-				}
-			} else {
-				// A late mismatch invalidates the whole cell, including earlier samples.
-				cell.SamplesMS = nil
-			}
-		}
-		cancel()
-		cells = append(cells, cell)
+// RunSpecs executes one cell per spec, preserving order.
+func RunSpecs(ctx context.Context, q Querier, c *Catalog, fx Fixture, specs []CellSpec, runID, topology string) []Cell {
+	cells := make([]Cell, 0, len(specs))
+	for _, spec := range specs {
+		cells = append(cells, runOne(ctx, q, c, fx, spec, runID, topology))
 	}
 	return cells
+}
+
+func runOne(ctx context.Context, q Querier, c *Catalog, fx Fixture, spec CellSpec, runID, topology string) Cell {
+	a := spec.Args
+	name := spec.Statement
+	s, ok := c.Statements[name]
+	if !ok {
+		return Cell{RunID: runID, Topology: topology, Statement: name, Axis: spec.Axis,
+			Status: StatusInvalid, Note: "unknown statement"}
+	}
+	cell := Cell{RunID: runID, Topology: topology, Statement: name, Group: s.Group, Axis: spec.Axis,
+		Params: describeParams(a.ParamMap(s))}
+
+	bound, _, err := Bind(s.SQL, a.ParamMap(s))
+	if err != nil {
+		cell.Status, cell.Note = StatusInvalid, err.Error()
+		return cell
+	}
+	budget := a.StatementTimeout
+	if budget <= 0 {
+		budget = 2 * time.Minute
+	}
+	cellCtx, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+	rows, err := q.Query(cellCtx, bound)
+	if err != nil {
+		cell.Status, cell.Note = failureStatus(err), err.Error()
+		return cell
+	}
+	if err := VerifyRows(c, name, fx, a, rows); err != nil {
+		cell.Status, cell.Note = StatusInvalid, err.Error()
+		return cell
+	}
+	cell.ResultRows = len(rows)
+	encoded, _ := json.Marshal(rows)
+	cell.ResultJSONBytes = len(encoded)
+	plan, err := q.Explain(cellCtx, bound)
+	if err != nil {
+		cell.Status, cell.Note = failureStatus(err), err.Error()
+		return cell
+	}
+	cell.Plan = plan
+	if plan == "" {
+		cell.Status, cell.Note = StatusError, "missing EXPLAIN evidence"
+		return cell
+	}
+	cell.PlanningMS, cell.ExecutionMS = planTimes(plan)
+	cell.Status = StatusValid
+	if a.ValidateOnly {
+		return cell
+	}
+	trials := a.Trials
+	if trials < 1 {
+		trials = 1
+	}
+	for trial := 0; trial < trials; trial++ {
+		start := time.Now()
+		observed, err := q.Query(cellCtx, bound)
+		elapsed := float64(time.Since(start).Nanoseconds()) / 1e6
+		if err != nil {
+			cell.Status, cell.Note = failureStatus(err), err.Error()
+			break
+		}
+		if err := VerifyRows(c, name, fx, a, observed); err != nil {
+			cell.Status, cell.Note = StatusInvalid, err.Error()
+			break
+		}
+		cell.SamplesMS = append(cell.SamplesMS, elapsed)
+	}
+	if cell.Status == StatusValid {
+		cell.Trials = len(cell.SamplesMS)
+		cell.TimingMeasured = true
+		ordered := append([]float64(nil), cell.SamplesMS...)
+		sort.Float64s(ordered)
+		cell.MedianMS = ordered[len(ordered)/2]
+		if len(ordered)%2 == 0 {
+			cell.MedianMS = (ordered[len(ordered)/2-1] + cell.MedianMS) / 2
+		}
+		if cell.MedianMS > 0 {
+			cell.SpreadPct = 100 * (ordered[len(ordered)-1] - ordered[0]) / cell.MedianMS
+		}
+	} else {
+		// A late mismatch invalidates the whole cell, including earlier samples.
+		cell.SamplesMS = nil
+	}
+	return cell
 }
 
 func failureStatus(err error) Status {

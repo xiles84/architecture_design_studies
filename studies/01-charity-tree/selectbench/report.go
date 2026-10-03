@@ -42,6 +42,7 @@ type Cell struct {
 	Topology        string
 	Statement       string
 	Group           string
+	Axis            string
 	Params          string
 	Status          Status
 	MedianMS        float64

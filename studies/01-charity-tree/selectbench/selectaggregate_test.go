@@ -147,3 +147,61 @@ func TestAggregateTopNControlsAreDetected(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildAggregateSpecsCoversEveryLevelAndSpelling(t *testing.T) {
+	levels := ParentLevels()
+	specs := BuildAggregateSpecs(Args{}, levels, 3)
+	if want := (len(AggregateStatements) + len(TopNStatements)) * len(levels); len(specs) != want {
+		t.Fatalf("specs = %d, want %d", len(specs), want)
+	}
+	seen := map[string]bool{}
+	for _, s := range specs {
+		if seen[s.Axis] {
+			t.Errorf("duplicate axis %q", s.Axis)
+		}
+		seen[s.Axis] = true
+		found := false
+		for _, l := range levels {
+			if s.Args.ParentMax == l {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s has parent_max %d, not a level", s.Axis, s.Args.ParentMax)
+		}
+		if s.Args.N != 1 || s.Args.Trials != 3 {
+			t.Errorf("%s bound N=%d trials=%d", s.Axis, s.Args.N, s.Args.Trials)
+		}
+	}
+	if len(AggregateControlSpecs(Args{}, 3)) != 2 {
+		t.Fatal("expected the two aggregate controls")
+	}
+}
+
+func TestAggregatePairsRecomputeBothDirections(t *testing.T) {
+	r := AggResult{Levels: []int{10}}
+	add := func(axis string, ms float64) {
+		r.Cells = append(r.Cells, Cell{Axis: axis, Statement: "s", Status: StatusValid,
+			TimingMeasured: true, MedianMS: ms})
+	}
+	add(AggregateTopNAxis("aggregate", "a01_aggregate_join_sel", 10), 4)
+	add(AggregateTopNAxis("aggregate", "a02_aggregate_preagg_sel", 10), 1)
+	add(AggregateTopNAxis("aggregate", "a03_aggregate_correlated_sel", 10), 2)
+	pairs := r.AggregatePairs()
+	if len(pairs) != 3 {
+		t.Fatalf("aggregate pairs = %d, want 3", len(pairs))
+	}
+	byLabel := map[string]float64{}
+	for _, p := range pairs {
+		byLabel[p.Label] = p.RatioBA
+		if p.Family != "aggregate" {
+			t.Errorf("%s family = %q", p.Label, p.Family)
+		}
+	}
+	if got := byLabel["pre_agg vs post_join"]; got != 0.25 {
+		t.Errorf("pre/post = %v, want 0.25", got)
+	}
+	if got := byLabel["correlated vs pre_agg"]; got != 2 {
+		t.Errorf("corr/pre = %v, want 2", got)
+	}
+}
