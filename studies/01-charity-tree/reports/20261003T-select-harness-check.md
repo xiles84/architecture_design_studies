@@ -33,8 +33,18 @@ TestContractsAreDistinctOnTheFixture       PASS
 TestPaginationKeysetMatchesOffsetPage      PASS
 TestControlsAreDetected                    PASS
 TestFixtureExercisesEveryRequiredEdgeCase  PASS
-PASS  charitytree/selectbench  0.005s
+TestNormalizeStripsVolatileMetadata        PASS
+TestSignatureIgnoresCostsRowsAndTimings    PASS
+TestSignatureChangesWithAccessPath         PASS
+TestStructureIgnoresPredicateButSignatureKeepsIt PASS
+TestStructureIsOrderIndependent            PASS
+PASS  charitytree/selectbench  0.004s
 ```
+
+The last five cover plan-signature normalization (`plan.go`): costs, row estimates, actual
+times, buffer counts and print order do not change a signature, while a different access path
+(Seq Scan vs Index Scan) does, and a different predicate changes the full signature but not the
+shape. A plan difference is therefore reported only when the plan really changed.
 
 ## What the checks establish
 
