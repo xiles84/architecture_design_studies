@@ -42,6 +42,9 @@ func oracleFor(group string, fx Fixture, a Args) (any, error) {
 		return TopN(fx, a.N), nil
 	case "sel_pagination":
 		return Page(fx, a.Limit, a.Offset), nil
+	case "sel_predicate_alt":
+		a1, a2 := defaultArms(a)
+		return PredicateAlt(fx, a1, a2), nil
 	case ControlGroup:
 		return nil, fmt.Errorf("a deliberately wrong control has no oracle: it must be seen to FAIL, not to match")
 	}

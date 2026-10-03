@@ -143,6 +143,40 @@ WHERE :cursor_set = 0
        (amount < :last_amount OR (amount = :last_amount AND id > :last_id) OR amount IS NULL))
 ORDER BY amount DESC NULLS LAST, id ASC LIMIT :limit;
 
+-- name: s18_or_predicate
+-- group: sel_predicate_alt
+-- params: pred_a, pred_b
+-- Predicate alternatives (P10). A disjunction over two arms on the child side,
+-- projected as (order id, amount). The contract is a BAG: an order matching
+-- both arms appears once, because OR has no multiplicity. `UNION ALL` is the
+-- same bag only while the arms are disjoint; `UNION` removes overlap duplicates
+-- and is answer-safe but pays de-duplication. The three predicate shapes bound
+-- by the runner (indexable, expression, cast) are the same logical arms in
+-- different SQL spellings, so a timing difference is attributable to spelling
+-- or to a plan, never to a different answer.
+SELECT id, amount FROM orders WHERE (:pred_a) OR (:pred_b) ORDER BY id;
+
+-- name: s19_union_all_predicate
+-- group: sel_predicate_alt
+-- params: pred_a, pred_b
+-- The overlap-safe UNION ALL spelling. Valid only where the arms are provably
+-- disjoint; the runner proves OverlapCount == 0 before treating this as a
+-- comparable spelling, and x05 is the deliberately-wrong overlapping control.
+SELECT id, amount FROM orders WHERE (:pred_a)
+UNION ALL
+SELECT id, amount FROM orders WHERE (:pred_b)
+ORDER BY id;
+
+-- name: s20_union_predicate
+-- group: sel_predicate_alt
+-- params: pred_a, pred_b
+-- UNION de-duplicates, so it restores the OR bag even over overlapping arms at
+-- the cost of a sort/hash de-duplication.
+SELECT id, amount FROM orders WHERE (:pred_a)
+UNION
+SELECT id, amount FROM orders WHERE (:pred_b)
+ORDER BY id;
+
 -- name: x01_optional_where
 -- group: control_wrong_answer
 -- params: pred
@@ -177,3 +211,15 @@ ORDER BY c.name, c.id;
 SELECT c.id, c.name, o.id, o.amount FROM customers c
 JOIN (SELECT * FROM orders WHERE (:pred) ORDER BY id LIMIT :limit) o
   ON o.customer_id = c.id;
+
+-- name: x05_union_all_overlap
+-- group: control_wrong_answer
+-- params: pred_a
+-- DELIBERATELY WRONG as an OR/UNION ALL template: `UNION ALL` over an arm with
+-- itself, so every matching order appears twice. It must be seen to fail the
+-- `sel_predicate_alt` bag oracle wherever any row matches, and is the required
+-- overlap control for P10.
+SELECT id, amount FROM orders WHERE (:pred_a)
+UNION ALL
+SELECT id, amount FROM orders WHERE (:pred_a)
+ORDER BY id;
