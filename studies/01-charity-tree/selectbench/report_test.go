@@ -8,7 +8,7 @@ import (
 func cell(stmt, group, plan string, ms, spread float64) Cell {
 	return Cell{
 		RunID: "r1", Topology: "pg-single", Statement: stmt, Group: group,
-		Status: StatusValid, MedianMS: ms, SpreadPct: spread, Trials: 3, Plan: plan,
+		Status: StatusValid, MedianMS: ms, SpreadPct: spread, Trials: 3, Plan: plan, TimingMeasured: true,
 	}
 }
 
@@ -74,7 +74,7 @@ func TestReportDetectsSamePlan(t *testing.T) {
 	}
 }
 
-func TestReportResolvesDifferenceOutsideSpread(t *testing.T) {
+func TestReportDoesNotResolveAWholeRunWinnerFromOneRun(t *testing.T) {
 	out, err := RenderComparison(ReportInput{Cells: []Cell{
 		cell("s01_join_where", "sel_full_rows", seqScan, 20, 3),
 		cell("s02_filtered_derived", "sel_full_rows", indexScan, 5, 3),
@@ -82,8 +82,8 @@ func TestReportResolvesDifferenceOutsideSpread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "faster by") {
-		t.Errorf("a difference larger than the spread was not resolved:\n%s", out)
+	if strings.Contains(out, "faster by") || !strings.Contains(out, "whole-run replication required") {
+		t.Errorf("one run was treated as a replicated winner:\n%s", out)
 	}
 }
 

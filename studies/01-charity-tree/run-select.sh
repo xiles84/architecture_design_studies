@@ -1,82 +1,88 @@
 #!/usr/bin/env bash
-# SELECT experiment runner (study 01, additive).
-#
-# Runs the `-cmd select` mode of the study 01 client against PostgreSQL
-# single-node: it loads the deterministic teaching fixture into its own
-# `selectbench` schema, executes the embedded catalogue, verifies every cell
-# against the independent Go oracle, captures EXPLAIN (ANALYZE, BUFFERS) and
-# writes the measurements-only report.
-#
-# It is additive: the historical Study 01 modes, designs and results are
-# untouched, and this runner uses its own image tag and output directory.
-#
-# It starts a database, so it takes the benchmark lock (measurements are serial
-# on this machine) and always stops the database and releases the lock.
-#
-# Usage:
-#   studies/01-charity-tree/run-select.sh [--scale tiny|small|medium|large] [--seed N]
-#                                         [--keep-up]
-#
-# Environment: SCALE, SEED, KEEP_UP, OUTDIR.
-
+# Additive SELECT validation runner. All database access is serialized by the
+# shared lock; immutable source/image identities accompany the new results.
 set -euo pipefail
-
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-# shellcheck source=../../infra/lib.sh
 source "$REPO/infra/lib.sh"
-
 SCALE="${SCALE:-tiny}"
 SEED="${SEED:-42}"
-KEEP_UP="${KEEP_UP:-no}"
-
+ENGINE="postgres"
+TRIALS=3
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
+TAG=""
+ENVIRONMENT="${BENCH_ENVIRONMENT:-}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --scale) SCALE="$2"; shift 2 ;;
     --seed) SEED="$2"; shift 2 ;;
-    --keep-up) KEEP_UP="yes"; shift ;;
-    *) echo "run-select.sh: unknown argument $1" >&2; exit 2 ;;
+    --engine) ENGINE="$2"; shift 2 ;;
+    --trials) TRIALS="$2"; shift 2 ;;
+    --run-id) RUN_ID="$2"; shift 2 ;;
+    --tag) TAG="$2"; shift 2 ;;
+    --environment) ENVIRONMENT="$2"; shift 2 ;;
+    *) die "unknown argument $1" ;;
   esac
 done
-
-RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
-OUTDIR="${OUTDIR:-$HERE/results/select-$RUN_ID}"
-IMAGE="localhost/charitybench-select:1"
-
-run_lock_acquire "study-01 run-select.sh scale=$SCALE seed=$SEED"
-
+[[ "$SCALE" =~ ^(tiny|small|medium|large)$ ]] || die "unknown scale $SCALE"
+[[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"
+[[ "$RUN_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || die "invalid run id"
+[[ "$TAG" == run/study-01/* ]] || die "provide an immutable --tag run/study-01/<id>"
+[[ -n "$ENVIRONMENT" && -f "$REPO/docs/environments/$ENVIRONMENT.md" ]] || die "provide a documented --environment"
+case "$ENGINE" in
+  postgres) TOPOLOGY_SCRIPT="$REPO/infra/pg-single.sh"; NODE=pg-single; ENGINE_IMAGE="$PG_IMAGE"; VOLUME=ads-pg-single-data ;;
+  yugabyte) TOPOLOGY_SCRIPT="$REPO/infra/yb-single.sh"; NODE=yb-single; ENGINE_IMAGE="$YB_IMAGE"; VOLUME=ads-yb-single-data ;;
+  *) die "engine must be postgres or yugabyte" ;;
+esac
+OUTDIR="${OUTDIR:-$HERE/results/$RUN_ID}"
+[[ ! -e "$OUTDIR" ]] || die "output already exists: $OUTDIR"
+GIT_ROOT="$(hostpath "$REPO")"
+[[ -z "$(git -C "$GIT_ROOT" status --porcelain)" ]] || die "commit source and reports before a SELECT run"
+SOURCE_COMMIT="$(git -C "$GIT_ROOT" rev-parse HEAD)"
+IMAGE="localhost/charitybench-select:$RUN_ID"
+run_lock_acquire "study-01 SELECT validation $RUN_ID $ENGINE"
+STARTED=no
 cleanup() {
   local rc=$?
-  if [[ "$KEEP_UP" != "yes" ]]; then
-    bash "$REPO/infra/pg-single.sh" down >/dev/null 2>&1 || true
+  if [[ "$STARTED" == yes ]]; then
+    podman logs "$NODE" >"$OUTDIR/resources/database.log" 2>&1 || true
+    bash "$TOPOLOGY_SCRIPT" down >/dev/null 2>&1 || true
   fi
   run_lock_release >/dev/null 2>&1 || true
-  return $rc
+  return "$rc"
 }
 trap cleanup EXIT
-
-echo "==> starting pg-single"
-bash "$REPO/infra/pg-single.sh" up
-DSN="$(bash "$REPO/infra/pg-single.sh" dsn)"
-echo "==> dsn: ${DSN/@*/@<hidden>}"
-
-echo "==> building $IMAGE"
-podman build -q -t "$IMAGE" -f "$(buildpath "$HERE/Containerfile")" "$(buildpath "$HERE")" >/dev/null
-
-mkdir -p "$OUTDIR"
-echo "==> select scale=$SCALE seed=$SEED -> $OUTDIR"
-podman run --rm \
-  --network "$NETWORK" \
-  -v "$(hostpath "$OUTDIR"):/results" \
-  -e ADS_REPO_COMMIT="$(git -C "$REPO" rev-parse HEAD 2>/dev/null || echo unknown)" \
-  "$IMAGE" \
-    -cmd select \
-    -engine postgres \
-    -topology single \
-    -scale "$SCALE" \
-    -seed "$SEED" \
-    -dsn "$DSN" \
-    -out "/results/select.json" \
-    -report-out "/results/select.md"
-
-echo "==> results in $OUTDIR"
+! podman container exists "$NODE" || die "$NODE already exists; preserve its owner"
+! podman volume exists "$VOLUME" || die "$VOLUME already exists; inspect its owner"
+! git -C "$GIT_ROOT" rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1 || die "tag exists; choose a new run id"
+podman build -t "$IMAGE" -f "$(buildpath "$(hostpath "$HERE/Containerfile")")" "$(buildpath "$(hostpath "$HERE")")"
+IMAGE_ID="$(podman image inspect "$IMAGE" --format '{{.Id}}')"
+ENGINE_IMAGE_ID="$(podman image inspect "$ENGINE_IMAGE" --format '{{.Id}}')"
+git -C "$GIT_ROOT" tag -a "$TAG" "$SOURCE_COMMIT" -m "Study 01 SELECT validation $RUN_ID; GPT-6 via Codex desktop; source $SOURCE_COMMIT"
+mkdir -p "$OUTDIR/resources"
+printf 'environment=%s\nrepo_commit=%s\nrun_tag=%s\nengine=%s\nengine_image=%s\nengine_image_id=%s\nclient_image=%s\nclient_image_id=%s\nnode_budget=%s CPU %s\nclient_budget=%s CPU %s\ntrials=%s\nwhole_runs=1\n' \
+  "$ENVIRONMENT" "$SOURCE_COMMIT" "$TAG" "$ENGINE" "$ENGINE_IMAGE" "$ENGINE_IMAGE_ID" "$IMAGE" "$IMAGE_ID" \
+  "$DB_CPUS" "$DB_MEMORY" "$CLIENT_CPUS" "$CLIENT_MEMORY" "$TRIALS" >"$OUTDIR/manifest.env"
+podman machine inspect >"$OUTDIR/resources/machine.json"
+podman image inspect "$IMAGE" "$ENGINE_IMAGE" >"$OUTDIR/resources/images.json"
+STARTED=yes
+bash "$TOPOLOGY_SCRIPT" up
+DSN="$(bash "$TOPOLOGY_SCRIPT" dsn)"
+podman inspect "$NODE" >"$OUTDIR/resources/node.json"
+podman exec "$NODE" cat /proc/meminfo >"$OUTDIR/resources/guest-memory.txt"
+podman exec "$NODE" cat /sys/devices/system/cpu/online >"$OUTDIR/resources/guest-cpus.txt"
+podman exec "$NODE" cat /sys/fs/cgroup/cpu.stat >"$OUTDIR/resources/node-cpu-before.txt"
+set +e
+podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEMORY" \
+  -v "$(winpath "$(hostpath "$OUTDIR")"):/results" \
+  -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
+  -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
+  "$IMAGE" -cmd select -engine "$ENGINE" -topology single -scale "$SCALE" -seed "$SEED" \
+  -trials "$TRIALS" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  -out /results/select.json -report-out /results/select.md >"$OUTDIR/resources/client.log" 2>&1
+RESULT_RC=$?
+set -e
+cat "$OUTDIR/resources/client.log"
+podman exec "$NODE" cat /sys/fs/cgroup/cpu.stat >"$OUTDIR/resources/node-cpu-after.txt"
+printf 'exit_code=%s\n' "$RESULT_RC" >>"$OUTDIR/manifest.env"
+exit "$RESULT_RC"

@@ -72,12 +72,12 @@ func TestStructureIgnoresPredicateButSignatureKeepsIt(t *testing.T) {
 	}
 }
 
-// Print order must not change the shape signature.
-func TestStructureIsOrderIndependent(t *testing.T) {
+// Node inventories do not establish join roles or hierarchy.
+func TestStructurePreservesJoinOrder(t *testing.T) {
 	a := "Hash Join  (cost=1.0..2.0 rows=2 width=8)\n  -> Seq Scan on orders o\n  -> Seq Scan on customers c"
 	b := "-> Seq Scan on customers c\n-> Seq Scan on orders o\nHash Join  (cost=9.9..9.9 rows=99 width=8)"
-	if !SameStructure(a, b) {
-		t.Errorf("the same node set in a different print order was not the same structure:\n%q\n%q",
+	if SameStructure(a, b) {
+		t.Errorf("a reordered node inventory erased join structure:\n%q\n%q",
 			Structure(a), Structure(b))
 	}
 }

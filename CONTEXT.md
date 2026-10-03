@@ -82,6 +82,16 @@ baseline; Study 05 below records the new evidence and observed integration.
   complete, while the eight scientific/book tasks remain queued. Queue state remains authoritative.
 
 - **SELECT protocol published (2026-10-02, HIGH deepseek-flash):** `select-protocol` is claimed and its
+- **SELECT protocol and harness (2026-10-03):** `select-protocol` is completed. The
+  handed-off harness was resumed by HIGH GPT-6 through epoch-4 recovery after
+  the queue runtime repair. Ordering, keyset ties/NULLs, unmatched-parent top-N,
+  live SQL controls, timing/provenance and plan hierarchy were corrected.
+  Bounded validation runs are starting in `.worktrees/select-harness` — do not
+  start databases while `ads-run-lock` is held. The four measurement tasks remain
+  dependent on harness completion; their matrices are not executed by these checks.
+  Correction evidence: `studies/01-charity-tree/reports/20261003T-select-high-correction-check.md`.
+
+- **SELECT protocol archive (2026-10-02, HIGH deepseek-flash):** its
   deliverable [`select-query-templates.md`](studies/01-charity-tree/protocols/select-query-templates.md)
   is written — premeasurement predictions P1–P12 with falsifiers, six result contracts, the REQUEST
   seven-form atlas with exact fixture outputs (NULLs, duplicate child matches, unmatched parents, ties,

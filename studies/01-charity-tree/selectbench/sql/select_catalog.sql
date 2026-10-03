@@ -114,16 +114,18 @@ LEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children
 SELECT customer_id, id, amount FROM (
   SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY amount DESC NULLS LAST, id ASC) AS rn
   FROM orders o
-  WHERE o.customer_id IS NOT NULL) t WHERE rn <= :n;
+  WHERE o.customer_id IS NOT NULL) t WHERE rn <= :n
+ORDER BY customer_id ASC, amount DESC NULLS LAST, id ASC;
 
 -- name: s15_topn_lateral
 -- group: sel_topn
 -- params: n
 SELECT c.id, o.id, o.amount
 FROM customers c
-LEFT JOIN LATERAL (SELECT o.id, o.amount FROM orders o
+CROSS JOIN LATERAL (SELECT o.id, o.amount FROM orders o
                    WHERE o.customer_id = c.id
-                   ORDER BY o.amount DESC NULLS LAST, o.id ASC LIMIT :n) o ON true;
+                   ORDER BY o.amount DESC NULLS LAST, o.id ASC LIMIT :n) o
+ORDER BY c.id ASC, o.amount DESC NULLS LAST, o.id ASC;
 
 -- name: s16_page_offset
 -- group: sel_pagination
@@ -132,10 +134,13 @@ SELECT id, amount FROM orders ORDER BY amount DESC NULLS LAST, id ASC LIMIT :lim
 
 -- name: s17_page_keyset
 -- group: sel_pagination
--- params: limit, last_amount, last_id
+-- params: limit, cursor_set, last_is_null, last_amount, last_id
 -- Keyset page after the last row of the previous page under the same order.
 SELECT id, amount FROM orders
-WHERE (amount, id) < (:last_amount, :last_id)
+WHERE :cursor_set = 0
+   OR (:last_is_null = 1 AND amount IS NULL AND id > :last_id)
+   OR (:last_is_null = 0 AND
+       (amount < :last_amount OR (amount = :last_amount AND id > :last_id) OR amount IS NULL))
 ORDER BY amount DESC NULLS LAST, id ASC LIMIT :limit;
 
 -- name: x01_optional_where
@@ -160,14 +165,15 @@ WHERE c.id NOT IN (SELECT o.customer_id FROM orders o WHERE (:pred));
 -- group: control_wrong_answer
 -- params: pred
 -- DELIBERATELY WRONG: de-duplicating on the name merges two distinct parents.
-SELECT DISTINCT c.name FROM customers c
-JOIN orders o ON o.customer_id = c.id WHERE (:pred);
+SELECT DISTINCT ON (c.name) c.id, c.name FROM customers c
+JOIN orders o ON o.customer_id = c.id WHERE (:pred)
+ORDER BY c.name, c.id;
 
 -- name: x04_limit_before_join
 -- group: control_wrong_answer
 -- params: pred, limit
 -- DELIBERATELY WRONG: the limit is applied before the multiplicative join, so
 -- the joined result is truncated arbitrarily.
-SELECT c.id, o.id FROM customers c
+SELECT c.id, c.name, o.id, o.amount FROM customers c
 JOIN (SELECT * FROM orders WHERE (:pred) ORDER BY id LIMIT :limit) o
   ON o.customer_id = c.id;

@@ -188,7 +188,7 @@ func TestRunCellsClassifiesUnsupportedAndTimeout(t *testing.T) {
 	a := args()
 	f := newFakeQ(t, c, fx, a)
 	f.explainErr["s03_cte_filtered"] = ErrUnsupported
-	f.queryErr["s14_topn_rownumber"] = errors.New("context deadline exceeded")
+	f.queryErr["s14_topn_rownumber"] = context.DeadlineExceeded
 
 	cells := RunCells(context.Background(), f, c, fx, a,
 		[]string{"s03_cte_filtered", "s14_topn_rownumber"}, "run-1", "yb-single")

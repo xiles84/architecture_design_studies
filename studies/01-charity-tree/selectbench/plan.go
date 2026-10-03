@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -52,17 +51,21 @@ func Normalize(explain string) []string {
 	return out
 }
 
-// Structure returns the plan's shape: the normalized lines with parameter- and
-// estimate-dependent detail removed, sorted so print order does not matter.
+// Structure preserves node order and indentation: outer/inner roles and nested
+// joins are part of a plan's shape. A sorted node inventory loses that evidence.
 func Structure(explain string) []string {
 	var out []string
-	for _, line := range Normalize(explain) {
-		if nodeExtras.MatchString(line) {
+	for _, raw := range strings.Split(strings.ReplaceAll(explain, "\r\n", "\n"), "\n") {
+		if nodeExtras.MatchString(raw) || runLevel.MatchString(raw) || strings.TrimSpace(raw) == "Planning:" {
 			continue
 		}
-		out = append(out, line)
+		line := strings.Join(strings.Fields(volatile.ReplaceAllString(raw, "")), " ")
+		if line == "" {
+			continue
+		}
+		indent := len(raw) - len(strings.TrimLeft(raw, " \t"))
+		out = append(out, strings.Repeat(" ", indent)+line)
 	}
-	sort.Strings(out)
 	return out
 }
 

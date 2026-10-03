@@ -10,6 +10,16 @@ experiments**.
 
 ## Measurement
 
+### Ordered truth must retain database row arrival order
+
+The 2026-10-03 SELECT HIGH source review found that canonicalization sorted
+pagination/top-N rows into the oracle's order, hiding wrong SQL ordering. The
+keyset SQL also used a tuple comparison incompatible with amount DESC/id ASC.
+Verification now preserves ordered arrival; live fixture gates include tie and
+NULL cursors and unmatched parents. Wrong controls must execute successfully with
+the intended column shape; decoding errors are not successful detections. See the
+new SELECT correction check report; prior worker artifacts are preserved.
+
 ### A pinned local image name does not identify current tooling source
 
 The 2026-10-03 SELECT handoff reported a recovered claim that could not submit.

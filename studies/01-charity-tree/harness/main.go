@@ -118,7 +118,7 @@ func main() {
 		fmt.Println("wrote", *reportOut)
 		return
 	case "select":
-		if err := runSelectMode(*dsn, *engine, *topology, *scale, *queries, *out, *reportOut, *seed); err != nil {
+		if err := runSelectMode(*dsn, *engine, *topology, *scale, *queries, *out, *reportOut, *seed, *trials, *envName, *runID, *stmtTimeout); err != nil {
 			fatal(err)
 		}
 		return

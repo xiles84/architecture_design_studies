@@ -117,10 +117,10 @@ func TestCanonicalizePreservesNulls(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := got.([]PageRow)
-	if v[0].OrderID != 10 || v[1].OrderID != 13 {
+	if v[0].OrderID != 13 || v[1].OrderID != 10 {
 		t.Fatalf("order wrong: %#v", v)
 	}
-	if v[1].Amount != nil {
-		t.Errorf("order 13's NULL amount became %d", *v[1].Amount)
+	if v[0].Amount != nil {
+		t.Errorf("order 13's NULL amount became %d", *v[0].Amount)
 	}
 }

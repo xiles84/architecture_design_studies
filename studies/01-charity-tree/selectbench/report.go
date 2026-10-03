@@ -14,32 +14,45 @@ const (
 	StatusInvalid     Status = "invalid"
 	StatusUnsupported Status = "unsupported"
 	StatusTimeout     Status = "timeout"
+	StatusError       Status = "error"
 )
 
 // Provenance travels with every result: a number whose environment, image, seed
 // and settings cannot be named cannot be compared with anything.
 type Provenance struct {
-	RepoCommit         string
-	ImageDigest        string
-	EngineImage        string
-	Seed               int64
-	DatasetFingerprint string
-	Settings           map[string]string
+	RepoCommit          string
+	ImageDigest         string
+	EngineImage         string
+	Seed                int64
+	DatasetFingerprint  string
+	Settings            map[string]string
+	RunTag              string
+	Environment         string
+	EngineImageDigest   string
+	EngineVersion       string
+	ClientCPUStatBefore string
+	ClientCPUStatAfter  string
 }
 
 // Cell is one (statement, topology) measurement, with the plan that produced it.
 type Cell struct {
-	RunID     string
-	Topology  string
-	Statement string
-	Group     string
-	Params    string
-	Status    Status
-	MedianMS  float64
-	SpreadPct float64
-	Trials    int
-	Plan      string
-	Note      string
+	RunID           string
+	Topology        string
+	Statement       string
+	Group           string
+	Params          string
+	Status          Status
+	MedianMS        float64
+	SpreadPct       float64
+	Trials          int
+	Plan            string
+	Note            string
+	TimingMeasured  bool
+	SamplesMS       []float64
+	ResultRows      int
+	ResultJSONBytes int
+	PlanningMS      *float64
+	ExecutionMS     *float64
 }
 
 func (c Cell) structureSig() string { return StructureSignature(c.Plan) }
@@ -52,6 +65,7 @@ type ReportInput struct {
 	Predictions    []string
 	Cells          []Cell
 	Interpretation string // must be empty; present only so a caller that tries is refused
+	Controls       []ControlResult
 }
 
 func comparableCells(a, b Cell) (bool, string) {
@@ -82,12 +96,14 @@ func RenderComparison(in ReportInput) (string, error) {
 
 	b.WriteString("# SELECT comparison (generated measurements)\n\n")
 	b.WriteString("_This file contains measurements only. Interpretation belongs in a signed analysis._\n\n")
+	b.WriteString("**TL;DR:** a validation run supplies correctness and plan evidence. Within-run samples do not establish a replicated performance winner. Missing measurements are N/A.\n\n")
 
 	b.WriteString("## Provenance\n\n| Field | Value |\n|---|---|\n")
 	p := in.Provenance
 	fmt.Fprintf(&b, "| repo commit | `%s` |\n", orUnknown(p.RepoCommit))
 	fmt.Fprintf(&b, "| benchmark image | `%s` |\n", orUnknown(p.EngineImage))
 	fmt.Fprintf(&b, "| image digest | `%s` |\n", orUnknown(p.ImageDigest))
+	fmt.Fprintf(&b, "| run tag | `%s` |\n| environment | `%s` |\n| engine image digest | `%s` |\n| engine version | %s |\n", orUnknown(p.RunTag), orUnknown(p.Environment), orUnknown(p.EngineImageDigest), orUnknown(p.EngineVersion))
 	fmt.Fprintf(&b, "| dataset seed | %d |\n", p.Seed)
 	fmt.Fprintf(&b, "| dataset fingerprint | `%s` |\n", orUnknown(p.DatasetFingerprint))
 	for _, k := range sortedKeys(p.Settings) {
@@ -106,8 +122,12 @@ func RenderComparison(in ReportInput) (string, error) {
 		return cells[i].Statement < cells[j].Statement
 	})
 	for _, c := range cells {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %.3f | %.1f | %d | `%s` |\n",
-			c.RunID, c.Topology, c.Statement, c.Group, c.Status, c.MedianMS, c.SpreadPct, c.Trials, c.structureSig())
+		ms, spread := "N/A", "N/A"
+		if c.TimingMeasured && c.Status == StatusValid {
+			ms, spread = fmt.Sprintf("%.6f", c.MedianMS), fmt.Sprintf("%.1f", c.SpreadPct)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %d | `%s` |\n",
+			c.RunID, c.Topology, c.Statement, c.Group, c.Status, ms, spread, c.Trials, c.structureSig())
 	}
 	b.WriteString("\n")
 
@@ -159,18 +179,21 @@ func RenderComparison(in ReportInput) (string, error) {
 				noDiff = append(noDiff, fmt.Sprintf("%s: medians differ by %.3f ms, inside the %.1f%%/%.1f%% spread — no resolved difference",
 					label, abs(diff), a.SpreadPct, c.SpreadPct))
 			} else {
-				fast, slow := a, c
-				if c.MedianMS < a.MedianMS {
-					fast, slow = c, a
-				}
-				resolved = append(resolved, fmt.Sprintf("%s: `%s` faster by %.1f%% (%.3f vs %.3f ms)", label,
-					fast.Statement, (slow.MedianMS-fast.MedianMS)/slow.MedianMS*100, fast.MedianMS, slow.MedianMS))
+				resolved = append(resolved, fmt.Sprintf("%s: within-run medians %.6f / %.6f ms; whole-run replication required — no resolved difference", label, a.MedianMS, c.MedianMS))
 			}
 		}
 	}
 	writeSection(&b, "Same plan (no plan difference to explain)", samePlan)
 	writeSection(&b, "No resolved difference", noDiff)
-	writeSection(&b, "Resolved differences", resolved)
+	writeSection(&b, "Within-run differences (not replicated)", resolved)
+	b.WriteString("## Live negative controls\n\n")
+	for _, control := range in.Controls {
+		fmt.Fprintf(&b, "- `%s`: detected=%t, rows=%d%s\n", control.Statement, control.Detected, control.Rows, dash(control.Error))
+	}
+	b.WriteString("\n## Captured plans and result sizes\n\n")
+	for _, c := range cells {
+		fmt.Fprintf(&b, "### %s\n\nRows: %d; serialized decoded-row JSON bytes: %d (not wire bytes). Planning/execution: %s / %s ms.\n\n```text\n%s```\n\n", c.Statement, c.ResultRows, c.ResultJSONBytes, optionalMS(c.PlanningMS), optionalMS(c.ExecutionMS), c.Plan+"\n")
+	}
 	writeSection(&b, "Not comparable (never ranked)", incomparable)
 
 	if len(in.Predictions) > 0 {

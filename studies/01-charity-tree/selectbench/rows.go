@@ -2,7 +2,9 @@ package selectbench
 
 import (
 	"fmt"
+	"math"
 	"sort"
+	"strconv"
 )
 
 // Row canonicalization: the bridge between database rows and the oracles.
@@ -24,10 +26,13 @@ func toInt(v any) (int, bool, error) { // (value, isNull, error)
 	case int64:
 		return int(x), false, nil
 	case float64:
+		if math.IsNaN(x) || math.IsInf(x, 0) || math.Trunc(x) != x || x >= math.Exp2(63) || x < -math.Exp2(63) {
+			return 0, false, fmt.Errorf("not an exact integer: %v", x)
+		}
 		return int(x), false, nil
 	case string:
-		var n int
-		if _, err := fmt.Sscanf(x, "%d", &n); err != nil {
+		n, err := strconv.Atoi(x)
+		if err != nil {
 			return 0, false, fmt.Errorf("cannot read %q as an integer", x)
 		}
 		return n, false, nil
@@ -205,12 +210,7 @@ func Canonicalize(group string, rows [][]any) (any, error) {
 			}
 			out = append(out, row)
 		}
-		sort.Slice(out, func(i, j int) bool {
-			if out[i].CustomerID != out[j].CustomerID {
-				return out[i].CustomerID < out[j].CustomerID
-			}
-			return orderLess(out[i].Amount, out[i].OrderID, out[j].Amount, out[j].OrderID)
-		})
+		// Both top-N templates declare parent/amount/id output order explicitly.
 		return out, nil
 
 	case "sel_pagination":
@@ -233,9 +233,8 @@ func Canonicalize(group string, rows [][]any) (any, error) {
 			}
 			out = append(out, row)
 		}
-		sort.SliceStable(out, func(i, j int) bool {
-			return orderLess(out[i].Amount, out[i].OrderID, out[j].Amount, out[j].OrderID)
-		})
+		// The SQL promises a total order. Preserve arrival order so an incorrect
+		// ORDER BY cannot pass verification after the harness sorts it correctly.
 		return out, nil
 
 	case ControlGroup:

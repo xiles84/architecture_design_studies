@@ -54,6 +54,9 @@ func ExpectedAnswer(c *Catalog, name string, fx Fixture, a Args) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown statement %q", name)
 	}
+	if needsCursor(s) {
+		return KeysetPage(fx, a.Limit, a.Last), nil
+	}
 	return oracleFor(s.Group, fx, a)
 }
 

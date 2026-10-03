@@ -1,6 +1,9 @@
 package selectbench
 
-import "sort"
+import (
+	"sort"
+	"time"
+)
 
 // Args are the bound parameters for one evaluator call.
 type Args struct {
@@ -10,9 +13,12 @@ type Args struct {
 	Offset int
 	Last   *PageRow
 	// SQL-side parameters, rendered into the statement by Bind.
-	PredSQL    string
-	LastAmount int
-	LastID     int
+	PredSQL          string
+	LastAmount       int
+	LastID           int
+	Trials           int
+	ValidateOnly     bool
+	StatementTimeout time.Duration
 }
 
 // EvalFunc is a Go implementation of one catalogue statement's logical query

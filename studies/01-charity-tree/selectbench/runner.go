@@ -2,8 +2,11 @@ package selectbench
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"sort"
 	"strconv"
+	"time"
 )
 
 // The SELECT runner.
@@ -48,8 +51,24 @@ func (a Args) ParamMap(s Statement) map[string]string {
 			m[p] = strconv.Itoa(a.Offset)
 		case "last_amount":
 			m[p] = strconv.Itoa(a.LastAmount)
+			if a.Last != nil && a.Last.Amount != nil {
+				m[p] = strconv.Itoa(*a.Last.Amount)
+			}
 		case "last_id":
 			m[p] = strconv.Itoa(a.LastID)
+			if a.Last != nil {
+				m[p] = strconv.Itoa(a.Last.OrderID)
+			}
+		case "cursor_set":
+			m[p] = "0"
+			if a.Last != nil {
+				m[p] = "1"
+			}
+		case "last_is_null":
+			m[p] = "0"
+			if a.Last != nil && a.Last.Amount == nil {
+				m[p] = "1"
+			}
 		default:
 			m[p] = "1"
 		}
@@ -80,12 +99,6 @@ func RunCells(ctx context.Context, q Querier, c *Catalog, fx Fixture, a Args, na
 			if s.Group == ControlGroup {
 				continue
 			}
-			// Keyset pagination needs a real cursor; with none bound it would
-			// compare an empty page against the first page. It is run only when
-			// named explicitly (a follow-up supplies the cursor).
-			if needsCursor(s) {
-				continue
-			}
 			names = append(names, n)
 		}
 	}
@@ -106,37 +119,87 @@ func RunCells(ctx context.Context, q Querier, c *Catalog, fx Fixture, a Args, na
 			cells = append(cells, cell)
 			continue
 		}
-		plan, err := q.Explain(ctx, bound)
-		if err != nil {
-			if errors.Is(err, ErrUnsupported) {
-				cell.Status, cell.Note = StatusUnsupported, err.Error()
-			} else {
-				cell.Status, cell.Note = StatusTimeout, err.Error()
-			}
-			cells = append(cells, cell)
-			continue
+		budget := a.StatementTimeout
+		if budget <= 0 {
+			budget = 2 * time.Minute
 		}
-		cell.Plan = plan
-
-		rows, err := q.Query(ctx, bound)
+		cellCtx, cancel := context.WithTimeout(ctx, budget)
+		rows, err := q.Query(cellCtx, bound)
 		if err != nil {
-			if errors.Is(err, ErrUnsupported) {
-				cell.Status, cell.Note = StatusUnsupported, err.Error()
-			} else {
-				cell.Status, cell.Note = StatusTimeout, err.Error()
-			}
+			cell.Status, cell.Note = failureStatus(err), err.Error()
+			cancel()
 			cells = append(cells, cell)
 			continue
 		}
 		if err := VerifyRows(c, name, fx, a, rows); err != nil {
 			cell.Status, cell.Note = StatusInvalid, err.Error()
+			cancel()
 			cells = append(cells, cell)
 			continue
 		}
-		cell.Status, cell.Trials = StatusValid, 1
+		cell.ResultRows = len(rows)
+		encoded, _ := json.Marshal(rows)
+		cell.ResultJSONBytes = len(encoded)
+		plan, err := q.Explain(cellCtx, bound)
+		if err != nil {
+			cell.Status, cell.Note = failureStatus(err), err.Error()
+			cancel()
+			cells = append(cells, cell)
+			continue
+		}
+		cell.Plan = plan
+		cell.PlanningMS, cell.ExecutionMS = planTimes(plan)
+		cell.Status = StatusValid
+		if !a.ValidateOnly {
+			trials := a.Trials
+			if trials < 1 {
+				trials = 1
+			}
+			for trial := 0; trial < trials; trial++ {
+				start := time.Now()
+				observed, err := q.Query(cellCtx, bound)
+				elapsed := float64(time.Since(start).Nanoseconds()) / 1e6
+				if err != nil {
+					cell.Status, cell.Note = failureStatus(err), err.Error()
+					break
+				}
+				if err := VerifyRows(c, name, fx, a, observed); err != nil {
+					cell.Status, cell.Note = StatusInvalid, err.Error()
+					break
+				}
+				cell.SamplesMS = append(cell.SamplesMS, elapsed)
+			}
+			if cell.Status == StatusValid {
+				cell.Trials = len(cell.SamplesMS)
+				cell.TimingMeasured = true
+				ordered := append([]float64(nil), cell.SamplesMS...)
+				sort.Float64s(ordered)
+				cell.MedianMS = ordered[len(ordered)/2]
+				if len(ordered)%2 == 0 {
+					cell.MedianMS = (ordered[len(ordered)/2-1] + cell.MedianMS) / 2
+				}
+				if cell.MedianMS > 0 {
+					cell.SpreadPct = 100 * (ordered[len(ordered)-1] - ordered[0]) / cell.MedianMS
+				}
+			} else {
+				// A late mismatch invalidates the whole cell, including earlier samples.
+				cell.SamplesMS = nil
+			}
+		}
+		cancel()
 		cells = append(cells, cell)
 	}
 	return cells
+}
+
+func failureStatus(err error) Status {
+	if errors.Is(err, ErrUnsupported) {
+		return StatusUnsupported
+	}
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return StatusTimeout
+	}
+	return StatusError
 }
 
 func describeParams(m map[string]string) string {
