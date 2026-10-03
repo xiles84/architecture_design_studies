@@ -78,3 +78,43 @@ item 4 is now mostly built; the DB execution (items 1–3) is still the gap.
 One host; the DB-backed run is not yet implemented, so the SELECT catalogue has not been executed
 against any engine. `DISTINCT ON`/`LATERAL`/`MATERIALIZED` support on the pinned images remains
 `unverified` until step 2 runs.
+
+## Handoff (2026-10-03): harness complete and live-validated
+
+The harness is done and verified against a live engine. `run-select.sh --scale tiny`
+on pg-single 17.11 (under ads-run-lock, database stopped afterwards):
+
+```
+select: 16 cells — valid=16 invalid=0 unsupported=0 timeout=0
+```
+
+The first live run failed 4 cells and each was a real defect, now fixed and kept in
+`results/select-20261003T181045Z/`: empty-vs-nil slice comparison (`answersEqual`);
+`s14` partitioning the NULL-`customer_id` order as its own parent; `s17` keyset run
+with no cursor bound (cursor statements excluded from the default set). Check report:
+`studies/01-charity-tree/reports/20261003T-select-harness-check.md`.
+
+### Blocked on the queue defect — with a live reproduction
+
+`queue submit --task task-20261002T131729Z-select-harness` fails reproducibly:
+
+```
+queue: claim superseded: live is claim-49c7adc2076314a9 epoch 3,
+       this worker holds claim-66b2636cfaf6af09 epoch 2
+```
+
+Cause: `recover` writes the new claim to the live ref and to the committed event
+chain, but never rewrites the worktree's claim context
+(`.git/worktrees/select-harness/ads-queue/claims/task-20261002T131729Z-select-harness.json`),
+which still holds epoch 2. `resolveClaim` reads that file, so the worker presents a
+superseded claim. Fix: call `saveClaimContextFor(newCl.Worktree, newCl)` in
+`cmdRecover` after the second compare-and-swap.
+
+### Next session, in order
+
+1. `queue recover --task …` (ten-minute grace, then re-run) and note the new
+   `claim_id`/`claim_epoch` it prints.
+2. `queue checkpoint --task … --claim-id <new> --claim-epoch <new>` — pass them
+   explicitly, or apply the fix above first.
+3. `queue submit --task …`, then HIGH review, integrate into `main`, tag
+   `study-01/select-v1-harness`, remove `.worktrees/select-harness`.
