@@ -101,6 +101,10 @@ func selectSpec(scale string) selectbench.GenSpec {
 	case "large":
 		return selectbench.GenSpec{Customers: 2000, OrdersPerParent: 20, NullAmountEvery: 13, NullFKEvery: 199,
 			HotCustomerShare: 0.5, Wide: true}
+	case "sweep":
+		// 10,000 parents so the aggregate/top-N parent-count axis can reach
+		// 10,000 parents with one deterministic fixture and a prefix filter.
+		return selectbench.GenSpec{Customers: 10000, OrdersPerParent: 2, NullAmountEvery: 29, NullFKEvery: 313}
 	default: // small
 		return selectbench.GenSpec{Customers: 50, OrdersPerParent: 5, NullAmountEvery: 7, NullFKEvery: 23}
 	}

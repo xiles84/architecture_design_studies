@@ -8,6 +8,7 @@ source "$REPO/infra/lib.sh"
 SCALE="${SCALE:-tiny}"
 SEED="${SEED:-42}"
 ENGINE="postgres"
+FAMILY="select"
 TRIALS=3
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 TAG=""
@@ -18,13 +19,15 @@ while [[ $# -gt 0 ]]; do
     --seed) SEED="$2"; shift 2 ;;
     --engine) ENGINE="$2"; shift 2 ;;
     --trials) TRIALS="$2"; shift 2 ;;
+    --family) FAMILY="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
     --environment) ENVIRONMENT="$2"; shift 2 ;;
     *) die "unknown argument $1" ;;
   esac
 done
-[[ "$SCALE" =~ ^(tiny|small|medium|large)$ ]] || die "unknown scale $SCALE"
+[[ "$SCALE" =~ ^(tiny|small|medium|large|sweep)$ ]] || die "unknown scale $SCALE"
+[[ "$FAMILY" =~ ^(select|aggregate)$ ]] || die "family must be select or aggregate"
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"
 [[ "$RUN_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || die "invalid run id"
 [[ "$TAG" == run/study-01/* ]] || die "provide an immutable --tag run/study-01/<id>"
@@ -34,6 +37,11 @@ case "$ENGINE" in
   yugabyte) TOPOLOGY_SCRIPT="$REPO/infra/yb-single.sh"; NODE=yb-single; ENGINE_IMAGE="$YB_IMAGE"; VOLUME=ads-yb-single-data ;;
   *) die "engine must be postgres or yugabyte" ;;
 esac
+if [[ "$FAMILY" == aggregate ]]; then
+  CLIENT_CMD="select-aggregate"; OUT_JSON="aggregate.json"; OUT_MD="aggregate.md"
+else
+  CLIENT_CMD="select"; OUT_JSON="select.json"; OUT_MD="select.md"
+fi
 OUTDIR="${OUTDIR:-$HERE/results/$RUN_ID}"
 [[ ! -e "$OUTDIR" ]] || die "output already exists: $OUTDIR"
 GIT_ROOT="$(hostpath "$REPO")"
@@ -77,9 +85,9 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -v "$(winpath "$(hostpath "$OUTDIR")"):/results" \
   -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
-  "$IMAGE" -cmd select -engine "$ENGINE" -topology single -scale "$SCALE" -seed "$SEED" \
+  "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology single -scale "$SCALE" -seed "$SEED" \
   -trials "$TRIALS" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
-  -out /results/select.json -report-out /results/select.md >"$OUTDIR/resources/client.log" 2>&1
+  -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e
 cat "$OUTDIR/resources/client.log"

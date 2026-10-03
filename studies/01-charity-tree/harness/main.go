@@ -122,6 +122,16 @@ func main() {
 			fatal(err)
 		}
 		return
+	case "select-aggregate":
+		if err := runSelectAggregateMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *envName, *runID, *stmtTimeout); err != nil {
+			fatal(err)
+		}
+		return
+	case "aggregate-report":
+		if err := runSelectAggregateReport(*resultsDir, *reportOut); err != nil {
+			fatal(err)
+		}
+		return
 	}
 	if *cmd == "list" {
 		for _, d := range designs {
