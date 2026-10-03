@@ -53,4 +53,11 @@ resource-probe correction, reserved SSH artifact removal, audit-error accounting
 and whole-run median/position reduction. No protocol contract or acceptance
 criterion changed. Confidence: High. The full three-restart matrix is next.
 
+Final checkpoint: three fresh whole runs passed 30 cells, 216 trials and 173
+controls. First/last read rate changed 2.2446x; client throttling reached 68.86%
+of periods. Decision: withhold a general speed ranking, retain every run and
+the exact source-query contrast. Confidence: High. Interpretation only; no gate
+or acceptance condition changes. Results, analysis and HIGH self-review are
+ready for integration. Seventeen other HIGH tasks remain behind recorded gates.
+
 NEXT MODEL: HIGH

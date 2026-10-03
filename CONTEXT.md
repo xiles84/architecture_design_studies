@@ -36,7 +36,7 @@ summary, not a second ledger.
 
 ## Current state
 
-### HIGH task sweep — **audited; scientific backlog gated (2026-10-03)**
+### HIGH task sweep — **cache comparison measured; other scientific work gated (2026-10-03)**
 
 The owner declared HIGH and asked this session to iterate through HIGH work. The
 [dated sweep](docs/high-task-sweeps/2026-10-03/REPORT.md) records the live baseline:
@@ -920,17 +920,28 @@ review requires (repeated-design instrument control, `-retries 1`, writer sweep)
 
 ### Study 05 — external cache — **v1 reviewed; v2 runs landed (churn/scale, resources/engines, open-loop)**
 
-**V5 conditional protocol comparison released and claimed (2026-10-03, HIGH
-GPT-6 / Codex desktop):** the owner's renewed HIGH execution request releases
-`task-20260923T235925Z-cache-untested-protocols`. Its isolated worktree is
-`.worktrees/study05-v5-untested-protocols`; premeasurement protocol is committed
-at `d5ad17f3`, tag `study-05/v5-protocol-20261003`. Publication and deletion
-experiments use a separately scoped keyed projection and equal service budgets;
-cluster and multi-host placement remain explicit gaps. Harness validation is
-passed its initial build; the final producing build and serial runtime matrix are
-starting — **do not start databases while this task holds `ads-run-lock`**. See the new
-[protocol](studies/05-cache-consistency/protocolbench/PROTOCOL.md) and
-[HIGH self-review](studies/05-cache-consistency/protocolbench/HIGH-REVIEW.md).
+**V5 protocol/deletion comparison measured (2026-10-03, HIGH GPT-6 / Codex
+desktop):** `task-20260923T235925Z-cache-untested-protocols` follows the renewed
+HIGH execution request. Three restarted whole runs passed **30 cells, 216 trials
+and 173 control gates**, with zero candidate wrong/impossible reads. Source
+statements/warmed read were 1 for version validation and 0 for synchronous/outbox.
+A first/last ratio of 2.2446 and client throttling prevent a general throughput
+ranking. Durable identity and retained fencing resisted deletion/recreation;
+expired fencing allowed resurrection in the controls. The benchmark lock is released.
+
+Source `fed61266`; run tags `run/study-05/cache-v5-20261003-r1`, `-r2`, `-r3`;
+digests `f2054e7244c3d2b9`, `52c1eb9b8c355d19`, `76c170e2f1a3e27e`.
+Premeasurement tag: `study-05/v5-protocol-20261003`; control tag:
+`study-05/v5-controls-20261003`. Required final integration milestone:
+`study-05/v5-untested-protocols`; the queue receipt records actual completion.
+See the [signed analysis](studies/05-cache-consistency/reports/analyses/cache-v5-20261003--gpt-6--2026-10-03.md),
+[whole-run reduction](studies/05-cache-consistency/reports/cache-v5-20261003-whole-runs.md),
+[validation](studies/05-cache-consistency/protocolbench/VALIDATION-04.md), and
+[environment](docs/environments/xiles-podman-4cpu-2g-config-protocol-20261003.md).
+The keyed projection leaves cluster, multi-host placement, uncoordinated writers
+and saturation as gaps. Existing donor-portal evidence/book claims are unchanged.
+The result is ready for HIGH review and integration from
+`.worktrees/study05-v5-untested-protocols`.
 
 Cache-aside/write-through, strict vs relaxed freshness, wrongness of a relaxed cache and cache-side
 invalidation fences, on PostgreSQL + Redis (Redis measured as a shared cache, never as an

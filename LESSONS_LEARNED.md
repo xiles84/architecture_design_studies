@@ -16,8 +16,26 @@ The Study 05 v5 protocol/source review (2026-10-03) scans committed, unprocessed
 events instead of advancing a sequence-number cursor: sequence allocation order
 can differ from transaction commit order. The writer's strict acknowledgement
 waits for committed relay delivery. A paused relay and a deliberately omitted
-barrier are separate runtime controls; source inspection alone is not evidence
-that either control fired. See `studies/05-cache-consistency/protocolbench/`.
+barrier are separate runtime controls. The three v5 whole runs fired both:
+delivery pause blocked acknowledgement, while the omitted barrier admitted an
+acknowledged stale hit. All 30 candidate cells passed their complete gates.
+See `studies/05-cache-consistency/protocolbench/` and the tagged v5 results.
+
+### A position control can outweigh the candidate difference
+
+In v5 run 1, the same version-validated candidate read 2.2446 times faster when
+repeated last; its write-rate ratio was 2.1156. Retain the first run and withhold
+a general throughput ranking. Trial repetition alone does not reveal this
+position/environment effect. The source-query and fired correctness contrasts
+remain separately supported. See `cache-v5-20261003-whole-runs.md`.
+
+### Saved Podman configuration is not the observed WSL guest envelope
+
+The v5 matrix retained 4 CPU/2-GiB machine configuration and observed 8 online
+CPUs/about 15.36 GiB in the guest. Calculate both reserve framings; inspect
+effective container quotas and throttling. Do not use saved configuration to
+claim a cluster is physically impossible, or supplied closed-loop throughput
+to claim isolated server capacity. See the named v5 environment and resource note.
 
 ### Completed queue tasks do not automatically close a scientific program gate
 

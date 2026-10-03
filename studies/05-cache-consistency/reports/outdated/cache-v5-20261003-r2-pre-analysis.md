@@ -1,0 +1,661 @@
+# Cache publication and deletion measurements
+
+## TL;DR
+
+Fixed selection rule: count every result and control; publish timing only for a cell whose complete correctness gate passed. 10/10 cells passed; 59 controls passed. Inputs digest: `52c1eb9b8c355d19` (32 JSON files). This report contains measured facts; interpretation belongs in a signed analysis.
+
+Environment: `xiles-podman-4cpu-2g-config-protocol-20261003`. Producing commit: `fed612661d78de750dc72e4b51f3f82ccb8ece34`; run tag: `run/study-05/cache-v5-20261003-r2`; client image: `54d66b9c85d21b0d562c076f2c8cf2ddd7ce74755979c09461db416c926ed2f0`.
+
+Single-node PostgreSQL and Redis share this laptop's Podman VM. Service budget: PostgreSQL 1 CPU/512 MiB plus Redis 1 CPU/256 MiB; client 1 CPU/512 MiB; planned reserve 1 CPU/768 MiB against machine configuration 4 CPU/2 GiB. The guest's actual resources and service cgroup counters are retained beside each cell. All source requests use one endpoint. Three-node/equal-total cluster and multi-host placement comparisons are resource/coverage gaps. Colocation, rollup, rolldown and embedding have no controlled contrast in this keyed projection. These are short, closed-loop measurements on 128 keys, with per-key client writer ordering, not saturation, donor-portal throughput or uncoordinated-writer evidence.
+
+## Every admitted trial
+
+| Arm / protocol / strategy / deletion | Phase / trial | Read/s | Write/s | Read p50/p99 ms | Write p50/p99 ms | DB p50 ms | Ack p50/p99 ms | Client lock p99 ms | Source queries/read | Relay queries / delivered |
+|---|---|---:|---:|---|---|---:|---|---:|---:|---|
+| A / outbox / lock / hard | read / 1 | 32126.9 | 0.0 | 0.088 / 0.261 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 491 / 0 |
+| A / outbox / lock / hard | write / 1 | 0.0 | 544.4 | 0.000 / 0.000 | 3.576 / 5.219 | 1.239 | 2.389 / 3.481 | 0.000 | 0.000000 | 824 / 1635 |
+| A / outbox / lock / hard | mixed / 1 | 25781.7 | 192.9 | 0.100 / 0.469 | 3.550 / 70.573 | 1.552 | 2.090 / 67.948 | 0.000 | 0.008812 | 314 / 579 |
+| A / outbox / lock / hard | read / 2 | 29509.5 | 0.0 | 0.093 / 0.280 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 473 / 0 |
+| A / outbox / lock / hard | write / 2 | 0.0 | 561.9 | 0.000 / 0.000 | 3.462 / 4.597 | 1.198 | 2.384 / 3.225 | 0.000 | 0.000000 | 847 / 1687 |
+| A / outbox / lock / hard | mixed / 2 | 25856.4 | 195.0 | 0.100 / 0.484 | 3.512 / 70.621 | 1.560 | 2.059 / 68.595 | 0.000 | 0.009074 | 319 / 595 |
+| A / outbox / lock / hard | read / 3 | 31569.2 | 0.0 | 0.088 / 0.294 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 496 / 0 |
+| A / outbox / lock / hard | write / 3 | 0.0 | 559.1 | 0.000 / 0.000 | 3.477 / 5.262 | 1.188 | 2.370 / 3.204 | 0.000 | 0.000000 | 851 / 1679 |
+| A / outbox / lock / hard | mixed / 3 | 25380.4 | 188.7 | 0.101 / 0.479 | 3.498 / 73.112 | 1.556 | 2.050 / 68.457 | 0.000 | 0.008829 | 322 / 576 |
+| A / sync / cas / hard | read / 1 | 32906.9 | 0.0 | 0.088 / 0.286 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / cas / hard | write / 1 | 0.0 | 1612.0 | 0.000 / 0.000 | 1.211 / 1.950 | 1.016 | 0.093 / 0.258 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / cas / hard | mixed / 1 | 19846.3 | 407.1 | 0.119 / 0.736 | 1.656 / 68.309 | 1.377 | 0.133 / 0.852 | 0.000 | 0.034339 | 0 / 0 |
+| A / sync / cas / hard | read / 2 | 31484.3 | 0.0 | 0.088 / 0.266 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / cas / hard | write / 2 | 0.0 | 1569.7 | 0.000 / 0.000 | 1.244 / 1.980 | 1.038 | 0.097 / 0.268 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / cas / hard | mixed / 2 | 19713.8 | 397.1 | 0.118 / 0.719 | 1.667 / 68.705 | 1.373 | 0.133 / 0.646 | 0.000 | 0.033749 | 0 / 0 |
+| A / sync / cas / hard | read / 3 | 31210.9 | 0.0 | 0.089 / 0.290 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / cas / hard | write / 3 | 0.0 | 1170.7 | 0.000 / 0.000 | 1.634 / 2.733 | 1.355 | 0.134 / 0.356 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / cas / hard | mixed / 3 | 18739.3 | 374.8 | 0.125 / 0.770 | 1.713 / 68.554 | 1.412 | 0.143 / 0.651 | 0.000 | 0.033445 | 0 / 0 |
+| A / sync / lock / hard | read / 1 | 31642.7 | 0.0 | 0.088 / 0.270 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / lock / hard | write / 1 | 0.0 | 1463.4 | 0.000 / 0.000 | 1.342 / 2.149 | 1.139 | 0.096 / 0.267 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / lock / hard | mixed / 1 | 19776.6 | 377.3 | 0.117 / 0.737 | 1.755 / 68.509 | 1.499 | 0.131 / 0.672 | 0.000 | 0.032706 | 0 / 0 |
+| A / sync / lock / hard | read / 2 | 32245.3 | 0.0 | 0.088 / 0.278 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / lock / hard | write / 2 | 0.0 | 1433.7 | 0.000 / 0.000 | 1.358 / 2.165 | 1.153 | 0.099 / 0.284 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / lock / hard | mixed / 2 | 16700.2 | 314.7 | 0.137 / 0.937 | 2.068 / 70.058 | 1.729 | 0.156 / 0.655 | 0.000 | 0.033256 | 0 / 0 |
+| A / sync / lock / hard | read / 3 | 28286.1 | 0.0 | 0.097 / 0.293 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / lock / hard | write / 3 | 0.0 | 1303.7 | 0.000 / 0.000 | 1.517 / 2.377 | 1.280 | 0.111 / 0.325 | 0.000 | 0.000000 | 0 / 0 |
+| A / sync / lock / hard | mixed / 3 | 19780.6 | 379.4 | 0.118 / 0.745 | 1.764 / 69.117 | 1.486 | 0.136 / 0.555 | 0.000 | 0.032174 | 0 / 0 |
+| A / outbox / cas / hard | read / 1 | 32691.8 | 0.0 | 0.087 / 0.261 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 509 / 0 |
+| A / outbox / cas / hard | write / 1 | 0.0 | 569.1 | 0.000 / 0.000 | 3.355 / 5.397 | 1.093 | 2.369 / 3.433 | 0.001 | 0.000000 | 872 / 1732 |
+| A / outbox / cas / hard | mixed / 1 | 27006.5 | 197.1 | 0.098 / 0.456 | 3.491 / 69.616 | 1.429 | 2.155 / 67.451 | 0.001 | 0.008783 | 316 / 595 |
+| A / outbox / cas / hard | read / 2 | 32067.0 | 0.0 | 0.088 / 0.264 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 502 / 0 |
+| A / outbox / cas / hard | write / 2 | 0.0 | 585.8 | 0.000 / 0.000 | 3.342 / 4.325 | 1.096 | 2.357 / 3.106 | 0.000 | 0.000000 | 883 / 1758 |
+| A / outbox / cas / hard | mixed / 2 | 26751.6 | 197.6 | 0.097 / 0.463 | 3.504 / 70.035 | 1.444 | 2.168 / 68.036 | 0.000 | 0.008729 | 319 / 605 |
+| A / outbox / cas / hard | read / 3 | 30471.5 | 0.0 | 0.090 / 0.308 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 485 / 0 |
+| A / outbox / cas / hard | write / 3 | 0.0 | 588.6 | 0.000 / 0.000 | 3.323 / 4.269 | 1.086 | 2.348 / 3.128 | 0.009 | 0.000000 | 889 / 1767 |
+| A / outbox / cas / hard | mixed / 3 | 25658.9 | 194.1 | 0.100 / 0.494 | 3.546 / 70.593 | 1.439 | 2.167 / 68.265 | 0.000 | 0.008854 | 317 / 592 |
+| A / version / lock / hard | read / 1 | 13365.2 | 0.0 | 0.196 / 0.649 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 1.000000 | 0 / 0 |
+| A / version / lock / hard | write / 1 | 0.0 | 1792.2 | 0.000 / 0.000 | 1.087 / 1.682 | 1.082 | 0.001 / 0.007 | 0.000 | 0.000000 | 0 / 0 |
+| A / version / lock / hard | mixed / 1 | 8395.0 | 366.2 | 0.285 / 2.003 | 1.731 / 69.528 | 1.720 | 0.001 / 0.033 | 0.000 | 1.046859 | 0 / 0 |
+| A / version / lock / hard | read / 2 | 12289.4 | 0.0 | 0.206 / 0.686 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 1.000000 | 0 / 0 |
+| A / version / lock / hard | write / 2 | 0.0 | 1597.2 | 0.000 / 0.000 | 1.209 / 1.922 | 1.205 | 0.001 / 0.008 | 0.000 | 0.000000 | 0 / 0 |
+| A / version / lock / hard | mixed / 2 | 8338.0 | 375.8 | 0.283 / 1.716 | 1.696 / 69.876 | 1.690 | 0.001 / 0.030 | 0.000 | 1.047866 | 0 / 0 |
+| A / version / lock / hard | read / 3 | 11986.4 | 0.0 | 0.210 / 0.879 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 1.000000 | 0 / 0 |
+| A / version / lock / hard | write / 3 | 0.0 | 1630.3 | 0.000 / 0.000 | 1.200 / 1.898 | 1.195 | 0.001 / 0.006 | 0.000 | 0.000000 | 0 / 0 |
+| A / version / lock / hard | mixed / 3 | 8533.1 | 375.8 | 0.279 / 1.884 | 1.694 / 69.955 | 1.684 | 0.001 / 0.026 | 0.028 | 1.046243 | 0 / 0 |
+| A / version / cas / hard | read / 1 | 13152.0 | 0.0 | 0.195 / 0.648 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 1.000000 | 0 / 0 |
+| A / version / cas / hard | write / 1 | 0.0 | 1969.6 | 0.000 / 0.000 | 0.972 / 1.547 | 0.968 | 0.001 / 0.005 | 0.000 | 0.000000 | 0 / 0 |
+| A / version / cas / hard | mixed / 1 | 8181.5 | 393.9 | 0.291 / 26.453 | 1.590 / 69.600 | 1.583 | 0.001 / 0.027 | 0.000 | 1.049719 | 0 / 0 |
+| A / version / cas / hard | read / 2 | 13035.8 | 0.0 | 0.196 / 0.608 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 1.000000 | 0 / 0 |
+| A / version / cas / hard | write / 2 | 0.0 | 1821.2 | 0.000 / 0.000 | 1.075 / 1.637 | 1.070 | 0.001 / 0.006 | 0.000 | 0.000000 | 0 / 0 |
+| A / version / cas / hard | mixed / 2 | 8422.8 | 420.5 | 0.284 / 2.312 | 1.538 / 69.249 | 1.528 | 0.001 / 0.025 | 0.000 | 1.051805 | 0 / 0 |
+| A / version / cas / hard | read / 3 | 12963.8 | 0.0 | 0.197 / 0.648 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 1.000000 | 0 / 0 |
+| A / version / cas / hard | write / 3 | 0.0 | 1837.0 | 0.000 / 0.000 | 1.063 / 1.751 | 1.058 | 0.001 / 0.005 | 0.000 | 0.000000 | 0 / 0 |
+| A / version / cas / hard | mixed / 3 | 8518.4 | 417.4 | 0.279 / 1.527 | 1.510 / 69.250 | 1.503 | 0.001 / 0.029 | 0.001 | 1.050870 | 0 / 0 |
+| A / outbox / lock / hard | read / 1 | 32068.9 | 0.0 | 0.089 / 0.287 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 499 / 0 |
+| A / outbox / lock / hard | write / 1 | 0.0 | 565.7 | 0.000 / 0.000 | 3.459 / 4.379 | 1.182 | 2.366 / 3.147 | 0.000 | 0.000000 | 852 / 1698 |
+| A / outbox / lock / hard | mixed / 1 | 26056.9 | 193.4 | 0.098 / 0.489 | 3.507 / 70.800 | 1.544 | 2.025 / 69.172 | 0.006 | 0.008728 | 323 / 590 |
+| A / outbox / lock / hard | read / 2 | 30714.0 | 0.0 | 0.088 / 0.273 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 482 / 0 |
+| A / outbox / lock / hard | write / 2 | 0.0 | 572.7 | 0.000 / 0.000 | 3.424 / 4.368 | 1.161 | 2.357 / 3.171 | 0.000 | 0.000000 | 864 / 1720 |
+| A / outbox / lock / hard | mixed / 2 | 25904.2 | 191.3 | 0.100 / 0.484 | 3.540 / 70.247 | 1.577 | 2.114 / 67.180 | 0.000 | 0.008638 | 327 / 583 |
+| A / outbox / lock / hard | read / 3 | 31232.7 | 0.0 | 0.089 / 0.305 | 0.000 / 0.000 | 0.000 | 0.000 / 0.000 | 0.000 | 0.000000 | 493 / 0 |
+| A / outbox / lock / hard | write / 3 | 0.0 | 573.6 | 0.000 / 0.000 | 3.416 / 4.470 | 1.166 | 2.339 / 3.102 | 0.009 | 0.000000 | 868 / 1722 |
+| A / outbox / lock / hard | mixed / 3 | 25476.2 | 188.1 | 0.099 / 0.482 | 3.542 / 71.287 | 1.573 | 2.037 / 68.775 | 0.087 | 0.008980 | 319 / 574 |
+| B / sync / cas / hard | delete-recreate / 1 | 0.0 | 1559.7 | 0.000 / 0.000 | 1.210 / 2.130 | 1.018 | 0.093 / 0.301 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / hard | delete-recreate / 2 | 0.0 | 1268.1 | 0.000 / 0.000 | 1.499 / 2.565 | 1.250 | 0.124 / 0.350 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / hard | delete-recreate / 3 | 0.0 | 1352.2 | 0.000 / 0.000 | 1.439 / 2.161 | 1.201 | 0.114 / 0.303 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / tombstone | delete-recreate / 1 | 0.0 | 347.0 | 0.000 / 0.000 | 5.624 / 8.507 | 5.428 | 0.097 / 0.548 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / tombstone | delete-recreate / 2 | 0.0 | 344.4 | 0.000 / 0.000 | 5.592 / 8.883 | 5.398 | 0.100 / 0.441 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / tombstone | delete-recreate / 3 | 0.0 | 339.7 | 0.000 / 0.000 | 5.625 / 10.793 | 5.419 | 0.101 / 0.521 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / soft | delete-recreate / 1 | 0.0 | 1725.1 | 0.000 / 0.000 | 1.111 / 1.852 | 0.938 | 0.083 / 0.266 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / soft | delete-recreate / 2 | 0.0 | 1601.4 | 0.000 / 0.000 | 1.226 / 1.890 | 1.029 | 0.093 / 0.289 | 0.000 | 0.000000 | 0 / 0 |
+| B / sync / cas / soft | delete-recreate / 3 | 0.0 | 1339.2 | 0.000 / 0.000 | 1.450 / 2.263 | 1.212 | 0.118 / 0.302 | 0.000 | 0.000000 | 0 / 0 |
+
+A deletion/recreation pair counts as two acknowledged writes; write latencies refer to each individual write. Trial duration includes drained in-flight operations. Source queries/read counts snapshot and validation statements, excluding separately reported relay queries and post-trial audits. Fault-control timings below describe orchestrated pauses, not spontaneous outage distributions.
+
+## Correctness, resource counters and fault controls
+
+### Cell 1: A / outbox / lock / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 204800. Client cgroup periods/throttled: 281/185; throttled microseconds: 43381915.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- relay-acknowledgement-barrier-and-recovery: pass=true; served generation=2; blocked/recovery/stale-duration ms=50.248/3.653/0.000.
+- outbox-without-ack-barrier: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/35.503.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.007..0.008 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.003..0.003 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.003..0.003 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.050 ms
+Execution Time: 0.014 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.004..0.004 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.017 ms
+Execution Time: 0.009 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=30
+Planning Time: 0.058 ms
+Execution Time: 0.007 ms
+```
+
+### Cell 2: A / sync / cas / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 278528. Client cgroup periods/throttled: 280/184; throttled microseconds: 44376609.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.009..0.010 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.002..0.002 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.054 ms
+Execution Time: 0.020 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.014 ms
+Execution Time: 0.007 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.001..0.002 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=33 read=2
+  I/O Timings: shared read=0.007
+Planning Time: 0.098 ms
+Execution Time: 0.009 ms
+```
+
+### Cell 3: A / sync / lock / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 303104. Client cgroup periods/throttled: 281/183; throttled microseconds: 42963808.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.013..0.014 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.006..0.007 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.005..0.005 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.072 ms
+Execution Time: 0.026 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.002..0.003 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.014 ms
+Execution Time: 0.007 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=33 read=2
+  I/O Timings: shared read=0.009
+Planning Time: 0.106 ms
+Execution Time: 0.008 ms
+```
+
+### Cell 4: A / outbox / cas / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 229376. Client cgroup periods/throttled: 284/185; throttled microseconds: 41743943.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- relay-acknowledgement-barrier-and-recovery: pass=true; served generation=2; blocked/recovery/stale-duration ms=50.244/6.975/0.000.
+- outbox-without-ack-barrier: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/35.859.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.018..0.020 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.011..0.012 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.005..0.005 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.092 ms
+Execution Time: 0.028 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.006..0.006 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.021 ms
+Execution Time: 0.011 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.002..0.002 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=28 read=2
+  I/O Timings: shared read=0.015
+Planning Time: 0.102 ms
+Execution Time: 0.010 ms
+```
+
+### Cell 5: A / version / lock / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 286720. Client cgroup periods/throttled: 282/184; throttled microseconds: 36842421.
+
+- paused-old-fill: pass=true; old_publish=true served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.018..0.019 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.008..0.008 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.009..0.009 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.053 ms
+Execution Time: 0.029 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.003..0.003 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.014 ms
+Execution Time: 0.006 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.005..0.006 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.005..0.005 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.005..0.005 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=33 read=2
+  I/O Timings: shared read=0.008
+Planning Time: 0.072 ms
+Execution Time: 0.012 ms
+```
+
+### Cell 6: A / version / cas / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 294912. Client cgroup periods/throttled: 280/183; throttled microseconds: 34155796.
+
+- paused-old-fill: pass=true; old_publish=true served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.012..0.013 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.004..0.005 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.006..0.006 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.054 ms
+Execution Time: 0.019 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.002..0.002 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.011 ms
+Execution Time: 0.006 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.005..0.005 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.005..0.005 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.004..0.005 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=33 read=2
+  I/O Timings: shared read=0.008
+Planning Time: 0.078 ms
+Execution Time: 0.011 ms
+```
+
+### Cell 7: A / outbox / lock / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 221184. Client cgroup periods/throttled: 281/186; throttled microseconds: 40933913.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- relay-acknowledgement-barrier-and-recovery: pass=true; served generation=2; blocked/recovery/stale-duration ms=50.087/3.018/0.000.
+- outbox-without-ack-barrier: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/35.737.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.011..0.012 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.007..0.007 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.003..0.003 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.058 ms
+Execution Time: 0.019 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.004..0.004 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.017 ms
+Execution Time: 0.009 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.003..0.003 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.003..0.003 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.003..0.003 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=30
+Planning Time: 0.075 ms
+Execution Time: 0.011 ms
+```
+
+### Cell 8: B / sync / cas / hard
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 630784. Client cgroup periods/throttled: 94/0; throttled microseconds: 0.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-delete: pass=true; durable generation and fences rejected old fill; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-marker-window: pass=true; fencing metadata remains present after the marker window; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-recreate: pass=true; served generation=3; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- expiring-fence-resurrection-control: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.010..0.011 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.003..0.004 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.005..0.005 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.072 ms
+Execution Time: 0.018 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.003..0.004 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.017 ms
+Execution Time: 0.009 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=33 read=2
+  I/O Timings: shared read=0.007
+Planning Time: 0.100 ms
+Execution Time: 0.008 ms
+```
+
+### Cell 9: B / sync / cas / tombstone
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 270336. Client cgroup periods/throttled: 97/0; throttled microseconds: 0.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-delete: pass=true; durable generation and fences rejected old fill; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- absence-marker-expired: pass=true; GET observed the 100-ms marker absent; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-marker-window: pass=true; fencing metadata remains present after the marker window; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-recreate: pass=true; served generation=3; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- expiring-fence-resurrection-control: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.008..0.009 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.005..0.005 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.001..0.001 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.077 ms
+Execution Time: 0.018 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.005..0.006 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.020 ms
+Execution Time: 0.012 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.002..0.002 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=33 read=2
+  I/O Timings: shared read=0.012
+Planning Time: 0.116 ms
+Execution Time: 0.009 ms
+```
+
+### Cell 10: B / sync / cas / soft
+
+Gate: `true`. Error: ``. Wrong/impossible/errors: 0/0/0. Object rows after final trial: 128; source relation/index bytes: 581632. Client cgroup periods/throttled: 94/0; throttled microseconds: 0.
+
+- paused-old-fill: pass=true; old_publish=false served_generation=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- uncommitted-value: pass=true; impossible key=1 generation=1 required=1; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- stale-read-with-protocol-disabled: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- unguarded-lost-update: pass=true; two intended increments: expected=3 actual=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-delete: pass=true; durable generation and fences rejected old fill; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-marker-window: pass=true; fencing metadata remains present after the marker window; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- old-fill-after-recreate: pass=true; served generation=3; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+- expiring-fence-resurrection-control: pass=true; stale-after-ack key=1 generation=1 required=2; blocked/recovery/stale-duration ms=0.000/0.000/0.000.
+
+Redis evicted keys before/after: 0/0. Cache policy: volatile-lru; maxmemory: 67108864 bytes.
+
+snapshot plan:
+
+```text
+Nested Loop Left Join  (cost=0.30..16.35 rows=1 width=17) (actual time=0.009..0.010 rows=1 loops=1)
+  Buffers: shared hit=4
+  ->  Index Scan using protocol_generation_pkey on protocol_generation g  (cost=0.15..8.17 rows=1 width=16) (actual time=0.003..0.003 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+  ->  Index Scan using protocol_object_pkey on protocol_object o  (cost=0.15..8.17 rows=1 width=17) (actual time=0.005..0.005 rows=1 loops=1)
+        Index Cond: (key_id = '1'::bigint)
+        Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.051 ms
+Execution Time: 0.016 ms
+```
+
+version plan:
+
+```text
+Index Scan using protocol_generation_pkey on protocol_generation  (cost=0.15..8.17 rows=1 width=8) (actual time=0.014..0.015 rows=1 loops=1)
+  Index Cond: (key_id = '1'::bigint)
+  Buffers: shared hit=2
+Planning Time: 0.019 ms
+Execution Time: 0.020 ms
+```
+
+pending plan:
+
+```text
+Limit  (cost=0.12..2.59 rows=32 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+  Buffers: shared hit=1
+  ->  LockRows  (cost=0.12..59.53 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+        Buffers: shared hit=1
+        ->  Index Scan using protocol_outbox_pending on protocol_outbox  (cost=0.12..51.83 rows=770 width=30) (actual time=0.001..0.001 rows=0 loops=1)
+              Filter: (NOT delivered)
+              Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=33 read=2
+  I/O Timings: shared read=0.008
+Planning Time: 0.083 ms
+Execution Time: 0.007 ms
+```
+
+## Signed analyses index
+
+No signed analysis currently indexes this digest.
