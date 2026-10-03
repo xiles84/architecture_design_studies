@@ -34,7 +34,7 @@ import (
 // Only the harness touches the database; the matrix, oracles and reports live
 // in the selectbench package and are unit-tested without an engine.
 
-func runSelectAccessMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials, pageLimit int, environment, runID string, statementTimeout int) error {
+func runSelectAccessMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials, pageLimit int, environment, runID string, statementTimeout int, positionControl bool) error {
 	if dsn == "" {
 		return fmt.Errorf("-cmd select-access needs -dsn")
 	}
@@ -124,6 +124,13 @@ func runSelectAccessMode(dsn, engine, topology, scale, out, reportOut string, se
 	// Default arm cells.
 	specs := selectbench.BuildAccessSpecs(fx, base, shapes, depths, pageLimit, trials)
 	result.Cells = append(result.Cells, selectbench.RunSpecs(ctx, q, cat, fx, specs, runID, topology)...)
+
+	// Optional repeated-design position control: repeat the first cell at the
+	// end of the phase so the same spelling is measured first and last.
+	if positionControl && len(shapes) > 0 {
+		pc := selectbench.PositionControlSpec(base, shapes[0], trials)
+		result.Cells = append(result.Cells, selectbench.RunSpecs(ctx, q, cat, fx, []selectbench.CellSpec{pc}, runID, topology)...)
+	}
 
 	// The overlap control must fire in every predicate shape on the measured
 	// data: that is this family's required negative control.

@@ -83,7 +83,10 @@ The default arm runs with the index dropped.
 - ≥3 independent whole runs per engine, each a fresh build/load/tag; ≥3 trials
   per cell (this plan uses 5).
 - Design order is interleaved by construction (cells run in a fixed matrix order
-  per run); at least one run per engine records a first/last position control.
+  per run). The repeated-design **position control** (`--position-control`, an
+  optional extra cell) repeats the first matrix cell at the end of the phase, so
+  the first shape's OR spelling is measured both first and last; at least one run
+  per engine carries it and its first/last ratio is reported beside the pairs.
 - Across-run medians and spreads are reported; a within-run difference inside the
   two cells' own spread is `no resolved difference`, and any difference is
   `within-run only` until the whole runs agree on its sign. Verdicts go in the

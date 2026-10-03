@@ -11,6 +11,7 @@ ENGINE="postgres"
 TRIALS=3
 FAMILY="select"
 PAGE_LIMIT=5
+POSITION_CONTROL=0
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 TAG=""
 ENVIRONMENT="${BENCH_ENVIRONMENT:-}"
@@ -22,6 +23,7 @@ while [[ $# -gt 0 ]]; do
     --trials) TRIALS="$2"; shift 2 ;;
     --family) FAMILY="$2"; shift 2 ;;
     --page-limit) PAGE_LIMIT="$2"; shift 2 ;;
+    --position-control) POSITION_CONTROL=1; shift ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
     --environment) ENVIRONMENT="$2"; shift 2 ;;
@@ -40,6 +42,8 @@ if [[ "$FAMILY" == access ]]; then
 else
   CLIENT_CMD="select"; OUT_JSON="select.json"; OUT_MD="select.md"
 fi
+POSITION_FLAG=""
+[[ "$POSITION_CONTROL" == 1 ]] && POSITION_FLAG="-position-control"
 case "$ENGINE" in
   postgres) TOPOLOGY_SCRIPT="$REPO/infra/pg-single.sh"; NODE=pg-single; ENGINE_IMAGE="$PG_IMAGE"; VOLUME=ads-pg-single-data ;;
   yugabyte) TOPOLOGY_SCRIPT="$REPO/infra/yb-single.sh"; NODE=yb-single; ENGINE_IMAGE="$YB_IMAGE"; VOLUME=ads-yb-single-data ;;
@@ -93,7 +97,7 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology single -scale "$SCALE" -seed "$SEED" \
-  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e

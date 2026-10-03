@@ -173,6 +173,33 @@ func rowsForGroup(group string, want any, fx Fixture) [][]any {
 	return rowsFromCanonical(group, want, fx)
 }
 
+func TestPositionControlPairsFirstCellWithItsRepeat(t *testing.T) {
+	shapes := DefaultPredicateShapes()
+	base := Args{}
+	specs := BuildAccessSpecs(bigFixture(), base, shapes, DefaultPageDepths(), 5, 0)
+	specs = append(specs, PositionControlSpec(base, shapes[0], 0))
+
+	names := make([]string, 0, len(shapes))
+	for _, s := range shapes {
+		names = append(names, s.Name)
+	}
+	r := AccessResult{Shapes: names, Depths: DefaultPageDepths()}
+	for _, s := range specs {
+		r.Cells = append(r.Cells, Cell{Statement: s.Statement, Axis: s.Axis,
+			Status: StatusValid, TimingMeasured: true, MedianMS: 2, Trials: 1})
+	}
+	pp, ok := r.PositionPair()
+	if !ok {
+		t.Fatal("position pair not found")
+	}
+	if want := "shape=" + shapes[0].Name + ";spelling=or"; pp.A.Axis != want {
+		t.Errorf("first axis = %q, want %q", pp.A.Axis, want)
+	}
+	if want := "shape=" + shapes[0].Name + ";spelling=or;position=last"; pp.B.Axis != want {
+		t.Errorf("last axis = %q, want %q", pp.B.Axis, want)
+	}
+}
+
 func TestAccessResultPairsCoverShapesAndDepths(t *testing.T) {
 	shapes := DefaultPredicateShapes()
 	axes := BuildAccessSpecs(bigFixture(), Args{}, shapes, DefaultPageDepths(), 5, 0)

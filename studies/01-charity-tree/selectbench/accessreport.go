@@ -68,7 +68,7 @@ func RenderAccessRun(r AccessResult) (string, error) {
 	b.WriteString("## Predicate alternatives (P10)\n\n")
 	b.WriteString("| shape | index arm | spelling | status | median ms | spread % | trials | rows | plan structure |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, c := range sortCells(r.Cells) {
-		if !strings.Contains(c.Axis, "spelling=") || strings.Contains(c.Axis, "depth=") {
+		if !strings.Contains(c.Axis, "spelling=") || strings.Contains(c.Axis, "depth=") || strings.Contains(c.Axis, "position=") {
 			continue
 		}
 		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %d | %d | `%s` |\n",
@@ -113,6 +113,19 @@ func RenderAccessRun(r AccessResult) (string, error) {
 	}
 	b.WriteString("\n### P11 pairs\n\n")
 	writePairTable(&b, r.Pairs(), "depth=")
+
+	b.WriteString("## Repeated-design position control\n\n")
+	if pp, ok := r.PositionPair(); ok {
+		b.WriteString("The first matrix cell and a repeat of it at the end of the phase (`position=last`); a large ratio is a session position effect, not a spelling effect.\n\n")
+		b.WriteString("| pair | first median ms | last median ms | ratio (last/first) | same plan |\n|---|---|---|---|---|\n")
+		ratio := "N/A"
+		if pp.RatioBA > 0 {
+			ratio = fmt.Sprintf("%.4f", pp.RatioBA)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %t |\n\n", pp.Label, msOrNA(pp.A), msOrNA(pp.B), ratio, pp.SamePlan)
+	} else {
+		b.WriteString("Not measured in this run.\n\n")
+	}
 
 	b.WriteString("## Expression-index arm: write and storage cost\n\n")
 	ic := r.Index
@@ -338,7 +351,11 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 	pairs := map[string]*agg{}
 	var pairOrder []string
 	for _, r := range runs {
-		for _, p := range r.Pairs() {
+		pairsOfRun := r.Pairs()
+		if pp, ok := r.PositionPair(); ok {
+			pairsOfRun = append(pairsOfRun, pp)
+		}
+		for _, p := range pairsOfRun {
 			if p.RatioBA <= 0 {
 				continue
 			}

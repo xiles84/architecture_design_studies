@@ -143,6 +143,20 @@ func pageAxis(depth int, spelling string) string {
 	return "depth=" + itoa(depth) + ";spelling=" + spelling
 }
 
+// PositionControlSpec repeats the first matrix cell (the first shape's OR
+// spelling) at the very end of the run. The same spelling then appears both
+// first and last in the phase, which is the protocol's repeated-design position
+// control: the first occurrence is the implicit `position=first`, this is
+// `position=last`.
+func PositionControlSpec(base Args, shape PredShape, trials int) CellSpec {
+	a := base
+	a.PredA, a.PredB = shape.A, shape.B
+	a.PredASQL, a.PredBSQL = shape.ASQL, shape.BSQL
+	a.Trials = trials
+	return CellSpec{Statement: "s18_or_predicate",
+		Axis: "shape=" + shape.Name + ";spelling=or;position=last", Args: a}
+}
+
 // paginationSpecs builds the OFFSET/keyset pair at each depth. Both address the
 // same ordered page: OFFSET skips `depth` rows, keyset resumes after the row at
 // position depth-1.
@@ -303,6 +317,25 @@ func (r AccessResult) Pairs() []PairDelta {
 		}
 	}
 	return out
+}
+
+// PositionPair returns the repeated-design position control when the run
+// contains a `position=last` repeat: the first shape's OR spelling measured as
+// the first cell of the phase and again as the last. A large ratio here is a
+// session position effect, not a spelling effect.
+func (r AccessResult) PositionPair() (PairDelta, bool) {
+	if len(r.Shapes) == 0 {
+		return PairDelta{}, false
+	}
+	first, ok := r.Find("s18_or_predicate", "shape="+r.Shapes[0]+";spelling=or")
+	if !ok {
+		return PairDelta{}, false
+	}
+	last, ok := r.Find("s18_or_predicate", "shape="+r.Shapes[0]+";spelling=or;position=last")
+	if !ok {
+		return PairDelta{}, false
+	}
+	return classifyPair("position control "+r.Shapes[0]+" or first vs last", first, last), true
 }
 
 func classifyPair(label string, a, b Cell) PairDelta {
