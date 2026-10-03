@@ -43,7 +43,7 @@ summary, not a second ledger.
 
 ## Current state
 
-### HIGH task sweep — **cache comparison integrated; other scientific work gated (2026-10-03)**
+### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 
 The owner declared HIGH and asked this session to iterate through HIGH work. The
 [dated sweep](docs/high-task-sweeps/2026-10-03/REPORT.md) records the live baseline:
@@ -66,6 +66,16 @@ hierarchy proposals, SELECT synthesis awaiting measurements). No new eligible
 task appeared during the serial matrix. The original sweep remains an immutable
 baseline; Study 05 below records the new evidence and observed integration.
 
+The owner's further fix request exposed an obsolete queue image; the tested
+image/source provenance repair is completed on local main at
+`repo/queue-runtime-repair-20261003`. HIGH then recovered the handed-off SELECT
+harness, corrected material defects and validated it on both single-node engines.
+Its completion milestone is `study-01/select-v1-harness`; queue receipt records
+the local-main integration outcome. There are 32 completed HIGH tasks and 17
+gated HIGH tasks after the additional queue repair; SELECT harness itself is a
+LOW-minimum prerequisite executed/reviewed in this HIGH session. Its bounded
+validation does not complete SELECT evidence synthesis or its four measuring tasks.
+
 ### Book initiative and the AI work pipeline — **in progress, next task ready**
 
 - **SELECT templates requested (2026-10-02, HIGH GPT-6 / Codex desktop):** the owner asked
@@ -86,10 +96,12 @@ baseline; Study 05 below records the new evidence and observed integration.
   handed-off harness was resumed by HIGH GPT-6 through epoch-4 recovery after
   the queue runtime repair. Ordering, keyset ties/NULLs, unmatched-parent top-N,
   live SQL controls, timing/provenance and plan hierarchy were corrected.
-  PostgreSQL's corrected 17 templates, 53 live fixture cells and four wrong SQL
-  controls passed. YugabyteDB validation follows in `.worktrees/select-harness` — do not
-  start databases while `ads-run-lock` is held. The four measurement tasks remain
-  dependent on harness completion; their matrices are not executed by these checks.
+  Final PostgreSQL and YugabyteDB checks each passed 17 templates, 53 live fixture
+  cells, four wrong SQL controls and 51 verified client samples. Exact input hashes
+  match their generated reports. Both databases stopped and the lock was released.
+  HIGH review passed; completion/integration is recorded by the harness queue
+  receipt and annotated tag `study-01/select-v1-harness`. The four measuring tasks
+  can proceed after queue completion; their matrices were not run by these checks.
   Correction evidence: `studies/01-charity-tree/reports/20261003T-select-high-correction-check.md`.
 
 - **SELECT protocol archive (2026-10-02, HIGH deepseek-flash):** its
