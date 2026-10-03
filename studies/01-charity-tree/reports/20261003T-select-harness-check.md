@@ -81,3 +81,31 @@ shape. A plan difference is therefore reported only when the plan really changed
 The DB-backed catalogue execution, plan capture/signatures, provenance JSON, the comparison report and
 the `-cmd select` entrypoint (with `ads-run-lock`) are **not implemented yet**. The oracles and controls
 here are the correctness floor those must build on; no number in this report is a performance result.
+
+## Live engine check (2026-10-03)
+
+`studies/01-charity-tree/run-select.sh --scale tiny` against `pg-single`
+(`postgres:17.11`, benchmark lock held, database stopped afterwards):
+
+```
+select: 16 cells — valid=16 invalid=0 unsupported=0 timeout=0
+```
+
+Results: `results/select-20261003T181716Z/` (`select.json`, `select.md`) with the
+fixture fingerprint and repo commit in provenance.
+
+The **first** live run (kept at `results/select-20261003T181045Z/`) failed 4 cells,
+and every failure was a real defect the gate caught:
+
+- `s09_not_exists`, `s10_left_anti` — empty versus nil slice; a database returning
+  no rows was failed against an oracle whose slice was nil. `answersEqual` now
+  treats two empty slices as the same answer.
+- `s14_topn_rownumber` — the SQL partitioned the NULL-`customer_id` order as its own
+  parent; the SQL now filters `customer_id IS NOT NULL` (the oracle was right).
+- `s17_page_keyset` — keyset pagination ran with no cursor bound, comparing an empty
+  page to the first page; cursor-dependent statements are excluded from the default
+  set until a cursor is supplied.
+
+Also fixed: the `Containerfile` build stage did not copy `selectbench/` (the harness
+imports it), and `run-select.sh` used `hostpath` for the build context where
+`buildpath` is required.
