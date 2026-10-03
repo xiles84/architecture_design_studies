@@ -66,15 +66,16 @@ func RenderAccessRun(r AccessResult) (string, error) {
 	b.WriteString("\n")
 
 	b.WriteString("## Predicate alternatives (P10)\n\n")
-	b.WriteString("| shape | spelling | status | median ms | spread % | trials | rows | plan structure |\n|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("| shape | index arm | spelling | status | median ms | spread % | trials | rows | plan structure |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, c := range sortCells(r.Cells) {
 		if !strings.Contains(c.Axis, "spelling=") || strings.Contains(c.Axis, "depth=") {
 			continue
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %d | %d | `%s` |\n",
-			axisShape(c.Axis), axisSpelling(c.Axis), c.Status, msOrNA(c), spreadOrNA(c), c.Trials, c.ResultRows, c.structureSig())
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %d | %d | `%s` |\n",
+			axisShape(c.Axis), axisIndexArm(c.Axis), axisSpelling(c.Axis), c.Status, msOrNA(c), spreadOrNA(c), c.Trials, c.ResultRows, c.structureSig())
 	}
 	b.WriteString("\n### P10 pairs\n\n")
+	b.WriteString("Pairs compare the **default** arm only; the labelled `expression_index` arm is a package arm and is never pooled with the query-text pair.\n\n")
 	writePairTable(&b, r.Pairs(), "shape=")
 
 	b.WriteString("## Pagination (P11)\n\n")
@@ -159,6 +160,10 @@ func RenderAccessRun(r AccessResult) (string, error) {
 	b.WriteString("\n")
 
 	b.WriteString("## Live negative controls (per predicate shape)\n\n")
+	b.WriteString("`x05_union_all_overlap` is this family's required control and must be detected in every shape. ")
+	b.WriteString("`x01`-`x04` belong to other contracts; they are gated live on the teaching fixture, and here they are recorded as ")
+	b.WriteString("`control_absent` when the measurement fixture cannot exercise them (for example `x01` needs an unmatched parent, ")
+	b.WriteString("which a fixture where every parent has orders does not contain). An absent control is not evidence for the cells it cannot police.\n\n")
 	if len(r.Controls) == 0 {
 		b.WriteString("None recorded.\n\n")
 	} else {
@@ -244,6 +249,17 @@ func axisSpelling(axis string) string {
 		}
 	}
 	return ""
+}
+
+// axisIndexArm names the physical arm: "default" is the query-text baseline,
+// anything else is a package arm (currently only `expression_index`).
+func axisIndexArm(axis string) string {
+	for _, part := range strings.Split(axis, ";") {
+		if strings.HasPrefix(part, "index=") {
+			return strings.TrimPrefix(part, "index=")
+		}
+	}
+	return "default"
 }
 
 // RenderAccessReplicated writes the cross-whole-run view. It makes no verdict:

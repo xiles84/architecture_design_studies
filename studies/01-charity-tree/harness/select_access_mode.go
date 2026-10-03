@@ -451,18 +451,35 @@ func writeAccessOutputs(result selectbench.AccessResult, validation []selectVali
 	return nil
 }
 
-// runSelectAccessReport reads every */access.json under resultsDir and writes
-// the cross-whole-run measurements report.
+// runSelectAccessReport writes an access-path measurements report. Given a
+// directory that itself holds `access.json` it re-renders that single run
+// (useful for regenerating a report from a committed result); given a directory
+// of run subdirectories it writes the cross-whole-run report.
 func runSelectAccessReport(resultsDir, reportOut string) error {
 	if resultsDir == "" || reportOut == "" {
 		return fmt.Errorf("-cmd access-report needs -results <dir> and -report-out <file>")
+	}
+	if fi, err := os.Stat(filepath.Join(resultsDir, "access.json")); err == nil && !fi.IsDir() {
+		data, err := os.ReadFile(filepath.Join(resultsDir, "access.json"))
+		if err != nil {
+			return err
+		}
+		var r selectbench.AccessResult
+		if err := json.Unmarshal(data, &r); err != nil {
+			return err
+		}
+		report, err := selectbench.RenderAccessRun(r)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(reportOut, []byte(report), 0o644)
 	}
 	paths, err := filepath.Glob(filepath.Join(resultsDir, "*", "access.json"))
 	if err != nil {
 		return err
 	}
 	if len(paths) == 0 {
-		return fmt.Errorf("no */access.json under %s", resultsDir)
+		return fmt.Errorf("no access.json at or under %s", resultsDir)
 	}
 	sort.Strings(paths)
 	var runs []selectbench.AccessResult

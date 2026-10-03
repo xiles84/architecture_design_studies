@@ -43,6 +43,14 @@ summary, not a second ledger.
 
 ## Current state
 
+### Running now — do not start databases
+
+`task-20261002T131729Z-select-access-paths` (LOW deepseek-flash) is measuring the
+SELECT access-path matrix: three whole runs each on PostgreSQL single-node and
+YugabyteDB single-node, scale `deep`, holding `ads-run-lock`. Run tags
+`run/study-01/select-access-{pg,yb}-r{1,2,3}-20261003`. A second runner refuses
+while the lock is held.
+
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 
 The owner declared HIGH and asked this session to iterate through HIGH work. The
