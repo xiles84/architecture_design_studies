@@ -1,0 +1,12 @@
+FROM docker.io/library/golang:1.26-bookworm AS build
+WORKDIR /src
+COPY platform/go.mod platform/go.sum ./platform/
+COPY studies/05-cache-consistency/go.mod studies/05-cache-consistency/go.sum ./studies/05-cache-consistency/
+RUN cd studies/05-cache-consistency && go mod download
+COPY platform/ ./platform/
+COPY studies/05-cache-consistency/protocolbench/ ./studies/05-cache-consistency/protocolbench/
+RUN cd studies/05-cache-consistency && gofmt -d protocolbench/*.go && go vet ./protocolbench && go test -race ./protocolbench && CGO_ENABLED=0 GOFLAGS=-trimpath go build -ldflags="-s -w" -o /out/bench ./protocolbench
+FROM scratch
+COPY --from=build /out/bench /bench
+WORKDIR /results
+ENTRYPOINT ["/bench"]

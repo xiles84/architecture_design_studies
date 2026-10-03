@@ -53,6 +53,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	cmd, rest := args[0], args[1:]
 	var err error
 	switch cmd {
+	case "source-digest", "image-check":
+		err = cmdImageSource(cmd, rest, stdout)
 	case "session-start":
 		err = cmdSessionStart(rest, stdout)
 	case "list":

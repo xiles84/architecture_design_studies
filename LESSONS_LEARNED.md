@@ -10,6 +10,54 @@ experiments**.
 
 ## Measurement
 
+### A pinned local image name does not identify current tooling source
+
+The 2026-10-03 SELECT handoff reported a recovered claim that could not submit.
+The repository already persisted the new claim context, but the installed queue
+image was older. Source tests alone do not establish what a shared image runs.
+The queue wrapper now checks an embedded, LF-normalized source digest and rejects
+stale or unmarked images before command dispatch. Rebuilds run the entire queue
+suite, including a recovered-worker submission regression. See
+`docs/queue-runtime-20261003/VALIDATION.md`; milestone
+`repo/queue-runtime-repair-20261003`.
+
+### An outbox acknowledgement barrier must follow delivered committed events
+
+The Study 05 v5 protocol/source review (2026-10-03) scans committed, unprocessed
+events instead of advancing a sequence-number cursor: sequence allocation order
+can differ from transaction commit order. The writer's strict acknowledgement
+waits for committed relay delivery. A paused relay and a deliberately omitted
+barrier are separate runtime controls. The three v5 whole runs fired both:
+delivery pause blocked acknowledgement, while the omitted barrier admitted an
+acknowledged stale hit. All 30 candidate cells passed their complete gates.
+See `studies/05-cache-consistency/protocolbench/` and the tagged v5 results.
+
+### A position control can outweigh the candidate difference
+
+In v5 run 1, the same version-validated candidate read 2.2446 times faster when
+repeated last; its write-rate ratio was 2.1156. Retain the first run and withhold
+a general throughput ranking. Trial repetition alone does not reveal this
+position/environment effect. The source-query and fired correctness contrasts
+remain separately supported. See `cache-v5-20261003-whole-runs.md`.
+
+### Saved Podman configuration is not the observed WSL guest envelope
+
+The v5 matrix retained 4 CPU/2-GiB machine configuration and observed 8 online
+CPUs/about 15.36 GiB in the guest. Calculate both reserve framings; inspect
+effective container quotas and throttling. Do not use saved configuration to
+claim a cluster is physically impossible, or supplied closed-loop throughput
+to claim isolated server capacity. See the named v5 environment and resource note.
+
+### Completed queue tasks do not automatically close a scientific program gate
+
+The 2026-10-03 HIGH sweep found all five October replication tasks completed, yet
+the active registry still retains three single-run-directional claims and the T2
+crossover program remains outstanding. Check both the task ledger and the program's
+evidence gate before releasing a new domain. Proposed work has distinct barriers:
+explicit resource deferral, scientific ordering, or a conditional research question.
+Report the actual barrier; a clean error count and a completed audit are not completed
+scientific work. See `docs/high-task-sweeps/2026-10-03/REPORT.md` and its retained inputs.
+
 ### SELECT comparisons need the same answer contract before timing
 
 The SELECT task program (2026-10-02, `docs/select-query-templates/PLAN.md`) separates

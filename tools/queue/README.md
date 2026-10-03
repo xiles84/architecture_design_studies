@@ -10,6 +10,13 @@ Nothing here starts a database or measures, so the queue never takes
 `ads-run-lock`. `recover` *reads* it only to refuse recovering a task whose
 worktree still holds the benchmark lock.
 
+The wrapper verifies the image against the checked-out queue source before every
+command. The image embeds a SHA-256 digest of Go sources/tests, module files,
+Containerfile and wrapper, with CRLF normalized to LF. A stale or unmarked image
+is refused with a rebuild instruction. `tools/queue/queue --build` runs the full
+test suite and embeds the digest; it works from an isolated task worktree too.
+This check identifies queue code, not the scientific run source or environment.
+
 ## Quick start
 
 ```bash
@@ -165,10 +172,11 @@ Run in Podman through the image build, or directly:
 tools/queue/queue --build          # runs go vet ./... && go test ./...
 ```
 
-or, with a host Go toolchain:
+or in the pinned Go container:
 
 ```bash
-(cd tools/queue && go vet ./... && go test ./...)
+podman run --rm -v "<repository>/tools/queue:/src" -w /src \
+  docker.io/library/golang:1.26-bookworm sh -c 'go vet ./... && go test ./...'
 ```
 
 The suite covers: twenty real processes racing one claim (exactly one winner),
