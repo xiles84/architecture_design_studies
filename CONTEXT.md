@@ -75,18 +75,19 @@ baseline; Study 05 below records the new evidence and observed integration.
   aggregates/top-N, access paths/pagination), HIGH evidence synthesis, LOW book integration.
   Scope extends Study 01's existing relational domain and preserves Edition 3's pilot gate;
   priority remains below the existing T1 workers. Task ids start `task-20261002T131729Z-select-`.
-  Publication is planning only: no new measured numbers or book claims. First downstream
-  action is HIGH `select-protocol`. The publication's local-main integration is recorded
+  Publication was planning only. Protocol is complete and the corrected harness
+  is under bounded engine validation. The publication's local-main integration is recorded
   by [its queue receipt](docs/ai-work/tasks/2026/10/task-20261002T131729Z-select-query-task-publication/STATUS.md)
   and annotated milestone `repo/select-query-task-program-v1`; only this publication is
-  complete, while the eight scientific/book tasks remain queued. Queue state remains authoritative.
+  complete; measuring families, evidence synthesis and book integration remain queued.
+  Queue state remains authoritative.
 
-- **SELECT protocol published (2026-10-02, HIGH deepseek-flash):** `select-protocol` is claimed and its
 - **SELECT protocol and harness (2026-10-03):** `select-protocol` is completed. The
   handed-off harness was resumed by HIGH GPT-6 through epoch-4 recovery after
   the queue runtime repair. Ordering, keyset ties/NULLs, unmatched-parent top-N,
   live SQL controls, timing/provenance and plan hierarchy were corrected.
-  Bounded validation runs are starting in `.worktrees/select-harness` — do not
+  PostgreSQL's corrected 17 templates, 53 live fixture cells and four wrong SQL
+  controls passed. YugabyteDB validation follows in `.worktrees/select-harness` — do not
   start databases while `ads-run-lock` is held. The four measurement tasks remain
   dependent on harness completion; their matrices are not executed by these checks.
   Correction evidence: `studies/01-charity-tree/reports/20261003T-select-high-correction-check.md`.
@@ -97,8 +98,8 @@ baseline; Study 05 below records the new evidence and observed integration.
   seven-form atlas with exact fixture outputs (NULLs, duplicate child matches, unmatched parents, ties,
   empty sets), the sizing/placement and rollup/rolldown/embedding coverage, non-applicability of
   optimistic/pessimistic concurrency, and bounded LOW handoffs for the four measuring families. No
-  measurement has run. Reviewed (self-review) and merged into local `main` at `b405f88a` under tag
-  `study-01/select-v0-protocol`; `select-harness` is now unblocked for a LOW executor.
+  comparative matrix from this protocol has run. Reviewed (self-review) and merged into local `main` at `b405f88a` under tag
+  `study-01/select-v0-protocol`; harness validation is tracked above.
 
 - Goal: [`goal-20260922T025912Z-data-architecture-book`](docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/GOAL.md)
   — an evidence-backed data-architecture book built with Typst in Podman, with every claim traceable
