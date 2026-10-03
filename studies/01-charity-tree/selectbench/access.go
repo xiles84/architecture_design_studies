@@ -332,3 +332,12 @@ func sortCells(cells []Cell) []Cell {
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Axis < out[j].Axis })
 	return out
 }
+
+// IndexArmSpecs exposes the single-shape spec builder for the labelled
+// expression-index arm the harness runs after it creates the index.
+func IndexArmSpecs(base Args, shape PredShape, trials int, arm string) []CellSpec {
+	return shapeSpecs(base, shape, trials, arm)
+}
+
+// CursorAt is the exported cursor position used by the harness snapshot check.
+func CursorAt(fx Fixture, index int) *PageRow { return cursorAt(fx, index) }

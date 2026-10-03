@@ -101,6 +101,11 @@ func selectSpec(scale string) selectbench.GenSpec {
 	case "large":
 		return selectbench.GenSpec{Customers: 2000, OrdersPerParent: 20, NullAmountEvery: 13, NullFKEvery: 199,
 			HotCustomerShare: 0.5, Wide: true}
+	case "deep":
+		// The access-path pagination axis needs more rows than 10,000 so the
+		// deepest protocol level addresses a real page. 200x60 = 12,000 rows,
+		// no hot parent and narrow rows to keep load bounded on both engines.
+		return selectbench.GenSpec{Customers: 200, OrdersPerParent: 60, NullAmountEvery: 23, NullFKEvery: 311}
 	default: // small
 		return selectbench.GenSpec{Customers: 50, OrdersPerParent: 5, NullAmountEvery: 7, NullFKEvery: 23}
 	}
