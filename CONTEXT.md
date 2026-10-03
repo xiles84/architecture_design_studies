@@ -36,6 +36,21 @@ summary, not a second ledger.
 
 ## Current state
 
+### HIGH task sweep — **audited; scientific backlog gated (2026-10-03)**
+
+The owner declared HIGH and asked this session to iterate through HIGH work. The
+[dated sweep](docs/high-task-sweeps/2026-10-03/REPORT.md) records the live baseline:
+29 HIGH tasks completed, 18 unfinished and **zero eligible**, with no awaiting-review
+tasks. Twelve proposals have explicit resource deferrals; four feasible Study 09
+proposals remain behind the empirical program's T1/T2-before-T5 gate; the cache protocol
+comparison is conditional; SELECT synthesis waits for its four measuring workers and
+their separately claimed harness. The Edition 3 pilot also awaits the owner's preview
+approval before integration; its PDF was requested to open and approval asked in chat.
+The audit had zero errors and three existing coordination warnings, retained in its
+inputs. The sweep receipt is intended for local-main integration and annotated milestone
+`repo/high-task-sweep-20261003`; its queue status records the observed outcome. This
+receipt completes an audit, not the scientific backlog.
+
 ### Book initiative and the AI work pipeline — **in progress, next task ready**
 
 - **SELECT templates requested (2026-10-02, HIGH GPT-6 / Codex desktop):** the owner asked

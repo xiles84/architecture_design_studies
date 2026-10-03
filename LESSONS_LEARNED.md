@@ -10,6 +10,16 @@ experiments**.
 
 ## Measurement
 
+### Completed queue tasks do not automatically close a scientific program gate
+
+The 2026-10-03 HIGH sweep found all five October replication tasks completed, yet
+the active registry still retains three single-run-directional claims and the T2
+crossover program remains outstanding. Check both the task ledger and the program's
+evidence gate before releasing a new domain. Proposed work has distinct barriers:
+explicit resource deferral, scientific ordering, or a conditional research question.
+Report the actual barrier; a clean error count and a completed audit are not completed
+scientific work. See `docs/high-task-sweeps/2026-10-03/REPORT.md` and its retained inputs.
+
 ### SELECT comparisons need the same answer contract before timing
 
 The SELECT task program (2026-10-02, `docs/select-query-templates/PLAN.md`) separates
