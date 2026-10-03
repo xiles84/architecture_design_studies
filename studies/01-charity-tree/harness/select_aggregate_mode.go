@@ -85,8 +85,11 @@ func runSelectAggregateMode(dsn, engine, topology, scale, out, reportOut string,
 		cells = selectbench.RunSpecs(ctx, q, cat, fx, selectbench.BuildAggregateSpecs(base, selectbench.ParentLevels(), trials), runID, topology)
 	}
 
-	// Controls for this family run at the widest level, N=1.
-	controlArgs := selectbench.Args{N: 1, ParentMax: 0, Trials: 1,
+	// Controls for this family run at the widest level, N=1. RunControls also
+	// runs the other catalogue controls, which need the predicate bound, so the
+	// same predicate the teaching gate uses is supplied here.
+	controlArgs := selectbench.Args{Pred: selectbench.AmountGreaterThan(100), PredSQL: "amount > 100",
+		N: 1, ParentMax: 0, Trials: 1,
 		StatementTimeout: time.Duration(statementTimeout) * time.Millisecond}
 	controls := selectbench.RunControls(ctx, q, cat, fx, controlArgs)
 	var familyControls []selectbench.ControlResult
