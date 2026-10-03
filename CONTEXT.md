@@ -43,13 +43,24 @@ summary, not a second ledger.
 
 ## Current state
 
-### Running now — do not start databases
+### SELECT access paths measured — **task submitted for HIGH review (2026-10-03)**
 
-`task-20261002T131729Z-select-access-paths` (LOW deepseek-flash) is measuring the
-SELECT access-path matrix: three whole runs each on PostgreSQL single-node and
-YugabyteDB single-node, scale `deep`, holding `ads-run-lock`. Run tags
-`run/study-01/select-access-{pg,yb}-r{1,2,3}-20261003`. A second runner refuses
-while the lock is held.
+`task-20261002T131729Z-select-access-paths` (LOW deepseek-flash) measured the
+bounded access-path matrix: seven whole runs (three PostgreSQL single-node, three
+YugabyteDB single-node and one PG position control; a labelled broad-only pilot
+tranche is also committed), scale `deep`, all cells valid and oracle-gated. Tags
+`run/study-01/select-access-{pg-1,pg-2,pg-3,pg-pos,yb-1,yb-2,yb-3}-20261003`.
+P11 (keyset vs OFFSET) is confirmed with an **engine-specific crossing** (PG
+between depth 100 and 1,000; YB between 1,000 and 10,000); P10 (OR vs `UNION
+ALL`) is **falsified as stated** — `OR` is never worse, and on YB is consistently
+faster; adding the expression index is a physical arm that changes the plan on
+PostgreSQL only. Evidence: replicated report
+`studies/01-charity-tree/reports/20261003T-select-access-replicated.md`, signed
+analysis
+`studies/01-charity-tree/reports/analyses/20261003T-select-access--deepseek-flash--2026-10-03.md`.
+The benchmark lock is free; local-main integration and tag
+`study-01/select-v5-access-paths` follow HIGH review. Remaining SELECT measuring
+families (join/CTE, existence, aggregate/top-N) are still queued.
 
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 

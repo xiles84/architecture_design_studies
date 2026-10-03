@@ -288,45 +288,51 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 	fmt.Fprintf(&b, "**TL;DR:** %d whole runs summarised. Values are each run's own median; the across-run spread is shown, never merged into one number.\n\n", len(runs))
 
 	b.WriteString("## Runs\n\n| run | engine | topology | scale | seed |\n|---|---|---|---|---|\n")
-	engines := map[string]bool{}
 	for _, r := range runs {
 		fmt.Fprintf(&b, "| %s | %s | %s | %s | %d |\n", r.RunID, r.Engine, r.Topology, r.Scale, r.Seed)
-		engines[r.Engine+"/"+r.Topology] = true
 	}
 	b.WriteString("\n")
 
-	// Collect every axis seen, in stable order.
-	axisSet := map[string]bool{}
+	// Collect every (engine, topology, axis) cell in stable order. Engines are
+	// never pooled: an across-run spread that mixed two engines would describe
+	// no environment.
+	type cellKey struct{ engine, topology, axis string }
+	seen := map[cellKey]bool{}
+	values := map[cellKey][]float64{}
+	statuses := map[cellKey][]string{}
+	var keys []cellKey
 	for _, r := range runs {
 		for _, c := range r.Cells {
-			axisSet[c.Axis] = true
-		}
-	}
-	var axes []string
-	for a := range axisSet {
-		axes = append(axes, a)
-	}
-	sort.Strings(axes)
-
-	b.WriteString("## Cells across runs\n\n| axis | run medians ms | across-run median | spread % | valid runs |\n|---|---|---|---|---|\n")
-	for _, axis := range axes {
-		var medians []float64
-		var shown []string
-		valid := 0
-		for _, r := range runs {
-			for _, c := range r.Cells {
-				if c.Axis != axis {
-					continue
-				}
-				if c.TimingMeasured && c.Status == StatusValid {
-					medians = append(medians, c.MedianMS)
-					shown = append(shown, fmt.Sprintf("%.6f", c.MedianMS))
-					valid++
-				} else {
-					shown = append(shown, string(c.Status))
-				}
+			k := cellKey{r.Engine, r.Topology, c.Axis}
+			if !seen[k] {
+				seen[k] = true
+				keys = append(keys, k)
+			}
+			if c.TimingMeasured && c.Status == StatusValid {
+				values[k] = append(values[k], c.MedianMS)
+			} else {
+				statuses[k] = append(statuses[k], string(c.Status))
 			}
 		}
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].engine != keys[j].engine {
+			return keys[i].engine < keys[j].engine
+		}
+		if keys[i].topology != keys[j].topology {
+			return keys[i].topology < keys[j].topology
+		}
+		return keys[i].axis < keys[j].axis
+	})
+
+	b.WriteString("## Cells across runs (per engine)\n\n| engine | topology | axis | run medians ms | across-run median | spread % | valid runs |\n|---|---|---|---|---|---|---|\n")
+	for _, k := range keys {
+		medians := append([]float64(nil), values[k]...)
+		var shown []string
+		for _, m := range medians {
+			shown = append(shown, fmt.Sprintf("%.6f", m))
+		}
+		shown = append(shown, statuses[k]...)
 		med, spread := "N/A", "N/A"
 		if len(medians) > 0 {
 			sort.Float64s(medians)
@@ -339,17 +345,20 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 				spread = fmt.Sprintf("%.1f", 100*(medians[len(medians)-1]-medians[0])/m)
 			}
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %d/%d |\n", axis, strings.Join(shown, ", "), med, spread, valid, len(runs))
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %d |\n",
+			k.engine, k.topology, k.axis, strings.Join(shown, ", "), med, spread, len(medians))
 	}
 	b.WriteString("\n")
 
-	b.WriteString("## Pair ratios per run\n\n| pair | ratios (B/A) | signs |\n|---|---|---|\n")
+	b.WriteString("## Pair ratios per run (per engine)\n\n| engine | topology | pair | ratios (B/A) | signs |\n|---|---|---|---|---|\n")
+	type pairKey struct{ engine, topology, label string }
 	type agg struct {
 		ratios []string
 		signs  []string
 	}
-	pairs := map[string]*agg{}
-	var pairOrder []string
+	pairs := map[pairKey]*agg{}
+	var pairOrder []pairKey
+	pairSeen := map[pairKey]bool{}
 	for _, r := range runs {
 		pairsOfRun := r.Pairs()
 		if pp, ok := r.PositionPair(); ok {
@@ -359,9 +368,13 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 			if p.RatioBA <= 0 {
 				continue
 			}
-			if pairs[p.Label] == nil {
-				pairs[p.Label] = &agg{}
-				pairOrder = append(pairOrder, p.Label)
+			k := pairKey{r.Engine, r.Topology, p.Label}
+			if pairs[k] == nil {
+				pairs[k] = &agg{}
+			}
+			if !pairSeen[k] {
+				pairSeen[k] = true
+				pairOrder = append(pairOrder, k)
 			}
 			sign := "="
 			if p.RatioBA > 1 {
@@ -369,26 +382,34 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 			} else if p.RatioBA < 1 {
 				sign = "<1"
 			}
-			pairs[p.Label].ratios = append(pairs[p.Label].ratios, fmt.Sprintf("%.4f", p.RatioBA))
-			pairs[p.Label].signs = append(pairs[p.Label].signs, sign)
+			pairs[k].ratios = append(pairs[k].ratios, fmt.Sprintf("%.4f", p.RatioBA))
+			pairs[k].signs = append(pairs[k].signs, sign)
 		}
 	}
-	sort.Strings(pairOrder)
-	for _, label := range pairOrder {
-		a := pairs[label]
-		fmt.Fprintf(&b, "| %s | %s | %s |\n", label, strings.Join(a.ratios, ", "), strings.Join(a.signs, ", "))
+	sort.Slice(pairOrder, func(i, j int) bool {
+		if pairOrder[i].engine != pairOrder[j].engine {
+			return pairOrder[i].engine < pairOrder[j].engine
+		}
+		if pairOrder[i].topology != pairOrder[j].topology {
+			return pairOrder[i].topology < pairOrder[j].topology
+		}
+		return pairOrder[i].label < pairOrder[j].label
+	})
+	for _, k := range pairOrder {
+		a := pairs[k]
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", k.engine, k.topology, k.label, strings.Join(a.ratios, ", "), strings.Join(a.signs, ", "))
 	}
 	b.WriteString("\n")
 
 	b.WriteString("## Recorded limits\n\n")
-	seen := map[string]bool{}
+	seenNote := map[string]bool{}
 	any := false
 	for _, r := range runs {
 		for _, n := range r.Notes {
-			if seen[n] {
+			if seenNote[n] {
 				continue
 			}
-			seen[n] = true
+			seenNote[n] = true
 			any = true
 			fmt.Fprintf(&b, "- [%s] %s\n", r.RunID, n)
 		}
@@ -396,6 +417,5 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 	if !any {
 		b.WriteString("None recorded.\n")
 	}
-	_ = engines
 	return b.String(), nil
 }

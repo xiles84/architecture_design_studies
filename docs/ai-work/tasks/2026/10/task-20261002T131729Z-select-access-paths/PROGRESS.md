@@ -97,6 +97,10 @@ Tagging them keeps them immutable.
 - Harness `-cmd select-access`, runner `--family access`, reports and docs
   committed as the premeasurement checkpoint `68b09e6d`.
 - Report renderer fix and single-run regeneration committed (`2dae4b5a`).
-- Two-regime expansion committed as the final premeasurement checkpoint (hash in
-  `RESULT.md`); final runs started from it.
+- Two-regime expansion committed (`30f3b00c`); broad-arm pilot results committed
+  (`524ce328`).
+- Position control committed (`6ad01ef6`).
+- Final runs: pg-1/2/3 (commit `524ce328`), pg-pos + yb-1/2/3 (commit
+  `6ad01ef6`), all cells valid. Replicated report, signed analysis and
+  `RESULT.md` written; task submitted for HIGH review.
 
