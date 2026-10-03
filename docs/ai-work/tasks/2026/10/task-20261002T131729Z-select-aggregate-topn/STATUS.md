@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261002T131729Z-select-aggregate-topn` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=GPT-6 tool=Codex-desktop effort=unknown session=session-20261002-select-query-tasks capability=HIGH role=planner` |
-| Last event | `event-20261002T133401Z-published` |
-| Updated at | `2026-10-02T13:34:01Z` |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20261003T222840Z-e356f5` |
+| Active worker | `model=deepseek-flash tool=opencode/CLI effort=unknown session=unknown capability=LOW role=executor` |
+| Last event | `event-20261003T222840Z-claimed` |
+| Updated at | `2026-10-03T22:28:40Z` |
 | Next capability | LOW |
 | Next work role | executor |
 | Branch | `study-01/select-aggregate-topn` |
 | Worktree | `.worktrees/select-aggregate-topn` |
 
-Published by model=GPT-6 tool=Codex-desktop effort=unknown session=session-20261002-select-query-tasks capability=HIGH role=planner. The immutable event files are authoritative for history.
+Claimed by model=deepseek-flash tool=opencode/CLI effort=unknown session=unknown capability=LOW role=executor until 2026-10-04T00:28:40Z. Worktree `.worktrees/select-aggregate-topn`.
