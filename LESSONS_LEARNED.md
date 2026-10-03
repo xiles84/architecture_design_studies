@@ -10,6 +10,15 @@ experiments**.
 
 ## Measurement
 
+### An outbox acknowledgement barrier must follow delivered committed events
+
+The Study 05 v5 protocol/source review (2026-10-03) scans committed, unprocessed
+events instead of advancing a sequence-number cursor: sequence allocation order
+can differ from transaction commit order. The writer's strict acknowledgement
+waits for committed relay delivery. A paused relay and a deliberately omitted
+barrier are separate runtime controls; source inspection alone is not evidence
+that either control fired. See `studies/05-cache-consistency/protocolbench/`.
+
 ### Completed queue tasks do not automatically close a scientific program gate
 
 The 2026-10-03 HIGH sweep found all five October replication tasks completed, yet

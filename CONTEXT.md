@@ -43,7 +43,8 @@ The owner declared HIGH and asked this session to iterate through HIGH work. The
 29 HIGH tasks completed, 18 unfinished and **zero eligible**, with no awaiting-review
 tasks. Twelve proposals have explicit resource deferrals; four feasible Study 09
 proposals remain behind the empirical program's T1/T2-before-T5 gate; the cache protocol
-comparison is conditional; SELECT synthesis waits for its four measuring workers and
+comparison was conditional at the snapshot and is now released (Study 05 below);
+SELECT synthesis waits for its four measuring workers and
 their separately claimed harness. The Edition 3 pilot also awaits the owner's preview
 approval before integration; its PDF was requested to open and approval asked in chat.
 The audit had zero errors and three existing coordination warnings, retained in its
@@ -918,6 +919,18 @@ review requires (repeated-design instrument control, `-retries 1`, writer sweep)
 → [Study](studies/04-configuration-portal/) · [reports](studies/04-configuration-portal/reports/)
 
 ### Study 05 — external cache — **v1 reviewed; v2 runs landed (churn/scale, resources/engines, open-loop)**
+
+**V5 conditional protocol comparison released and claimed (2026-10-03, HIGH
+GPT-6 / Codex desktop):** the owner's renewed HIGH execution request releases
+`task-20260923T235925Z-cache-untested-protocols`. Its isolated worktree is
+`.worktrees/study05-v5-untested-protocols`; premeasurement protocol is committed
+at `d5ad17f3`, tag `study-05/v5-protocol-20261003`. Publication and deletion
+experiments use a separately scoped keyed projection and equal service budgets;
+cluster and multi-host placement remain explicit gaps. Harness validation is
+passed its initial build; the final producing build and serial runtime matrix are
+starting — **do not start databases while this task holds `ads-run-lock`**. See the new
+[protocol](studies/05-cache-consistency/protocolbench/PROTOCOL.md) and
+[HIGH self-review](studies/05-cache-consistency/protocolbench/HIGH-REVIEW.md).
 
 Cache-aside/write-through, strict vs relaxed freshness, wrongness of a relaxed cache and cache-side
 invalidation fences, on PostgreSQL + Redis (Redis measured as a shared cache, never as an
