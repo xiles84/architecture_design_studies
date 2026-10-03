@@ -4,11 +4,11 @@
 |---|---|
 | Task | `task-20260923T235925Z-cache-untested-protocols` |
 | State | `approved_for_integration` |
-| Sequence | `7` |
+| Sequence | `8` |
 | Active attempt | none |
 | Active worker | `model=GPT-6 tool=Codex desktop effort=unknown session=session-20261003-cache-protocols capability=HIGH role=integrator` |
-| Last event | `event-20261003T163800Z-integrated` |
-| Updated at | `2026-10-03T16:38:00Z` |
+| Last event | `event-20261003T164113Z-integrated` |
+| Updated at | `2026-10-03T16:41:13Z` |
 | Next capability | HIGH |
 | Next work role | integrator |
 | Branch | `study-05/v5-untested-protocols` |
