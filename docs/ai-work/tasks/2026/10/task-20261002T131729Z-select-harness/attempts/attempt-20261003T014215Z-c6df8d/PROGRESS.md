@@ -41,6 +41,13 @@ the DB execution, plan capture and report layers are not written yet. Committed 
 7. **No performance number is produced here.** The evaluators are contract checks, not timings; the
    comparison report must never present a control as a faster alternative. Confidence high.
 
+## Update (2026-10-03, second increment)
+
+`plan.go` + `plan_test.go` added and committed (`d9683dfc`): EXPLAIN normalization and signatures
+(costs/rows/times/buffers/print-order stripped; access paths, index names and materialization kept).
+13 tests pass in the pinned image; the check report was extended. Remaining item 3 below is now
+**half done** — capture (`EXPLAIN (ANALYZE, BUFFERS)` per cell, stored beside the timing) is still to do.
+
 ## Remaining work (for the next session on this branch)
 
 1. `-cmd select` (or an equivalent subcommand) in the harness `main.go`: bind `:pred`/`:n`/`:limit`
