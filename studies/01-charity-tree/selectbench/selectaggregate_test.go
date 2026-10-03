@@ -2,6 +2,7 @@ package selectbench
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -203,5 +204,31 @@ func TestAggregatePairsRecomputeBothDirections(t *testing.T) {
 	}
 	if got := byLabel["correlated vs pre_agg"]; got != 2 {
 		t.Errorf("corr/pre = %v, want 2", got)
+	}
+}
+
+func TestPositionControlSpecPairsWithTheFirstCell(t *testing.T) {
+	levels := ParentLevels()
+	pc := PositionControlSpec(Args{}, 3)
+	if pc.Statement != AggregateStatements[0] || pc.Args.ParentMax != levels[0] || pc.Args.Trials != 3 {
+		t.Fatalf("position spec = %+v", pc)
+	}
+	if !strings.HasSuffix(pc.Axis, PositionSuffix) {
+		t.Fatalf("position axis %q lacks the suffix", pc.Axis)
+	}
+	r := AggResult{Levels: levels, Cells: []Cell{
+		{Axis: AggregateTopNAxis("aggregate", AggregateStatements[0], levels[0]), Statement: AggregateStatements[0],
+			Status: StatusValid, TimingMeasured: true, MedianMS: 1},
+		{Axis: pc.Axis, Statement: AggregateStatements[0], Status: StatusValid, TimingMeasured: true, MedianMS: 2},
+	}}
+	pp, ok := r.PositionPair()
+	if !ok {
+		t.Fatal("position pair not found")
+	}
+	if pp.RatioBA != 2 {
+		t.Fatalf("position ratio = %v, want 2", pp.RatioBA)
+	}
+	if _, ok := (AggResult{Levels: levels}).PositionPair(); ok {
+		t.Fatal("position pair reported without the control cell")
 	}
 }

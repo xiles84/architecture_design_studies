@@ -65,6 +65,18 @@ func RenderAggRun(r AggResult) (string, error) {
 		b.WriteString("\n")
 	}
 
+	if pp, ok := r.PositionPair(); ok {
+		ratio := "N/A"
+		if pp.A.MedianMS > 0 {
+			ratio = fmt.Sprintf("%.4f", pp.B.MedianMS/pp.A.MedianMS)
+		}
+		b.WriteString("## Repeated-design position control\n\n")
+		b.WriteString("The first matrix cell repeated at the end of the phase; a large last/first ratio is a session position effect, not a spelling effect.\n\n")
+		b.WriteString("| first median ms | last median ms | ratio (last/first) | same plan |\n|---|---|---|---|\n")
+		fmt.Fprintf(&b, "| %.6f | %.6f | %s | %v |\n\n", pp.A.MedianMS, pp.B.MedianMS, ratio,
+			StructureSignature(pp.A.Plan) == StructureSignature(pp.B.Plan))
+	}
+
 	b.WriteString("## Plans\n\n| axis | status | plan signature |\n|---|---|---|\n")
 	cells := append([]Cell(nil), r.Cells...)
 	sort.Slice(cells, func(i, j int) bool { return cells[i].Axis < cells[j].Axis })
@@ -156,6 +168,9 @@ func RenderAggReplicated(runs []AggResult) (string, error) {
 	b.WriteString("\n## Pair ratios per run (per engine)\n\n| engine | topology | family | level | pair | ratios (B/A) | signs |\n|---|---|---|---|---|---|---|\n")
 	for _, r := range runs {
 		all := append(r.AggregatePairs(), r.TopNPairs()...)
+		if pp, ok := r.PositionPair(); ok {
+			all = append(all, pp)
+		}
 		for _, p := range all {
 			if p.RatioBA <= 0 {
 				continue

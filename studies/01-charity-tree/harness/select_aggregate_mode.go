@@ -25,7 +25,7 @@ import (
 // measurements. The correctness gate is the same as the rest of the programme:
 // a cell whose answer differs from the oracle is invalid and is never timed.
 
-func runSelectAggregateMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID string, statementTimeout int) error {
+func runSelectAggregateMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID string, statementTimeout int, positionControl bool) error {
 	if dsn == "" {
 		return fmt.Errorf("-cmd select-aggregate needs -dsn")
 	}
@@ -82,7 +82,11 @@ func runSelectAggregateMode(dsn, engine, topology, scale, out, reportOut string,
 	}
 	var cells []selectbench.Cell
 	if gateErr == nil {
-		cells = selectbench.RunSpecs(ctx, q, cat, fx, selectbench.BuildAggregateSpecs(base, selectbench.ParentLevels(), trials), runID, topology)
+		specs := selectbench.BuildAggregateSpecs(base, selectbench.ParentLevels(), trials)
+		if positionControl {
+			specs = append(specs, selectbench.PositionControlSpec(base, trials))
+		}
+		cells = selectbench.RunSpecs(ctx, q, cat, fx, specs, runID, topology)
 	}
 
 	// Controls for this family run at the widest level, N=1. RunControls also

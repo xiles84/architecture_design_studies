@@ -9,6 +9,7 @@ SCALE="${SCALE:-tiny}"
 SEED="${SEED:-42}"
 ENGINE="postgres"
 FAMILY="select"
+POSITION_CONTROL=0
 TRIALS=3
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 TAG=""
@@ -20,6 +21,7 @@ while [[ $# -gt 0 ]]; do
     --engine) ENGINE="$2"; shift 2 ;;
     --trials) TRIALS="$2"; shift 2 ;;
     --family) FAMILY="$2"; shift 2 ;;
+    --position-control) POSITION_CONTROL=1; shift ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
     --environment) ENVIRONMENT="$2"; shift 2 ;;
@@ -42,6 +44,8 @@ if [[ "$FAMILY" == aggregate ]]; then
 else
   CLIENT_CMD="select"; OUT_JSON="select.json"; OUT_MD="select.md"
 fi
+POSITION_FLAG=""
+[[ "$POSITION_CONTROL" == 1 ]] && POSITION_FLAG="-position-control"
 OUTDIR="${OUTDIR:-$HERE/results/$RUN_ID}"
 [[ ! -e "$OUTDIR" ]] || die "output already exists: $OUTDIR"
 GIT_ROOT="$(hostpath "$REPO")"
@@ -87,7 +91,7 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology single -scale "$SCALE" -seed "$SEED" \
-  -trials "$TRIALS" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  -trials "$TRIALS" $POSITION_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e

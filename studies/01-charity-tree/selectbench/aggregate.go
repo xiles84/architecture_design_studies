@@ -77,6 +77,26 @@ func BuildAggregateSpecs(base Args, levels []int, trials int) []CellSpec {
 	return specs
 }
 
+// PositionSuffix marks the repeated-design position-control cell: the first
+// matrix cell, re-run at the end of the phase under a distinct axis key.
+const PositionSuffix = ";position=last"
+
+// PositionControlSpec repeats the first matrix cell at the smallest parent
+// level, so a within-run position/session effect can be read off beside the
+// spelling pairs. It is an extra cell, never a replacement.
+func PositionControlSpec(base Args, trials int) CellSpec {
+	level := ParentLevels()[0]
+	a := base
+	a.ParentMax = level
+	a.N = 1
+	a.Trials = trials
+	return CellSpec{
+		Statement: AggregateStatements[0],
+		Axis:      AggregateTopNAxis("aggregate", AggregateStatements[0], level) + PositionSuffix,
+		Args:      a,
+	}
+}
+
 // ControlSpec is a deliberately-wrong statement run under its own contract, so
 // the run records whether the control fired. The aggregate family's controls
 // are level-independent for detection; they are run at the widest level.
@@ -175,6 +195,19 @@ func (r AggResult) TopNPairs() []AggPair {
 		}
 	}
 	return out
+}
+
+// PositionPair returns the first matrix cell and its end-of-phase repeat, if the
+// run carried the position control.
+func (r AggResult) PositionPair() (AggPair, bool) {
+	level := ParentLevels()[0]
+	first, okFirst := r.Find(AggregateTopNAxis("aggregate", AggregateStatements[0], level))
+	last, okLast := r.Find(AggregateTopNAxis("aggregate", AggregateStatements[0], level) + PositionSuffix)
+	if !okFirst || !okLast {
+		return AggPair{}, false
+	}
+	p := newAggPair("aggregate", level, first, last, "position control post_join first vs last")
+	return p, true
 }
 
 func newAggPair(family string, level int, a, b Cell, label string) AggPair {
