@@ -9,6 +9,10 @@ type Args struct {
 	Limit  int
 	Offset int
 	Last   *PageRow
+	// SQL-side parameters, rendered into the statement by Bind.
+	PredSQL    string
+	LastAmount int
+	LastID     int
 }
 
 // EvalFunc is a Go implementation of one catalogue statement's logical query

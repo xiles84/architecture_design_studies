@@ -109,8 +109,9 @@ LEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children
 -- group: sel_topn
 -- params: n
 -- Top-N per parent with an explicit total order (amount DESC, id ASC), so ties
--- are broken deterministically.
-SELECT id, customer_id, amount FROM (
+-- are broken deterministically. The projection order is fixed across the
+-- top-N statements: (customer_id, order_id, amount).
+SELECT customer_id, id, amount FROM (
   SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY amount DESC NULLS LAST, id ASC) AS rn
   FROM orders o) t WHERE rn <= :n;
 
