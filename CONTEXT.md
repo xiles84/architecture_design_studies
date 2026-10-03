@@ -13,6 +13,13 @@ summary, not a second ledger.
 
 ## Rules that are live
 
+- **Queue runtime provenance (2026-10-03):** the wrapper rejects stale/unmarked
+  queue images against the current source digest and requires an explicit tested
+  rebuild. Recovery already persists the new worktree claim; the SELECT worker's
+  reported blocker exposed an obsolete runtime image. Repair checks and decision
+  log: [`docs/queue-runtime-20261003/`](docs/queue-runtime-20261003/VALIDATION.md).
+  Completion milestone: `repo/queue-runtime-repair-20261003` on local main.
+
 - **Never push or pull.** All work is local. The owner controls remotes. Milestone tags are
   annotated, never moved, deleted or reused.
 - **One current status per task/study.** A completed task leaves one receipt at its canonical path;

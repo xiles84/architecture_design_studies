@@ -39,8 +39,8 @@ engine_path() {
 build_image() {
   log "building $QUEUE_IMAGE from tools/queue/Containerfile"
   podman build -t "$QUEUE_IMAGE" \
-    -f "$(engine_path "$REPO_ROOT/tools/queue/Containerfile")" \
-    "$(engine_path "$REPO_ROOT")"
+    -f "$(buildpath "$(hostpath "$REPO_ROOT/tools/queue/Containerfile")")" \
+    "$(buildpath "$(hostpath "$REPO_ROOT")")"
 }
 
 # common_root is the directory containing the shared `.git`. When the wrapper is
@@ -127,6 +127,15 @@ for tool in git git.exe; do
     break
   fi
 done
+
+# Reject an old binary before it can mutate a claim or archive. Older images
+# lack image-check and fail here too; rebuild explicitly, with tests gating it.
+if ! "$ADS_PODMAN" run --rm \
+  "${mount_args[@]}" -w "$invoke_root" \
+  "$QUEUE_IMAGE" image-check --source "$invoke_root/tools/queue" >/dev/null; then
+  echo "queue: rebuild this worktree's source with tools/queue/queue --build before continuing" >&2
+  exit 4
+fi
 
 # exec cannot run the `podman` shell function from infra/lib.sh, so use the
 # resolved client path directly.

@@ -10,6 +10,17 @@ experiments**.
 
 ## Measurement
 
+### A pinned local image name does not identify current tooling source
+
+The 2026-10-03 SELECT handoff reported a recovered claim that could not submit.
+The repository already persisted the new claim context, but the installed queue
+image was older. Source tests alone do not establish what a shared image runs.
+The queue wrapper now checks an embedded, LF-normalized source digest and rejects
+stale or unmarked images before command dispatch. Rebuilds run the entire queue
+suite, including a recovered-worker submission regression. See
+`docs/queue-runtime-20261003/VALIDATION.md`; milestone
+`repo/queue-runtime-repair-20261003`.
+
 ### An outbox acknowledgement barrier must follow delivered committed events
 
 The Study 05 v5 protocol/source review (2026-10-03) scans committed, unprocessed
