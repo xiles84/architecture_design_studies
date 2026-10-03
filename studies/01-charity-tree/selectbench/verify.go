@@ -12,6 +12,19 @@ import (
 // and the contract oracle: the DB mode calls Verify on every cell and aborts a
 // cell whose answer differs, so a fast wrong answer can never be reported.
 
+// answersEqual compares two contract answers. A nil slice and an empty slice are
+// the same answer: "no rows" is "no rows", and a database that returns an empty
+// result set must not be failed against an oracle that happened to leave its
+// slice nil (or the reverse). Everything else is compared exactly.
+func answersEqual(a, b any) bool {
+	va, vb := reflect.ValueOf(a), reflect.ValueOf(b)
+	if va.IsValid() && vb.IsValid() && va.Kind() == reflect.Slice && vb.Kind() == reflect.Slice &&
+		va.Len() == 0 && vb.Len() == 0 {
+		return true
+	}
+	return reflect.DeepEqual(a, b)
+}
+
 // oracleFor returns the canonical expected answer for a semantic group.
 func oracleFor(group string, fx Fixture, a Args) (any, error) {
 	switch group {
@@ -51,7 +64,7 @@ func Verify(c *Catalog, name string, fx Fixture, a Args, got any) error {
 	if err != nil {
 		return err
 	}
-	if !reflect.DeepEqual(want, got) {
+	if !answersEqual(want, got) {
 		s := c.Statements[name]
 		return fmt.Errorf("%s (%s): observed answer does not match the contract oracle:\n got %#v\nwant %#v",
 			name, s.Group, got, want)
@@ -73,7 +86,7 @@ func DetectControl(c *Catalog, control string, fx Fixture, a Args, got any, pret
 	if err != nil {
 		return err
 	}
-	if reflect.DeepEqual(want, got) {
+	if answersEqual(want, got) {
 		return fmt.Errorf("%s was NOT detected: its answer matched the %s oracle", control, pretendedGroup)
 	}
 	return nil

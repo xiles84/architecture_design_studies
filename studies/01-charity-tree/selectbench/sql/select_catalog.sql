@@ -113,7 +113,8 @@ LEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children
 -- top-N statements: (customer_id, order_id, amount).
 SELECT customer_id, id, amount FROM (
   SELECT o.*, ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY amount DESC NULLS LAST, id ASC) AS rn
-  FROM orders o) t WHERE rn <= :n;
+  FROM orders o
+  WHERE o.customer_id IS NOT NULL) t WHERE rn <= :n;
 
 -- name: s15_topn_lateral
 -- group: sel_topn

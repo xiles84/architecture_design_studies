@@ -61,7 +61,7 @@ DSN="$(bash "$REPO/infra/pg-single.sh" dsn)"
 echo "==> dsn: ${DSN/@*/@<hidden>}"
 
 echo "==> building $IMAGE"
-podman build -q -t "$IMAGE" -f "$HERE/Containerfile" "$HERE" >/dev/null
+podman build -q -t "$IMAGE" -f "$(buildpath "$HERE/Containerfile")" "$(buildpath "$HERE")" >/dev/null
 
 mkdir -p "$OUTDIR"
 echo "==> select scale=$SCALE seed=$SEED -> $OUTDIR"

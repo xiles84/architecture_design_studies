@@ -76,9 +76,17 @@ func Prepare(ctx context.Context, q Querier, fx Fixture) error {
 func RunCells(ctx context.Context, q Querier, c *Catalog, fx Fixture, a Args, names []string, runID, topology string) []Cell {
 	if len(names) == 0 {
 		for _, n := range c.Order {
-			if c.Statements[n].Group != ControlGroup {
-				names = append(names, n)
+			s := c.Statements[n]
+			if s.Group == ControlGroup {
+				continue
 			}
+			// Keyset pagination needs a real cursor; with none bound it would
+			// compare an empty page against the first page. It is run only when
+			// named explicitly (a follow-up supplies the cursor).
+			if needsCursor(s) {
+				continue
+			}
+			names = append(names, n)
 		}
 	}
 	cells := make([]Cell, 0, len(names))
@@ -153,4 +161,17 @@ func firstNonEmpty(vals ...string) string {
 		}
 	}
 	return ""
+}
+
+// needsCursor reports whether a statement requires a bound pagination cursor.
+// Such a statement is excluded from the default cell set: with no cursor it
+// would compare an empty page against the first page and fail the gate for a
+// reason that is the harness's, not the query's.
+func needsCursor(s Statement) bool {
+	for _, p := range s.Params {
+		if p == "last_amount" || p == "last_id" {
+			return true
+		}
+	}
+	return false
 }
