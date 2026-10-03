@@ -36,7 +36,7 @@ summary, not a second ledger.
 
 ## Current state
 
-### HIGH task sweep — **cache comparison measured; other scientific work gated (2026-10-03)**
+### HIGH task sweep — **cache comparison integrated; other scientific work gated (2026-10-03)**
 
 The owner declared HIGH and asked this session to iterate through HIGH work. The
 [dated sweep](docs/high-task-sweeps/2026-10-03/REPORT.md) records the live baseline:
@@ -51,6 +51,13 @@ The audit had zero errors and three existing coordination warnings, retained in 
 inputs. The sweep receipt is intended for local-main integration and annotated milestone
 `repo/high-task-sweep-20261003`; its queue status records the observed outcome. This
 receipt completes an audit, not the scientific backlog.
+
+Execution continued after the owner's renewed request: the conditional cache
+comparison is now measured, reviewed and integrated into local main. Seventeen
+other HIGH tasks remain ineligible (12 resource deferrals, four T1/T2-gated
+hierarchy proposals, SELECT synthesis awaiting measurements). No new eligible
+task appeared during the serial matrix. The original sweep remains an immutable
+baseline; Study 05 below records the new evidence and observed integration.
 
 ### Book initiative and the AI work pipeline — **in progress, next task ready**
 
@@ -933,15 +940,18 @@ Source `fed61266`; run tags `run/study-05/cache-v5-20261003-r1`, `-r2`, `-r3`;
 digests `f2054e7244c3d2b9`, `52c1eb9b8c355d19`, `76c170e2f1a3e27e`.
 Premeasurement tag: `study-05/v5-protocol-20261003`; control tag:
 `study-05/v5-controls-20261003`. Required final integration milestone:
-`study-05/v5-untested-protocols`; the queue receipt records actual completion.
+`study-05/v5-untested-protocols`, verified as an annotated tag at integrated
+main commit `e71af320ad213676f54db5587ad776ca1000e561`; the queue receipt records
+subsequent completion metadata.
 See the [signed analysis](studies/05-cache-consistency/reports/analyses/cache-v5-20261003--gpt-6--2026-10-03.md),
 [whole-run reduction](studies/05-cache-consistency/reports/cache-v5-20261003-whole-runs.md),
 [validation](studies/05-cache-consistency/protocolbench/VALIDATION-04.md), and
 [environment](docs/environments/xiles-podman-4cpu-2g-config-protocol-20261003.md).
 The keyed projection leaves cluster, multi-host placement, uncoordinated writers
 and saturation as gaps. Existing donor-portal evidence/book claims are unchanged.
-The result is ready for HIGH review and integration from
-`.worktrees/study05-v5-untested-protocols`.
+HIGH self-review accepted the result and the queue integrated the owned branch
+into local main. The worktree is `.worktrees/study05-v5-untested-protocols`;
+no remote synchronization was performed.
 
 Cache-aside/write-through, strict vs relaxed freshness, wrongness of a relaxed cache and cache-side
 invalidation fences, on PostgreSQL + Redis (Redis measured as a shared cache, never as an
