@@ -43,6 +43,15 @@ summary, not a second ledger.
 
 ## Current state
 
+### Running now — do not start databases
+
+`task-20261002T131729Z-select-aggregate-topn` (LOW deepseek-flash) is measuring
+the aggregate/per-parent-top-N sweep: PostgreSQL single-node and YugabyteDB
+single-node, scale `sweep` (10,000 parents), five trials, holding
+`ads-run-lock`. Run tags
+`run/study-01/select-agg-{pg-1..3,yb-1..3}-20261003`. A second runner refuses
+while the lock is held.
+
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 
 The owner declared HIGH and asked this session to iterate through HIGH work. The
