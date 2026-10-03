@@ -32,6 +32,8 @@ type Provenance struct {
 	EngineVersion       string
 	ClientCPUStatBefore string
 	ClientCPUStatAfter  string
+	ClientCPUQuota      string
+	ClientMemoryLimit   string
 }
 
 // Cell is one (statement, topology) measurement, with the plan that produced it.
@@ -66,6 +68,7 @@ type ReportInput struct {
 	Cells          []Cell
 	Interpretation string // must be empty; present only so a caller that tries is refused
 	Controls       []ControlResult
+	InputsDigest   string
 }
 
 func comparableCells(a, b Cell) (bool, string) {
@@ -101,6 +104,7 @@ func RenderComparison(in ReportInput) (string, error) {
 	b.WriteString("## Provenance\n\n| Field | Value |\n|---|---|\n")
 	p := in.Provenance
 	fmt.Fprintf(&b, "| repo commit | `%s` |\n", orUnknown(p.RepoCommit))
+	fmt.Fprintf(&b, "| inputs digest (SHA-256 of result JSON bytes) | `%s` |\n", orUnknown(in.InputsDigest))
 	fmt.Fprintf(&b, "| benchmark image | `%s` |\n", orUnknown(p.EngineImage))
 	fmt.Fprintf(&b, "| image digest | `%s` |\n", orUnknown(p.ImageDigest))
 	fmt.Fprintf(&b, "| run tag | `%s` |\n| environment | `%s` |\n| engine image digest | `%s` |\n| engine version | %s |\n", orUnknown(p.RunTag), orUnknown(p.Environment), orUnknown(p.EngineImageDigest), orUnknown(p.EngineVersion))

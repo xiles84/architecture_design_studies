@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -233,6 +234,8 @@ func runSelectMode(dsn, engine, topology, scale, queries, out, reportOut string,
 		Settings:            settings,
 		ClientCPUStatAfter:  readSelectCPUStat(),
 		ClientCPUStatBefore: cpuBefore,
+		ClientCPUQuota:      readSelectResource("/sys/fs/cgroup/cpu.max"),
+		ClientMemoryLimit:   readSelectResource("/sys/fs/cgroup/memory.max"),
 	}
 
 	result := selectRun{
@@ -248,12 +251,14 @@ func runSelectMode(dsn, engine, topology, scale, queries, out, reportOut string,
 		result.Error = gateErr.Error()
 	}
 
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	inputsDigest := fmt.Sprintf("%x", sha256.Sum256(data))
 	if out != "" {
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(out, append(data, '\n'), 0o644); err != nil {
+		if err := os.WriteFile(out, data, 0o644); err != nil {
 			return err
 		}
 		fmt.Println("wrote", out)
@@ -261,9 +266,10 @@ func runSelectMode(dsn, engine, topology, scale, queries, out, reportOut string,
 
 	if reportOut != "" {
 		report, err := selectbench.RenderComparison(selectbench.ReportInput{
-			Provenance: prov,
-			Cells:      cells,
-			Controls:   controls,
+			Provenance:   prov,
+			Cells:        cells,
+			Controls:     controls,
+			InputsDigest: inputsDigest,
 			Predictions: []string{"P1-P5 join/CTE spellings", "P6-P7 membership/absence",
 				"P8-P9 aggregates/top-N", "P10-P11 predicates/pagination"},
 		})
@@ -289,7 +295,11 @@ func runSelectMode(dsn, engine, topology, scale, queries, out, reportOut string,
 }
 
 func readSelectCPUStat() string {
-	data, err := os.ReadFile("/sys/fs/cgroup/cpu.stat")
+	return readSelectResource("/sys/fs/cgroup/cpu.stat")
+}
+
+func readSelectResource(path string) string {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return "unavailable: " + err.Error()
 	}

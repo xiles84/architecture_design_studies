@@ -148,6 +148,12 @@ func RunCells(ctx context.Context, q Querier, c *Catalog, fx Fixture, a Args, na
 			continue
 		}
 		cell.Plan = plan
+		if plan == "" {
+			cell.Status, cell.Note = StatusError, "missing EXPLAIN evidence"
+			cancel()
+			cells = append(cells, cell)
+			continue
+		}
 		cell.PlanningMS, cell.ExecutionMS = planTimes(plan)
 		cell.Status = StatusValid
 		if !a.ValidateOnly {

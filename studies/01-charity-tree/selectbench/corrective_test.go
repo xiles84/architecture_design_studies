@@ -115,3 +115,20 @@ func TestUntimedReportShowsNA(t *testing.T) {
 		t.Fatalf("untimed zero reported as measurement: %s %v", out, err)
 	}
 }
+
+func TestAliasesDoNotChangePhysicalStructure(t *testing.T) {
+	if !SameStructure(seqScan, strings.ReplaceAll(seqScan, "orders o", "orders child")) {
+		t.Fatal("alias renamed the physical plan")
+	}
+}
+
+type missingPlanQuerier struct{ *fakeQ }
+
+func (q missingPlanQuerier) Explain(context.Context, string) (string, error) { return "", nil }
+func TestMissingPlanCannotProduceTiming(t *testing.T) {
+	c, fx, a := load(t), Teaching(), args()
+	cells := RunCells(context.Background(), missingPlanQuerier{newFakeQ(t, c, fx, a)}, c, fx, a, []string{"s01_join_where"}, "run", "single")
+	if cells[0].Status != StatusError || cells[0].TimingMeasured {
+		t.Fatal("missing plan admitted timing")
+	}
+}

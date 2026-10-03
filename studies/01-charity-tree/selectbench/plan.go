@@ -33,6 +33,10 @@ var nodeExtras = regexp.MustCompile(`(?i)^\s*(Filter|Index Cond|Recheck Cond|Row
 // runLevel removes the statements that never describe plan shape.
 var runLevel = regexp.MustCompile(`(?i)^\s*(Planning Time|Execution Time|JIT|Buffers|I/O Timings|WAL|Settings):`)
 
+// SQL aliases are labels, not an access-path or join-tree change. Keep the
+// relation/index identity while normalizing aliases in our simple catalogue.
+var scanAlias = regexp.MustCompile(`(Scan(?: Backward)?(?: using [^ ]+)? on [^ ]+) [^ ]+$`)
+
 // Normalize returns the plan's step lines with volatile metadata removed, in
 // execution (print) order. Semantic lines such as Filter are kept.
 func Normalize(explain string) []string {
@@ -60,6 +64,7 @@ func Structure(explain string) []string {
 			continue
 		}
 		line := strings.Join(strings.Fields(volatile.ReplaceAllString(raw, "")), " ")
+		line = scanAlias.ReplaceAllString(line, "$1")
 		if line == "" {
 			continue
 		}
