@@ -117,6 +117,11 @@ func main() {
 		}
 		fmt.Println("wrote", *reportOut)
 		return
+	case "select":
+		if err := runSelectMode(*dsn, *engine, *topology, *scale, *queries, *out, *reportOut, *seed); err != nil {
+			fatal(err)
+		}
+		return
 	}
 	if *cmd == "list" {
 		for _, d := range designs {
