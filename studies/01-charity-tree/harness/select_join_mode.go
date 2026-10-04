@@ -95,6 +95,7 @@ type joinArm struct {
 	name         string
 	dataset      string
 	schema       string
+	rankIndex    string
 	scale        string
 	factCount    int
 	parents      int
@@ -121,7 +122,7 @@ func selectJoinArm(seed int64, scale string) joinArm {
 		}
 		return joinArm{
 			name: "study01-domain", dataset: "study01-person-donation-charity",
-			schema: selectbench.JoinDomainSchema, scale: scale,
+			schema: selectbench.JoinDomainSchema, rankIndex: "donation_rank_idx", scale: scale,
 			factCount: dspec.Donations, parents: dspec.Persons,
 			fingerprint:  selectbench.JoinDomainFingerprint(df),
 			oracle:       df.AsJoinFixture(),
@@ -137,7 +138,7 @@ func selectJoinArm(seed int64, scale string) joinArm {
 	empty := selectbench.JoinFixture{Customers: []selectbench.Customer{{ID: 1, Name: "Ana"}, {ID: 2, Name: "Ben"}}}
 	return joinArm{
 		name: "synthetic-microfixture", dataset: "synthetic-customers-facts",
-		schema: selectbench.JoinSchema, scale: scale,
+		schema: selectbench.JoinSchema, rankIndex: "facts_rank_idx", scale: scale,
 		factCount: spec.FactCount, parents: spec.Customers,
 		fingerprint: selectbench.JoinFingerprint(jf),
 		oracle:      jf,
@@ -255,7 +256,7 @@ func runJoinGate(ctx context.Context, q selectbench.Querier, cat *selectbench.Ca
 // evidence, rank-index use, expensive-token support and a full drain at the
 // widest threshold.
 func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Querier, cat *selectbench.Catalog,
-	jf selectbench.JoinFixture, thresholds []int, budget time.Duration) *selectbench.JoinFeasibility {
+	jf selectbench.JoinFixture, thresholds []int, budget time.Duration, schema, rankIndex string) *selectbench.JoinFeasibility {
 	f := &selectbench.JoinFeasibility{
 		FactCount:        len(jf.Facts),
 		Customers:        len(jf.Customers),
@@ -266,7 +267,7 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 		RankIndexUsed:    map[string]bool{},
 	}
 	for _, t := range thresholds {
-		if n, err := scalarInt64(ctx, pool, fmt.Sprintf("SELECT count(*) FROM %s.facts WHERE rank <= %d", selectbench.JoinSchema, t)); err == nil {
+		if n, err := scalarInt64(ctx, pool, fmt.Sprintf("SELECT count(*) FROM %s.facts WHERE rank <= %d", schema, t)); err == nil {
 			f.ThresholdCounts[fmt.Sprint(t)] = int(n)
 		} else {
 			f.ThresholdCounts[fmt.Sprint(t)] = -1
@@ -300,7 +301,7 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 		c := cells[0]
 		f.StatementSupport[name] = string(c.Status)
 		f.PolicyEvidence[name] = c.PolicyNote
-		f.RankIndexUsed[name] = strings.Contains(c.Plan, "facts_rank_idx")
+		f.RankIndexUsed[name] = strings.Contains(c.Plan, rankIndex) || strings.Contains(c.Plan, "rank_idx")
 		if c.Status != selectbench.StatusValid && c.Status != selectbench.StatusUnsupported {
 			f.Notes = append(f.Notes, fmt.Sprintf("probe %s is %s: %s", name, c.Status, c.Note))
 		}
@@ -408,7 +409,7 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	}
 	result.Controls = append(result.Controls, bigControls...)
 
-	result.Feasibility = joinFeasibility(ctx, pool, q, cat, arm.oracle, thresholds, budget)
+	result.Feasibility = joinFeasibility(ctx, pool, q, cat, arm.oracle, thresholds, budget, arm.schema, arm.rankIndex)
 
 	base := selectbench.JoinArgs{Trials: trials, StatementTimeout: budget}
 	if !feasibilityOnly {
