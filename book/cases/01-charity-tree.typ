@@ -75,6 +75,7 @@ Theory: #link(<theory-embedding>)[Embedding].
 
 Theory: #link(<theory-select-contract>)[Answer contracts], #link(<theory-select-aggregate>)[Aggregation] and #link(<theory-select-pagination>)[Pagination]. SELECT-family timing promotion remains separate; no new SELECT ratios are asserted here.
 
+#pagebreak(weak: true)
 === Planned variation: join donations and filter them <case-charity-join-plan>
 
 *Business question:* return each qualifying donation together with its donor. Customers/orders in the theory map to people/donations here; keep one row per donation, including repeated donors.
