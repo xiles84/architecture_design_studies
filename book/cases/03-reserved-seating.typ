@@ -18,7 +18,7 @@ Buyers choose physical seats and hold a block while paying. The system must hono
 
 === Variation: check the promise inside the write
 
-#block[
+#block(breakable: false)[
   #set text(size: 9.5pt)
   #table(columns: (1fr, 2fr, 1.3fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Variant], [What protects the hold], [Theory]),

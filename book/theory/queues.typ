@@ -1,6 +1,7 @@
 #import "../lib/config.typ": *
 #import "../lib/teaching.typ": strategy, flow-picture
 #set heading(numbering: none)
+#pagebreak(weak: true)
 #heading(level: 2, numbering: none, "Queues")
 Queue theory extends the same ideas about ownership, retries and copies. This repository has no registered queue throughput study.
 

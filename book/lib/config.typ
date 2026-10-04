@@ -76,7 +76,6 @@
     ]
   }
   show heading.where(level: 2): it => {
-    pagebreak(weak: true)
     block(above: 1.3em, below: 0.7em)[
     #set text(size: 14pt, weight: "bold", fill: palette.ink)
     #it
@@ -297,7 +296,7 @@
     rows.push(if i < use.len() { use.at(i) } else { [] })
     rows.push(if i < avoid.len() { avoid.at(i) } else { [] })
   }
-  block(width: 100%, above: 0.7em, below: 0.7em)[
+  block(width: 100%, breakable: false, above: 0.7em, below: 0.7em)[
     #set text(size: 9.5pt)
     #table(
       columns: (1fr, 1fr),

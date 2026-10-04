@@ -29,6 +29,16 @@ and whether the system must retain what happened.
   [Derived state summarizes source facts. History retains changes. A projection can make history
    cheap to read, but its maintenance needs a correctness rule.])
 
+#pagebreak(weak: true)
+#heading(level: 3, numbering: none, "Detailed coordination reference")
+The theory lessons use short diagrams. This expanded sequence shows the interleaving
+behind the optimistic and pessimistic write strategies.
+
+#figure-evidence("../assets/fig-optimistic-vs-pessimistic.svg", "sequence", "conceptual illustration",
+  "A conditional write detects change; a lock orders writers before their decision.",
+  [Optimistic writers reject a mismatched version and re-read. Pessimistic writers wait before reading.
+   Both still recheck the business invariant.], image-width: 82%)
+
 #heading(level: 3, numbering: none, "Reproduce the book")
 ```bash
 book/build.sh

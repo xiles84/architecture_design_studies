@@ -18,7 +18,7 @@ A charity site lists donors, their donations and the latest activity. Its dashbo
 
 === Variation: find donations without copying everything
 
-#block[
+#block(breakable: false)[
   #set text(size: 9.5pt)
   #table(columns: (1fr, 2fr, 1.5fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Variant], [What changes], [Theory]),

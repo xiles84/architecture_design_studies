@@ -17,7 +17,7 @@ Readers request the effective configuration, an individual key or the installati
 
 === Variation: store entries as rows or as a document
 
-#block[
+#block(breakable: false)[
   #set text(size: 9.5pt)
   #table(columns: (1.2fr, 2fr, 1.3fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Variant], [Representation], [Theory]),
@@ -38,7 +38,7 @@ Readers request the effective configuration, an individual key or the installati
 *Observed summary:* whole-configuration replacement costs 4.0-5.7x more with the trigger. The slowest 1% is 22-46x worse; repeated measurements disagree substantially, so use ranges.
 #claim-badge("v2-13-trigger-rollup-cost")
 
-#block[
+#block(breakable: false)[
   #set text(size: 9.5pt)
   #table(columns: (1fr, 2fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Replacement size], [Application throughput relative to trigger]),

@@ -1,5 +1,16 @@
 # CHANGELOG — *Data Architecture Reference*
 
+## Edition 3 preview 2 — 2026-10-04
+
+Replaces the mixed pilot/older-edition reading path with the owner's requested hierarchy:
+Theory → six topics → twenty strategies, then five business cases with matching variations,
+thrive/die situations and compact measured summaries. Adds concise SELECT examples, shared
+lesson layouts and linked navigation. Detailed evidence stays in the appendix.
+
+All 31 active claims remain cited. Original figures, frozen evidence and signed analyses are
+preserved; older chapter sources remain in the repository. Queue guidance is conceptual and
+new SELECT timing results are not promoted. Milestone: `repo/data-architecture-book-v3-preview-2`.
+
 ## Edition 3 preview 1 — 2026-10-04
 
 Owner-authorized local release of the reviewed concept-first pilot combined with all committed

@@ -18,7 +18,7 @@ A donor portal repeatedly serves a donor's identity, totals and latest donations
 
 === Variation: cache a warm read
 
-#block[
+#block(breakable: false)[
   #set text(size: 9.5pt)
   #table(columns: (1fr, 2fr, 1.3fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Variant], [What changes], [Theory]),

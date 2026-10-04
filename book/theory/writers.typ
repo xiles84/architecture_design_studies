@@ -1,6 +1,7 @@
 #import "../lib/config.typ": *
 #import "../lib/teaching.typ": strategy, flow-picture
 #set heading(numbering: none)
+#pagebreak(weak: true)
 #heading(level: 2, numbering: none, "Concurrent writes and time")
 Start with the business invariant: no lost increment, no oversold seat, or no stale owner publishing a result. A faster invalid design is a failed design.
 
@@ -21,7 +22,7 @@ Strategies: #link(<theory-hot-rows>)[Hot rows] · #link(<theory-optimistic>)[Opt
   ([Conflicts are uncommon.], [Attempts are cheap to repeat.], [Bounded rejection is acceptable.],),
   ([A hot key creates frequent conflicts.], [Side effects occur before the conditional commit.], [Retries repeat expensive work without a bound.],),
   ([Read state and version.], [Conditional writes; conflicts may require another attempt.], [A version token.], [Never accept an update based on an obsolete version.], [Bound retries and define client-visible rejection.],),
-  figure-evidence("../assets/fig-optimistic-vs-pessimistic.svg", "structure", "conceptual illustration", "Optimistic version checks: mechanism and trade-off.", [The diagram shows ownership, work or coordination. It describes the mechanism, not a measured gain.]),
+  flow-picture(([Read state and version], [Conditional update], [Commit or reject conflict],), "Optimistic writes: validate before acceptance.", [A writer reads a version and attempts an update conditional on that version. An intervening change makes the update fail; the writer must re-read before retrying.]),
   ([No acknowledged update overwrites an intervening change.], [Source row plus version.], [The version-checked hot key.], [None inherently.], [Version token.], [The state read before a conflicting commit.], [Frequent conflicts or expensive repeated attempts.], [Match the invariant and sweep concurrent writers.],), "case-config", measured: true)
 
 #strategy("Pessimistic locking", "theory-pessimistic", [Acquire the arbitration lock before reading state used to decide an update.],
@@ -39,7 +40,7 @@ Strategies: #link(<theory-hot-rows>)[Hot rows] · #link(<theory-optimistic>)[Opt
   ([Audit or reconstruction is required.], [Current reads have a maintained projection.], [Projection maintenance has a clear ownership rule.],),
   ([Every hot read replays a growing log.], [An event append is mistaken for concurrency protection.], [History and projection can diverge silently.],),
   ([Read a projection or replay relevant events.], [Append events and maintain any current projection.], [Retained history plus current state.], [Events and acknowledged current state must reconcile.], [Version events and support replay or repair.],),
-  figure-evidence("../assets/fig-history-vs-current.svg", "structure", "conceptual illustration", "History and current state: mechanism and trade-off.", [The diagram shows ownership, work or coordination. It describes the mechanism, not a measured gain.]),
+  figure-evidence("../assets/fig-history-vs-current.svg", "structure", "conceptual illustration", "History and current state: mechanism and trade-off.", [Current state answers availability now. Retained events preserve past sales and refunds that current-state deletion would destroy.]),
   ([Current state agrees with accepted historical changes.], [Event history and optional projection.], [Append coordination and shared current-state rows.], [Projection maintenance replaces replay on every read.], [Current-state projection.], [A projection that falls behind or misses an event.], [Growing replay or an incorrectly maintained projection.], [Match concurrency strategy; compare replay and projection cost.],), "case-ticket", measured: true)
 
 #strategy("Expiry and clock authority", "theory-expiry", [A deadline has meaning only when one authority decides whether it has passed.],
@@ -48,5 +49,5 @@ Strategies: #link(<theory-hot-rows>)[Hot rows] · #link(<theory-optimistic>)[Opt
   ([Deadline checks use a defined authority.], [Confirmation and expiration share arbitration.], [Cleanup delay does not extend authorization.],),
   ([Clients decide expiry using unrelated clocks.], [Cleanup is the only protection against late confirmation.], [A lease is assumed to prevent stale publication.],),
   ([Check ownership and authoritative time.], [Arbitrate confirmations and expiry transitions.], [Deadline and ownership token.], [No success after the authority rejects the deadline.], [Monitor delayed cleanup and clock assumptions.],),
-  figure-evidence("../assets/fig-expiry-clock.svg", "structure", "conceptual illustration", "Expiry and clock authority: mechanism and trade-off.", [The diagram shows ownership, work or coordination. It describes the mechanism, not a measured gain.]),
+  figure-evidence("../assets/fig-expiry-clock.svg", "sequence", "conceptual illustration", "Expiry and clock authority: mechanism and trade-off.", [A database-time guard can reclaim an expired hold without waiting for cleanup. A sweeper-only design delays availability; a skewed client clock can reclaim too early.]),
   ([A hold can be confirmed only while valid for its owner.], [Hold row, deadline and owner token.], [The hold's arbitration record.], [No inherent relocation.], [Availability projection or cache, if present.], [Client beliefs and cached availability.], [Undefined clock authority or non-atomic transitions.], [Race confirmation against expiry with an invalid control.],), "case-seating", measured: true)

@@ -43,6 +43,16 @@ summary, not a second ledger.
 
 ## Current state
 
+### Book theory/case revision — **source complete; release validation in progress (2026-10-04)**
+
+The owner found the mixed pilot/legacy PDF confusing and specified two reading parts.
+The revision implements Theory → six topics → twenty strategies, then five study cases
+with theory-linked variations, compact numbers and observed/inferred/unmeasured boundaries.
+Older chapters are preserved as sources but excluded from the reading path. Evidence
+cards live in the appendix. Queue theory has no measured case; SELECT timing promotion
+remains separate. Task `task-20261004T132000Z-book-theory-cases`; validation receipt:
+[`docs/book-theory-cases-20261004/`](docs/book-theory-cases-20261004/VALIDATION.md).
+
 ### Book release and consolidation — **Edition 3 preview 1 on local main (2026-10-04)**
 
 The concept-first pilot and all outstanding committed branch work are integrated.
@@ -53,8 +63,9 @@ The remaining legacy conversion is clearly marked as unfinished. Shorter passage
 tables and mechanism diagrams implement the owner's reading preference.
 Build proof and cleanup receipts: [`docs/book-release-20261004/`](docs/book-release-20261004/VALIDATION.md).
 
-Cleanup hash-preserved 120 loose/ignored artifacts, then removed 15 completed
-worktrees and 60 merged branches; this release checkout is disposed after closure.
+Cleanup hash-preserved 120 loose/ignored artifacts, then removed 16 completed
+worktrees and 61 merged branches, including the completed release checkout.
+Final verification tag: `repo/book-release-cleanup-20261004`.
 The unfinished join/CTE plan and ready worktree remain. The pilot and SELECT order
 correction tasks are completed; producing tags and signed evidence remain intact.
 Queue audit: zero errors, two existing completed-T2 coordination warnings. No push/pull.

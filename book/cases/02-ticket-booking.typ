@@ -17,7 +17,7 @@ A show company sells interchangeable admissions. Buyers need any available unit 
 
 === Variation: spread the hot drop across seat rows
 
-#block[
+#block(breakable: false)[
   #set text(size: 9.5pt)
   #table(columns: (1fr, 2fr, 1.4fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Variant], [Arbitration point], [Theory]),
@@ -51,7 +51,7 @@ Theory: #link(<theory-history>)[History versus current state]. Storage percentag
 
 === Variation: pay for history under contention
 
-#block[
+#block(breakable: false)[
   #set text(size: 9.5pt)
   #table(columns: (1fr, 2.4fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Regime], [Observed ledger cost over CAS]),

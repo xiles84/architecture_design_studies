@@ -1,5 +1,13 @@
 # Lessons learned
 
+## A reading hierarchy must be complete, not just labelled
+
+The owner found the mixed Edition 3 pilot and retained older book confusing.
+A topic label followed by missing chapters does not establish a learning path.
+The 2026-10-04 revision groups theory by topic and strategy, then applies those
+strategies in business cases. Compact summaries stay with their claim badges;
+full evidence stays in the appendix. This changes navigation, not scientific coverage.
+
 Things that cost time, produced a wrong number, or would have produced a wrong number if
 they had not been caught. Written down so they are not rediscovered.
 

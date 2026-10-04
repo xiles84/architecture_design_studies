@@ -149,7 +149,7 @@ Summary numbers belong to the named comparison and environment, not to a univers
 does not yet promote the newer SELECT measurement families. Queues have no registered measured case.
 Their expected boundaries are teaching examples, not benchmark results.]
 
-#include "cases/01-charity.typ"
+#include "cases/01-charity-tree.typ"
 #include "cases/02-ticket-booking.typ"
 #include "cases/03-reserved-seating.typ"
 #include "cases/04-configuration-portal.typ"

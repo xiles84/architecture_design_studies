@@ -12,10 +12,9 @@
   )
   #text(size: 8.5pt)[*Text equivalent.* #equivalent]
 ]
-#let strategy(title, id, idea, problem, steps, fits, avoids, costs, picture, check, case, measured: true) = {
+#let strategy(title, id, idea, problem, steps, fits, avoids, costs, picture, check, case, measured: true, example: none) = {
   pagebreak(weak: true)
-  heading(level: 3, numbering: none, title)
-  label(id)
+  [#heading(level: 3, numbering: none, title) #label(id)]
   marker("strategy", title)
   callout("Key idea", palette.accent)[#idea]
   heading(level: 4, numbering: none, "The problem")
@@ -23,19 +22,18 @@
   picture
   heading(level: 4, numbering: none, "How it works")
   list(..steps)
+  if example != none {
+    heading(level: 4, numbering: none, "A small example")
+    example
+  }
   heading(level: 4, numbering: none, "Thrive or die: the expected boundary")
   fit-table(use: fits, avoid: avoids)
   block(breakable: false)[
     #heading(level: 4, numbering: none, "What it costs")
     #cost-table(reads: costs.at(0), writes: costs.at(1), storage: costs.at(2), correctness: costs.at(3), operations: costs.at(4))
-  ]
-  block(breakable: false)[
     #heading(level: 4, numbering: none, "In practice")
-    #if measured [Follow #link(label(case))[the matching study case] for tested variations and registered results.]
-    else [These are design expectations. #link(label(case))[The study-case coverage map] identifies what has not been measured.]
+    #if measured [Follow #link(label(case))[the matching study case] for tested variations and registered results.] else [These are design expectations. #link(label(case))[The study-case coverage map] identifies what has not been measured.]
     #text(size: 9pt, fill: palette.muted)[A plausible boundary is not a measured crossover.]
-  ]
-  block(breakable: false)[
     #heading(level: 4, numbering: none, "The checklist")
     #checklist-table((
       ("What is the invariant?", check.at(0), "mechanism"),
