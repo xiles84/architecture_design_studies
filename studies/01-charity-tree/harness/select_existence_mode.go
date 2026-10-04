@@ -90,10 +90,16 @@ func runSelectExistenceMode(dsn, engine, topology, scale, out, reportOut string,
 			return fmt.Errorf("load fanout=%d fixture: %w", fanout, err)
 		}
 		specs := selectbench.BuildExistenceSpecs(base, fanout, trials)
+		plan := selectbench.PlanOrder(selectbench.OrderSeedFor(seed, runID+"|fanout="+fmt.Sprint(fanout)), len(specs))
+		first := specs[plan.Order[0]]
+		levelOrder := selectbench.RunOrder{Seed: plan.Seed, Rounds: trials, Sequence: plan.Sequence(specs)}
+		cells = append(cells, selectbench.RunSpecsInterleaved(ctx, q, cat, fx, specs, plan, runID, topology)...)
 		if positionControl && i == 0 {
-			specs = append(specs, selectbench.ExistencePositionControlSpec(base, trials))
+			pc := first
+			pc.Axis = first.Axis + selectbench.PositionSuffix
+			cells = append(cells, selectbench.RunSpecs(ctx, q, cat, fx, []selectbench.CellSpec{pc}, runID, topology)...)
+			levelOrder.Sequence = append(levelOrder.Sequence, pc.Axis)
 		}
-		cells = append(cells, selectbench.RunSpecs(ctx, q, cat, fx, specs, runID, topology)...)
 
 		levelControls := selectbench.RunControls(ctx, q, cat, fx, controlArgs)
 		found := map[string]bool{}
@@ -110,7 +116,7 @@ func runSelectExistenceMode(dsn, engine, topology, scale, out, reportOut string,
 			return fmt.Errorf("expected both existence controls at fanout=%d, got %d", fanout, len(found))
 		}
 		levels = append(levels, selectbench.FanoutLevel{Fanout: fanout, Parents: len(fx.Customers),
-			Children: len(fx.Orders), Fingerprint: selectbench.Fingerprint(fx)})
+			Children: len(fx.Orders), Fingerprint: selectbench.Fingerprint(fx), Order: levelOrder})
 	}
 
 	var version string

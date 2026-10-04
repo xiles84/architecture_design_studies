@@ -254,6 +254,8 @@ type AccessResult struct {
 	Overlap    []OverlapRecord `json:"overlap"`
 	Index      IndexCost       `json:"index_cost"`
 	Snapshot   SnapshotCheck   `json:"snapshot_check"`
+	Order      RunOrder        `json:"order"`
+	IndexOrder RunOrder        `json:"index_order"`
 	Notes      []string        `json:"notes,omitempty"`
 	Error      string          `json:"error,omitempty"`
 }
@@ -324,18 +326,11 @@ func (r AccessResult) Pairs() []PairDelta {
 // the first cell of the phase and again as the last. A large ratio here is a
 // session position effect, not a spelling effect.
 func (r AccessResult) PositionPair() (PairDelta, bool) {
-	if len(r.Shapes) == 0 {
-		return PairDelta{}, false
-	}
-	first, ok := r.Find("s18_or_predicate", "shape="+r.Shapes[0]+";spelling=or")
+	first, last, ok := positionPairCells(r.Cells)
 	if !ok {
 		return PairDelta{}, false
 	}
-	last, ok := r.Find("s18_or_predicate", "shape="+r.Shapes[0]+";spelling=or;position=last")
-	if !ok {
-		return PairDelta{}, false
-	}
-	return classifyPair("position control "+r.Shapes[0]+" or first vs last", first, last), true
+	return classifyPair("position control first vs last", first, last), true
 }
 
 func classifyPair(label string, a, b Cell) PairDelta {

@@ -128,6 +128,7 @@ type AggResult struct {
 	Provenance Provenance      `json:"provenance,omitempty"`
 	Cells      []Cell          `json:"cells"`
 	Controls   []ControlResult `json:"controls,omitempty"`
+	Order      RunOrder        `json:"order"`
 	Summary    map[string]int  `json:"summary"`
 	Notes      []string        `json:"notes,omitempty"`
 	Error      string          `json:"error,omitempty"`
@@ -200,14 +201,11 @@ func (r AggResult) TopNPairs() []AggPair {
 // PositionPair returns the first matrix cell and its end-of-phase repeat, if the
 // run carried the position control.
 func (r AggResult) PositionPair() (AggPair, bool) {
-	level := ParentLevels()[0]
-	first, okFirst := r.Find(AggregateTopNAxis("aggregate", AggregateStatements[0], level))
-	last, okLast := r.Find(AggregateTopNAxis("aggregate", AggregateStatements[0], level) + PositionSuffix)
-	if !okFirst || !okLast {
+	first, last, ok := positionPairCells(r.Cells)
+	if !ok {
 		return AggPair{}, false
 	}
-	p := newAggPair("aggregate", level, first, last, "position control post_join first vs last")
-	return p, true
+	return newAggPair("position", 0, first, last, "position control first vs last"), true
 }
 
 func newAggPair(family string, level int, a, b Cell, label string) AggPair {

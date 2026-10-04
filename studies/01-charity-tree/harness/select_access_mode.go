@@ -121,15 +121,22 @@ func runSelectAccessMode(dsn, engine, topology, scale, out, reportOut string, se
 		}
 	}
 
-	// Default arm cells.
+	// Default arm cells, in a seeded per-run order with interleaved rounds so a
+	// position/session drift is spread across cells instead of landing on the
+	// cells that happen to run late.
 	specs := selectbench.BuildAccessSpecs(fx, base, shapes, depths, pageLimit, trials)
-	result.Cells = append(result.Cells, selectbench.RunSpecs(ctx, q, cat, fx, specs, runID, topology)...)
+	plan := selectbench.PlanOrder(selectbench.OrderSeedFor(seed, runID), len(specs))
+	first := specs[plan.Order[0]]
+	result.Cells = append(result.Cells, selectbench.RunSpecsInterleaved(ctx, q, cat, fx, specs, plan, runID, topology)...)
+	result.Order = selectbench.RunOrder{Seed: plan.Seed, Rounds: trials, Sequence: plan.Sequence(specs)}
 
-	// Optional repeated-design position control: repeat the first cell at the
-	// end of the phase so the same spelling is measured first and last.
+	// Optional repeated-design position control: repeat the ACTUAL first cell of
+	// the randomized order at the end of the phase.
 	if positionControl && len(shapes) > 0 {
-		pc := selectbench.PositionControlSpec(base, shapes[0], trials)
+		pc := first
+		pc.Axis = first.Axis + selectbench.PositionSuffix
 		result.Cells = append(result.Cells, selectbench.RunSpecs(ctx, q, cat, fx, []selectbench.CellSpec{pc}, runID, topology)...)
+		result.Order.Sequence = append(result.Order.Sequence, pc.Axis)
 	}
 
 	// The overlap control must fire in every predicate shape on the measured
@@ -172,12 +179,19 @@ func runSelectAccessMode(dsn, engine, topology, scale, out, reportOut string, se
 		if err := q.Exec(ctx, "ANALYZE "+selectbench.TeachingSchema+".orders"); err != nil {
 			result.Notes = append(result.Notes, "ANALYZE after creating the expression index failed: "+err.Error())
 		}
+		var indexSpecsAll []selectbench.CellSpec
 		for _, exprShape := range shapes {
 			if !strings.HasSuffix(exprShape.Name, "/expression") {
 				continue
 			}
-			indexSpecs := shapeSpecsForIndex(base, exprShape, trials, "expression_index")
-			result.Cells = append(result.Cells, selectbench.RunSpecs(ctx, q, cat, fx, indexSpecs, runID, topology)...)
+			indexSpecsAll = append(indexSpecsAll, shapeSpecsForIndex(base, exprShape, trials, "expression_index")...)
+		}
+		// The physical-index arm is a separate labelled phase, with its own
+		// seeded order and interleaved rounds.
+		if len(indexSpecsAll) > 0 {
+			indexPlan := selectbench.PlanOrder(selectbench.OrderSeedFor(seed, runID+"|index"), len(indexSpecsAll))
+			result.Cells = append(result.Cells, selectbench.RunSpecsInterleaved(ctx, q, cat, fx, indexSpecsAll, indexPlan, runID, topology)...)
+			result.IndexOrder = selectbench.RunOrder{Seed: indexPlan.Seed, Rounds: trials, Sequence: indexPlan.Sequence(indexSpecsAll)}
 		}
 		result.Index = measureIndexCost(ctx, pool, fx, 500)
 	}

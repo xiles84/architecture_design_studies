@@ -2580,4 +2580,22 @@ exercises the mechanism, or the null you report is the wrong one.** The same tas
 physical arm (an expression index) can move one engine and not another, so the regime must be crossed with
 the physical arm rather than assumed.
 
+## Measurement order is part of the measurement (2026-10-04)
+
+An independent HIGH check of the first three SELECT families found that all 19 whole runs executed their
+cells in one fixed order and took each cell's samples consecutively. That makes cell position a confound:
+drift lands on whatever runs late, and every run repeats the same assignment. The correction permuted each
+whole run with a seed derived from the run id and interleaved one sample of every cell per round, then
+recorded the seed and the actual sequence. **A matrix that reports timings without recording the order in
+which cells ran has not controlled for position.**
+
+The same correction added a repeated-design control that repeats the *actual first cell* of the randomized
+order (never a hard-coded one). It bracketed first-to-last drift at 1.5-2.4% for access paths, 13-22% for
+membership/absence, and 29-74% for the aggregate/top-N family. **When the position term is tens of percent,
+paired ratios whose sign flips between runs are unresolved, not "mostly one way".** Under the corrected
+order the aggregate `DISTINCT ON` vs `ROW_NUMBER` sign was mixed at PostgreSQL levels 10 and 100, so the
+earlier "DISTINCT ON is fastest at scale" was narrowed rather than promoted; the access and existence
+signs reproduced. Interleaving is cheap; re-running a whole family after publishing its numbers is not.
+
+
 

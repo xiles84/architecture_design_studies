@@ -30,6 +30,14 @@ func RenderAggRun(r AggResult) (string, error) {
 	}
 	b.WriteString("\n")
 
+	b.WriteString("## Execution order\n\n")
+	fmt.Fprintf(&b, "- order seed `%d`; interleaved rounds: %d\n", r.Order.Seed, r.Order.Rounds)
+	b.WriteString("- executed sequence (one sample of every cell per round):\n")
+	for i, axis := range r.Order.Sequence {
+		fmt.Fprintf(&b, "  %d. %s\n", i+1, axis)
+	}
+	b.WriteString("\n")
+
 	b.WriteString("## P8 — parent aggregate (per selected parent)\n\n")
 	b.WriteString("Each row is one parent-selection level; ms are that run's own medians. `pre/post` is pre-aggregate over post-join, `corr/*` correlated over the other spelling, all at the same level and arguments.\n\n")
 	b.WriteString("| level (parents) | post_join ms | pre_agg ms | correlated ms | pre/post | corr/post | corr/pre |\n|---|---|---|---|---|---|---|\n")
@@ -165,7 +173,7 @@ func RenderAggReplicated(runs []AggResult) (string, error) {
 		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %d |\n",
 			k.engine, k.topology, k.axis, strings.Join(shown, ", "), med, spread, len(medians))
 	}
-	b.WriteString("\n## Pair ratios per run (per engine)\n\n| engine | topology | family | level | pair | ratios (B/A) | signs |\n|---|---|---|---|---|---|---|\n")
+	b.WriteString("\n## Pair ratios per run (per engine)\n\n| run | engine | topology | family | level | pair | ratio (B/A) | sign |\n|---|---|---|---|---|---|---|---|\n")
 	for _, r := range runs {
 		all := append(r.AggregatePairs(), r.TopNPairs()...)
 		if pp, ok := r.PositionPair(); ok {
@@ -181,7 +189,7 @@ func RenderAggReplicated(runs []AggResult) (string, error) {
 			} else if p.RatioBA < 1 {
 				sign = "<1"
 			}
-			fmt.Fprintf(&b, "| %s | %s | %s | %d | %s | %.4f | %s |\n", r.Engine, r.Topology, p.Family, p.Level, p.Label, p.RatioBA, sign)
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %d | %s | %.4f | %s |\n", r.RunID, r.Engine, r.Topology, p.Family, p.Level, p.Label, p.RatioBA, sign)
 		}
 	}
 	b.WriteString("\n## Recorded limits\n\n")

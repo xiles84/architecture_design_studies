@@ -81,12 +81,19 @@ func runSelectAggregateMode(dsn, engine, topology, scale, out, reportOut string,
 		StatementTimeout: time.Duration(statementTimeout) * time.Millisecond,
 	}
 	var cells []selectbench.Cell
+	var order selectbench.RunOrder
 	if gateErr == nil {
 		specs := selectbench.BuildAggregateSpecs(base, selectbench.ParentLevels(), trials)
+		plan := selectbench.PlanOrder(selectbench.OrderSeedFor(seed, runID), len(specs))
+		first := specs[plan.Order[0]]
+		cells = selectbench.RunSpecsInterleaved(ctx, q, cat, fx, specs, plan, runID, topology)
+		order = selectbench.RunOrder{Seed: plan.Seed, Rounds: trials, Sequence: plan.Sequence(specs)}
 		if positionControl {
-			specs = append(specs, selectbench.AggregatePositionControlSpec(base, trials))
+			pc := first
+			pc.Axis = first.Axis + selectbench.PositionSuffix
+			cells = append(cells, selectbench.RunSpecs(ctx, q, cat, fx, []selectbench.CellSpec{pc}, runID, topology)...)
+			order.Sequence = append(order.Sequence, pc.Axis)
 		}
-		cells = selectbench.RunSpecs(ctx, q, cat, fx, specs, runID, topology)
 	}
 
 	// Controls for this family run at the widest level, N=1. RunControls also
@@ -165,7 +172,7 @@ func runSelectAggregateMode(dsn, engine, topology, scale, out, reportOut string,
 	result := selectbench.AggResult{
 		RunID: runID, Engine: engine, Topology: topology, Scale: scale, Seed: seed,
 		Levels: selectbench.ParentLevels(), Provenance: prov, Cells: cells,
-		Controls: familyControls, Summary: map[string]int{},
+		Controls: familyControls, Order: order, Summary: map[string]int{},
 		Notes: []string{
 			"one sequential reader, no concurrent writers; latency of a drained answer, not throughput",
 			"single-node only; the 3-node per-node/equal-total arms are a coverage gap on this host",

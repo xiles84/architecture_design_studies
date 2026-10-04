@@ -55,6 +55,21 @@ func RenderAccessRun(r AccessResult) (string, error) {
 	b.WriteString("## Provenance\n\n")
 	writeAccessProvenance(&b, r.Provenance)
 
+	b.WriteString("## Execution order\n\n")
+	fmt.Fprintf(&b, "- default matrix: order seed `%d`, %d interleaved rounds\n", r.Order.Seed, r.Order.Rounds)
+	fmt.Fprintf(&b, "- expression-index arm: order seed `%d`, %d interleaved rounds\n", r.IndexOrder.Seed, r.IndexOrder.Rounds)
+	b.WriteString("- default-matrix sequence (one sample of every cell per round):\n")
+	for i, axis := range r.Order.Sequence {
+		fmt.Fprintf(&b, "  %d. %s\n", i+1, axis)
+	}
+	if len(r.IndexOrder.Sequence) > 0 {
+		b.WriteString("- index-arm sequence:\n")
+		for i, axis := range r.IndexOrder.Sequence {
+			fmt.Fprintf(&b, "  %d. %s\n", i+1, axis)
+		}
+	}
+	b.WriteString("\n")
+
 	b.WriteString("## Disjunction disjointness proof\n\n")
 	b.WriteString("UNION ALL is a competing spelling of OR only while the two arms cannot both match one row. ")
 	b.WriteString("The count is computed by the independent Go oracle from the deterministic fixture.\n\n")
@@ -350,9 +365,10 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 	}
 	b.WriteString("\n")
 
-	b.WriteString("## Pair ratios per run (per engine)\n\n| engine | topology | pair | ratios (B/A) | signs |\n|---|---|---|---|---|\n")
+	b.WriteString("## Pair ratios per run (per engine)\n\n| engine | topology | pair | run ids | ratios (B/A) | signs |\n|---|---|---|---|---|---|\n")
 	type pairKey struct{ engine, topology, label string }
 	type agg struct {
+		ids    []string
 		ratios []string
 		signs  []string
 	}
@@ -382,6 +398,7 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 			} else if p.RatioBA < 1 {
 				sign = "<1"
 			}
+			pairs[k].ids = append(pairs[k].ids, r.RunID)
 			pairs[k].ratios = append(pairs[k].ratios, fmt.Sprintf("%.4f", p.RatioBA))
 			pairs[k].signs = append(pairs[k].signs, sign)
 		}
@@ -397,7 +414,7 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 	})
 	for _, k := range pairOrder {
 		a := pairs[k]
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", k.engine, k.topology, k.label, strings.Join(a.ratios, ", "), strings.Join(a.signs, ", "))
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s |\n", k.engine, k.topology, k.label, strings.Join(a.ids, ", "), strings.Join(a.ratios, ", "), strings.Join(a.signs, ", "))
 	}
 	b.WriteString("\n")
 

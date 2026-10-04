@@ -154,6 +154,11 @@ func main() {
 			fatal(err)
 		}
 		return
+	case "manifest":
+		if err := runManifest(*resultsDir, *reportOut); err != nil {
+			fatal(err)
+		}
+		return
 	}
 	if *cmd == "list" {
 		for _, d := range designs {
