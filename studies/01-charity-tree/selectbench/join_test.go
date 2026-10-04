@@ -127,6 +127,25 @@ func TestJoinLimitBeforeControl(t *testing.T) {
 	if !answersEqual(full, ControlJoinLimitBefore(jf, 5, 7)) {
 		t.Fatal("edge fixture cannot distinguish a limit of 7; the gate must use the large fixture")
 	}
+	// Detection compares the observed answer with the contract oracle the
+	// control pretends to serve, not with the control's own expected answer.
+	cat := mustCatalog(t)
+	rows := [][]any{}
+	for _, r := range trunc {
+		var amt any
+		if r.Amount != nil {
+			amt = *r.Amount
+		}
+		rows = append(rows, []any{r.CustomerID, r.CustomerName, r.FactID, amt})
+	}
+	if err := JoinDetectControl(cat, "x02_join_limit_before", jf, JoinArgs{Threshold: 5}, rows); err != nil {
+		t.Errorf("x02 control not detected: %v", err)
+	}
+	// A control whose answer DID match the contracted bag must be reported as
+	// not detected; otherwise the gate would pass on a control that never fires.
+	if err := JoinDetectControl(cat, "x02_join_limit_before", jf, JoinArgs{Threshold: 5}, canonicalRows(t, GroupJoinBag, full)); err == nil {
+		t.Error("control matched the bag oracle but was reported detected")
+	}
 }
 
 func TestReuseAnswerDeterministic(t *testing.T) {

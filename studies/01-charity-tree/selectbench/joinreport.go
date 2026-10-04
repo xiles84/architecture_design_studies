@@ -37,8 +37,8 @@ func sameJoinPlan(a, b Cell) string {
 // the result JSON bytes, computed by the writer (it cannot live inside the file
 // it hashes).
 func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
-	if len(r.Cells) == 0 {
-		return "", fmt.Errorf("no cells to render")
+	if len(r.Cells) == 0 && r.Feasibility == nil {
+		return "", fmt.Errorf("no cells and no feasibility evidence to render")
 	}
 	var b strings.Builder
 	b.WriteString("# Study 01 SELECT join/filter and CTE materialization — generated measurements\n\n")

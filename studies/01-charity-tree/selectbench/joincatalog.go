@@ -337,14 +337,13 @@ func JoinDetectControl(c *Catalog, name string, jf JoinFixture, a JoinArgs, rows
 		return err
 	}
 	var want any
-	switch name {
-	case "x01_optional_where":
-		want, err = JoinOptional(jf, a.Threshold), error(nil)
-	case "x02_join_limit_before":
-		want = ControlJoinLimitBefore(jf, a.Threshold, 7)
-	}
-	if err != nil {
-		return err
+	switch group {
+	case GroupJoinOptional:
+		want = JoinOptional(jf, a.Threshold)
+	case GroupJoinBag:
+		want = JoinBag(jf, a.Threshold)
+	default:
+		return fmt.Errorf("no oracle for join control contract %q", group)
 	}
 	if answersEqual(want, got) {
 		return fmt.Errorf("%s was NOT detected: its answer matched the %s oracle", name, group)
