@@ -76,6 +76,7 @@ func main() {
 		cmd          = flag.String("cmd", "full", "full | load | verify | read | write | mixed | explain | stats | report | list")
 		resultsDir   = flag.String("results", "", "report: directory of result JSON files to summarise")
 		reportOut    = flag.String("report-out", "", "report: markdown file to write")
+		armFilter    = flag.String("arm", "", "join-report: only summarise runs carrying this arm/dataset value")
 		compareDir   = flag.String("compare", "", "report-compare: the alternative-regime results directory")
 		labelA       = flag.String("label-a", "", "report-compare: name for the -results regime")
 		labelB       = flag.String("label-b", "", "report-compare: name for the -compare regime")
@@ -161,7 +162,7 @@ func main() {
 		}
 		return
 	case "join-report":
-		if err := runSelectJoinReport(*resultsDir, *reportOut); err != nil {
+		if err := runSelectJoinReport(*resultsDir, *reportOut, *armFilter); err != nil {
 			fatal(err)
 		}
 		return

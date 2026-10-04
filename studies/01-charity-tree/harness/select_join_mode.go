@@ -530,9 +530,16 @@ func writeJoinOutputs(result selectbench.JoinResult, runErr error, feasibilityOn
 	return nil
 }
 
+func armFilterLabel(armFilter string) string {
+	if armFilter == "" {
+		return ""
+	}
+	return ", arm=" + armFilter
+}
+
 // runSelectJoinReport re-renders one run from a directory holding join.json, or
 // writes the cross-whole-run report for a directory of run subdirectories.
-func runSelectJoinReport(resultsDir, reportOut string) error {
+func runSelectJoinReport(resultsDir, reportOut, armFilter string) error {
 	if resultsDir == "" || reportOut == "" {
 		return fmt.Errorf("-cmd join-report needs -results <dir> and -report-out <file>")
 	}
@@ -574,14 +581,19 @@ func runSelectJoinReport(resultsDir, reportOut string) error {
 			return fmt.Errorf("%s: %w", p, err)
 		}
 		// A feasibility-only run measures probes, not the matrix; it has no
-		// cells to replicate and must not appear as a whole run.
+		// cells to replicate and must not appear as a whole run. When an arm
+		// filter is given, runs from the other arm are excluded rather than
+		// pooled; the report's compatibility classes then only ever see one arm.
 		if len(r.Cells) == 0 {
+			continue
+		}
+		if armFilter != "" && r.Arm != armFilter {
 			continue
 		}
 		runs = append(runs, r)
 	}
 	if len(runs) == 0 {
-		return fmt.Errorf("no whole join runs (with cells) at or under %s", resultsDir)
+		return fmt.Errorf("no whole join runs (with cells%s) at or under %s", armFilterLabel(armFilter), resultsDir)
 	}
 	report, err := selectbench.RenderJoinReplicated(runs)
 	if err != nil {

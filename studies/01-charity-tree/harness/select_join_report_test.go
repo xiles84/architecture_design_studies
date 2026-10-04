@@ -54,7 +54,7 @@ func TestJoinInputsDigestReproducible(t *testing.T) {
 		t.Fatal(err)
 	}
 	reportOut := filepath.Join(dir, "report.md")
-	if err := runSelectJoinReport(runDir, reportOut); err != nil {
+	if err := runSelectJoinReport(runDir, reportOut, ""); err != nil {
 		t.Fatalf("runSelectJoinReport: %v", err)
 	}
 	report, err := os.ReadFile(reportOut)
