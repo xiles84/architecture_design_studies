@@ -80,9 +80,8 @@ func TestJoinProvenanceSeparatesClientAndEngine(t *testing.T) {
 	t.Setenv("ADS_BENCH_IMAGE_ID", "client-digest")
 	t.Setenv("ADS_ENGINE_IMAGE", "docker.io/library/postgres:17.11")
 	t.Setenv("ADS_ENGINE_IMAGE_ID", "engine-digest")
-	p := joinProvenance("Postgres 17.11", "host-test", "cte",
-		selectbench.JoinGenSpec{Customers: 2, FactCount: 10}, []int{1},
-		"postgres", "single", 42, 5, 120000, "cpu-before", "fp1")
+	p := joinProvenance("Postgres 17.11", "host-test", "cte", "study01-person-donation-charity",
+		10, 2, []int{1}, "postgres", "single", 42, 5, 120000, "cpu-before", "fp1")
 	if p.ClientImage != "localhost/client:1" || p.ClientImageDigest != "client-digest" {
 		t.Fatalf("client provenance = %q @ %q", p.ClientImage, p.ClientImageDigest)
 	}

@@ -192,6 +192,7 @@ type JoinResult struct {
 	Engine         string              `json:"engine"`
 	Topology       string              `json:"topology"`
 	Scale          string              `json:"scale"`
+	Arm            string              `json:"arm,omitempty"`
 	FactCount      int                 `json:"fact_count"`
 	Customers      int                 `json:"customers"`
 	Seed           int64               `json:"seed"`

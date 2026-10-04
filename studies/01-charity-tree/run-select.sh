@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown argument $1" ;;
   esac
 done
-[[ "$SCALE" =~ ^(tiny|small|medium|large|deep|sweep|fanout|cte|cte-small)$ ]] || die "unknown scale $SCALE"
+[[ "$SCALE" =~ ^(tiny|small|medium|large|deep|sweep|fanout|cte|cte-small|cte-domain|cte-domain-small)$ ]] || die "unknown scale $SCALE"
 [[ "$FAMILY" =~ ^(select|access|aggregate|existence|join)$ ]] || die "family must be select, access, aggregate, existence or join"
 [[ "$TOPOLOGY" =~ ^(single|cluster3)$ ]] || die "topology must be single or cluster3"
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"

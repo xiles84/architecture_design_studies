@@ -64,12 +64,90 @@ func probeExplainOptions(ctx context.Context, pool *pgxpool.Pool, engine string)
 	return "", "no engine-specific EXPLAIN option list was supported; plain PostgreSQL options used (" + firstErr + ")"
 }
 
+func isJoinDomainScale(scale string) bool { return strings.Contains(scale, "domain") }
+
 func selectJoinSpec(scale string) selectbench.JoinGenSpec {
 	switch scale {
 	case "cte-small":
 		return selectbench.JoinGenSpec{Customers: 200, FactCount: 20000, NullFKEvery: 199}
 	default: // cte
 		return selectbench.JoinGenSpec{Customers: 2000, FactCount: 200000, NullFKEvery: 1999}
+	}
+}
+
+// selectJoinDomainSpec gives the domain arm the same approved shape (2,000
+// persons, 200,000 donations) so the reviewed 60-cell spelling and 30-cell reuse
+// matrices are the same size, on real Study 01 entities.
+func selectJoinDomainSpec(scale string) selectbench.JoinDomainGenSpec {
+	switch scale {
+	case "cte-domain-small":
+		return selectbench.JoinDomainGenSpec{Charities: 20, Persons: 200, Donations: 20000, NullAmountEvery: 199}
+	default: // cte-domain
+		return selectbench.JoinDomainGenSpec{Charities: 50, Persons: 2000, Donations: 200000, NullAmountEvery: 1999}
+	}
+}
+
+// joinArm is the data binding a run measures: the original synthetic
+// microfixture (customers/facts) or the Study 01 domain (person/donation bound
+// through the charity relationship). The catalogue is shared; only the fixture,
+// the search_path schema and the provenance label differ.
+type joinArm struct {
+	name         string
+	dataset      string
+	schema       string
+	scale        string
+	factCount    int
+	parents      int
+	fingerprint  string
+	oracle       selectbench.JoinFixture
+	edgeOracle   selectbench.JoinFixture
+	emptyOracle  selectbench.JoinFixture
+	prepare      func(context.Context, selectbench.Querier) error
+	prepareEdge  func(context.Context, selectbench.Querier) error
+	prepareEmpty func(context.Context, selectbench.Querier) error
+}
+
+func selectJoinArm(seed int64, scale string) joinArm {
+	if isJoinDomainScale(scale) {
+		dspec := selectJoinDomainSpec(scale)
+		df := selectbench.GenerateJoinDomain(seed, dspec)
+		edge := selectbench.JoinDomainEdge()
+		empty := selectbench.JoinDomainFixture{
+			Charities: []selectbench.Charity{{ID: 1, Name: "Empty"}},
+			Persons: []selectbench.Person{
+				{ID: 1, CharityID: 1, FullName: "Ana"},
+				{ID: 2, CharityID: 1, FullName: "Ben"},
+			},
+		}
+		return joinArm{
+			name: "study01-domain", dataset: "study01-person-donation-charity",
+			schema: selectbench.JoinDomainSchema, scale: scale,
+			factCount: dspec.Donations, parents: dspec.Persons,
+			fingerprint:  selectbench.JoinDomainFingerprint(df),
+			oracle:       df.AsJoinFixture(),
+			edgeOracle:   edge.AsJoinFixture(),
+			emptyOracle:  empty.AsJoinFixture(),
+			prepare:      func(ctx context.Context, q selectbench.Querier) error { return prepareJoinDomain(ctx, q, df) },
+			prepareEdge:  func(ctx context.Context, q selectbench.Querier) error { return prepareJoinDomain(ctx, q, edge) },
+			prepareEmpty: func(ctx context.Context, q selectbench.Querier) error { return prepareJoinDomain(ctx, q, empty) },
+		}
+	}
+	spec := selectJoinSpec(scale)
+	jf := selectbench.GenerateJoin(seed, spec)
+	empty := selectbench.JoinFixture{Customers: []selectbench.Customer{{ID: 1, Name: "Ana"}, {ID: 2, Name: "Ben"}}}
+	return joinArm{
+		name: "synthetic-microfixture", dataset: "synthetic-customers-facts",
+		schema: selectbench.JoinSchema, scale: scale,
+		factCount: spec.FactCount, parents: spec.Customers,
+		fingerprint: selectbench.JoinFingerprint(jf),
+		oracle:      jf,
+		edgeOracle:  selectbench.JoinEdge(),
+		emptyOracle: empty,
+		prepare:     func(ctx context.Context, q selectbench.Querier) error { return prepareJoinFixture(ctx, q, jf) },
+		prepareEdge: func(ctx context.Context, q selectbench.Querier) error {
+			return prepareJoinFixture(ctx, q, selectbench.JoinEdge())
+		},
+		prepareEmpty: func(ctx context.Context, q selectbench.Querier) error { return prepareJoinFixture(ctx, q, empty) },
 	}
 }
 
@@ -85,13 +163,28 @@ func prepareJoinFixture(ctx context.Context, q selectbench.Querier, jf selectben
 	return q.Exec(ctx, "ANALYZE "+selectbench.JoinSchema+".customers; ANALYZE "+selectbench.JoinSchema+".facts;")
 }
 
+// prepareJoinDomain loads the Study 01 domain tables and their catalogue-binding
+// views. The views are the only place person/donation are mapped onto the shared
+// projection, so the measured SQL never changes between arms.
+func prepareJoinDomain(ctx context.Context, q selectbench.Querier, df selectbench.JoinDomainFixture) error {
+	if err := q.Exec(ctx, selectbench.JoinDomainSchemaSQL()); err != nil {
+		return err
+	}
+	for _, stmt := range selectbench.JoinDomainLoadSQL(df, 1000) {
+		if err := q.Exec(ctx, stmt); err != nil {
+			return err
+		}
+	}
+	return q.Exec(ctx, selectbench.JoinDomainAnalyzeSQL())
+}
+
 // runJoinGate is the correctness gate: the base spellings and the optional-match
 // contract must answer the edge fixture correctly, and the WHERE-placement
 // control must be seen to answer differently. A gate failure aborts before any
 // timing.
-func runJoinGate(ctx context.Context, q selectbench.Querier, cat *selectbench.Catalog) ([]selectbench.Cell, []selectbench.JoinControlResult, error) {
-	edge := selectbench.JoinEdge()
-	if err := prepareJoinFixture(ctx, q, edge); err != nil {
+func runJoinGate(ctx context.Context, q selectbench.Querier, cat *selectbench.Catalog, arm joinArm) ([]selectbench.Cell, []selectbench.JoinControlResult, error) {
+	edge := arm.edgeOracle
+	if err := arm.prepareEdge(ctx, q); err != nil {
 		return nil, nil, fmt.Errorf("gate fixture load: %w", err)
 	}
 	budget := 60 * time.Second
@@ -140,8 +233,8 @@ func runJoinGate(ctx context.Context, q selectbench.Querier, cat *selectbench.Ca
 	// Empty input: the bag is empty and the optional contract preserves every
 	// parent with NULLs. This is a live DB check, not only the Go oracle, and it
 	// covers both the ON and filtered-derived optional spellings.
-	empty := selectbench.JoinFixture{Customers: []selectbench.Customer{{ID: 1, Name: "Ana"}, {ID: 2, Name: "Ben"}}}
-	if err := prepareJoinFixture(ctx, q, empty); err != nil {
+	empty := arm.emptyOracle
+	if err := arm.prepareEmpty(ctx, q); err != nil {
 		return cells, controls, fmt.Errorf("gate empty-fixture load: %w", err)
 	}
 	emptyCells := selectbench.RunJoinSpecs(ctx, q, cat, empty, []selectbench.JoinSpec{
@@ -254,9 +347,11 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	if err != nil {
 		return err
 	}
-	spec := selectJoinSpec(scale)
-	jf := selectbench.GenerateJoin(seed, spec)
-	thresholds := selectbench.JoinThresholds(spec.FactCount)
+	// The arm is chosen by the scale name: `cte`/`cte-small` measure the
+	// synthetic microfixture, `cte-domain`/`cte-domain-small` measure the Study 01
+	// person/donation fixture bound through the charity views.
+	arm := selectJoinArm(seed, scale)
+	thresholds := selectbench.JoinThresholds(arm.factCount)
 	budget := time.Duration(statementTimeout) * time.Millisecond
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Minute)
@@ -266,7 +361,7 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	if err != nil {
 		return fmt.Errorf("dsn: %w", err)
 	}
-	cfg.ConnConfig.RuntimeParams["search_path"] = selectbench.JoinSchema + ",public"
+	cfg.ConnConfig.RuntimeParams["search_path"] = arm.schema + ",public"
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 	cfg.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(statementTimeout)
 	cfg.MaxConns = 2
@@ -283,28 +378,28 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 
 	result := selectbench.JoinResult{
 		RunID: runID, Engine: engine, Topology: topology, Scale: scale,
-		FactCount: spec.FactCount, Customers: spec.Customers, Seed: seed,
+		Arm: arm.dataset, FactCount: arm.factCount, Customers: arm.parents, Seed: seed,
 		Thresholds: thresholds, Summary: map[string]int{},
 		ExplainOptions: explainOpts,
 	}
 	result.Notes = append(result.Notes, explainEvidence)
 
-	gateCells, gateControls, gateErr := runJoinGate(ctx, q, cat)
+	gateCells, gateControls, gateErr := runJoinGate(ctx, q, cat, arm)
 	_ = gateCells
 	if gateErr != nil {
 		return writeJoinOutputs(result, gateErr, false, out, reportOut)
 	}
 
-	if err := prepareJoinFixture(ctx, q, jf); err != nil {
+	if err := arm.prepare(ctx, q); err != nil {
 		return fmt.Errorf("load fixture: %w", err)
 	}
 	result.Controls = append(result.Controls, gateControls...)
 
 	// The limit-before-join control is proved on the large fixture (the edge
 	// fixture is too small for a limit of 7 to truncate anything).
-	bigControls := selectbench.RunJoinControls(ctx, q, cat, jf, []selectbench.JoinSpec{{
+	bigControls := selectbench.RunJoinControls(ctx, q, cat, arm.oracle, []selectbench.JoinSpec{{
 		Statement: "x02_join_limit_before", Axis: "control=x02_join_limit_before",
-		Args: selectbench.JoinArgs{Threshold: int(float64(spec.FactCount) * 10 / 100), Trials: 1, StatementTimeout: budget},
+		Args: selectbench.JoinArgs{Threshold: int(float64(arm.factCount) * 10 / 100), Trials: 1, StatementTimeout: budget},
 	}})
 	for _, c := range bigControls {
 		if !c.Detected {
@@ -313,40 +408,40 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	}
 	result.Controls = append(result.Controls, bigControls...)
 
-	result.Feasibility = joinFeasibility(ctx, pool, q, cat, jf, thresholds, budget)
+	result.Feasibility = joinFeasibility(ctx, pool, q, cat, arm.oracle, thresholds, budget)
 
 	base := selectbench.JoinArgs{Trials: trials, StatementTimeout: budget}
 	if !feasibilityOnly {
-		specs := selectbench.BuildJoinSpecs(base, spec.FactCount, trials)
+		specs := selectbench.BuildJoinSpecs(base, arm.factCount, trials)
 		plan := selectbench.PlanOrder(selectbench.OrderSeedFor(seed, runID), len(specs))
 		first := specs[plan.Order[0]]
-		result.Cells = selectbench.RunJoinSpecsInterleaved(ctx, q, cat, jf, specs, plan, runID, topology)
+		result.Cells = selectbench.RunJoinSpecsInterleaved(ctx, q, cat, arm.oracle, specs, plan, runID, topology)
 		result.Order = selectbench.RunOrder{Seed: plan.Seed, Rounds: trials, Sequence: plan.JoinSequence(specs)}
 		if positionControl {
 			pc := first
 			pc.Axis += selectbench.PositionSuffix
-			result.Cells = append(result.Cells, selectbench.RunJoinSpecs(ctx, q, cat, jf, []selectbench.JoinSpec{pc}, runID, topology)...)
+			result.Cells = append(result.Cells, selectbench.RunJoinSpecs(ctx, q, cat, arm.oracle, []selectbench.JoinSpec{pc}, runID, topology)...)
 			result.Order.Sequence = append(result.Order.Sequence, pc.Axis)
 		}
 	}
 
 	version := ""
 	_ = pool.QueryRow(ctx, "SELECT version()").Scan(&version)
-	result.Provenance = joinProvenance(version, environment, scale, spec, thresholds, engine, topology, seed, trials, statementTimeout, cpuBefore, selectbench.JoinFingerprint(jf))
+	result.Provenance = joinProvenance(version, environment, scale, arm.dataset, arm.factCount, arm.parents, thresholds, engine, topology, seed, trials, statementTimeout, cpuBefore, arm.fingerprint)
 	result.Notes = append(result.Notes, joinGaps(engine, topology)...)
 	return writeJoinOutputs(result, nil, feasibilityOnly, out, reportOut)
 }
 
-func joinProvenance(version, environment, scale string, spec selectbench.JoinGenSpec, thresholds []int, engine, topology string, seed int64, trials, statementTimeout int, cpuBefore, fingerprint string) selectbench.Provenance {
+func joinProvenance(version, environment, scale, dataset string, factCount, parents int, thresholds []int, engine, topology string, seed int64, trials, statementTimeout int, cpuBefore, fingerprint string) selectbench.Provenance {
 	rpc := "not parsed; raw EXPLAIN retained (coverage gap)"
 	if engine == "postgres" && topology == "single" {
 		rpc = "N/A on PostgreSQL single-node"
 	}
 	settings := map[string]string{
-		"scale": scale, "topology": topology, "fact_count": fmt.Sprint(spec.FactCount),
-		"customers": fmt.Sprint(spec.Customers), "thresholds": fmt.Sprint(thresholds),
+		"scale": scale, "dataset": dataset, "topology": topology, "fact_count": fmt.Sprint(factCount),
+		"customers": fmt.Sprint(parents), "thresholds": fmt.Sprint(thresholds),
 		"selectivity_mapping":  "rank <= threshold; rank is a deterministic shuffle of 1..fact_count",
-		"index_set":            "facts_rank_idx(rank),facts_customer_idx(customer_id),primary keys; no per-spelling index",
+		"index_set":            "child rank index and parent-key index, primary keys; no per-spelling index",
 		"statistics":           "ANALYZE after deterministic load",
 		"prepared_plan_policy": "pgx simple protocol; no prepared statements",
 		"client_workers":       "1 sequential reader; 0 writers", "connection_pool": "2 = 1 reader/setup + 1 reserve",

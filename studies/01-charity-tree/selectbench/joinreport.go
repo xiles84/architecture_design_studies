@@ -113,8 +113,8 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 	}
 	b.WriteString("\n")
 
-	fmt.Fprintf(&b, "## Fixture and selectivity mapping\n\n- fact rows: %d\n- customers: %d\n- rank thresholds: %v\n\nThe predicate is `rank <= threshold`, where `rank` is a deterministic shuffle of 1..%d; `rank` is only a labelled proxy for the teaching amount predicate.\n\n",
-		r.FactCount, r.Customers, r.Thresholds, r.FactCount)
+	fmt.Fprintf(&b, "## Fixture and selectivity mapping\n\n- arm: `%s`\n- fact rows: %d\n- parent rows: %d\n- rank thresholds: %v\n\nThe predicate is `rank <= threshold`, where `rank` is a deterministic shuffle of 1..%d; `rank` is a labelled proxy for the teaching selective predicate, not the same question. The `cte`/`cte-small` arm is the synthetic customers/facts microfixture; the `cte-domain` arm is Study 01's person/donation fixture with the person's charity projected and the views binding it to this catalogue.\n\n",
+		orUnknown(r.Arm), r.FactCount, r.Customers, r.Thresholds, r.FactCount)
 
 	if r.Feasibility != nil {
 		renderJoinFeasibility(&b, *r.Feasibility)
