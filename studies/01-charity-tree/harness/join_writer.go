@@ -20,7 +20,7 @@ import (
 // is a fixed maintenance load, not an optimistic/pessimistic comparison.
 
 type maintenanceWriter struct {
-	pool   *pgxpool.Pool
+	pools  []*pgxpool.Pool
 	schema string
 	table  string
 	idCol  string
@@ -34,16 +34,17 @@ type maintenanceWriter struct {
 	latency   []float64
 	perKey    map[int]int
 	intended  map[int]int
+	ops       []int
 	lastErr   string
 
 	stop chan struct{}
 	wg   sync.WaitGroup
 }
 
-func newMaintenanceWriter(pool *pgxpool.Pool, schema, table, idCol string, keys []int, rate int) *maintenanceWriter {
+func newMaintenanceWriter(pools []*pgxpool.Pool, schema, table, idCol string, keys []int, rate int) *maintenanceWriter {
 	return &maintenanceWriter{
-		pool: pool, schema: schema, table: table, idCol: idCol, keys: keys, rate: rate,
-		perKey: map[int]int{}, intended: map[int]int{},
+		pools: pools, schema: schema, table: table, idCol: idCol, keys: keys, rate: rate,
+		perKey: map[int]int{}, intended: map[int]int{}, ops: make([]int, len(pools)),
 		stop: make(chan struct{}),
 	}
 }
@@ -76,11 +77,16 @@ func (w *maintenanceWriter) start(ctx context.Context) {
 			w.mu.Lock()
 			w.offered++
 			w.mu.Unlock()
+			// Rotate the writer across the run's endpoints exactly as the reader
+			// does, so a cluster arm's write path is not silently single-ended
+			// (review M-gap: the writer used one endpoint).
+			ep := i % len(w.pools)
 			t0 := time.Now()
-			_, err := w.pool.Exec(ctx,
+			_, err := w.pools[ep].Exec(ctx,
 				fmt.Sprintf("UPDATE %s.%s SET maintenance_updates = maintenance_updates + 1 WHERE %s = $1", w.schema, w.table, w.idCol), key)
 			lat := float64(time.Since(t0).Microseconds()) / 1000
 			w.mu.Lock()
+			w.ops[ep]++
 			if err != nil {
 				w.failed++
 				if w.lastErr == "" {
@@ -121,7 +127,7 @@ func (w *maintenanceWriter) stats(phase string, wall float64) *selectbench.Write
 		Phase: phase, TargetRate: w.rate,
 		Offered: w.offered, Completed: w.completed, Failed: w.failed,
 		WallSeconds: wall, LatencyMS: append([]float64(nil), w.latency...),
-		PerKey: map[string]int{}, Error: w.lastErr,
+		PerKey: map[string]int{}, EndpointOps: append([]int(nil), w.ops...), Error: w.lastErr,
 	}
 	for k, v := range w.perKey {
 		s.PerKey[fmt.Sprint(k)] = v
@@ -150,7 +156,7 @@ func (w *maintenanceWriter) ledger(ctx context.Context) (keys, mismatch int, det
 	if len(want) == 0 {
 		return 0, 0, "writer committed no updates in this phase"
 	}
-	rows, err := w.pool.Query(ctx,
+	rows, err := w.pools[0].Query(ctx,
 		fmt.Sprintf("SELECT %s, maintenance_updates FROM %s.%s WHERE %s <= $1", w.idCol, w.schema, w.table, w.idCol), maxKey)
 	if err != nil {
 		return 0, 0, "ledger read failed: " + err.Error()

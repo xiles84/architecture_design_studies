@@ -1,0 +1,55 @@
+# YB range vs default rank index feature check (single node, 2025.2.6.0-b111)
+# date: 2026-10-04; 200000 rows id=rank
+
+## indexdefs
+  indexname  |                           indexdef                           
+-------------+--------------------------------------------------------------
+ th_pkey     | CREATE UNIQUE INDEX th_pkey ON public.th USING lsm (id HASH)
+ th_rank_idx | CREATE INDEX th_rank_idx ON public.th USING lsm (rank HASH)
+ tr_pkey     | CREATE UNIQUE INDEX tr_pkey ON public.tr USING lsm (id HASH)
+ tr_rank_idx | CREATE INDEX tr_rank_idx ON public.tr USING lsm (rank ASC)
+(4 rows)
+
+## default (rank) plan for rank<=20
+                                      QUERY PLAN                                       
+---------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=10024.28..10024.29 rows=1 width=8)
+   ->  Index Only Scan using th_rank_idx on th  (cost=24.10..10024.23 rows=20 width=0)
+         Storage Filter: (rank <= 20)
+         Partial Aggregate: true
+(4 rows)
+
+## range (rank ASC) plan for rank<=20
+                                     QUERY PLAN                                     
+------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=25.28..25.29 rows=1 width=8)
+   ->  Index Only Scan using tr_rank_idx on tr  (cost=24.10..25.23 rows=21 width=0)
+         Index Cond: (rank <= 20)
+         Partial Aggregate: true
+(4 rows)
+
+## range plan with storage counters
+   ->  Index Only Scan using tr_rank_idx on tr  (cost=24.10..25.23 rows=21 width=0) (actual time=0.229..0.230 rows=1 loops=1)
+         Index Cond: (rank <= 20)
+         Storage Index Read Execution Time: 0.172 ms
+         Storage Index Rows Scanned: 20
+ Execution Time: 0.383 ms
+ Storage Read Execution Time: 0.172 ms
+ Storage Rows Scanned: 20
+ Catalog Read Execution Time: 12.654 ms
+ Storage Execution Time: 12.826 ms
+## table properties and tablets
+ num_tablets | num_hash_key_columns | is_colocated | tablegroup_oid | colocation_id 
+-------------+----------------------+--------------+----------------+---------------
+           1 |                    1 | f            |                |              
+(1 row)
+
+ table_name  | tablets 
+-------------+---------
+ tr          |       1
+ tr_rank_idx |       1
+(2 rows)
+
+## leader per tablet
+Tablet-UUID                      	Range                                                    	Leader-IP       	Leader-UUID
+c11573f590174a4a885d0a1ff6bb5c08 	hash_split: [0x0000, 0xFFFF]                             	yb-single:9100  	106a004df87d4191907682e3e4a1e009

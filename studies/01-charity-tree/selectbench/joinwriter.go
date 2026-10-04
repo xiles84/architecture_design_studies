@@ -48,6 +48,9 @@ type WriterStats struct {
 	CompletedRate float64        `json:"completed_rate_per_sec"`
 	LatencyMS     []float64      `json:"latency_ms,omitempty"`
 	PerKey        map[string]int `json:"per_key,omitempty"`
+	// EndpointOps is how many updates the writer sent to each endpoint, so a
+	// cluster arm cannot be silently single-ended.
+	EndpointOps []int `json:"endpoint_ops,omitempty"`
 	// LedgerKeys is how many keys were reconciled; LedgerMismatch how many
 	// database counter values disagreed with the writer's intended increments.
 	LedgerKeys     int    `json:"ledger_keys"`

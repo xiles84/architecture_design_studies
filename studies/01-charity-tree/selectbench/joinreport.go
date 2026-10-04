@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -37,9 +38,11 @@ func joinClass(r JoinResult) string {
 
 func joinClassDescription(r JoinResult) string {
 	p := r.Provenance
-	return fmt.Sprintf("env=`%s`; dataset=`%s`; client=`%s`@`%s`; engine=`%s`@`%s`",
+	arm := func(k string) string { return orUnknown(p.Settings[k]) }
+	return fmt.Sprintf("env=`%s`; dataset=`%s`; client=`%s`@`%s`; engine=`%s`@`%s`; topology=`%s`; node=%s; client_budget=%s; placement=`%s`; phase=`%s`; index_arm=`%s`; endpoints=`%s`",
 		orUnknown(p.Environment), orUnknown(p.DatasetFingerprint), orUnknown(p.ClientImage),
-		orUnknown(p.ClientImageDigest), orUnknown(p.EngineImage), orUnknown(p.EngineImageDigest))
+		orUnknown(p.ClientImageDigest), orUnknown(p.EngineImage), orUnknown(p.EngineImageDigest),
+		arm("topology"), arm("node_budget"), arm("client_budget"), arm("placement"), arm("phase"), arm("index_arm"), arm("endpoint_mode"))
 }
 
 // Generated, measurements-only reports for the join/CTE family. Interpretation
@@ -205,8 +208,63 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 			pp.A.MedianMS, pp.B.MedianMS, pp.RatioBA, sameJoinPlan(pp.A, pp.B))
 	}
 
+	b.WriteString("## Physical arm\n\n")
+	if len(r.IndexDefs) == 0 {
+		b.WriteString("No index definitions recorded (run predates v3).\n\n")
+	} else {
+		for _, d := range r.IndexDefs {
+			fmt.Fprintf(&b, "- `%s`: `%s`\n", d.Name, d.Def)
+		}
+		b.WriteString("\n")
+	}
+	fmt.Fprintf(&b, "- index arm `%s`; placement `%s`; node budget `%s`; client budget `%s`\n\n",
+		orUnknown(r.Provenance.Settings["index_arm"]), orUnknown(r.Provenance.Settings["placement"]),
+		orUnknown(r.Provenance.Settings["node_budget"]), orUnknown(r.Provenance.Settings["client_budget"]))
+	if len(r.Placement) > 0 {
+		b.WriteString("| table | tablets | hash key columns | colocated | tablegroup | colocation id |\n|---|---|---|---|---|---|\n")
+		for _, p := range r.Placement {
+			fmt.Fprintf(&b, "| %s | %d | %d | %v | %s | %s |\n", p.Table, p.NumTablets, p.NumHashKeyCols, p.IsColocated, orUnknown(p.TablegroupOID), orUnknown(p.ColocationID))
+		}
+		b.WriteString("\n")
+	}
+	if f := r.Feasibility; f != nil && len(f.DefaultIndexGate) > 0 {
+		b.WriteString("Physical-arm gate (default join must use the rank index at its three most selective thresholds):\n\n")
+		for _, k := range sortedIntKeys(f.DefaultIndexGate) {
+			fmt.Fprintf(&b, "- threshold %s: %s\n", k, f.DefaultIndexGate[k])
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("## Throttling (cgroup `cpu.stat` deltas)\n\n")
+	if bp, bt, bu, ok := parseCPUStat(r.Provenance.ClientCPUStatBefore); ok {
+		if ap, at, au, aok := parseCPUStat(r.Provenance.ClientCPUStatAfter); aok {
+			fmt.Fprintf(&b, "- client: nr_periods %d, nr_throttled %d, throttled_usec %d | quota %s, memory %s\n",
+				ap-bp, at-bt, au-bu, orUnknown(r.Provenance.ClientCPUQuota), orUnknown(r.Provenance.ClientMemoryLimit))
+		}
+	}
+	if len(r.NodeThrottle) == 0 {
+		b.WriteString("- database nodes: not recorded for this run\n")
+	} else {
+		for _, n := range r.NodeThrottle {
+			fmt.Fprintf(&b, "- %s: nr_periods %d, nr_throttled %d, throttled_usec %d | quota %s, memory %s\n",
+				n.Node, n.NrPeriods, n.NrThrottled, n.ThrottledUsec, orUnknown(n.CPUQuota), orUnknown(n.MemoryMax))
+		}
+	}
+	b.WriteString("\n")
+
+	b.WriteString("## Access path per cell\n\n")
+	b.WriteString("_Engine-reported from each cell's own plan: whether the rank index or a sequential scan was used, rows scanned, PostgreSQL buffers and filter removals, and reader retries of transient conflicts. A cell that scanned the whole table at a selective threshold is a different physical regime, not a faster query._\n\n")
+	b.WriteString("| axis | status | index scan | seq scan | storage rows scanned | index rows scanned | buffers hit/read | rows removed | retries |\n|---|---|---|---|---|---|---|---|---|\n")
+	accessCells := append([]Cell(nil), r.Cells...)
+	sort.Slice(accessCells, func(i, j int) bool { return accessCells[i].Axis < accessCells[j].Axis })
+	for _, c := range accessCells {
+		fmt.Fprintf(&b, "| %s | %s | %v | %v | %d | %d | %d/%d | %d | %d |\n",
+			c.Axis, c.Status, c.PlanIndexScan, c.PlanSeqScan, c.StorageRowsScanned, c.IndexRowsScanned, c.BufSharedHit, c.BufSharedRead, c.RowsRemovedByFilter, c.Retries)
+	}
+	b.WriteString("\n")
+
 	b.WriteString("## Latency samples and derived throughput\n\n")
-	b.WriteString("_The reader is sequential, so `queries/s` is 1000/median_ms, a derived rate and not a concurrent-capacity test. min/max are the five sample extremes._\n\n")
+	b.WriteString("_The reader is sequential, so `queries/s` is 1000/median_ms, a derived rate and not a concurrent-capacity test. min/max are the five sample extremes. Each sample includes any retry and backoff time the statement needed after a transient conflict; per-cell retry counts appear in the access-path table._\n\n")
 	b.WriteString("| axis | status | min ms | median ms | max ms | samples | derived queries/s |\n|---|---|---|---|---|---|---|\n")
 	statCells := append([]Cell(nil), r.Cells...)
 	sort.Slice(statCells, func(i, j int) bool { return statCells[i].Axis < statCells[j].Axis })
@@ -232,6 +290,9 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 		fmt.Fprintf(&b, "- phase: `%s`; target offered rate: %d updates/s\n", orUnknown(wt.Phase), wt.TargetRate)
 		fmt.Fprintf(&b, "- offered %d, committed %d, failed %d over %.3f s\n", wt.Offered, wt.Completed, wt.Failed, wt.WallSeconds)
 		fmt.Fprintf(&b, "- offered rate %.3f/s, completed rate %.3f/s\n", wt.OfferedRate, wt.CompletedRate)
+		if len(wt.EndpointOps) > 0 {
+			fmt.Fprintf(&b, "- writer operations per endpoint: %v\n", wt.EndpointOps)
+		}
 		if wt.Phase == "blended" {
 			fmt.Fprintf(&b, "- reader operations overlapping a committed write: %d of %d\n", r.WriterOverlapSamples, r.WriterSamples)
 			retries := 0
@@ -465,7 +526,50 @@ func RenderJoinReplicated(runs []JoinResult) (string, error) {
 			fmt.Fprintf(&b, "| %s | %s | %s | position | %s | %.4f | %s |\n", r.RunID, r.Engine, r.Topology, pp.Label, pp.RatioBA, sign(pp.RatioBA))
 		}
 	}
-	b.WriteString("\n## Recorded limits\n\n")
+	b.WriteString("\n## Per-run endpoint, writer, retry and throttling evidence\n\n")
+	b.WriteString("| run | topology | phase | index arm | endpoints (ops) | writer offered/completed/failed | writer rate/s | reader retries | overlap | node throttled periods (usec) | client throttled periods (usec) |\n|---|---|---|---|---|---|---|---|---|---|---|\n")
+	for _, r := range runs {
+		eps := "single"
+		if len(r.Endpoints) > 1 {
+			eps = fmt.Sprint(len(r.Endpoints)) + " ("
+			for i, o := range r.EndpointOps {
+				if i > 0 {
+					eps += "/"
+				}
+				eps += fmt.Sprint(o)
+			}
+			eps += ")"
+		}
+		w := "none"
+		rate := "-"
+		if r.Writer != nil {
+			w = fmt.Sprintf("%d/%d/%d", r.Writer.Offered, r.Writer.Completed, r.Writer.Failed)
+			rate = fmt.Sprintf("%.2f", r.Writer.CompletedRate)
+		}
+		retries := 0
+		for _, c := range r.Cells {
+			retries += c.Retries
+		}
+		nodeThrottle := "not recorded"
+		if len(r.NodeThrottle) > 0 {
+			parts := make([]string, 0, len(r.NodeThrottle))
+			for _, n := range r.NodeThrottle {
+				parts = append(parts, fmt.Sprintf("%s %d (%d)", n.Node, n.NrThrottled, n.ThrottledUsec))
+			}
+			nodeThrottle = strings.Join(parts, "; ")
+		}
+		clientThrottle := "not recorded"
+		if bp, bt, bu, ok := parseCPUStat(r.Provenance.ClientCPUStatBefore); ok {
+			if ap, at, au, aok := parseCPUStat(r.Provenance.ClientCPUStatAfter); aok {
+				clientThrottle = fmt.Sprintf("%d (%d) [periods %d]", at-bt, au-bu, ap-bp)
+			}
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %d | %d/%d | %s | %s |\n",
+			r.RunID, r.Topology, orUnknown(r.Phase), orUnknown(r.Provenance.Settings["index_arm"]), eps, w, rate,
+			retries, r.WriterOverlapSamples, r.WriterSamples, nodeThrottle, clientThrottle)
+	}
+	b.WriteString("\n")
+	b.WriteString("## Recorded limits\n\n")
 	seenNote := map[string]bool{}
 	any := false
 	for _, r := range runs {
@@ -497,4 +601,47 @@ func dashJoin(s string) string {
 		return ""
 	}
 	return " — " + s
+}
+
+// parseCPUStat reads the nr_periods / nr_throttled / throttled_usec counters out
+// of a cgroup v2 cpu.stat file.
+func parseCPUStat(text string) (periods, throttled, usec int64, ok bool) {
+	var seen bool
+	for _, line := range strings.Split(text, "\n") {
+		f := strings.Fields(line)
+		if len(f) != 2 {
+			continue
+		}
+		n, err := strconv.ParseInt(f[1], 10, 64)
+		if err != nil {
+			continue
+		}
+		switch f[0] {
+		case "nr_periods":
+			periods, seen = n, true
+		case "nr_throttled":
+			throttled = n
+		case "throttled_usec":
+			usec = n
+		}
+	}
+	return periods, throttled, usec, seen
+}
+
+// sortedIntKeys returns a map's numeric-ish keys in sorted order, so a report
+// lists thresholds as 20, 200, 2000 rather than lexically.
+func sortedIntKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		a, ea := strconv.Atoi(keys[i])
+		b, eb := strconv.Atoi(keys[j])
+		if ea == nil && eb == nil {
+			return a < b
+		}
+		return keys[i] < keys[j]
+	})
+	return keys
 }

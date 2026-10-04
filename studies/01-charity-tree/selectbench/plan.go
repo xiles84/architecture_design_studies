@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -90,3 +91,53 @@ func StructureSignature(explain string) string { return hashLines(Structure(expl
 // that agree here ran the same node/index structure; it says nothing about
 // whether they answer the same question — that is the oracle's job.
 func SameStructure(a, b string) bool { return StructureSignature(a) == StructureSignature(b) }
+
+// AccessMetrics is the engine-reported access-path evidence parsed from one plan.
+// It exists so the report can show the physical regime each cell ran under
+// (review M1): a hash-sharded YugabyteDB index produces `Storage Filter` over
+// the whole table, a range index produces `Index Cond` and a small
+// `Storage Rows Scanned`.
+type AccessMetrics struct {
+	StorageRowsScanned  int  `json:"storage_rows_scanned,omitempty"`
+	IndexRowsScanned    int  `json:"index_rows_scanned,omitempty"`
+	PlanIndexScan       bool `json:"plan_index_scan,omitempty"`
+	PlanSeqScan         bool `json:"plan_seq_scan,omitempty"`
+	BufSharedHit        int  `json:"buf_shared_hit,omitempty"`
+	BufSharedRead       int  `json:"buf_shared_read,omitempty"`
+	RowsRemovedByFilter int  `json:"rows_removed_by_filter,omitempty"`
+}
+
+var (
+	storageRowsRE = regexp.MustCompile(`Storage Rows Scanned:\s*(\d+)`)
+	indexRowsRE   = regexp.MustCompile(`Storage Index Rows Scanned:\s*(\d+)`)
+	seqScanRE     = regexp.MustCompile(`(?m)^\s*(?:->\s+)?Seq Scan on `)
+	indexScanRE   = regexp.MustCompile(`(?m)^\s*(?:->\s+)?Index (?:Only )?Scan using `)
+	buffersRE     = regexp.MustCompile(`Buffers: shared hit=(\d+)(?: read=(\d+))?`)
+	rowsRemovedRE = regexp.MustCompile(`Rows Removed by Filter:\s*(\d+)`)
+)
+
+// ParseAccessMetrics reads the engine-reported access evidence out of a plan
+// text. Missing fields stay zero; a cell with none is reported as unparsed.
+func ParseAccessMetrics(plan string) AccessMetrics {
+	var m AccessMetrics
+	if v := storageRowsRE.FindStringSubmatch(plan); v != nil {
+		m.StorageRowsScanned, _ = strconv.Atoi(v[1])
+	}
+	if v := indexRowsRE.FindStringSubmatch(plan); v != nil {
+		m.IndexRowsScanned, _ = strconv.Atoi(v[1])
+	}
+	m.PlanIndexScan = indexScanRE.MatchString(plan)
+	m.PlanSeqScan = seqScanRE.MatchString(plan)
+	if v := buffersRE.FindStringSubmatch(plan); v != nil {
+		m.BufSharedHit, _ = strconv.Atoi(v[1])
+		if v[2] != "" {
+			m.BufSharedRead, _ = strconv.Atoi(v[2])
+		}
+	}
+	for _, v := range rowsRemovedRE.FindAllStringSubmatch(plan, -1) {
+		if n, _ := strconv.Atoi(v[1]); n > m.RowsRemovedByFilter {
+			m.RowsRemovedByFilter = n
+		}
+	}
+	return m
+}

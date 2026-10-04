@@ -158,22 +158,67 @@ func (df JoinDomainFixture) AsJoinFixture() JoinFixture {
 }
 
 // JoinDomainSchemaSQL creates the domain tables and the two binding views,
-// dropping any previous copy, with the engine's default placement.
-func JoinDomainSchemaSQL() string { return JoinDomainSchemaSQLPlacement("") }
+// dropping any previous copy, with the engine's default placement and index arm.
+func JoinDomainSchemaSQL() string { return JoinDomainSchemaSQLOptions("", "") }
 
-// JoinDomainSchemaSQLPlacement creates the same schema with an explicit
-// placement. YugabyteDB places tables with `WITH (colocation = true|false)`:
-// colocated tables share a tablet per node, non-colocated tables are
-// range-sharded across nodes. An empty placement keeps the engine default, and
-// the feature check is empirical — a placement the pinned engine rejects must
-// surface as a load error, not be assumed to work.
+// JoinDomainSchemaSQLPlacement keeps the round-1 signature: placement only.
 func JoinDomainSchemaSQLPlacement(placement string) string {
+	return JoinDomainSchemaSQLOptions(placement, "")
+}
+
+// Physical rank-index arms. On YugabyteDB a bare `CREATE INDEX ... (rank)`
+// becomes a HASH-sharded index that cannot serve `rank <= threshold`: the plan
+// shows a full index scan with `Storage Filter` over every row (review M1).
+// `(rank ASC)` requests a range-sharded index, whose plan uses `Index Cond` and
+// scans only the matching rows. The two YB arms are separate physical designs;
+// PostgreSQL's btree is the same in both and is labelled separately.
+const (
+	IndexArmPGBtree       = "pg-btree-rank"
+	IndexArmYBDefaultHash = "yb-default-hash-rank"
+	IndexArmYBRange       = "yb-range-rank"
+)
+
+// JoinDomainDefaultIndexArm returns the arm a request maps to for an engine:
+// an explicit request is honoured, otherwise the engine's default physical arm.
+func JoinDomainDefaultIndexArm(engine, requested string) string {
+	if requested != "" {
+		return requested
+	}
+	if engine == "yugabyte" {
+		return IndexArmYBDefaultHash
+	}
+	return IndexArmPGBtree
+}
+
+// JoinDomainIndexArmApplies reports whether an index arm is meaningful on an
+// engine, so a mismatched request is recorded rather than silently applied.
+func JoinDomainIndexArmApplies(engine, arm string) bool {
+	switch arm {
+	case IndexArmYBRange:
+		return engine == "yugabyte"
+	case IndexArmYBDefaultHash:
+		return engine == "yugabyte"
+	case IndexArmPGBtree:
+		return engine == "postgres"
+	}
+	return false
+}
+
+// JoinDomainSchemaSQLOptions creates the schema with an explicit placement and
+// rank-index arm. An empty index arm keeps each engine's default physical index.
+// The feature check is empirical: an arm the pinned engine rejects, or whose
+// index the planner ignores, must surface as evidence, never be assumed.
+func JoinDomainSchemaSQLOptions(placement, indexArm string) string {
 	clause := ""
 	switch placement {
 	case "colocated":
 		clause = " WITH (colocation = true)"
 	case "noncolocated":
 		clause = " WITH (colocation = false)"
+	}
+	rankIndex := "CREATE INDEX donation_rank_idx ON " + JoinDomainSchema + ".donation (rank);"
+	if indexArm == IndexArmYBRange {
+		rankIndex = "CREATE INDEX donation_rank_idx ON " + JoinDomainSchema + ".donation (rank ASC);"
 	}
 	return `CREATE SCHEMA IF NOT EXISTS ` + JoinDomainSchema + `;
 DROP VIEW IF EXISTS ` + JoinDomainSchema + `.facts;
@@ -198,7 +243,7 @@ CREATE TABLE ` + JoinDomainSchema + `.donation (
   note         text,
   maintenance_updates integer NOT NULL DEFAULT 0
 )` + clause + `;
-CREATE INDEX donation_rank_idx ON ` + JoinDomainSchema + `.donation (rank);
+` + rankIndex + `
 CREATE INDEX donation_person_idx ON ` + JoinDomainSchema + `.donation (person_id);
 CREATE VIEW ` + JoinDomainSchema + `.customers AS
   SELECT p.person_id AS id, ch.name AS name

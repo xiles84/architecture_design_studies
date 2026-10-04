@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,6 +99,8 @@ type joinArm struct {
 	scale         string
 	placement     string
 	placementNote string
+	indexArm      string
+	indexArmNote  string
 	factCount     int
 	parents       int
 	fingerprint   string
@@ -109,7 +112,7 @@ type joinArm struct {
 	prepareEmpty  func(context.Context, selectbench.Querier) error
 }
 
-func selectJoinArm(seed int64, scale, engine, placement string) joinArm {
+func selectJoinArm(seed int64, scale, engine, placement, indexArm string) joinArm {
 	if isJoinDomainScale(scale) {
 		dspec := selectJoinDomainSpec(scale)
 		df := selectbench.GenerateJoinDomain(seed, dspec)
@@ -131,23 +134,31 @@ func selectJoinArm(seed int64, scale, engine, placement string) joinArm {
 				note = "placement `" + placement + "` is not applicable on " + engine + "; engine default used"
 			}
 		}
+		// The rank-index arm is a physical design decision, not a syntax one
+		// (review M1). An explicit arm the engine cannot express is recorded.
+		effIndexArm := selectbench.JoinDomainDefaultIndexArm(engine, indexArm)
+		indexNote := ""
+		if indexArm != "" && !selectbench.JoinDomainIndexArmApplies(engine, indexArm) {
+			indexNote = "index arm `" + indexArm + "` is not applicable on " + engine + "; " + effIndexArm + " used"
+		}
 		return joinArm{
 			name: "study01-domain", dataset: "study01-person-donation-charity",
 			schema: selectbench.JoinDomainSchema, rankIndex: "donation_rank_idx", scale: scale,
 			placement: effPlacement, placementNote: note,
+			indexArm: effIndexArm, indexArmNote: indexNote,
 			factCount: dspec.Donations, parents: dspec.Persons,
 			fingerprint: selectbench.JoinDomainFingerprint(df),
 			oracle:      df.AsJoinFixture(),
 			edgeOracle:  edge.AsJoinFixture(),
 			emptyOracle: empty.AsJoinFixture(),
 			prepare: func(ctx context.Context, q selectbench.Querier) error {
-				return prepareJoinDomain(ctx, q, df, effPlacement)
+				return prepareJoinDomain(ctx, q, df, effPlacement, effIndexArm)
 			},
 			prepareEdge: func(ctx context.Context, q selectbench.Querier) error {
-				return prepareJoinDomain(ctx, q, edge, effPlacement)
+				return prepareJoinDomain(ctx, q, edge, effPlacement, effIndexArm)
 			},
 			prepareEmpty: func(ctx context.Context, q selectbench.Querier) error {
-				return prepareJoinDomain(ctx, q, empty, effPlacement)
+				return prepareJoinDomain(ctx, q, empty, effPlacement, effIndexArm)
 			},
 		}
 	}
@@ -158,11 +169,15 @@ func selectJoinArm(seed int64, scale, engine, placement string) joinArm {
 	if placement != "" {
 		note = "placement `" + placement + "` is not applicable to the synthetic microfixture arm; engine default used"
 	}
+	indexNote := ""
+	if indexArm != "" {
+		indexNote = "index arm `" + indexArm + "` is not applicable to the synthetic microfixture arm; " + selectbench.IndexArmPGBtree + "/engine default used"
+	}
 	return joinArm{
 		name: "synthetic-microfixture", dataset: "synthetic-customers-facts",
 		schema: selectbench.JoinSchema, rankIndex: "facts_rank_idx", scale: scale,
-		placementNote: note,
-		factCount:     spec.FactCount, parents: spec.Customers,
+		placementNote: note, indexArmNote: indexNote,
+		factCount: spec.FactCount, parents: spec.Customers,
 		fingerprint: selectbench.JoinFingerprint(jf),
 		oracle:      jf,
 		edgeOracle:  selectbench.JoinEdge(),
@@ -190,8 +205,8 @@ func prepareJoinFixture(ctx context.Context, q selectbench.Querier, jf selectben
 // prepareJoinDomain loads the Study 01 domain tables and their catalogue-binding
 // views. The views are the only place person/donation are mapped onto the shared
 // projection, so the measured SQL never changes between arms.
-func prepareJoinDomain(ctx context.Context, q selectbench.Querier, df selectbench.JoinDomainFixture, placement string) error {
-	if err := q.Exec(ctx, selectbench.JoinDomainSchemaSQLPlacement(placement)); err != nil {
+func prepareJoinDomain(ctx context.Context, q selectbench.Querier, df selectbench.JoinDomainFixture, placement, indexArm string) error {
+	if err := q.Exec(ctx, selectbench.JoinDomainSchemaSQLOptions(placement, indexArm)); err != nil {
 		return err
 	}
 	for _, stmt := range selectbench.JoinDomainLoadSQL(df, 1000) {
@@ -281,13 +296,15 @@ func runJoinGate(ctx context.Context, q selectbench.Querier, cat *selectbench.Ca
 func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Querier, cat *selectbench.Catalog,
 	jf selectbench.JoinFixture, thresholds []int, budget time.Duration, schema, rankIndex string) *selectbench.JoinFeasibility {
 	f := &selectbench.JoinFeasibility{
-		FactCount:        len(jf.Facts),
-		Customers:        len(jf.Customers),
-		Thresholds:       thresholds,
-		ThresholdCounts:  map[string]int{},
-		StatementSupport: map[string]string{},
-		PolicyEvidence:   map[string]string{},
-		RankIndexUsed:    map[string]bool{},
+		FactCount:         len(jf.Facts),
+		Customers:         len(jf.Customers),
+		Thresholds:        thresholds,
+		ThresholdCounts:   map[string]int{},
+		StatementSupport:  map[string]string{},
+		PolicyEvidence:    map[string]string{},
+		RankIndexUsed:     map[string]bool{},
+		DefaultIndexGate:  map[string]string{},
+		DefaultIndexPlans: map[string]string{},
 	}
 	for _, t := range thresholds {
 		if n, err := scalarInt64(ctx, pool, fmt.Sprintf("SELECT count(*) FROM %s.facts WHERE rank <= %d", schema, t)); err == nil {
@@ -341,6 +358,32 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 		}
 	}
 
+	// Physical-arm gate (review M1): the default join at the three most
+	// selective thresholds must use the rank index, or the two engines are not
+	// running a matched index arm. The gate records the plan and the engine's
+	// estimates rather than proceeding silently to a matrix that would compare
+	// an index path with a full scan.
+	gateThresholds := thresholds
+	if len(gateThresholds) > 3 {
+		gateThresholds = gateThresholds[:3]
+	}
+	for _, t := range gateThresholds {
+		args := selectbench.JoinArgs{Threshold: t, Refs: 4, ConsumerMax: len(jf.Facts), ValidateOnly: true, StatementTimeout: budget}
+		specs := []selectbench.JoinSpec{{Statement: "j01_join_where", Axis: fmt.Sprintf("indexgate=%d", t), Args: args}}
+		cells := selectbench.RunJoinSpecs(ctx, q, cat, jf, specs, "feasibility", "validation")
+		c := cells[0]
+		f.DefaultIndexPlans[fmt.Sprint(t)] = c.Plan
+		switch {
+		case c.Status != selectbench.StatusValid:
+			f.DefaultIndexGate[fmt.Sprint(t)] = "error: " + string(c.Status) + ": " + c.Note
+		case strings.Contains(c.Plan, rankIndex):
+			f.DefaultIndexGate[fmt.Sprint(t)] = "used"
+		default:
+			f.DefaultIndexGate[fmt.Sprint(t)] = "NOT USED"
+			f.Notes = append(f.Notes, fmt.Sprintf("physical-arm gate: j01 at threshold %d did not name %s", t, rankIndex))
+		}
+	}
+
 	// Full drain at the widest threshold: proves the client can consume the
 	// broad-scan answer, not just the selective one.
 	maxArgs := selectbench.JoinArgs{Threshold: thresholds[len(thresholds)-1], Trials: 1, StatementTimeout: budget}
@@ -355,7 +398,7 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 	return f
 }
 
-func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID, phase, placement string, statementTimeout int, positionControl, feasibilityOnly, topoSubset bool) error {
+func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID, phase, placement, indexArm string, statementTimeout int, positionControl, feasibilityOnly, topoSubset bool) error {
 	if dsn == "" {
 		return fmt.Errorf("-cmd select-join needs -dsn")
 	}
@@ -380,7 +423,7 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	// The arm is chosen by the scale name: `cte`/`cte-small` measure the
 	// synthetic microfixture, `cte-domain`/`cte-domain-small` measure the Study 01
 	// person/donation fixture bound through the charity views.
-	arm := selectJoinArm(seed, scale, engine, placement)
+	arm := selectJoinArm(seed, scale, engine, placement, indexArm)
 	thresholds := selectbench.JoinThresholds(arm.factCount)
 	if topoSubset {
 		thresholds = selectbench.JoinTopologyThresholds(arm.factCount)
@@ -420,6 +463,14 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	if err := arm.prepare(ctx, q); err != nil {
 		return fmt.Errorf("load fixture: %w", err)
 	}
+	// Physical-arm evidence: the engine's own index definitions, and on
+	// YugabyteDB the colocation/tablet properties of each domain table. These
+	// make the arm checkable instead of asserted (review M1/M2).
+	result.IndexDefs = queryIndexDefs(ctx, q, arm.schema)
+	if engine == "yugabyte" && arm.dataset == "study01-person-donation-charity" {
+		result.Placement = queryPlacements(ctx, q, arm.schema,
+			[]string{"charity", "person", "donation", "donation_pkey", "donation_rank_idx", "donation_person_idx"})
+	}
 	result.Controls = append(result.Controls, gateControls...)
 
 	// The limit-before-join control is proved on the large fixture (the edge
@@ -437,6 +488,15 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 
 	result.Feasibility = joinFeasibility(ctx, pools[0], q, cat, arm.oracle, thresholds, budget, arm.schema, arm.rankIndex)
 
+	// The physical-arm gate is a precondition, not an observation: if the
+	// default join does not use the rank index, the "matched index arm" claim is
+	// false and the matrix would compare an index path with a full scan. Record
+	// the plans and stop before measuring.
+	if gateFailed(result.Feasibility) {
+		result.Notes = append(result.Notes, "physical-arm gate failed for the default join at its most selective thresholds; matrix not measured (see feasibility.default_index_gate and default_index_plans)")
+		return writeJoinOutputs(result, fmt.Errorf("physical-arm gate failed: default join does not use %s", arm.rankIndex), feasibilityOnly, out, reportOut)
+	}
+
 	base := selectbench.JoinArgs{Trials: trials, StatementTimeout: budget}
 	// Blended phase: the fixed writer starts before the measured cells so no
 	// cell runs concurrently with a writer that has not started, and the reader
@@ -445,7 +505,7 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	var writer *maintenanceWriter
 	if phase == "blended" {
 		table, idCol := writerPlan(arm)
-		writer = newMaintenanceWriter(pools[0], arm.schema, table, idCol,
+		writer = newMaintenanceWriter(pools, arm.schema, table, idCol,
 			selectbench.MaintenanceKeys(arm.factCount, maintenanceKeyCount), selectbench.WriterTargetRate)
 		q.writer = writer
 		writer.start(ctx)
@@ -500,7 +560,16 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	if arm.placementNote != "" {
 		result.Notes = append(result.Notes, arm.placementNote)
 	}
-	result.Notes = append(result.Notes, joinGaps(engine, topology)...)
+	// The physical index arm and the node/client budgets are arm factors: two
+	// runs that differ in any of them are not the same experiment, so they enter
+	// the compatibility class (review M3).
+	result.Provenance.Settings["index_arm"] = arm.indexArm
+	if arm.indexArmNote != "" {
+		result.Notes = append(result.Notes, arm.indexArmNote)
+	}
+	result.Provenance.Settings["node_budget"] = envOr("ADS_NODE_BUDGET", "unknown")
+	result.Provenance.Settings["client_budget"] = envOr("ADS_CLIENT_BUDGET", "unknown")
+	result.Notes = append(result.Notes, joinGaps(engine, topology, phase, len(endpoints), result.Provenance.Settings["node_budget"], result.Provenance.Settings["client_budget"], arm.indexArm)...)
 	return writeJoinOutputs(result, nil, feasibilityOnly, out, reportOut)
 }
 
@@ -508,9 +577,9 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 const maintenanceKeyCount = 1000
 
 func joinProvenance(version, environment, scale, dataset string, factCount, parents int, thresholds []int, engine, topology string, seed int64, trials, statementTimeout int, cpuBefore, fingerprint string, endpoints []string) selectbench.Provenance {
-	rpc := "not parsed; raw EXPLAIN retained (coverage gap)"
-	if engine == "postgres" && topology == "single" {
-		rpc = "N/A on PostgreSQL single-node"
+	rpc := "DIST/DEBUG storage counters parsed per cell (Storage Rows Scanned, Storage Index Rows Scanned); RPC-level counters not aggregated"
+	if engine == "postgres" {
+		rpc = "N/A on PostgreSQL; shared buffers and rows removed parsed per cell where printed"
 	}
 	mode := "single endpoint"
 	if len(endpoints) > 1 {
@@ -551,12 +620,37 @@ func joinProvenance(version, environment, scale, dataset string, factCount, pare
 	}
 }
 
-func joinGaps(engine, topology string) []string {
-	return []string{
-		"one host, single client: no independent hardware, real-network or equal-total-budget comparison",
-		"no concurrent writers: the isolated read contract only; a matched blended read/write phase is a recorded gap",
-		"a flat cell reports a client or engine ceiling; it is not by itself a constant query cost",
+// joinGaps derives a run's recorded limits from its own settings. Writing a
+// fixed list produced limits that contradicted the run: every blended report
+// still said "no concurrent writers", every equal-total or cluster run said
+// "no equal-total-budget comparison", and a captured YugabyteDB DIST plan still
+// said the RPC counters were unparsed (review M4).
+func joinGaps(engine, topology, phase string, endpointCount int, nodeBudget, clientBudget, indexArm string) []string {
+	gaps := []string{
+		fmt.Sprintf("one host: this run used node budget %s and client budget %s, so budget comparisons are separate classes here, not independent hardware", nodeBudget, clientBudget),
 	}
+	if phase == "blended" {
+		gaps = append(gaps, fmt.Sprintf("one client process with one fixed maintenance writer at %d updates/s; readers are sequential; the reported sample latency includes retry and backoff time", selectbench.WriterTargetRate))
+	} else {
+		gaps = append(gaps, "isolated phase: no concurrent writers in this run; the blended read/write phase is a separate labelled run")
+	}
+	if topology != "single" {
+		gaps = append(gaps, "cluster nodes are containers on the same host, so these are not network or independent-hardware measurements; container colocation is not data-colocation evidence")
+	}
+	if endpointCount > 1 {
+		gaps = append(gaps, fmt.Sprintf("readers round-robin across %d endpoints; the writer's endpoint policy is recorded separately", endpointCount))
+	}
+	if indexArm == "" {
+		indexArm = "engine default"
+	}
+	gaps = append(gaps, "physical rank-index arm "+indexArm+"; an engine whose planner ignores the index is a different physical design, not a faster one")
+	if engine == "yugabyte" {
+		gaps = append(gaps, "YugabyteDB DIST/DEBUG storage counters (rows and index rows scanned) are parsed per cell; RPC-level counters are not aggregated")
+	} else {
+		gaps = append(gaps, "distributed RPC counters are N/A on single-node PostgreSQL; shared buffers and rows removed are parsed per cell where printed")
+	}
+	gaps = append(gaps, "a flat cell reports a client or engine ceiling; it is not by itself a constant query cost")
+	return gaps
 }
 
 // joinInputsDigest is the single definition of a run's inputs digest: the
@@ -635,6 +729,7 @@ func runSelectJoinReport(resultsDir, reportOut, armFilter string) error {
 		// newline before hashing, so adding another here (the original defect)
 		// advertised a digest the run never had.
 		digest := joinInputsDigest(data)
+		r.NodeThrottle = loadNodeThrottle(resultsDir)
 		report, err := selectbench.RenderJoinRun(r, digest)
 		if err != nil {
 			return err
@@ -669,6 +764,7 @@ func runSelectJoinReport(resultsDir, reportOut, armFilter string) error {
 		if armFilter != "" && r.Arm != armFilter {
 			continue
 		}
+		r.NodeThrottle = loadNodeThrottle(filepath.Dir(p))
 		runs = append(runs, r)
 	}
 	if len(runs) == 0 {
@@ -679,4 +775,102 @@ func runSelectJoinReport(resultsDir, reportOut, armFilter string) error {
 		return err
 	}
 	return os.WriteFile(reportOut, []byte(report), 0o644)
+}
+
+// loadNodeThrottle reads the per-node throttling deltas the runner computed from
+// the before/after cpu.stat files. An old run without the file renders "not
+// recorded" rather than a false zero.
+func loadNodeThrottle(runDir string) []selectbench.NodeThrottleStat {
+	data, err := os.ReadFile(filepath.Join(runDir, "resources", "node-throttle.json"))
+	if err != nil {
+		return nil
+	}
+	var out []selectbench.NodeThrottleStat
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// gateFailed reports whether the physical-arm gate found the default join not
+// using the rank index at any gated threshold.
+func gateFailed(f *selectbench.JoinFeasibility) bool {
+	if f == nil {
+		return false
+	}
+	for _, v := range f.DefaultIndexGate {
+		if v == "NOT USED" {
+			return true
+		}
+	}
+	return false
+}
+
+// queryIndexDefs reads the engine's own definition of every index in a schema.
+func queryIndexDefs(ctx context.Context, q selectbench.Querier, schema string) []selectbench.IndexDef {
+	rows, err := q.Query(ctx, "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = '"+schema+"' ORDER BY indexname")
+	if err != nil {
+		return []selectbench.IndexDef{{Name: "pg_indexes", Def: "unavailable: " + err.Error()}}
+	}
+	var out []selectbench.IndexDef
+	for _, r := range rows {
+		if len(r) >= 2 {
+			out = append(out, selectbench.IndexDef{Name: fmt.Sprint(r[0]), Def: fmt.Sprint(r[1])})
+		}
+	}
+	return out
+}
+
+// queryPlacements reads YugabyteDB's colocation and tablet properties for the
+// named relations, plus the local tablet count. On an engine without these
+// functions the query fails and the list stays empty, which the report renders
+// as not recorded rather than as a success.
+func queryPlacements(ctx context.Context, q selectbench.Querier, schema string, tables []string) []selectbench.TablePlacement {
+	var out []selectbench.TablePlacement
+	for _, t := range tables {
+		p := selectbench.TablePlacement{Table: schema + "." + t}
+		rows, err := q.Query(ctx, fmt.Sprintf(
+			"SELECT num_tablets, num_hash_key_columns, is_colocated, COALESCE(tablegroup_oid::text,''), COALESCE(colocation_id::text,'') FROM yb_table_properties('%s.%s'::regclass)",
+			schema, t))
+		if err == nil && len(rows) > 0 && len(rows[0]) >= 5 {
+			p.NumTablets = anyInt(rows[0][0])
+			p.NumHashKeyCols = anyInt(rows[0][1])
+			p.IsColocated = anyBool(rows[0][2])
+			p.TablegroupOID = fmt.Sprint(rows[0][3])
+			p.ColocationID = fmt.Sprint(rows[0][4])
+		}
+		if crows, cerr := q.Query(ctx, "SELECT count(*) FROM yb_local_tablets WHERE table_name = '"+t+"'"); cerr == nil && len(crows) > 0 && len(crows[0]) > 0 {
+			p.TabletCountLocal = anyInt(crows[0][0])
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func anyInt(v any) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		i, _ := strconv.Atoi(fmt.Sprint(v))
+		return i
+	}
+}
+
+func anyBool(v any) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case string:
+		return b == "t" || b == "true"
+	default:
+		s := fmt.Sprint(v)
+		return s == "true" || s == "t"
+	}
 }

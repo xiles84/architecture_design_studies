@@ -15,6 +15,7 @@ FEASIBILITY=0
 TOPO_SUBSET=0
 PHASE="isolated"
 PLACEMENT=""
+INDEX_ARM=""
 TOPOLOGY="single"
 TRIALS=3
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -33,6 +34,7 @@ while [[ $# -gt 0 ]]; do
     --topo-subset) TOPO_SUBSET=1; shift ;;
     --phase) PHASE="$2"; shift 2 ;;
     --placement) PLACEMENT="$2"; shift 2 ;;
+    --index-arm) INDEX_ARM="$2"; shift 2 ;;
     --topology) TOPOLOGY="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
@@ -109,15 +111,19 @@ IMAGE_ID="$(podman image inspect "$IMAGE" --format '{{.Id}}')"
 ENGINE_IMAGE_ID="$(podman image inspect "$ENGINE_IMAGE" --format '{{.Id}}')"
 git -C "$GIT_ROOT" tag -a "$TAG" "$SOURCE_COMMIT" -m "Study 01 SELECT validation $RUN_ID; source $SOURCE_COMMIT; actor in task/run commit archive"
 mkdir -p "$OUTDIR/resources"
-printf 'environment=%s\nrepo_commit=%s\nrun_tag=%s\nengine=%s\nengine_image=%s\nengine_image_id=%s\nclient_image=%s\nclient_image_id=%s\nnode_budget=%s CPU %s\nclient_budget=%s CPU %s\ntrials=%s\nphase=%s\nplacement=%s\ntopology=%s\nwhole_runs=1\n' \
+printf 'environment=%s\nrepo_commit=%s\nrun_tag=%s\nengine=%s\nengine_image=%s\nengine_image_id=%s\nclient_image=%s\nclient_image_id=%s\nnode_budget=%s CPU %s\nclient_budget=%s CPU %s\ntrials=%s\nphase=%s\nplacement=%s\nindex_arm=%s\ntopology=%s\nwhole_runs=1\n' \
   "$ENVIRONMENT" "$SOURCE_COMMIT" "$TAG" "$ENGINE" "$ENGINE_IMAGE" "$ENGINE_IMAGE_ID" "$IMAGE" "$IMAGE_ID" \
-  "$DB_CPUS" "$DB_MEMORY" "$CLIENT_CPUS" "$CLIENT_MEMORY" "$TRIALS" "$PHASE" "${PLACEMENT:-engine-default}" "$TOPOLOGY" >"$OUTDIR/manifest.env"
+  "$DB_CPUS" "$DB_MEMORY" "$CLIENT_CPUS" "$CLIENT_MEMORY" "$TRIALS" "$PHASE" "${PLACEMENT:-engine-default}" "${INDEX_ARM:-engine-default}" "$TOPOLOGY" >"$OUTDIR/manifest.env"
 podman machine inspect >"$OUTDIR/resources/machine.json"
 podman image inspect "$IMAGE" "$ENGINE_IMAGE" >"$OUTDIR/resources/images.json"
 STARTED=yes
 bash "$TOPOLOGY_SCRIPT" up
 if [[ "$TOPOLOGY" == cluster3 ]]; then
-  DSN="$(bash "$TOPOLOGY_SCRIPT" endpoints)"
+  if [[ "$PLACEMENT" == colocated ]]; then
+    DSN="$(bash "$TOPOLOGY_SCRIPT" colocated-endpoints)"
+  else
+    DSN="$(bash "$TOPOLOGY_SCRIPT" endpoints)"
+  fi
 else
   DSN="$(bash "$TOPOLOGY_SCRIPT" dsn)"
 fi
@@ -139,8 +145,9 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" \
   -e "ADS_ENGINE_IMAGE=$ENGINE_IMAGE" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
+  -e "ADS_NODE_BUDGET=$DB_CPUS CPU $DB_MEMORY" -e "ADS_CLIENT_BUDGET=$CLIENT_CPUS CPU $CLIENT_MEMORY" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology "$TOPOLOGY" -scale "$SCALE" -seed "$SEED" \
-  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG $TOPO_FLAG -phase "$PHASE" -placement "$PLACEMENT" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG $TOPO_FLAG -phase "$PHASE" -placement "$PLACEMENT" -index-arm "$INDEX_ARM" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e
@@ -150,5 +157,45 @@ for i in "${!NODES[@]}"; do
   n="${NODES[$i]}"; idx=$((i + 1))
   podman exec "$n" cat /sys/fs/cgroup/cpu.stat >"$OUTDIR/resources/node-${idx}-cpu-after.txt" 2>/dev/null || true
 done
+# Per-node CPU-throttling deltas -> resources/node-throttle.json, so per-run and
+# replicated reports can render them (review M4). The "after" counters exist
+# only once the run has finished, which is why the report is re-rendered here.
+{
+  printf '['
+  first=1
+  for i in "${!NODES[@]}"; do
+    n="${NODES[$i]}"; idx=$((i + 1))
+    before="$OUTDIR/resources/node-${idx}-cpu-before.txt"
+    after="$OUTDIR/resources/node-${idx}-cpu-after.txt"
+    [ -f "$before" ] && [ -f "$after" ] || continue
+    read -r np nt tu <<<"$(awk 'BEGIN{p=0;t=0;u=0} $1=="nr_periods"{p=$2} $1=="nr_throttled"{t=$2} $1=="throttled_usec"{u=$2} END{print p" "t" "u}' "$before")"
+    read -r ap at au <<<"$(awk 'BEGIN{p=0;t=0;u=0} $1=="nr_periods"{p=$2} $1=="nr_throttled"{t=$2} $1=="throttled_usec"{u=$2} END{print p" "t" "u}' "$after")"
+    quota="$(cat "$OUTDIR/resources/node-${idx}-cpu.max" 2>/dev/null || true)"
+    mem="$(cat "$OUTDIR/resources/node-${idx}-memory.max" 2>/dev/null || true)"
+    [ "$first" -eq 1 ] || printf ','
+    first=0
+    printf '{"node":"%s","nr_periods":%d,"nr_throttled":%d,"throttled_usec":%d,"cpu_quota":"%s","memory_max":"%s"}' \
+      "$n" "$((ap - np))" "$((at - nt))" "$((au - tu))" "$quota" "$mem"
+  done
+  printf ']'
+} >"$OUTDIR/resources/node-throttle.json"
+# Placement evidence for a cluster arm: per-tablet leader assignment, so
+# non-colocated and colocated are evidenced beyond the DDL flag (review M2).
+if [[ "$TOPOLOGY" == cluster3 ]]; then
+  KEYS_DB="$(printf '%s' "$DSN" | cut -d, -f1 | sed -E 's#.*/([^?]+)\?.*#\1#')"
+  {
+    printf 'keyspace=ysql.%s\n' "$KEYS_DB"
+    for t in charity person donation donation_pkey donation_rank_idx donation_person_idx; do
+      printf '\n## %s\n' "$t"
+      podman exec "${NODES[0]}" yb-admin --master_addresses "${NODES[0]}:7100" list_tablets "ysql.${KEYS_DB}" "$t" 2>&1 || true
+    done
+  } >"$OUTDIR/resources/placement.txt" 2>&1
+fi
+# Re-render the per-run report so it carries the throttling deltas. The re-render
+# hashes the same join.json bytes, so the advertised digest is unchanged.
+if [ "$CLIENT_CMD" = "select-join" ] && [ -f "$OUTDIR/join.json" ]; then
+  podman run --rm -v "$(winpath "$(hostpath "$OUTDIR")"):/results" "$IMAGE" \
+    -cmd join-report -results "/results" -report-out "/results/$OUT_MD" >/dev/null 2>&1 || true
+fi
 printf 'exit_code=%s\n' "$RESULT_RC" >>"$OUTDIR/manifest.env"
 exit "$RESULT_RC"

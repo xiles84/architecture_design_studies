@@ -227,13 +227,18 @@ func (p OrderPlan) JoinSequence(specs []JoinSpec) []string {
 // before the matrix may run: statement support, actual materialization, exact
 // selective counts, index use, expensive-work support and drained results.
 type JoinFeasibility struct {
-	FactCount           int               `json:"fact_count"`
-	Customers           int               `json:"customers"`
-	Thresholds          []int             `json:"thresholds"`
-	ThresholdCounts     map[string]int    `json:"threshold_counts"`
-	StatementSupport    map[string]string `json:"statement_support"`
-	PolicyEvidence      map[string]string `json:"policy_evidence"`
-	RankIndexUsed       map[string]bool   `json:"rank_index_used"`
+	FactCount        int               `json:"fact_count"`
+	Customers        int               `json:"customers"`
+	Thresholds       []int             `json:"thresholds"`
+	ThresholdCounts  map[string]int    `json:"threshold_counts"`
+	StatementSupport map[string]string `json:"statement_support"`
+	PolicyEvidence   map[string]string `json:"policy_evidence"`
+	RankIndexUsed    map[string]bool   `json:"rank_index_used"`
+	// DefaultIndexGate is the physical-arm gate (review M1): for the default join
+	// at the three most selective thresholds, whether the plan used the rank
+	// index, with the plan text kept when it did not.
+	DefaultIndexGate    map[string]string `json:"default_index_gate,omitempty"`
+	DefaultIndexPlans   map[string]string `json:"default_index_plans,omitempty"`
 	ReuseExprSupported  bool              `json:"reuse_expr_supported"`
 	ReuseExprError      string            `json:"reuse_expr_error,omitempty"`
 	MaxThresholdDrained int               `json:"max_threshold_drained_rows"`
@@ -266,8 +271,45 @@ type JoinResult struct {
 	WriterSamples        int                 `json:"writer_samples,omitempty"`
 	WriterOverlapSamples int                 `json:"writer_overlap_samples,omitempty"`
 	Summary              map[string]int      `json:"summary"`
-	Notes                []string            `json:"notes,omitempty"`
-	Error                string              `json:"error,omitempty"`
+	// IndexDefs and Placement are the engine's own physical evidence: the
+	// indexdef text of every domain index, and (YugabyteDB) the colocation and
+	// tablet properties of each domain table. They make the physical arm
+	// checkable rather than asserted.
+	IndexDefs []IndexDef       `json:"index_defs,omitempty"`
+	Placement []TablePlacement `json:"placement,omitempty"`
+	// NodeThrottle is per-node cgroup CPU throttling for the run, computed by the
+	// runner from the before/after cpu.stat files. It is loaded at render time,
+	// because the "after" file exists only once the run has finished.
+	NodeThrottle []NodeThrottleStat `json:"node_throttle,omitempty"`
+	Notes        []string           `json:"notes,omitempty"`
+	Error        string             `json:"error,omitempty"`
+}
+
+// NodeThrottleStat is one container's CPU-throttling delta over the run.
+type NodeThrottleStat struct {
+	Node          string `json:"node"`
+	NrPeriods     int64  `json:"nr_periods"`
+	NrThrottled   int64  `json:"nr_throttled"`
+	ThrottledUsec int64  `json:"throttled_usec"`
+	CPUQuota      string `json:"cpu_quota,omitempty"`
+	MemoryMax     string `json:"memory_max,omitempty"`
+}
+
+// IndexDef is one index's engine-reported definition.
+type IndexDef struct {
+	Name string `json:"name"`
+	Def  string `json:"def"`
+}
+
+// TablePlacement is one table's engine-reported physical placement.
+type TablePlacement struct {
+	Table            string `json:"table"`
+	NumTablets       int    `json:"num_tablets"`
+	NumHashKeyCols   int    `json:"num_hash_key_columns"`
+	IsColocated      bool   `json:"is_colocated"`
+	TablegroupOID    string `json:"tablegroup_oid,omitempty"`
+	ColocationID     string `json:"colocation_id,omitempty"`
+	TabletCountLocal int    `json:"tablet_count_local,omitempty"`
 }
 
 // Valid counts cells whose answer matched the oracle and whose timing measured.

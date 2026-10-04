@@ -264,6 +264,15 @@ func prepareJoinCell(ctx context.Context, q Querier, c *Catalog, jf JoinFixture,
 		return cell, bound, false
 	}
 	cell.Plan = plan
+	if am := ParseAccessMetrics(plan); am.StorageRowsScanned > 0 || am.PlanIndexScan || am.PlanSeqScan {
+		cell.StorageRowsScanned = am.StorageRowsScanned
+		cell.IndexRowsScanned = am.IndexRowsScanned
+		cell.PlanIndexScan = am.PlanIndexScan
+		cell.PlanSeqScan = am.PlanSeqScan
+		cell.BufSharedHit = am.BufSharedHit
+		cell.BufSharedRead = am.BufSharedRead
+		cell.RowsRemovedByFilter = am.RowsRemovedByFilter
+	}
 	if plan == "" {
 		cell.Status, cell.Note = StatusError, "missing EXPLAIN evidence"
 		return cell, bound, false

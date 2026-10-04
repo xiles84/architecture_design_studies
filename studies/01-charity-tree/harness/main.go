@@ -57,6 +57,7 @@ func main() {
 		seed         = flag.Int64("seed", 42, "dataset seed; changing it invalidates comparisons")
 		phase        = flag.String("phase", "isolated", "join: isolated | blended read/write phase")
 		placement    = flag.String("placement", "", "join: colocated | noncolocated (YugabyteDB domain arm)")
+		indexArm     = flag.String("index-arm", "", "join: pg-btree-rank | yb-default-hash-rank | yb-range-rank (domain arm)")
 		conns        = flag.Int("conns", 8, "concurrent benchmark connections")
 		loadConns    = flag.Int("load-conns", 4, "concurrent COPY streams during load")
 		duration     = flag.Duration("duration", 10*time.Second, "measured duration per query/op")
@@ -160,7 +161,7 @@ func main() {
 		}
 		return
 	case "select-join":
-		if err := runSelectJoinMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *envName, *runID, *phase, *placement, *stmtTimeout, *positionCtl, *feasibility, *topoSubset); err != nil {
+		if err := runSelectJoinMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *envName, *runID, *phase, *placement, *indexArm, *stmtTimeout, *positionCtl, *feasibility, *topoSubset); err != nil {
 			fatal(err)
 		}
 		return

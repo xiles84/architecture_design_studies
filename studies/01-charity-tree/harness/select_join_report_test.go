@@ -114,3 +114,76 @@ func TestJoinReplicatedPartitionsByClass(t *testing.T) {
 		t.Fatal("runs table does not name the compatibility class")
 	}
 }
+
+// M3 regression: the compatibility class must include the node budget, or the
+// 2 CPU/3 GiB single node and the 6 CPU/9 GiB equal-total node are pooled into
+// one median. Before the fix these two runs shared a class.
+func TestJoinClassSeparatesNodeBudget(t *testing.T) {
+	a := sampleJoinResult()
+	a.Provenance.Settings["node_budget"] = "2 CPU 3g"
+	a.Provenance.Settings["index_arm"] = "yb-range-rank"
+	b := sampleJoinResult()
+	b.RunID = "test-run-2"
+	b.Provenance.Settings["node_budget"] = "6 CPU 9g"
+	b.Provenance.Settings["index_arm"] = "yb-range-rank"
+	report, err := selectbench.RenderJoinReplicated([]selectbench.JoinResult{a, b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(report, "2 CPU 3g") || !strings.Contains(report, "6 CPU 9g") {
+		t.Fatal("both node budgets must be named in the report")
+	}
+	// Two classes must exist: with one class the two budgets were pooled.
+	if strings.Count(report, "| run | class |") != 1 {
+		t.Fatal("runs table missing")
+	}
+	lines := 0
+	for _, ln := range strings.Split(report, "\n") {
+		if strings.HasPrefix(ln, "| test-run") {
+			lines++
+		}
+	}
+	if lines < 2 {
+		t.Fatalf("expected both runs listed, got %d", lines)
+	}
+}
+
+// M3 regression: an index arm is an arm factor too. Two runs differing only in
+// the physical index arm must not share a class.
+func TestJoinClassSeparatesIndexArm(t *testing.T) {
+	a := sampleJoinResult()
+	a.Provenance.Settings["index_arm"] = "yb-default-hash-rank"
+	b := sampleJoinResult()
+	b.RunID = "test-run-2"
+	b.Provenance.Settings["index_arm"] = "yb-range-rank"
+	report, err := selectbench.RenderJoinReplicated([]selectbench.JoinResult{a, b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(report, "yb-default-hash-rank") || !strings.Contains(report, "yb-range-rank") {
+		t.Fatal("both index arms must be named")
+	}
+}
+
+// M4 regression: the recorded limits must follow the run's own settings. A
+// blended run said "no concurrent writers ... a recorded gap" before the fix.
+func TestJoinGapsMatchRunSettings(t *testing.T) {
+	blended := strings.Join(joinGaps("yugabyte", "cluster3", "blended", 3, "2 CPU 3g", "1 CPU 2g", "yb-range-rank"), " | ")
+	if strings.Contains(blended, "no concurrent writers") {
+		t.Fatal("a blended run must not claim there were no concurrent writers")
+	}
+	if !strings.Contains(blended, "maintenance writer") {
+		t.Fatal("a blended run must record its writer contract")
+	}
+	if !strings.Contains(blended, "2 CPU 3g") || !strings.Contains(blended, "1 CPU 2g") {
+		t.Fatal("limits must name the run's own budgets")
+	}
+	isolated := strings.Join(joinGaps("postgres", "single", "isolated", 1, "2 CPU 3g", "1 CPU 2g", "pg-btree-rank"), " | ")
+	if strings.Contains(isolated, "cluster nodes are containers") {
+		t.Fatal("a single-node run must not carry a cluster limit")
+	}
+	yb := strings.Join(joinGaps("yugabyte", "single", "isolated", 1, "2 CPU 3g", "1 CPU 2g", "yb-range-rank"), " | ")
+	if strings.Contains(yb, "not parsed") {
+		t.Fatal("YugabyteDB storage counters are parsed; the gap text must not say otherwise")
+	}
+}

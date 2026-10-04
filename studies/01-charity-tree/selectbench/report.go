@@ -53,15 +53,26 @@ type Cell struct {
 	// Retries counts transient concurrency conflicts (e.g. SQLSTATE 40001)
 	// that the statement survived by re-executing. The answer is verified after
 	// the retry, so a retry can never hide a wrong answer.
-	Retries         int `json:"retries,omitempty"`
-	Plan            string
-	Note            string
-	TimingMeasured  bool
-	SamplesMS       []float64
-	ResultRows      int
-	ResultJSONBytes int
-	PlanningMS      *float64
-	ExecutionMS     *float64
+	Retries int `json:"retries,omitempty"`
+	Plan    string
+	// Access-path evidence, parsed from the cell's own plan: the engine-reported
+	// rows scanned (YugabyteDB `Storage Rows Scanned`), whether the rank index or
+	// a sequential scan was used, PostgreSQL buffer counters and a filter count.
+	// They make the physical regime visible per cell instead of inferred.
+	StorageRowsScanned  int  `json:"storage_rows_scanned,omitempty"`
+	IndexRowsScanned    int  `json:"index_rows_scanned,omitempty"`
+	PlanIndexScan       bool `json:"plan_index_scan,omitempty"`
+	PlanSeqScan         bool `json:"plan_seq_scan,omitempty"`
+	BufSharedHit        int  `json:"buf_shared_hit,omitempty"`
+	BufSharedRead       int  `json:"buf_shared_read,omitempty"`
+	RowsRemovedByFilter int  `json:"rows_removed_by_filter,omitempty"`
+	Note                string
+	TimingMeasured      bool
+	SamplesMS           []float64
+	ResultRows          int
+	ResultJSONBytes     int
+	PlanningMS          *float64
+	ExecutionMS         *float64
 	// PolicyNote records the join/CTE family's observed materialization
 	// evidence (policy=materialized; observed=true, ...). Additive: the
 	// teaching families leave it empty.

@@ -100,6 +100,24 @@ cmd_down() {
   log "3-node cluster removed (including data volumes)"
 }
 
+# A genuinely colocated database. Table-level `colocation = true` is rejected on
+# the default non-colocated database (SQLSTATE 0A000), so the arm requires a
+# database created with COLOCATION = true. The client then points at this
+# database; only an error from here is an engine-unsupported gap.
+COLOC_DB="${ADS_YB_COLOCATED_DB:-select_coloc}"
+
+cmd_colocated_db() {
+  run_lock_guard
+  podman exec "${NODES[0]}" bash -lc "ysqlsh -h ${NODES[0]} -p 5433 -U $USER -d $DB -tAc \"SELECT 1 FROM pg_database WHERE datname='${COLOC_DB}'\" | grep -q 1 || ysqlsh -h ${NODES[0]} -p 5433 -U $USER -d $DB -c 'CREATE DATABASE ${COLOC_DB} WITH COLOCATION = true'" || die "could not create colocated database ${COLOC_DB}"
+  echo "$COLOC_DB"
+}
+
+cmd_colocated_endpoints() {
+  run_lock_guard
+  podman exec "${NODES[0]}" bash -lc "ysqlsh -h ${NODES[0]} -p 5433 -U $USER -d $DB -tAc \"SELECT 1 FROM pg_database WHERE datname='${COLOC_DB}'\" | grep -q 1 || ysqlsh -h ${NODES[0]} -p 5433 -U $USER -d $DB -c 'CREATE DATABASE ${COLOC_DB} WITH COLOCATION = true'" >/dev/null || die "could not create colocated database ${COLOC_DB}"
+  echo "postgres://${USER}@${NODES[0]}:5433/${COLOC_DB}?sslmode=disable,postgres://${USER}@${NODES[1]}:5433/${COLOC_DB}?sslmode=disable,postgres://${USER}@${NODES[2]}:5433/${COLOC_DB}?sslmode=disable"
+}
+
 case "${1:-up}" in
   up) cmd_up ;;
   down) cmd_down ;;
@@ -111,5 +129,7 @@ case "${1:-up}" in
   # rotate its reader across all of them; the single seed DSN above is for
   # interactive use, not for a balanced measurement.
   endpoints) echo "postgres://${USER}@${NODES[0]}:5433/${DB}?sslmode=disable,postgres://${USER}@${NODES[1]}:5433/${DB}?sslmode=disable,postgres://${USER}@${NODES[2]}:5433/${DB}?sslmode=disable" ;;
-  *) die "usage: $0 {up|down|status|ysqlsh|logs|dsn|endpoints}" ;;
+  colocated-db) cmd_colocated_db ;;
+  colocated-endpoints) cmd_colocated_endpoints ;;
+  *) die "usage: $0 {up|down|status|ysqlsh|logs|dsn|endpoints|colocated-db|colocated-endpoints}" ;;
 esac
