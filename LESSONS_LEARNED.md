@@ -2648,16 +2648,37 @@ share a plan), so the interesting comparison is against `NOT MATERIALIZED`.
 
 ## The same CTE keyword has engine-specific cost (2026-10-04)
 
-Forcing `MATERIALIZED` on a joined-output CTE (predicate outside the CTE) cost 6.8x-88x on
-PostgreSQL at 0.01-50% selectivity but only 1.02x-1.61x on YugabyteDB. The mechanism was in
-the plans, not the SQL: PostgreSQL used `facts_rank_idx` and the inline copy pushed the
-selective predicate into the join, while YugabyteDB chose a Seq Scan with
-`Storage Filter: (rank <= 2000)` for every spelling, so materializing the join removed no
-work the engine was using. Consistently, the reuse reversal (`NOT MATERIALIZED` faster at a
-low consumer selection, slower at a high one) reproduced only on PostgreSQL; on YugabyteDB
-it was uniformly ~9-11x slower at 16 references. **A CTE-materialization rule measured on
-one engine is a hypothesis about plan pushdown, not a portable syntax fact.** Record the
-index/scan choice beside the ratio, or the same number will be over-generalised.
+The six saved synthetic join/CTE runs show engine-specific policy observations,
+but the independent HIGH review qualifies their interpretation. At PostgreSQL
+threshold 20 the matched joined-output MATERIALIZED/default ratios are
+73.1056-92.8513; at YugabyteDB threshold 180,000 they are 1.0172, 0.8844,
+0.9442 (mixed sign). A selective index versus a storage-filtered scan is an
+observed plan distinction, not proof that one difference explains all timings.
+Two consumer-selection endpoints cannot establish a five-level consumer
+crossover, and near-equality at one reference cannot anchor a resolved
+reference-count crossing without variability support. **A CTE-materialization
+rule measured on one engine remains bounded by its actual pair, regime and
+uncertainty.** Evidence: `reports/discussions/20261004T-select-join-review--gpt6.md`
+and its independent Go audit. Domain/workload/topology coverage is still under correction.
+
+## Effective guest resources govern feasibility, not Podman configuration metadata (2026-10-04)
+
+The join/CTE submission claimed its configured 2 GiB Podman machine could not
+fit a 3 GiB database plus 2 GiB client. All six saved guest snapshots actually
+expose 16,109,780 kB (~15.36 GiB) and CPUs 0-7. Under WSL, machine inspect
+configuration can differ from effective guest allocation. Calculate node,
+client and system reserves against effective runtime and cgroup ceilings;
+configuration metadata alone is not a measured resource failure. The HIGH
+review rejected the unsupported cluster deferral while retaining the original evidence.
+
+## Report regeneration must preserve the exact input digest (2026-10-04)
+
+Re-rendering the unchanged pg1 join input with its original producing image
+changed the advertised digest from `070df793...4f2cfac` to `7c879564...824b6c`:
+the reader hashed an extra newline after the writer had already terminated JSON
+with one. Hash the input bytes consistently and prove render/re-render stability.
+Original results and reports remain intact; this is a derived-report defect,
+not evidence that their original measurements changed.
 
 
 

@@ -43,9 +43,9 @@ summary, not a second ledger.
 
 ## Current state
 
-### Join/CTE measurement family — **measured, submitted for HIGH review (2026-10-04)**
+### Join/CTE measurement family — **HIGH reviewed; LOW corrections required (2026-10-04)**
 
-The LOW `deepseek-flash` session completed `task-20261002T131729Z-select-join-cte`
+The LOW `deepseek-flash` session submitted `task-20261002T131729Z-select-join-cte`
 from the 2026-10-04 handoff. The join/CTE harness is implemented, unit-tested and
 committed: six inner-join spellings and forced `MATERIALIZED`/`NOT MATERIALIZED`
 on the two CTE forms, a generated reuse ladder (3 policies x {1,2,4,8,16} x
@@ -54,22 +54,27 @@ thresholds, and independent Go oracles.
 
 **Six whole single-node runs are measured, all correctness-gated (91/91 valid
 each, 0 invalid/timeout/error):** 3x PostgreSQL 17.11 and 3x YugabyteDB 2025.2.6,
-5 trials, seeded interleaving, position control. Result: the six spellings are
-plan-identical within an engine; `MATERIALIZED` on a joined-output CTE costs
-6.8x-88x on PostgreSQL but 1.02x-1.61x on YugabyteDB; the reuse crossing exists
-only on PostgreSQL (`NOT MATERIALIZED` faster at a 1% consumer, slower at 100%),
-while on YugabyteDB it is uniformly ~9-11x slower. The engines differ in plan
-shape: PostgreSQL uses `facts_rank_idx` for the 1% predicate, YugabyteDB chooses
-a Seq Scan with a storage filter.
+5 trials, seeded interleaving, position control. Independent HIGH GPT-6 checks
+validated all six original digests, medians, orders and control firing. The
+synthetic parent/fact observations are retained, but the submission is **not
+approved for integration or book promotion**. The matched policy effect has
+mixed signs at YB's widest predicate; the claimed reuse crossover is overstated,
+and small effects remain bounded by substantial variability.
 
 Per-run reports and digests are under `results/select-join-{pg,yb}{1,2,3}-20261004/`;
 replicated report `reports/20261004T-select-join-replicated.md`; signed LOW
 analysis `reports/analyses/20261004T-select-join-cte--deepseek-flash--2026-10-04.md`;
 RESULT and Decision Log under the task's attempt directory. Two harness defects
-found by feasibility were fixed before the matrix. **The 3-node YB RF=3 and
-colocated/non-colocated arms are an explicit coverage gap** (single 2 GiB host,
-no balanced multi-endpoint client, Study 07 deferred); no placement comparison is
-claimed. A LOW signed interpretation does not authorize book promotion — HIGH
+found by feasibility were fixed before the matrix. The resource deferral was
+rejected: all saved guest snapshots expose ~15.36 GiB and 8 CPUs, despite the
+machine configuration's 2 GiB/4 CPU metadata. Required domain, blended,
+3-node/equal-total/placement and engine-counter coverage is incomplete;
+re-rendering also changes the advertised input digest by adding a newline.
+The [HIGH review and targeted handoff](docs/select-query-templates/reviews/20261004-join-high/REVIEW.md)
+return the same retained branch/worktree to LOW through `changes_requested`.
+The [signed qualification](studies/01-charity-tree/reports/discussions/20261004T-select-join-review--gpt6.md)
+preserves the original LOW interpretation and all producing tags. No completion
+tag or local-main measurement merge is claimed at this checkpoint. HIGH
 `task-20261002T131729Z-select-synthesis` then `task-20261004T142623Z-select-book-high`
 own that. Benchmark lock is free.
 
@@ -80,7 +85,8 @@ by HIGH book-result authorship. Theory now shows six equivalent INNER JOIN forms
 LEFT JOIN answer differences and CTE folding/materialization. The Charity donations
 case links a clearly planned variation; no new SELECT timing claim is promoted.
 
-Reuse ready `task-20261002T131729Z-select-join-cte` in its retained worktree.
+Resume `task-20261002T131729Z-select-join-cte` after claiming its corrections in
+the retained worktree; the HIGH review above controls the next attempt.
 The [dated handoff](docs/select-query-templates/JOIN-HANDOFF-20261004.md) resolves
 the yielded worker's matrix/fixture questions and requires randomized order controls.
 Existing HIGH `select-synthesis` reviews it; new HIGH
@@ -193,9 +199,9 @@ Original runs and analyses are retained; no SELECT timing claim is added to the 
 Evidence: replicated reports
 `studies/01-charity-tree/reports/20261003T-select-access-replicated.md` and
 `.../20261003T-select-agg-replicated.md` and `.../20261004T-select-exist-replicated.md`,
-with signed analyses beside each. The remaining family (join/CTE) yielded a
-committed feasibility plan back to `ready` without running its matrix; its
-worktree is retained. The benchmark lock is free.
+with signed analyses beside each. The remaining family (join/CTE) now has six
+saved synthetic single-node runs and an independent HIGH review requiring LOW
+corrections, as recorded above; its worktree is retained. The benchmark lock is free.
 
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 
