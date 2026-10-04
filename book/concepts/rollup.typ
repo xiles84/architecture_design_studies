@@ -62,6 +62,7 @@ change must maintain it.
   ),
 )
 
+#block(breakable: false)[
 #heading(level: 2, "What it costs")
 
 #cost-table(
@@ -71,6 +72,7 @@ change must maintain it.
   correctness: [Silently wrong if one maintenance path is missed.],
   operations: [A backfill whenever the rule changes.],
 )
+]
 
 #heading(level: 2, "In the studies")
 
