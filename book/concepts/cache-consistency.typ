@@ -67,9 +67,12 @@ contract, so which member is in force has to be named:
 )
 
 None of these permits a dirty, torn or uncommitted value, and no configuration measured here produced an
-impossible value — measuring that is how the sentence is checked rather than assumed. The relaxed
-contracts this study measured are **unbounded-relaxed**: compared with the strict rule below, they allow a
-committed but older value, without declaring how old it may be. They are therefore not bounded-staleness
+impossible value — measuring that is how the sentence is checked rather than assumed.
+
+The relaxed contracts this study measured are *unbounded-relaxed*: compared with the strict rule below,
+they allow a committed but older value, without declaring how old it may be.
+
+They are therefore not bounded-staleness
 contracts, and counting how often they break the strict rule says nothing about whether they stay inside a
 Δ window.
 

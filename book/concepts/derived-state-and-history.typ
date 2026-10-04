@@ -27,12 +27,17 @@ from a current-state-only representation.
 A rollup can be maintained by the application or by a database trigger. The trigger makes the
 guarantee structural; the measured cost was 4.0–5.7x on whole-configuration replacement across three
 runs (median 4.94x), with a 22–46x worse latency tail, while the application rollup kept writes near
-the reference. That ratio is a reading at one size, not a property of the design: crossed with the size
-of a replacement it runs about **1.1–3.2x** at 10 entries per installation, **2.5–9.0x** at 60 and
-**10–24x** at 240, because the trigger does its work once per row written while the application does one
-statement per replacement. Those are ranges and not single figures, and the ranges are wide: the runs at
+the reference.
+
+That ratio is a reading at one size, not a property of the design: crossed with the size
+of a replacement it runs about *1.1–3.2x* at 10 entries per installation, *2.5–9.0x* at 60 and
+*10–24x* at 240. The trigger works once per row written; the application does one statement per replacement.
+
+Those are ranges and not single figures, and the ranges are wide: the runs at
 each size disagreed by more than a factor of two, because the machine's speed wanders during a session —
-sometimes up, sometimes down. What survives the wandering is the ordering: the same ranking appeared in
+sometimes up, sometimes down.
+
+What survives the wandering is the ordering: the same ranking appeared in
 every arrangement that was measured, so treat the ranking as the finding and the size of the penalty as
 uncertain by a factor of two or more.
 Neither is universally right: choose who must never forget, and then ask how large a replacement is.
