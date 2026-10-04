@@ -1,73 +1,79 @@
-// Chapter 12 — the Study 04 profile (STYLE.md, case-study template).
-//
-// One page: the business, the question, the designs compared, what it showed (each bullet
-// with its badge), what is not measured, and how to reproduce it. Domain words are checked
-// against studies/04-configuration-portal/README.md: an *installed product* owns its
-// configuration, a *configuration entry* is one key and its value, the *effective
-// configuration* is what a product reads back, and a *publication* makes a revision
-// current.
-
 #import "../lib/config.typ": *
 #import "../lib/evidence.typ": claim-badge
 
-// Edition 3 chapters carry their number in the opener, not in a heading counter, so
-// their sections are unnumbered: without this they print as 0.1, 0.2 ... because the
-// level-1 heading that would own the counter is unnumbered.
-#set heading(numbering: none)
+#pagebreak(weak: true)
+== Configuration publication <case-config>
+#marker("case", "Study 04 · installed product → configuration entries")
 
-#heading(level: 1, numbering: none, "Study 04 · configuration portal")
-#marker("study", "04 · configuration portal")
+A portal publishes configuration for installed products. Each installation owns its entries; installations of the same product definition must remain separate.
 
-#heading(level: 2, "The business")
+Readers request the effective configuration, an individual key or the installation overview. Writers edit keys, publish a batch or replace the whole configuration.
 
-A configuration portal is a service other products use: they create, publish and retrieve their
-configuration through it. Configuration belongs to an installed product, so two installations of the same
-product definition never share it.
+#block(inset: 8pt, fill: palette.surface)[
+  *Conceptual maintenance path:* change entries → maintain installation summary → commit publication.
+  \
+  A trigger repeats work as rows change. An application maintainer can collect the batch and maintain its summary together.
+]
 
-#heading(level: 2, "The question")
+=== Variation: store entries as rows or as a document
 
-What does each way of storing and serving that configuration cost to read, to write, to keep correct
-under concurrency, and to hold?
+#block[
+  #set text(size: 9.5pt)
+  #table(columns: (1.2fr, 2fr, 1.3fr), inset: 6pt, stroke: 0.4pt + palette.rule,
+    table.header([Variant], [Representation], [Theory]),
+    [n1_rows_indexed], [An indexed row for each key: the reference.], [#link(<theory-normalized>)[Normalized facts]],
+    [n2_rows_rolldown], [Parent keys copied onto entry rows.], [#link(<theory-rolldown>)[Rolldown]],
+    [d1_doc_row], [One whole configuration document per installation.], [#link(<theory-embedding>)[Embedding]],
+  )
+]
 
-#heading(level: 2, "Designs compared")
+*Thrives — inferred fit:* entry rows suit independent key access; a document suits fetching the whole configuration together.
 
-#set text(size: 9.5pt)
-#table(
-  columns: (auto, 1fr, auto),
-  inset: 5pt,
-  stroke: 0.4pt + palette.rule,
-  align: (left + top, left + top, left + top),
-  table.header([Design], [What it does], [Concept chapter]),
-  [n1_rows_indexed], [One row per configuration entry, indexed: the reference design.], [2 Indexes],
-  [n3_rollup_trigger], [Parent rollups maintained by a database trigger on every row written.], [4 Rollup],
-  [n4_rollup_app], [The same rollups maintained by the application's own write path.], [4 Rollup],
-  [n2_rows_rolldown], [Parent keys copied onto each child row to avoid a join.], [3 Rolldown],
-  [n6_config_document], [The whole configuration held as one document per installation.], [5 Embedding],
-)
+*Dies — inferred boundary:* a whole document can amplify small edits; copied parent keys add maintenance paths. These are selection considerations, not numeric wins established by the claims below.
 
-#heading(level: 2, "What it showed")
+=== Variation: choose who maintains the overview
 
-#list(
-  [Maintaining the overview with a trigger cost 4.0–5.7x the application-maintained rollup on a whole
-    configuration replacement. #claim-badge("v2-13-trigger-rollup-cost")],
-  [The penalty tracks the size of the write: roughly 1.1–3.2x at 10 entries, 2.5–9.0x at 60 and 10–24x
-    at 240, with the ordering by size holding in every arrangement measured.
-    #claim-badge("v2-18-maintenance-size-interaction")],
-  [Repeated whole runs of the same pair disagreed by 35–115%, so the ordering is the finding and a single
-    ratio is not. #claim-badge("v2-13-trigger-rollup-cost")],
-  [No rollup mismatch was recorded at any size: the trigger's guarantee held while it cost more.],
-)
+*Change:* n3_rollup_trigger and n4_rollup_app maintain the same overview facts. The comparison changes whether database triggers or application code do the maintenance.
 
-#heading(level: 2, "Not measured")
+*Observed summary:* whole-configuration replacement costs 4.0-5.7x more with the trigger. The slowest 1% is 22-46x worse; repeated measurements disagree substantially, so use ranges.
+#claim-badge("v2-13-trigger-rollup-cost")
+
+#block[
+  #set text(size: 9.5pt)
+  #table(columns: (1fr, 2fr), inset: 6pt, stroke: 0.4pt + palette.rule,
+    table.header([Replacement size], [Application throughput relative to trigger]),
+    [10 entries], [Roughly 1.1-3.2x.],
+    [60 entries], [Roughly 2.5-9.0x.],
+    [240 entries], [Roughly 10-24x.],
+  )
+]
+#claim-badge("v2-18-maintenance-size-interaction")
+
+*Thrives — inferred fit:* triggers centralise maintenance when multiple write paths must obey it.
+
+*Dies — observed cost:* large replacements multiply the trigger penalty. The application variant is faster in every measured size arrangement; neither variant records a rollup mismatch.
+
+Theory: #link(<theory-rollup>)[Rollup]. The experiment cannot separate trigger firing frequency from the work each firing performs.
+
+=== Variation: many writers edit one hot installation
+
+*Change:* c1_optimistic_version checks a version and retries bounded conflicts. c2_pessimistic_lock acquires the parent lock before reading and updating.
+
+*Observed summary:* under one hot key at 16 writers, lock-before-update delivers about 1.6-1.8x the version-check throughput. Removing the retry budget does not explain that advantage.
+#claim-badge("v2-12-lock-vs-version-upper-bound")
+
+*Observed crossing:* the two strategies cross between one and two writers; repeated runs preserve that boundary and the divergence above it. An unexplained one-writer excursion remains recorded.
+#claim-badge("v2-17-optimistic-pessimistic-crossover")
+
+*Thrives — observed regime:* version checking leads at one writer in the reproduced crossing; locking leads as the hot-key contention increases.
+
+*Dies — observed correctness:* unchecked read-modify-write loses acknowledged updates. Both guarded designs lose none; correctness precedes the speed comparison.
+
+Theory: #link(<theory-optimistic>)[Optimistic writes], #link(<theory-pessimistic>)[Pessimistic writes] and #link(<theory-hot-rows>)[Hot rows]. The crossing describes this hot-key workload, not every configuration portal.
 
 #gap[
-  Eight of the study's eighteen planned designs are not built. Cardinality, cadence and churn, repeated
-  randomized trials, equal-total resources, placement and YugabyteDB are unanswered.
+  Eight of the eighteen planned designs are unimplemented. Cardinality, cadence/churn, equal-total resources, placement and YugabyteDB coverage remain incomplete; the active gap card also retains the earlier repeated-randomized-trials gap.
   #claim-badge("v2-gap-03-study04-missing-designs")
 ]
 
-#heading(level: 2, "Reproduce")
-
-Study path: `studies/04-configuration-portal`. The run tags behind the two claims above are named on
-their evidence cards, which the badges link to; the designs, the runner and the environment are in the
-study's README.
+*Reproduce:* `studies/04-configuration-portal`. Badges name the exact replacement and concurrency experiments. Treat the later repeated claims as targeted coverage, rather than completion of the whole study plan.
