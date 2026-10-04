@@ -46,8 +46,15 @@ reports, signed analysis and all ten producing tags are preserved unedited.
   - [~] One-CPU client calibration: bounded read-only pass done
     (`select-join-calib-pg-20261004`, 0 throttled periods at 1 CPU); the
     10-updates/s writer and widest-threshold demand still to be calibrated.
-- [ ] **C4 bounded single/cluster topology subset**, round-robin endpoints, RF3,
+- [~] **C4 bounded single/cluster topology subset**, round-robin endpoints, RF3,
       placement and colocation.
+  - [x] Cluster reachable under the calibrated budget: 3 tservers, RF3, per-node
+    2 CPU/3 GiB (`CLUSTER-BRINGUP.md`).
+  - [x] Multi-endpoint client implemented (`harness/join_cluster.go`); first
+    cluster3 subset run 30/30 valid with endpoint ops 123/122/122 and per-node
+    throttling 20/82/11 (`select-join-topo-yb-smoke-20261004`).
+  - [ ] Bounded subset matrix: 3 whole runs per arm (single, equal-total single,
+    cluster3), colocated vs non-colocated placement.
 - [ ] **C5 matched blended read/write phase** (one fixed writer).
 - [ ] **C6** new signed successor analysis with corrected verdicts.
 

@@ -101,9 +101,14 @@ valid each with 5 samples and position control, and the domain-only report
 `studies/01-charity-tree/reports/20261004T-select-join-domain-replicated.md`,
 which partitions on image digests. Because report-only commits landed between
 yb1 and yb2-3, the runs span two client builds; the completed matrix will be
-re-run from one frozen commit after C4/C5. The bounded cluster/placement subset
-(C4), matched blended writer (C5) and the successor signed analysis (C6) remain
-open; the task stays `claimed` and **unsubmitted**.
+re-run from one frozen commit after C4/C5. The 3-node arm is now reachable and
+used: the cluster comes up at RF3 under per-node 2 CPU/3 GiB, the client rotates
+its reader across all three endpoints (first cluster3 subset run 30/30 valid,
+endpoint ops 123/122/122, per-node throttling 20/82/11) — see
+`docs/select-query-templates/reviews/20261004-join-corrective/CLUSTER-BRINGUP.md`.
+Still open: the bounded subset matrix (3 runs/arm, colocated vs non-colocated),
+the matched blended writer (C5) and the successor signed analysis (C6); the task
+stays `claimed` and **unsubmitted**.
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 
