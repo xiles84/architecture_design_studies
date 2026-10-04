@@ -53,8 +53,12 @@ reports, signed analysis and all ten producing tags are preserved unedited.
   - [x] Multi-endpoint client implemented (`harness/join_cluster.go`); first
     cluster3 subset run 30/30 valid with endpoint ops 123/122/122 and per-node
     throttling 20/82/11 (`select-join-topo-yb-smoke-20261004`).
+  - [~] Placement feature check: `noncolocated` supported (cluster3 subset
+    30/30 valid, placement recorded); `colocated` rejected by the pinned engine
+    on the default non-colocated database (SQLSTATE 0A000), recorded as an
+    explicit gap with error evidence (`PLACEMENT.md`).
   - [ ] Bounded subset matrix: 3 whole runs per arm (single, equal-total single,
-    cluster3), colocated vs non-colocated placement.
+    cluster3), non-colocated baseline; colocated requires a colocated database.
 - [~] **C5 matched blended read/write phase** (one fixed writer).
   - [x] Implemented: independent `maintenance_updates` counter outside the
     projection/rank/token; one fixed writer at 10 updates/s over 1000 keys;

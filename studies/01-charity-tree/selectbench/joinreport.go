@@ -95,7 +95,10 @@ func fmtStat(v float64) string {
 // the result JSON bytes, computed by the writer (it cannot live inside the file
 // it hashes).
 func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
-	if len(r.Cells) == 0 && r.Feasibility == nil {
+	// An early failure (feature check, connection, DDL) has no cells and no
+	// feasibility evidence, but it still must produce a report: an error that
+	// cannot be read back is not recorded evidence.
+	if len(r.Cells) == 0 && r.Feasibility == nil && r.Error == "" {
 		return "", fmt.Errorf("no cells and no feasibility evidence to render")
 	}
 	var b strings.Builder
@@ -103,6 +106,9 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 	b.WriteString("_Measurements only. Verdicts on P1–P4 belong in the signed analysis beside this report._\n\n")
 	fmt.Fprintf(&b, "**TL;DR:** %d cells, %d valid, engine `%s`, topology `%s`, scale `%s`, seed %d, %d fact rows.\n\n",
 		len(r.Cells), r.Valid(), r.Engine, r.Topology, r.Scale, r.Seed, r.FactCount)
+	if r.Error != "" {
+		fmt.Fprintf(&b, "**Run error:** %s\n\n", r.Error)
+	}
 
 	b.WriteString("## Provenance\n\n")
 	p := r.Provenance

@@ -106,9 +106,11 @@ used: the cluster comes up at RF3 under per-node 2 CPU/3 GiB, the client rotates
 its reader across all three endpoints (first cluster3 subset run 30/30 valid,
 endpoint ops 123/122/122, per-node throttling 20/82/11) — see
 `docs/select-query-templates/reviews/20261004-join-corrective/CLUSTER-BRINGUP.md`.
-Still open: the bounded subset matrix (3 runs/arm, colocated vs non-colocated),
-the full 5-trial blended phase pairs, and the successor signed analysis (C6); the
-task stays `claimed` and **unsubmitted**. The matched blended writer (C5) is
+Still open: the bounded subset matrix (3 runs/arm; the non-colocated baseline is
+supported and the colocated arm is an explicit gap — the pinned engine rejects
+`colocation = true` on the default database with SQLSTATE 0A000, see
+`PLACEMENT.md`), the full 5-trial blended phase pairs, and the successor signed
+analysis (C6); the task stays `claimed` and **unsubmitted**. The matched blended writer (C5) is
 implemented and validated: an independent `maintenance_updates` counter outside
 the projection/rank/token, one writer at an offered 10 updates/s, isolated and
 blended phases, and a Go ledger; the PG validation pair ran 30/30 valid and the
