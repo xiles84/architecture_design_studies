@@ -39,12 +39,12 @@ harness run, not a measurement.
   10 and 100, 3/3 runs); pre-aggregation wins only at 10,000 parents (crossing
   between 1,000 and 10,000, 3/3 runs). YB: pre-aggregation never wins
   (1.13–3.26×), and the correlated shape collapses from 3.99 ms at one parent to
-  **8,460 ms** at 10,000 (489–507× post-join).
+  **8,460 ms** at 10,000 (446–507× post-join).
 - **P9 partially confirmed; the protocol's favourite is wrong at scale.** LATERAL
   has no resolved small-parent advantage on PG, loses from 100 parents, and on YB
   wins only at one parent before losing 272–278× at 10,000. `DISTINCT ON` is the
-  fastest top-N spelling from 100 parents up on both engines (PG 0.63–0.73×
-  ROW_NUMBER; YB 0.83–1.02×).
+  fastest top-N spelling from 100 parents up on both engines (PG 0.63–0.81×
+  ROW_NUMBER; YB 0.82–1.05×).
 - **Controls:** `x05_aggregate_double_count` and `x06_topn_rank_ties` fired in
   6/6 runs; the wrong-grain control would otherwise pass as a fast aggregate.
 - **Position control:** first/last ratio 1.278 (PG) and 0.951 (YB), same plan.

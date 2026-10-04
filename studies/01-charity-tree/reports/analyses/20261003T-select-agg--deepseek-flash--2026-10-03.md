@@ -35,15 +35,15 @@ and predictions P8/P9 are in
   (1.13–3.26×) and the correlated crossover is between 1 and 10 parents.**
 - **YugabyteDB's correlated per-parent aggregate is unusable at scale.** Its median
   grows 3.99 ms → 8.24 → 56.8 → 519 → **8,460 ms** across 1 → 10 → 100 → 1,000 →
-  10,000 parents (489–507× post-join), while PostgreSQL's grows 0.24 → 20.45 ms.
+  10,000 parents (446–507× post-join), while PostgreSQL's grows 0.24 → 20.45 ms.
   The YB cost is ~0.5–0.8 ms per parent, i.e. per-probe proxy/round-trip overhead.
 - **P9's index probe almost never wins, and the winner is a spelling the protocol
   did not name as the favourite.** LATERAL never has a resolved advantage on
   PostgreSQL (0.88–1.05× ROW_NUMBER at 1–10 parents) and loses monotonically from
   100 parents (2.0–2.2× at 10,000); on YugabyteDB it wins only at one parent
-  (0.57–0.63×) and then loses by 6.3–6.9× at 100 and **272–278×** at 10,000.
+  (0.57–0.63×) and then loses by 6.3–7.1× at 100 and **272–278×** at 10,000.
   `DISTINCT ON` is the fastest top-N spelling at every level from 100 parents up
-  on both engines (PG 0.63–0.73× ROW_NUMBER; YB 0.83–1.02×), because it avoids
+  on both engines (PG 0.63–0.81× ROW_NUMBER; YB 0.82–1.05×), because it avoids
   both the global sort and the per-parent probe.
 - **The controls fired in all six runs.** `x05_aggregate_double_count` returned
   10,000 rows that multiply the totals, and `x06_topn_rank_ties` returned 10,021
@@ -98,12 +98,12 @@ at small parent sets and loses at large, with a bounded crossing. On PostgreSQL
 LATERAL is never clearly better than ROW_NUMBER — 0.88–1.05× at 1–10 parents,
 inside the noise — and then loses with a stable sign: 1.27–1.34× at 100,
 1.68–1.79× at 1,000, 1.99–2.17× at 10,000. On YugabyteDB the probe does win at
-exactly one parent (0.57–0.63×) but the penalty at scale is enormous: 6.3–6.9×
-at 100, 45.6–49.9× at 1,000, 272–278× at 10,000. So the crossing exists, but its
+exactly one parent (0.57–0.63×) but the penalty at scale is enormous: 6.3–7.1×
+at 100, 44.8–49.9× at 1,000, 272–278× at 10,000. So the crossing exists, but its
 useful side is one parent wide on YB and absent on PG. What the protocol did not
 test is the spelling that actually wins: `DISTINCT ON` is fastest from 100
-parents up on PostgreSQL (0.63–0.73× ROW_NUMBER) and is at least equal to
-ROW_NUMBER on YugabyteDB (0.83–1.02×), because on this `(customer_id,
+parents up on PostgreSQL (0.63–0.81× ROW_NUMBER) and is at least equal to
+ROW_NUMBER on YugabyteDB (0.82–1.05×), because on this `(customer_id,
 amount)`-indexed data it removes the global sort without paying one round trip
 per parent. The practical rule is therefore *DISTINCT ON for N=1*, with
 ROW_NUMBER as the portable fallback for N>1, and LATERAL only for a very small,
