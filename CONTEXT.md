@@ -90,9 +90,16 @@ summaries are present, with failing-before/passing-after tests. The D8 resource
 deferral is retracted — 8 CPU / 16,109,780 kB effective — with the budget plan in
 `docs/select-query-templates/reviews/20261004-join-corrective/RESOURCES.md`, and a
 bounded 1-CPU client calibration ran with 0 throttled periods
-(`select-join-calib-pg-20261004`). The Study 01 domain arm (C2), bounded
-cluster/placement subset (C4), matched blended writer (C5) and the successor
-signed analysis (C6) remain open; the task stays `claimed` and **unsubmitted**.
+(`select-join-calib-pg-20261004`). The Study 01 domain arm is implemented and
+verified live: `selectjoin_domain` loads real charity/person/donation rows and
+two views bind them to the unchanged catalogue, projecting
+`(person_id, charity_name, donation_id, amount_cents)` with `donation.rank` as
+the documented exact-selectivity proxy (`commit 1216bf0f`; contract in
+`docs/select-query-templates/reviews/20261004-join-corrective/DOMAIN-ARM.md`).
+The corrected domain matrix is running: `select-join-domain-pg{1,2,3}-20261004`
+on PostgreSQL, 91/91 valid in run 1. The bounded cluster/placement subset (C4),
+matched blended writer (C5) and the successor signed analysis (C6) remain open;
+the task stays `claimed` and **unsubmitted**.
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 
