@@ -115,6 +115,19 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 	for _, k := range sortedKeys(p.Settings) {
 		fmt.Fprintf(&b, "- setting `%s`: %s\n", k, p.Settings[k])
 	}
+	if len(r.Endpoints) > 0 {
+		b.WriteString("\n### Endpoint distribution\n\nA cluster arm must rotate its reader across nodes; a single seed endpoint would not be balanced cluster access.\n\n| endpoint | operations | connections at end |\n|---|---|---|\n")
+		for i, e := range r.Endpoints {
+			ops, conns := 0, 0
+			if i < len(r.EndpointOps) {
+				ops = r.EndpointOps[i]
+			}
+			if i < len(r.EndpointConns) {
+				conns = r.EndpointConns[i]
+			}
+			fmt.Fprintf(&b, "| %s | %d | %d |\n", e, ops, conns)
+		}
+	}
 	b.WriteString("\n")
 
 	fmt.Fprintf(&b, "## Fixture and selectivity mapping\n\n- arm: `%s`\n- fact rows: %d\n- parent rows: %d\n- rank thresholds: %v\n\nThe predicate is `rank <= threshold`, where `rank` is a deterministic shuffle of 1..%d; `rank` is a labelled proxy for the teaching selective predicate, not the same question. The `cte`/`cte-small` arm is the synthetic customers/facts microfixture; the `cte-domain` arm is Study 01's person/donation fixture with the person's charity projected and the views binding it to this catalogue.\n\n",

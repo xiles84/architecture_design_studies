@@ -12,6 +12,7 @@ FAMILY="select"
 PAGE_LIMIT=5
 POSITION_CONTROL=0
 FEASIBILITY=0
+TOPO_SUBSET=0
 TOPOLOGY="single"
 TRIALS=3
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -27,6 +28,7 @@ while [[ $# -gt 0 ]]; do
     --page-limit) PAGE_LIMIT="$2"; shift 2 ;;
     --position-control) POSITION_CONTROL=1; shift ;;
     --feasibility) FEASIBILITY=1; shift ;;
+    --topo-subset) TOPO_SUBSET=1; shift ;;
     --topology) TOPOLOGY="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
@@ -53,6 +55,8 @@ POSITION_FLAG=""
 [[ "$POSITION_CONTROL" == 1 ]] && POSITION_FLAG="-position-control"
 FEASIBILITY_FLAG=""
 [[ "$FEASIBILITY" == 1 ]] && FEASIBILITY_FLAG="-feasibility"
+TOPO_FLAG=""
+[[ "$TOPO_SUBSET" == 1 ]] && TOPO_FLAG="-topo-subset"
 case "$ENGINE" in
   postgres)
     [[ "$TOPOLOGY" == single ]] || die "postgres has no cluster3 topology here"
@@ -108,11 +112,23 @@ podman machine inspect >"$OUTDIR/resources/machine.json"
 podman image inspect "$IMAGE" "$ENGINE_IMAGE" >"$OUTDIR/resources/images.json"
 STARTED=yes
 bash "$TOPOLOGY_SCRIPT" up
-DSN="$(bash "$TOPOLOGY_SCRIPT" dsn)"
+if [[ "$TOPOLOGY" == cluster3 ]]; then
+  DSN="$(bash "$TOPOLOGY_SCRIPT" endpoints)"
+else
+  DSN="$(bash "$TOPOLOGY_SCRIPT" dsn)"
+fi
 podman inspect "$NODE" >"$OUTDIR/resources/node.json"
 podman exec "$NODE" cat /proc/meminfo >"$OUTDIR/resources/guest-memory.txt"
 podman exec "$NODE" cat /sys/devices/system/cpu/online >"$OUTDIR/resources/guest-cpus.txt"
 podman exec "$NODE" cat /sys/fs/cgroup/cpu.stat >"$OUTDIR/resources/node-cpu-before.txt"
+# Every node's effective limits and throttle counters: per-node throttling is a
+# required observation for a multi-node arm, not only the seed node's.
+for i in "${!NODES[@]}"; do
+  n="${NODES[$i]}"; idx=$((i + 1))
+  podman exec "$n" cat /sys/fs/cgroup/cpu.stat >"$OUTDIR/resources/node-${idx}-cpu-before.txt" 2>/dev/null || true
+  podman exec "$n" cat /sys/fs/cgroup/cpu.max >"$OUTDIR/resources/node-${idx}-cpu.max" 2>/dev/null || true
+  podman exec "$n" cat /sys/fs/cgroup/memory.max >"$OUTDIR/resources/node-${idx}-memory.max" 2>/dev/null || true
+done
 set +e
 podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEMORY" \
   -v "$(winpath "$(hostpath "$OUTDIR")"):/results" \
@@ -120,11 +136,15 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" \
   -e "ADS_ENGINE_IMAGE=$ENGINE_IMAGE" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology "$TOPOLOGY" -scale "$SCALE" -seed "$SEED" \
-  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG $TOPO_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e
 cat "$OUTDIR/resources/client.log"
 podman exec "$NODE" cat /sys/fs/cgroup/cpu.stat >"$OUTDIR/resources/node-cpu-after.txt"
+for i in "${!NODES[@]}"; do
+  n="${NODES[$i]}"; idx=$((i + 1))
+  podman exec "$n" cat /sys/fs/cgroup/cpu.stat >"$OUTDIR/resources/node-${idx}-cpu-after.txt" 2>/dev/null || true
+done
 printf 'exit_code=%s\n' "$RESULT_RC" >>"$OUTDIR/manifest.env"
 exit "$RESULT_RC"

@@ -77,6 +77,7 @@ func main() {
 		resultsDir   = flag.String("results", "", "report: directory of result JSON files to summarise")
 		reportOut    = flag.String("report-out", "", "report: markdown file to write")
 		armFilter    = flag.String("arm", "", "join-report: only summarise runs carrying this arm/dataset value")
+		topoSubset   = flag.Bool("topo-subset", false, "join: run the bounded single/cluster topology subset instead of the full matrix")
 		compareDir   = flag.String("compare", "", "report-compare: the alternative-regime results directory")
 		labelA       = flag.String("label-a", "", "report-compare: name for the -results regime")
 		labelB       = flag.String("label-b", "", "report-compare: name for the -compare regime")
@@ -157,7 +158,7 @@ func main() {
 		}
 		return
 	case "select-join":
-		if err := runSelectJoinMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *envName, *runID, *stmtTimeout, *positionCtl, *feasibility); err != nil {
+		if err := runSelectJoinMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *envName, *runID, *stmtTimeout, *positionCtl, *feasibility, *topoSubset); err != nil {
 			fatal(err)
 		}
 		return

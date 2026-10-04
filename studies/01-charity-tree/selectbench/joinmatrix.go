@@ -134,6 +134,61 @@ func BuildJoinSpecs(base JoinArgs, factCount, trials int) []JoinSpec {
 	return specs
 }
 
+// JoinTopologyThresholds are the three named selectivities of the reviewed
+// bounded single/cluster subset: 0.01%, 1% and 90%.
+func JoinTopologyThresholds(factCount int) []int {
+	out := make([]int, 0, 3)
+	for _, pct := range []float64{0.01, 1, 90} {
+		t := int(math.Round(float64(factCount) * pct / 100))
+		if t < 1 {
+			t = 1
+		}
+		out = append(out, t)
+	}
+	return out
+}
+
+// BuildJoinTopologySpecs is the bounded single/cluster subset the review
+// approved: JOIN+WHERE and the joined-output CTE under its three policies at the
+// three named selectivities, plus the reuse ladder at {1,4,16} references. It is
+// deliberately smaller than the full 91-cell matrix so the topology arms fit the
+// run budget; the axes use the same family ids so the pair tables render the
+// same decisions.
+func BuildJoinTopologySpecs(base JoinArgs, factCount, trials int) []JoinSpec {
+	var specs []JoinSpec
+	bag := []string{"j01_join_where", "j05_cte_joined_outer", "j05m_cte_joined_outer_mat", "j05n_cte_joined_outer_notmat"}
+	for _, t := range JoinTopologyThresholds(factCount) {
+		for _, name := range bag {
+			a := base
+			a.Threshold = t
+			a.Refs = 1
+			a.Trials = trials
+			specs = append(specs, JoinSpec{Statement: name, Axis: JoinBagAxis(name, t), Args: a})
+		}
+	}
+	reuseThreshold := int(math.Round(float64(factCount) * 1 / 100))
+	if reuseThreshold < 1 {
+		reuseThreshold = 1
+	}
+	for _, policy := range []string{"default", "mat", "notmat"} {
+		for _, refs := range []int{1, 4, 16} {
+			for _, pct := range ReuseConsumerPercents() {
+				a := base
+				a.Threshold = reuseThreshold
+				a.Refs = refs
+				a.ConsumerMax = int(math.Round(float64(factCount) * float64(pct) / 100))
+				if a.ConsumerMax < 1 {
+					a.ConsumerMax = 1
+				}
+				a.Trials = trials
+				specs = append(specs, JoinSpec{Statement: ReuseStatementName(policy, refs, pct),
+					Axis: JoinReuseAxis(policy, refs, pct), Args: a})
+			}
+		}
+	}
+	return specs
+}
+
 // JoinControlSpecs are the controls the family's gate must see fire.
 func JoinControlSpecs(base JoinArgs, factCount int) []JoinSpec {
 	var specs []JoinSpec
@@ -203,6 +258,9 @@ type JoinResult struct {
 	Order          RunOrder            `json:"order"`
 	Feasibility    *JoinFeasibility    `json:"feasibility,omitempty"`
 	ExplainOptions string              `json:"explain_options,omitempty"`
+	Endpoints      []string            `json:"endpoints,omitempty"`
+	EndpointOps    []int               `json:"endpoint_ops,omitempty"`
+	EndpointConns  []int               `json:"endpoint_conns,omitempty"`
 	Summary        map[string]int      `json:"summary"`
 	Notes          []string            `json:"notes,omitempty"`
 	Error          string              `json:"error,omitempty"`

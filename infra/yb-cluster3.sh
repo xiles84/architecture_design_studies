@@ -107,5 +107,9 @@ case "${1:-up}" in
   ysqlsh) shift; podman exec -it "${NODES[0]}" bash -lc "ysqlsh -h ${NODES[0]} -p 5433 -U $USER -d $DB $*" ;;
   logs) podman logs --tail "${3:-80}" "${2:-${NODES[0]}}" ;;
   dsn) echo "postgres://${USER}@${NODES[0]}:5433/${DB}?sslmode=disable" ;;
-  *) die "usage: $0 {up|down|status|ysqlsh|logs|dsn}" ;;
+  # Every node's SQL endpoint, comma-separated. A cluster run must be able to
+  # rotate its reader across all of them; the single seed DSN above is for
+  # interactive use, not for a balanced measurement.
+  endpoints) echo "postgres://${USER}@${NODES[0]}:5433/${DB}?sslmode=disable,postgres://${USER}@${NODES[1]}:5433/${DB}?sslmode=disable,postgres://${USER}@${NODES[2]}:5433/${DB}?sslmode=disable" ;;
+  *) die "usage: $0 {up|down|status|ysqlsh|logs|dsn|endpoints}" ;;
 esac

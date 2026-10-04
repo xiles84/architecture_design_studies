@@ -13,7 +13,6 @@ import (
 
 	"charitytree/selectbench"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -332,7 +331,7 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 	return f
 }
 
-func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID string, statementTimeout int, positionControl, feasibilityOnly bool) error {
+func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID string, statementTimeout int, positionControl, feasibilityOnly, topoSubset bool) error {
 	if dsn == "" {
 		return fmt.Errorf("-cmd select-join needs -dsn")
 	}
@@ -353,27 +352,24 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	// person/donation fixture bound through the charity views.
 	arm := selectJoinArm(seed, scale)
 	thresholds := selectbench.JoinThresholds(arm.factCount)
+	if topoSubset {
+		thresholds = selectbench.JoinTopologyThresholds(arm.factCount)
+	}
 	budget := time.Duration(statementTimeout) * time.Millisecond
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Minute)
 	defer cancel()
 
-	cfg, err := pgxpool.ParseConfig(dsn)
+	// One pool per endpoint: a cluster arm rotates its reader across every node
+	// rather than silently using the seed endpoint alone.
+	pools, endpoints, err := connectEndpoints(ctx, dsn, arm.schema, statementTimeout)
 	if err != nil {
-		return fmt.Errorf("dsn: %w", err)
+		return err
 	}
-	cfg.ConnConfig.RuntimeParams["search_path"] = arm.schema + ",public"
-	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
-	cfg.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprint(statementTimeout)
-	cfg.MaxConns = 2
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		return fmt.Errorf("connect: %w", err)
-	}
-	defer pool.Close()
+	defer closePools(pools)
 
-	q := pgxQuerier{pool: pool}
-	explainOpts, explainEvidence := probeExplainOptions(ctx, pool, engine)
+	q := &rrQuerier{pools: pools, endpoints: endpoints, ops: make([]int, len(pools))}
+	explainOpts, explainEvidence := probeExplainOptions(ctx, pools[0], engine)
 	q.explainOpts = explainOpts
 	cpuBefore := readSelectCPUStat()
 
@@ -409,11 +405,16 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	}
 	result.Controls = append(result.Controls, bigControls...)
 
-	result.Feasibility = joinFeasibility(ctx, pool, q, cat, arm.oracle, thresholds, budget, arm.schema, arm.rankIndex)
+	result.Feasibility = joinFeasibility(ctx, pools[0], q, cat, arm.oracle, thresholds, budget, arm.schema, arm.rankIndex)
 
 	base := selectbench.JoinArgs{Trials: trials, StatementTimeout: budget}
 	if !feasibilityOnly {
-		specs := selectbench.BuildJoinSpecs(base, arm.factCount, trials)
+		var specs []selectbench.JoinSpec
+		if topoSubset {
+			specs = selectbench.BuildJoinTopologySpecs(base, arm.factCount, trials)
+		} else {
+			specs = selectbench.BuildJoinSpecs(base, arm.factCount, trials)
+		}
 		plan := selectbench.PlanOrder(selectbench.OrderSeedFor(seed, runID), len(specs))
 		first := specs[plan.Order[0]]
 		result.Cells = selectbench.RunJoinSpecsInterleaved(ctx, q, cat, arm.oracle, specs, plan, runID, topology)
@@ -427,16 +428,23 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	}
 
 	version := ""
-	_ = pool.QueryRow(ctx, "SELECT version()").Scan(&version)
-	result.Provenance = joinProvenance(version, environment, scale, arm.dataset, arm.factCount, arm.parents, thresholds, engine, topology, seed, trials, statementTimeout, cpuBefore, arm.fingerprint)
+	_ = pools[0].QueryRow(ctx, "SELECT version()").Scan(&version)
+	result.Endpoints = endpoints
+	result.EndpointOps = q.ops
+	result.EndpointConns = q.conns()
+	result.Provenance = joinProvenance(version, environment, scale, arm.dataset, arm.factCount, arm.parents, thresholds, engine, topology, seed, trials, statementTimeout, cpuBefore, arm.fingerprint, endpoints)
 	result.Notes = append(result.Notes, joinGaps(engine, topology)...)
 	return writeJoinOutputs(result, nil, feasibilityOnly, out, reportOut)
 }
 
-func joinProvenance(version, environment, scale, dataset string, factCount, parents int, thresholds []int, engine, topology string, seed int64, trials, statementTimeout int, cpuBefore, fingerprint string) selectbench.Provenance {
+func joinProvenance(version, environment, scale, dataset string, factCount, parents int, thresholds []int, engine, topology string, seed int64, trials, statementTimeout int, cpuBefore, fingerprint string, endpoints []string) selectbench.Provenance {
 	rpc := "not parsed; raw EXPLAIN retained (coverage gap)"
 	if engine == "postgres" && topology == "single" {
 		rpc = "N/A on PostgreSQL single-node"
+	}
+	mode := "single endpoint"
+	if len(endpoints) > 1 {
+		mode = "round-robin across " + fmt.Sprint(len(endpoints)) + " endpoints"
 	}
 	settings := map[string]string{
 		"scale": scale, "dataset": dataset, "topology": topology, "fact_count": fmt.Sprint(factCount),
@@ -445,7 +453,8 @@ func joinProvenance(version, environment, scale, dataset string, factCount, pare
 		"index_set":            "child rank index and parent-key index, primary keys; no per-spelling index",
 		"statistics":           "ANALYZE after deterministic load",
 		"prepared_plan_policy": "pgx simple protocol; no prepared statements",
-		"client_workers":       "1 sequential reader; 0 writers", "connection_pool": "2 = 1 reader/setup + 1 reserve",
+		"client_workers":       "1 sequential reader; 0 writers", "connection_pool": "2 per endpoint = reader/setup + reserve",
+		"endpoints": strings.Join(endpoints, ","), "endpoint_mode": mode,
 		"trials_per_cell": fmt.Sprint(trials), "statement_budget_ms": fmt.Sprint(statementTimeout),
 		"whole_run_count": "1; no replicated winner in this file", "distributed_rpc": rpc,
 	}
