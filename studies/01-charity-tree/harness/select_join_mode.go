@@ -30,6 +30,40 @@ import (
 // cells are explicit results, not failures; invalid, timed-out and errored
 // cells are never ranked.
 
+// probeExplainOptions picks the richest EXPLAIN option list the pinned engine
+// accepts: PostgreSQL VERBOSE/BUFFERS, YugabyteDB DIST/DEBUG. The chosen list is
+// recorded; if the richest form is unsupported, the next is used and the
+// fallback is reported as evidence rather than the absence of RPC counters being
+// described as "not parsed" (review R3).
+func probeExplainOptions(ctx context.Context, pool *pgxpool.Pool, engine string) (string, string) {
+	candidates := []string{"ANALYZE, VERBOSE, BUFFERS, FORMAT TEXT", "ANALYZE, BUFFERS, FORMAT TEXT"}
+	if engine == "yugabyte" {
+		candidates = []string{"ANALYZE, DIST, DEBUG, FORMAT TEXT", "ANALYZE, DIST, FORMAT TEXT", "ANALYZE, BUFFERS, FORMAT TEXT"}
+	}
+	var firstErr string
+	for _, c := range candidates {
+		rows, err := pool.Query(ctx, "EXPLAIN ("+c+") SELECT 1")
+		if err != nil {
+			if firstErr == "" {
+				firstErr = err.Error()
+			}
+			continue
+		}
+		for rows.Next() {
+		}
+		rerr := rows.Err()
+		rows.Close()
+		if rerr != nil {
+			if firstErr == "" {
+				firstErr = rerr.Error()
+			}
+			continue
+		}
+		return c, "explain options `" + c + "` supported on " + engine
+	}
+	return "", "no engine-specific EXPLAIN option list was supported; plain PostgreSQL options used (" + firstErr + ")"
+}
+
 func selectJoinSpec(scale string) selectbench.JoinGenSpec {
 	switch scale {
 	case "cte-small":
@@ -68,7 +102,10 @@ func runJoinGate(ctx context.Context, q selectbench.Querier, cat *selectbench.Ca
 	}
 	opt := base
 	opt.Threshold = 1
-	specs = append(specs, selectbench.JoinSpec{Statement: "j11_optional_on", Axis: "gate=j11_optional_on;threshold=1", Args: opt})
+	specs = append(specs,
+		selectbench.JoinSpec{Statement: "j11_optional_on", Axis: "gate=j11_optional_on;threshold=1", Args: opt},
+		selectbench.JoinSpec{Statement: "j11_optional_derived", Axis: "gate=j11_optional_derived;threshold=1", Args: opt},
+	)
 	cells := selectbench.RunJoinSpecs(ctx, q, cat, edge, specs, "gate", "validation")
 	for _, c := range cells {
 		switch c.Status {
@@ -98,6 +135,23 @@ func runJoinGate(ctx context.Context, q selectbench.Querier, cat *selectbench.Ca
 	for _, c := range controls {
 		if !c.Detected {
 			return cells, controls, fmt.Errorf("gate control %s did not fire on the edge fixture: %s", c.Statement, c.Error)
+		}
+	}
+	// Empty input: the bag is empty and the optional contract preserves every
+	// parent with NULLs. This is a live DB check, not only the Go oracle, and it
+	// covers both the ON and filtered-derived optional spellings.
+	empty := selectbench.JoinFixture{Customers: []selectbench.Customer{{ID: 1, Name: "Ana"}, {ID: 2, Name: "Ben"}}}
+	if err := prepareJoinFixture(ctx, q, empty); err != nil {
+		return cells, controls, fmt.Errorf("gate empty-fixture load: %w", err)
+	}
+	emptyCells := selectbench.RunJoinSpecs(ctx, q, cat, empty, []selectbench.JoinSpec{
+		{Statement: "j01_join_where", Axis: "gate=empty;j01_join_where", Args: base},
+		{Statement: "j11_optional_on", Axis: "gate=empty;j11_optional_on", Args: base},
+		{Statement: "j11_optional_derived", Axis: "gate=empty;j11_optional_derived", Args: base},
+	}, "gate", "validation")
+	for _, c := range emptyCells {
+		if c.Status != selectbench.StatusValid {
+			return cells, controls, fmt.Errorf("empty-input gate cell %s is %s: %s", c.Statement, c.Status, c.Note)
 		}
 	}
 	return cells, controls, nil
@@ -131,6 +185,17 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 		f.ReuseExprError = err.Error()
 	} else {
 		f.ReuseExprSupported = true
+		// Volatility evidence: the token must be a per-row expression, not a
+		// constant the planner can hoist. Distinct ids must yield distinct
+		// tokens, and the reuse plan must show the expression.
+		var t1, t2 int
+		e1 := pool.QueryRow(ctx, "SELECT ascii(substr(md5(repeat(1::text, 32)), 1, 1))").Scan(&t1)
+		e2 := pool.QueryRow(ctx, "SELECT ascii(substr(md5(repeat(2::text, 32)), 1, 1))").Scan(&t2)
+		if e1 == nil && e2 == nil {
+			f.TokenEvidence = fmt.Sprintf("token(id=1)=%d token(id=2)=%d distinct=%v", t1, t2, t1 != t2)
+		} else if e1 != nil {
+			f.TokenEvidence = "token evaluation failed: " + e1.Error()
+		}
 	}
 
 	probeThreshold := thresholds[2] // 1%
@@ -154,6 +219,9 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 		c := cells[0]
 		f.StatementSupport[name] = string(c.Status)
 		f.PolicyEvidence[name] = c.PolicyNote
+		if strings.Contains(strings.ToLower(c.Plan), "md5") && strings.Contains(strings.ToLower(c.Plan), "repeat") {
+			f.TokenEvidence += fmt.Sprintf("; %s plan carries the token expression", name)
+		}
 	}
 
 	// Full drain at the widest threshold: proves the client can consume the
@@ -209,13 +277,17 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	defer pool.Close()
 
 	q := pgxQuerier{pool: pool}
+	explainOpts, explainEvidence := probeExplainOptions(ctx, pool, engine)
+	q.explainOpts = explainOpts
 	cpuBefore := readSelectCPUStat()
 
 	result := selectbench.JoinResult{
 		RunID: runID, Engine: engine, Topology: topology, Scale: scale,
 		FactCount: spec.FactCount, Customers: spec.Customers, Seed: seed,
 		Thresholds: thresholds, Summary: map[string]int{},
+		ExplainOptions: explainOpts,
 	}
+	result.Notes = append(result.Notes, explainEvidence)
 
 	gateCells, gateControls, gateErr := runJoinGate(ctx, q, cat)
 	_ = gateCells
@@ -282,9 +354,14 @@ func joinProvenance(version, environment, scale string, spec selectbench.JoinGen
 		"whole_run_count": "1; no replicated winner in this file", "distributed_rpc": rpc,
 	}
 	return selectbench.Provenance{
-		RepoCommit:          envOr("ADS_REPO_COMMIT", "unknown"),
-		EngineImage:         envOr("ADS_BENCH_IMAGE", "unknown"),
+		RepoCommit: envOr("ADS_REPO_COMMIT", "unknown"),
+		// The client and the database are different images. Keep them
+		// separate: labelling the client image `EngineImage` beside a database
+		// digest makes the provenance self-contradictory (review R4).
+		ClientImage:         envOr("ADS_BENCH_IMAGE", "unknown"),
+		ClientImageDigest:   os.Getenv("ADS_BENCH_IMAGE_ID"),
 		ImageDigest:         os.Getenv("ADS_BENCH_IMAGE_ID"),
+		EngineImage:         envOr("ADS_ENGINE_IMAGE", "unknown"),
 		EngineImageDigest:   os.Getenv("ADS_ENGINE_IMAGE_ID"),
 		EngineVersion:       version,
 		Environment:         environment,
@@ -307,6 +384,14 @@ func joinGaps(engine, topology string) []string {
 	}
 }
 
+// joinInputsDigest is the single definition of a run's inputs digest: the
+// SHA-256 of the exact result-file bytes (which end in one newline). The writer
+// and the re-renderer must both call it, or a report re-rendered from committed
+// bytes advertises a digest the run never had.
+func joinInputsDigest(data []byte) string {
+	return fmt.Sprintf("%x", sha256.Sum256(data))
+}
+
 func writeJoinOutputs(result selectbench.JoinResult, runErr error, feasibilityOnly bool, out, reportOut string) error {
 	if runErr != nil {
 		result.Error = runErr.Error()
@@ -319,7 +404,7 @@ func writeJoinOutputs(result selectbench.JoinResult, runErr error, feasibilityOn
 		return err
 	}
 	data = append(data, '\n')
-	inputsDigest := fmt.Sprintf("%x", sha256.Sum256(data))
+	inputsDigest := joinInputsDigest(data)
 	if out != "" {
 		if err := os.WriteFile(out, data, 0o644); err != nil {
 			return err
@@ -364,7 +449,10 @@ func runSelectJoinReport(resultsDir, reportOut string) error {
 		if err := json.Unmarshal(data, &r); err != nil {
 			return err
 		}
-		digest := fmt.Sprintf("%x", sha256.Sum256(append(data, '\n')))
+		// Hash the exact file bytes. The writer appended the single trailing
+		// newline before hashing, so adding another here (the original defect)
+		// advertised a digest the run never had.
+		digest := joinInputsDigest(data)
 		report, err := selectbench.RenderJoinRun(r, digest)
 		if err != nil {
 			return err

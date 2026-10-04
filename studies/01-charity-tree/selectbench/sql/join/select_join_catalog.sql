@@ -134,3 +134,14 @@ SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount
 FROM customers c
 JOIN (SELECT * FROM facts WHERE rank <= :threshold ORDER BY id LIMIT 7) f
   ON f.customer_id = c.id;
+
+-- name: j11_optional_derived
+-- group: sel_join_optional
+-- params: threshold
+-- The same optional-match contract with the child input filtered first in a
+-- derived table. The live gate requires this and j11_optional_on to agree on
+-- the same edge fixture; a WHERE placement (x01) is a different answer and must
+-- fail detection.
+SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount
+FROM customers c
+LEFT JOIN (SELECT * FROM facts WHERE rank <= :threshold) f ON f.customer_id = c.id;

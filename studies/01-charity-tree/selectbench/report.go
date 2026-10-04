@@ -23,6 +23,8 @@ type Provenance struct {
 	RepoCommit          string
 	ImageDigest         string
 	EngineImage         string
+	ClientImage         string
+	ClientImageDigest   string
 	Seed                int64
 	DatasetFingerprint  string
 	Settings            map[string]string

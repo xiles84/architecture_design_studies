@@ -117,7 +117,8 @@ set +e
 podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEMORY" \
   -v "$(winpath "$(hostpath "$OUTDIR")"):/results" \
   -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
-  -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
+  -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" \
+  -e "ADS_ENGINE_IMAGE=$ENGINE_IMAGE" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology "$TOPOLOGY" -scale "$SCALE" -seed "$SEED" \
   -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1

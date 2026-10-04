@@ -1,10 +1,42 @@
 package selectbench
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
 )
+
+// joinClass hashes every setting that makes two runs comparable: environment,
+// dataset fingerprint, benchmark-client image and database-engine image. The
+// replicated report keys on it in addition to engine/topology/axis, so runs with
+// different fixtures, budgets or images are partitioned instead of pooled. A
+// single class means the inputs were compatible; more than one is printed
+// explicitly rather than averaged.
+func joinClass(r JoinResult) string {
+	p := r.Provenance
+	var sb strings.Builder
+	for _, k := range sortedKeys(p.Settings) {
+		sb.WriteString(k)
+		sb.WriteByte('=')
+		sb.WriteString(p.Settings[k])
+		sb.WriteByte(';')
+	}
+	raw := strings.Join([]string{
+		p.Environment, p.ClientImage, p.ClientImageDigest,
+		p.EngineImage, p.EngineImageDigest, p.DatasetFingerprint, sb.String(),
+	}, "|")
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])[:12]
+}
+
+func joinClassDescription(r JoinResult) string {
+	p := r.Provenance
+	return fmt.Sprintf("env=`%s`; dataset=`%s`; client=`%s`@`%s`; engine=`%s`@`%s`",
+		orUnknown(p.Environment), orUnknown(p.DatasetFingerprint), orUnknown(p.ClientImage),
+		orUnknown(p.ClientImageDigest), orUnknown(p.EngineImage), orUnknown(p.EngineImageDigest))
+}
 
 // Generated, measurements-only reports for the join/CTE family. Interpretation
 // belongs in the signed analysis beside them.
@@ -33,6 +65,28 @@ func sameJoinPlan(a, b Cell) string {
 	return fmt.Sprintf("%v", SameStructure(a.Plan, b.Plan))
 }
 
+// joinSampleStats returns the min, median and max of a cell's recorded samples,
+// so a reader can see the spread the median hides. n is 0 for an untimed cell.
+func joinSampleStats(c Cell) (min, med, max float64, n int) {
+	if !c.TimingMeasured || c.Status != StatusValid || len(c.SamplesMS) == 0 {
+		return 0, 0, 0, 0
+	}
+	vals := append([]float64(nil), c.SamplesMS...)
+	sort.Float64s(vals)
+	m := vals[len(vals)/2]
+	if len(vals)%2 == 0 {
+		m = (vals[len(vals)/2-1] + m) / 2
+	}
+	return vals[0], m, vals[len(vals)-1], len(vals)
+}
+
+func fmtStat(v float64) string {
+	if v == 0 {
+		return "0"
+	}
+	return fmt.Sprintf("%.4f", v)
+}
+
 // RenderJoinRun renders one whole join/CTE run. inputsDigest is the SHA-256 of
 // the result JSON bytes, computed by the writer (it cannot live inside the file
 // it hashes).
@@ -48,8 +102,10 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 
 	b.WriteString("## Provenance\n\n")
 	p := r.Provenance
-	fmt.Fprintf(&b, "- run id: `%s`\n- run tag: `%s`\n- environment: `%s`\n- repo commit: `%s`\n- engine version: `%s`\n- engine image: `%s` @ `%s`\n",
-		r.RunID, p.RunTag, p.Environment, p.RepoCommit, p.EngineVersion, p.EngineImage, p.EngineImageDigest)
+	fmt.Fprintf(&b, "- run id: `%s`\n- run tag: `%s`\n- environment: `%s`\n- repo commit: `%s`\n- engine version: `%s`\n",
+		r.RunID, p.RunTag, p.Environment, p.RepoCommit, p.EngineVersion)
+	fmt.Fprintf(&b, "- database engine image: `%s` @ `%s`\n", orUnknown(p.EngineImage), orUnknown(p.EngineImageDigest))
+	fmt.Fprintf(&b, "- benchmark client image: `%s` @ `%s`\n", orUnknown(p.ClientImage), orUnknown(p.ClientImageDigest))
 	fmt.Fprintf(&b, "- inputs digest: `%s`\n- dataset fingerprint: `%s`\n", orUnknown(inputsDigest), p.DatasetFingerprint)
 	fmt.Fprintf(&b, "- client CPU quota: `%s`, memory: `%s`\n", strings.TrimSpace(p.ClientCPUQuota), strings.TrimSpace(p.ClientMemoryLimit))
 	for _, k := range sortedKeys(p.Settings) {
@@ -125,6 +181,25 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 		fmt.Fprintf(&b, "## Repeated-design position control\n\n| first median ms | last median ms | ratio (last/first) | same plan |\n|---|---|---|---|\n| %.6f | %.6f | %.4f | %s |\n\n",
 			pp.A.MedianMS, pp.B.MedianMS, pp.RatioBA, sameJoinPlan(pp.A, pp.B))
 	}
+
+	b.WriteString("## Latency samples and derived throughput\n\n")
+	b.WriteString("_The reader is sequential, so `queries/s` is 1000/median_ms, a derived rate and not a concurrent-capacity test. min/max are the five sample extremes._\n\n")
+	b.WriteString("| axis | status | min ms | median ms | max ms | samples | derived queries/s |\n|---|---|---|---|---|---|---|\n")
+	statCells := append([]Cell(nil), r.Cells...)
+	sort.Slice(statCells, func(i, j int) bool { return statCells[i].Axis < statCells[j].Axis })
+	for _, c := range statCells {
+		mn, med, mx, n := joinSampleStats(c)
+		rate, mnS, medS, mxS := "N/A", "N/A", "N/A", "N/A"
+		if n > 0 {
+			mnS, medS, mxS = fmtStat(mn), fmtStat(med), fmtStat(mx)
+			if med > 0 {
+				rate = fmt.Sprintf("%.1f", 1000/med)
+			}
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %d | %s |\n",
+			c.Axis, c.Status, mnS, medS, mxS, n, rate)
+	}
+	b.WriteString("\n")
 
 	b.WriteString("## Execution order\n\n")
 	fmt.Fprintf(&b, "- order seed `%d`, %d interleaved rounds\n", r.Order.Seed, r.Order.Rounds)
@@ -220,21 +295,47 @@ func RenderJoinReplicated(runs []JoinResult) (string, error) {
 	var b strings.Builder
 	b.WriteString("# Study 01 SELECT join/filter and CTE materialization — replicated whole runs (generated measurements)\n\n")
 	b.WriteString("_Measurements only. A stable sign across runs is what an analysis may cite; the verdict is assigned there._\n\n")
-	fmt.Fprintf(&b, "**TL;DR:** %d whole runs summarised; each run's own median is shown and never merged across engines, topologies or thresholds.\n\n", len(runs))
-	b.WriteString("## Runs\n\n| run | engine | topology | scale | fact rows | seed |\n|---|---|---|---|---|---|\n")
+	fmt.Fprintf(&b, "**TL;DR:** %d whole runs summarised; each run's own median is shown and never pooled across compatibility classes, engines, topologies or thresholds.\n\n", len(runs))
+	// Compatibility classes: runs whose inputs differ (environment, fixture,
+	// images, settings) are partitioned, never pooled.
+	classes := map[string][]string{}
+	var classOrder []string
 	for _, r := range runs {
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %d | %d |\n", r.RunID, r.Engine, r.Topology, r.Scale, r.FactCount, r.Seed)
+		cls := joinClass(r)
+		if _, ok := classes[cls]; !ok {
+			classOrder = append(classOrder, cls)
+		}
+		classes[cls] = append(classes[cls], r.RunID)
+	}
+	b.WriteString("## Compatibility classes\n\nRuns are grouped by environment, dataset, client and engine images, and settings; rows below are never pooled across classes.\n\n| class | runs | inputs |\n|---|---|---|\n")
+	for _, cls := range classOrder {
+		desc := ""
+		for _, r := range runs {
+			if joinClass(r) == cls {
+				desc = joinClassDescription(r)
+				break
+			}
+		}
+		fmt.Fprintf(&b, "| `%s` | %s | %s |\n", cls, strings.Join(classes[cls], ", "), desc)
 	}
 	b.WriteString("\n")
 
-	type key struct{ engine, topology, axis string }
+	b.WriteString("## Runs\n\n| run | class | engine | topology | scale | fact rows | seed |\n|---|---|---|---|---|---|---|\n")
+	for _, r := range runs {
+		fmt.Fprintf(&b, "| %s | `%s` | %s | %s | %s | %d | %d |\n",
+			r.RunID, joinClass(r), r.Engine, r.Topology, r.Scale, r.FactCount, r.Seed)
+	}
+	b.WriteString("\n")
+
+	type key struct{ class, engine, topology, axis string }
 	seen := map[key]bool{}
 	values := map[key][]float64{}
 	statuses := map[key][]string{}
 	var keys []key
 	for _, r := range runs {
+		cls := joinClass(r)
 		for _, c := range r.Cells {
-			k := key{r.Engine, r.Topology, c.Axis}
+			k := key{cls, r.Engine, r.Topology, c.Axis}
 			if !seen[k] {
 				seen[k] = true
 				keys = append(keys, k)
@@ -247,6 +348,9 @@ func RenderJoinReplicated(runs []JoinResult) (string, error) {
 		}
 	}
 	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].class != keys[j].class {
+			return keys[i].class < keys[j].class
+		}
 		if keys[i].engine != keys[j].engine {
 			return keys[i].engine < keys[j].engine
 		}
@@ -255,7 +359,7 @@ func RenderJoinReplicated(runs []JoinResult) (string, error) {
 		}
 		return keys[i].axis < keys[j].axis
 	})
-	b.WriteString("## Cells across runs (per engine and topology)\n\n| engine | topology | axis | run medians ms | across-run median | spread % | valid runs |\n|---|---|---|---|---|---|---|\n")
+	b.WriteString("## Cells across runs (per compatibility class, engine and topology)\n\n| class | engine | topology | axis | run medians ms | across-run median | spread % | valid runs |\n|---|---|---|---|---|---|---|---|\n")
 	for _, k := range keys {
 		medians := append([]float64(nil), values[k]...)
 		var shown []string
@@ -276,8 +380,8 @@ func RenderJoinReplicated(runs []JoinResult) (string, error) {
 				spread = fmt.Sprintf("%.1f", 100*(sorted[len(sorted)-1]-sorted[0])/m)
 			}
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %d |\n",
-			k.engine, k.topology, k.axis, strings.Join(shown, ", "), med, spread, len(medians))
+		fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s | %s | %s | %d |\n",
+			k.class, k.engine, k.topology, k.axis, strings.Join(shown, ", "), med, spread, len(medians))
 	}
 	b.WriteString("\n## Pair ratios per run (per engine)\n\n| run | engine | topology | contract | pair | ratio (B/A) | sign |\n|---|---|---|---|---|---|---|\n")
 	sign := func(v float64) string {

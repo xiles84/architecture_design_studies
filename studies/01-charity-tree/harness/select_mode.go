@@ -31,7 +31,14 @@ import (
 // (selectbench) and its own output file, so historical results stay reproducible.
 
 // pgxQuerier adapts a pgx pool to selectbench.Querier.
-type pgxQuerier struct{ pool *pgxpool.Pool }
+type pgxQuerier struct {
+	pool *pgxpool.Pool
+	// explainOpts is the EXPLAIN option list. Empty keeps the historical
+	// PostgreSQL options the teaching families were validated with, so their
+	// plan text and signatures do not move; the join family sets it per engine
+	// (PostgreSQL VERBOSE, YugabyteDB DIST) after a feature probe.
+	explainOpts string
+}
 
 func classifyEngineError(err error) error {
 	if err == nil {
@@ -61,7 +68,11 @@ func (q pgxQuerier) Exec(ctx context.Context, sql string) error {
 }
 
 func (q pgxQuerier) Explain(ctx context.Context, sql string) (string, error) {
-	rows, err := q.pool.Query(ctx, "EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) "+sql)
+	opt := q.explainOpts
+	if opt == "" {
+		opt = "ANALYZE, BUFFERS, FORMAT TEXT"
+	}
+	rows, err := q.pool.Query(ctx, "EXPLAIN ("+opt+") "+sql)
 	if err != nil {
 		return "", classifyEngineError(err)
 	}
