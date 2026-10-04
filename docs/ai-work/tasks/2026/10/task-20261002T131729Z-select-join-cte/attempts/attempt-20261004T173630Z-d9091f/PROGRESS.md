@@ -33,8 +33,9 @@ reports, signed analysis and all ten producing tags are preserved unedited.
     config is stale metadata). Budget plan recorded in
     `docs/select-query-templates/reviews/20261004-join-corrective/RESOURCES.md`;
     the D8 resource rejection is retracted.
-  - [ ] One-CPU client calibration run (read + the future 10-updates/s writer):
-    throttling and offered/completed demand recorded before freezing.
+  - [~] One-CPU client calibration: bounded read-only pass done
+    (`select-join-calib-pg-20261004`, 0 throttled periods at 1 CPU); the
+    10-updates/s writer and widest-threshold demand still to be calibrated.
 - [ ] **C4 bounded single/cluster topology subset**, round-robin endpoints, RF3,
       placement and colocation.
 - [ ] **C5 matched blended read/write phase** (one fixed writer).

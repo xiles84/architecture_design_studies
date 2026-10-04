@@ -73,3 +73,24 @@ ADS_CLIENT_CPUS=1 ADS_CLIENT_MEMORY=2g \
 Item 1 is a C3 follow-up; items 2–4 are C4. Neither the deferral nor an invented
 placement success is acceptable; if a feature genuinely fails, the failure is the
 recorded gap.
+
+## One-CPU client calibration (read-only, first pass)
+
+Run `select-join-calib-pg-20261004` (tag
+`run/study-01/select-join-calib-pg-20261004`), PostgreSQL 17.11 single-node,
+`cte-small` (20,000 facts), one sequential reader, no writer, feasibility gate
+only:
+
+| Field | Value |
+|---|---|
+| client budget (manifest) | 1 CPU / 2 GiB (`100000 100000` cgroup quota) |
+| client `nr_throttled`, before → after | 0 → 0 |
+| database budget (manifest) | 2 CPU / 3 GiB |
+| explain options probed | `ANALYZE, VERBOSE, BUFFERS, FORMAT TEXT` |
+| token evidence | `token(id=1)=49 token(id=2)=97 distinct=true`; default, MATERIALIZED and NOT MATERIALIZED reuse plans all carry the expression |
+| client vs engine image | client `localhost/charitybench-select:select-join-calib-pg-20261004`; engine `docker.io/library/postgres:17.11` (separate fields) |
+| controls | `x01_optional_where` and `x02_join_limit_before` both fired |
+
+This is a bounded read-only pass: it does not exercise the 10-updates/s writer,
+the widest threshold on the 200,000-row fixture, or the cluster. Those remain
+items 1–4 above.
