@@ -28,7 +28,13 @@ reports, signed analysis and all ten producing tags are preserved unedited.
     spelling `j11_optional_derived`, plus the existing firing WHERE control.
   - failing-before/passing-after tests in `harness/select_join_report_test.go`.
 - [ ] **C2 Study 01 domain arm** (person/donation/charity) + re-run matrix.
-- [ ] **C3 effective WSL resource recheck** and budget calibration.
+- [~] **C3 effective WSL resource recheck** and budget calibration.
+  - [x] Attestation: 8 CPU / 16,109,780 kB effective (the 4 CPU / 2048 MiB podman
+    config is stale metadata). Budget plan recorded in
+    `docs/select-query-templates/reviews/20261004-join-corrective/RESOURCES.md`;
+    the D8 resource rejection is retracted.
+  - [ ] One-CPU client calibration run (read + the future 10-updates/s writer):
+    throttling and offered/completed demand recorded before freezing.
 - [ ] **C4 bounded single/cluster topology subset**, round-robin endpoints, RF3,
       placement and colocation.
 - [ ] **C5 matched blended read/write phase** (one fixed writer).
