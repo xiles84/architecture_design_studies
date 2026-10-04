@@ -20,20 +20,20 @@
 #concept-opener(4, "Rollup",
   [Store a total on the parent so reads skip the children — and pay for it on every child write.])
 
-A charity page shows the total given to each charity, and each donor's lifetime total. Computing those
-totals on every view re-reads the same donations again and again. Storing the total once, on the parent
-row, turns each of those reads into a single row — and moves the work to every write that changes a
-contributing child.
+A charity page shows totals per charity and per donor. Calculating them on every view scans the same
+donations repeatedly.
+
+A rollup stores each total on its parent row. Reads fetch that row; every contributing donation
+change must maintain it.
 
 #figure-evidence(
   "../assets/fig-rollup-vs-rolldown.svg",
   "structure",
   "conceptual illustration",
   "Rolldown fans a parent change out; rollup aggregates a child change up.",
-  [*Rolldown* copies parent information down, so a parent change must be refreshed on every child — a
-   fan-out write. *Rollup* aggregates child facts up, so one child change maintains one parent total — a
-   single parent write. The read gain and the maintenance cost point in opposite directions, and the
-   figure asserts no rate.],
+  [*Rolldown* copies parent information to children: a parent change causes fan-out writes.
+   *Rollup* aggregates child facts on the parent: a child change updates its total.
+   The arrows show maintenance direction, not a measured rate.],
 )
 
 #heading(level: 2, "How it works")

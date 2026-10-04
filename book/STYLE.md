@@ -118,6 +118,10 @@ One page per study with registered claims (01–05). Studies without claims get 
 8. No cross-study numeric ranking. Analogies keep the `analogy` callout.
 9. No reader exercises (methodology 21).
 10. Explain a thing once; elsewhere, link to it.
+11. Break a dense explanation into short labelled steps, a comparison table or
+    small callouts. New or complex concepts need a visual showing the relationship,
+    sequence or failure boundary, plus a brief text equivalent. A diagram must teach
+    the mechanism; decorative images do not replace an explanation.
 
 ## Evidence on the page
 
