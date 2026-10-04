@@ -2520,6 +2520,34 @@ the shared control list must supply a complete Args, and an oracle should return
 dereference a missing argument.** The failed run's tag and log were retained as a harness-defect record; the
 fix was to bind the same predicate the teaching gate uses.
 
+## Membership/absence: engine-specific penalties and control-shaped fixtures (2026-10-04)
+
+### A fanout penalty can be real on one engine and simply not exist on another
+The membership sweep measured `JOIN + DISTINCT` against `EXISTS` at child fanout 1, 10 and 100. On
+PostgreSQL the penalty grew from 1.4x to **3.6-4.4x**, stable across three runs; on YugabyteDB the same
+ratio stayed at 0.92-1.06x with no trend, because every membership spelling there sits at the engine's
+per-statement floor. **The de-duplication cost is not a property of the SQL shape; it is a property of the
+planner's plan for it.** This is the third engine-specific reversal in the SELECT programme (P8, P10/P11,
+P6): a study that measures one engine may report a confident rule that is false on the other, so every
+shape-level prediction must name the engine or be labelled unmeasured elsewhere.
+
+### A control that needs a data shape must be given one, not assumed
+The membership multiplier control (`x07`, a plain join without `DISTINCT`) can only differ from the set when
+some parent has more than one qualifying child; the nullable-`NOT IN` control (`x02`) can only differ when
+some parent has no qualifying child. The uniform fanout fixture gave every parent exactly `fanout` children,
+so at fanout=1 no parent had two children and x07 matched the set: the first whole run failed its gate on
+the engine. The fix (`ExistenceShape`) moves the last parent's children onto the first parent and gives the
+first parent two qualifying orders, holding the total child count constant. **For every negative control,
+state the data shape it needs and construct it deterministically in the fixture** - a control that can only
+fire by luck is not a control.
+
+### `NOT IN` over a nullable key returned the empty set at every level
+The nullable-`NOT IN` control returned 0 rows in 18/18 control runs (three fanout levels, six whole runs)
+while the absence set was non-empty, and the NOT-NULL-filtered `NOT IN` spelling passed the same oracle.
+**The NULL trap is not a corner case to be argued about; it is the default behaviour of the spelling over a
+nullable subquery.** Prefer `NOT EXISTS` or `NOT NULL` + `NOT IN` with the contract stated.
+
+
 
 ## Report and matrix defects found by the SELECT access-path task (2026-10-03)
 

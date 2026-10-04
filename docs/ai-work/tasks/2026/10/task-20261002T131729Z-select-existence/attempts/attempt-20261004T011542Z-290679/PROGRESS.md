@@ -12,8 +12,18 @@ LOW executor (deepseek-flash / opencode CLI). Milestone tag:
 3. Fanout-sweep runner (`BuildExistenceSpecs`), per-run and replicated reports. **[done]**
 4. Harness `-cmd select-existence`, runner `--family existence`. **[done]**
 5. PostgreSQL single-node: 3 whole runs (one position control); YugabyteDB
-   single-node: 3 whole runs.
+   single-node: 3 whole runs. **[done, all at 805b5b85; a first attempt failed
+   the gate and is retained as a harness-defect record]**
 6. Signed analysis with P6/P7 verdicts; RESULT.md; submit for HIGH review.
+   **[done]**
+
+## Checkpoints
+
+- `78fdd9c9` plan/env/Decision Log; `f6aaecfd` catalogue/runner/report/controls.
+- `805b5b85` applied `ExistenceShape` in the mode and added the per-level control
+  test after the first run failed its gate on the raw fixture.
+- Six primary runs valid (PG 21/22/21, YB 21/22/21), both controls fired 18/18,
+  replicated report and signed analysis written.
 
 ## Decision Log
 

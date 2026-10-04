@@ -43,10 +43,10 @@ summary, not a second ledger.
 
 ## Current state
 
-### SELECT measuring families — **access paths and aggregate/top-N integrated (2026-10-03)**
+### SELECT measuring families — **access paths, aggregate/top-N and membership/absence integrated (2026-10-04)**
 
-Two of the four SELECT measuring families are measured, reviewed and integrated
-into local `main`:
+Three of the four SELECT measuring families are measured, reviewed and
+integrated into local `main`:
 
 - **Access paths** (`task-20261002T131729Z-select-access-paths`, tag
   `study-01/select-v5-access-paths`): seven whole runs on a 12,000-row fixture
@@ -63,12 +63,20 @@ into local `main`:
   pre-aggregation only at 10,000) and not on YugabyteDB, where the correlated
   subquery reaches 8,460 ms at 10,000 parents; P9's LATERAL probe wins only at one
   parent and `DISTINCT ON` is the fastest top-N spelling at scale on both engines.
+- **Membership / absence** (`task-20261002T131729Z-select-existence`, tag
+  `study-01/select-v3-existence`): six whole runs on three fanout fixtures holding
+  10,000 child rows constant (three PG, three YB, two position controls); both
+  controls fired 18/18. P6's `JOIN + DISTINCT` penalty grows with fanout on
+  PostgreSQL (1.4× at fanout 1 to 3.6–4.4× at fanout 100, 3/3 runs) and is absent
+  on YugabyteDB; `IN` and `EXISTS` are interchangeable; nullable `NOT IN`
+  returned the empty set at every level, and on PostgreSQL `NOT EXISTS` beats the
+  LEFT-JOIN/`NOT IN` anti-joins by 2–3× at fanout 100.
 
 Evidence: replicated reports
 `studies/01-charity-tree/reports/20261003T-select-access-replicated.md` and
-`.../20261003T-select-agg-replicated.md`, with signed analyses beside each. The
-remaining two families (join/CTE, existence) are queued and start from this
-integrated state. The benchmark lock is free.
+`.../20261003T-select-agg-replicated.md` and `.../20261004T-select-exist-replicated.md`,
+with signed analyses beside each. The remaining family (join/CTE) is queued and
+starts from this integrated state. The benchmark lock is free.
 
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 
