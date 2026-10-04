@@ -48,6 +48,27 @@ recording per-endpoint operation and connection counts in the result and the
 report's "Endpoint distribution" table. A cluster run can therefore show it was
 not served by the seed node alone.
 
+## Cluster subset smoke (run `select-join-topo-yb-smoke-20261004`)
+
+Tag `run/study-01/select-join-topo-yb-smoke-20261004`; YB cluster3, domain arm,
+bounded subset, 1 trial, client 1 CPU/2 GiB. 30/30 valid, 0 invalid/timeout.
+
+| observation | value |
+|---|---|
+| topology / RF (runner log) | cluster3, tservers 3, RF 3 |
+| endpoints | `yb-n1`, `yb-n2`, `yb-n3` |
+| operations per endpoint | 123 / 122 / 122 (round-robin) |
+| connections at end | 1 / 1 / 1 |
+| per-node `nr_throttled` before → after | 0→20 / 0→82 / 0→11 |
+| per-node limits recorded | cpu.max 200000/100000, memory.max 3 GiB |
+| YB EXPLAIN options probed | `ANALYZE, DIST, DEBUG, FORMAT TEXT` |
+| controls | `x01` and `x02` fired |
+
+The balanced endpoints are demonstrated, and per-node throttling is real and
+uneven (node 2 is throttled four times as often as node 3), so a cluster arm is
+not the same measurement as a single node even before any timing comparison.
+That unevenness is an observation to carry into the analysis, not a client bug.
+
 ## Still open
 
 - The bounded single/cluster subset runs themselves (3 whole runs per arm), with
