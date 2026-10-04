@@ -1,10 +1,23 @@
 # SELECT query templates: examples, measurements and selection guidance
 
-Status: task program, not implementation or measurement evidence.
+Status: protocol/harness and three measurement families integrated; join/CTE remains ready and unmeasured. See the dated amendment below for the current execution route.
 Owner request: [REQUEST.md](REQUEST.md). Existing goal: goal-20260922T025912Z-data-architecture-book.
 Planner: GPT-6 / Codex desktop / effort unknown; user-declared HIGH.
 Publication task: task-20261002T131729Z-select-query-task-publication.
 Starting local main: 1a178ce; publication milestone: repo/select-query-task-program-v1.
+
+## Current owner amendment — 2026-10-04
+
+The theory now includes six join/filter spellings, outer-join semantics and CTE
+policies. The [join handoff](JOIN-HANDOFF-20261004.md) resolves the yielded LOW
+plan and controls its matrix: LOW measures in the existing Study 01 task; HIGH
+reviews through the existing synthesis task; HIGH then publishes the case results.
+New `task-20261004T142623Z-select-book-high` supersedes the original LOW book
+assignment. Its predecessor amendment is mandatory even though queue v1 cannot
+terminalize a superseded task through a command. No new measurement was run.
+
+Current route: `select-join-cte` (LOW) -> `select-synthesis` (HIGH) ->
+`select-book-high` (HIGH). The completed protocol/harness need no restart.
 
 ## Reader outcome
 
@@ -23,7 +36,7 @@ Use a small customers/orders teaching fixture, then connect it explicitly to equ
 | 5. [Measure join aggregation, correlated subqueries and per-parent top-N](../ai-work/tasks/2026/10/task-20261002T131729Z-select-aggregate-topn/BRIEF.md) | LOW / executor | 2 | aggregate/top-N manifests, results, plans and generated reports |
 | 6. [Measure index-friendly predicates, OR alternatives and pagination boundaries](../ai-work/tasks/2026/10/task-20261002T131729Z-select-access-paths/BRIEF.md) | LOW / executor | 2 | access-path/pagination manifests, results, plans and generated reports |
 | 7. [Review SELECT evidence and publish measured query-template selection guidance](../ai-work/tasks/2026/10/task-20261002T131729Z-select-synthesis/BRIEF.md) | HIGH / analyst | 3, 4, 5, 6 | new signed SELECT analysis and mechanism companions |
-| 8. [Publish concept-first SELECT examples, measured case boxes and a template selection guide](../ai-work/tasks/2026/10/task-20261002T131729Z-select-book/BRIEF.md) | LOW / executor | 7 + Edition 3 pilot integrated | new SELECT concept material and worked SQL atlas |
+| 8. [Publish reviewed SELECT cases using HIGH](../ai-work/tasks/2026/10/task-20261004T142623Z-select-book-high/BRIEF.md) | HIGH / executor | 7 + Edition 3 pilot + theory update | reviewed measured case variations, selection guide and rendered book |
 
 Task ids share prefix task-20261002T131729Z. Suffixes: select-protocol, select-harness, select-join-cte, select-existence, select-aggregate-topn, select-access-paths, select-synthesis, select-book.
 Publication is complete only after audit/review, local-main integration and the annotated milestone.
@@ -82,7 +95,7 @@ Physical colocated/non-colocated placement must be verified at the tablet/partit
 
 HIGH reviews worker decisions and adequacy, issues targeted corrections only for material defects, reads analyses already attached to each inputs digest, and publishes its own signed analysis. Every prediction gets a verdict; every book number must semantically resolve to an immutable valid source cell in the active evidence package. Follow its current successor/versioning policy without editing frozen versions.
 
-The final LOW book task uses approved claims and templates, runs the pinned Podman evidence checks/build, renders and visually inspects new pages, records figure text equivalents/two-reader strength and completes HIGH review. It updates current source/navigation, tracked PDF/manifest and changelog, merges into local main and tags completion. No benchmark number exists merely because these tasks were created.
+The final HIGH book task uses approved claims and templates, runs the pinned Podman evidence checks/build, renders and visually inspects new pages, records figure text equivalents/two-reader strength and completes HIGH review. It updates current source/navigation, tracked PDF/manifest and changelog, merges into local main and tags completion. No benchmark number exists merely because these tasks were created.
 
 ## Deferred choices and escalation
 
@@ -90,6 +103,6 @@ HIGH protocol work decides feature support, exact SQL, bounded matrix/runtime, c
 
 ## Next action
 
-Claim task-20261002T131729Z-select-protocol with declared HIGH capability and planner role, then publish the decision-complete protocol/handoffs. No automatic task starts or external thread messages were sent.
+Claim task-20261002T131729Z-select-join-cte with declared LOW capability and executor role; read the dated handoff and predecessor amendments, then resume its canonical worktree. No measurement task or external chat was started by this publication.
 
-NEXT MODEL: HIGH
+NEXT MODEL: LOW

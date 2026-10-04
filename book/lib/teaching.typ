@@ -35,7 +35,7 @@
     #heading(level: 4, numbering: none, "What it costs")
     #cost-table(reads: costs.at(0), writes: costs.at(1), storage: costs.at(2), correctness: costs.at(3), operations: costs.at(4))
     #heading(level: 4, numbering: none, "In practice")
-    #if measured [Follow #link(label(case))[the matching study case] for tested variations and registered results.] else [These are design expectations. #link(label(case))[The study-case coverage map] identifies what has not been measured.]
+    #if measured [Follow #link(label(case))[the matching study case] for tested variations and registered results.] else [These are design expectations. #link(label(case))[The case or coverage entry] identifies what has not been measured.]
     #text(size: 9pt, fill: palette.muted)[A plausible boundary is not a measured crossover.]
     #heading(level: 4, numbering: none, "The checklist")
     #checklist-table((

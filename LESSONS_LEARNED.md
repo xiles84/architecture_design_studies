@@ -1,5 +1,15 @@
 # Lessons learned
 
+## Query examples and case evidence can advance separately
+
+The 2026-10-04 theory update adds equivalent join forms while its matrix remains
+unfinished. A planned case entry links the mechanisms without implying measured
+winners. CTE policy arms belong only to CTE spellings; a reuse threshold needs
+five levels and actual consumed-work/plan evidence. Preserve earlier authored
+protocols through a dated handoff rather than silently correcting their history.
+Owner-directed role changes use successor tasks and explicit predecessor amendments
+when immutable task metadata cannot change.
+
 ## A reading hierarchy must be complete, not just labelled
 
 The owner found the mixed Edition 3 pilot and retained older book confusing.

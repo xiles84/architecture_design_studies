@@ -43,7 +43,26 @@ summary, not a second ledger.
 
 ## Current state
 
-### Book theory/case revision — **Edition 3 preview 2 (2026-10-04)**
+### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
+
+The owner requested the missing comparison and specified LOW measurement followed
+by HIGH book-result authorship. Theory now shows six equivalent INNER JOIN forms,
+LEFT JOIN answer differences and CTE folding/materialization. The Charity donations
+case links a clearly planned variation; no new SELECT timing claim is promoted.
+
+Reuse ready `task-20261002T131729Z-select-join-cte` in its retained worktree.
+The [dated handoff](docs/select-query-templates/JOIN-HANDOFF-20261004.md) resolves
+the yielded worker's matrix/fixture questions and requires randomized order controls.
+Existing HIGH `select-synthesis` reviews it; new HIGH
+`task-20261004T142623Z-select-book-high` publishes the reviewed results.
+The original LOW book assignment has a mandatory supersession amendment; its
+immutable spec/queue state remains historical because queue v1 has no supersede command.
+
+This task is theory/source/render validation and planning only. No database or
+benchmark is started. Completion milestone: `repo/book-join-theory-20261004`;
+validation: [dated receipt](docs/book-join-theory-20261004/VALIDATION.md).
+
+### Book theory/case revision — **Edition 3 preview 2 baseline (2026-10-04)**
 
 The owner found the mixed pilot/legacy PDF confusing and specified two reading parts.
 The verified 83-page revision implements Theory → six topics → twenty strategies, then five study cases

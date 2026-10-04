@@ -7,7 +7,7 @@ Owner clarification, 2026-10-04. This is the single didactic contract.
 | Part | Topic / case | Subdivision |
 |---|---|---|
 | I — Theory | Database schemas | Normalized rows · indexes · rolldown · rollup · embedding |
-| I — Theory | Database SELECTs | Answer contracts · membership · aggregation/top-N · pagination |
+| I — Theory | Database SELECTs | Answer contracts · joins/filter placement · CTE policies · membership · aggregation/top-N · pagination |
 | I — Theory | Concurrent writes and time | Hot rows · optimistic · pessimistic · history · expiry |
 | I — Theory | Caches | Cache-aside/freshness · invalidation · leases/fencing |
 | I — Theory | Queues | Asynchronous handoff · duplicate delivery/idempotency |
@@ -69,6 +69,7 @@ sentences into narrow identifier columns. Case boxes are optional when a table e
 - No numeric ranking across studies or environments.
 - Queues have no measured case. New SELECT results are not promoted without registry review.
 - Do not edit signed analyses, reports, producing tags or frozen evidence packages.
+- Owner clarification, 2026-10-04: LOW performs the join/CTE study; HIGH reviews and adds its results to the book.
 - Preserve all original registered figure provenance and canonical build gates.
 
 ## Release check

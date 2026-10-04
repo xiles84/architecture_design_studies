@@ -75,6 +75,16 @@ Theory: #link(<theory-embedding>)[Embedding].
 
 Theory: #link(<theory-select-contract>)[Answer contracts], #link(<theory-select-aggregate>)[Aggregation] and #link(<theory-select-pagination>)[Pagination]. SELECT-family timing promotion remains separate; no new SELECT ratios are asserted here.
 
+=== Planned variation: join donations and filter them <case-charity-join-plan>
+
+*Business question:* return each qualifying donation together with its donor. Customers/orders in the theory map to people/donations here; keep one row per donation, including repeated donors.
+
+*Planned comparisons:* the six #link(<theory-select-join-filter>)[join/filter forms] across selective and broad requests, then #link(<theory-select-cte>)[CTE policies] for one-use filtering and repeated expensive input reuse. LEFT JOIN examples test preservation of unmatched donors under a separate answer contract.
+
+*Thrives or dies — expected:* foldable forms may share a plan; a materialized intermediate may hurt a narrow request or help repeated expensive work. These expectations are not observed winners.
+
+*Not measured in this case:* the join/CTE matrix remains unfinished. LOW executes the registered Study 01 task; HIGH reviews the evidence and later adds registered case results. No timing or crossover is claimed here.
+
 #gap[
   Native document, key-value, graph and wide-column engines were not measured. SQL JSON storage cannot establish their performance.
   #claim-badge("v2-gap-06-native-datastore-families")

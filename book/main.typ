@@ -139,7 +139,7 @@ Summary numbers belong to the named comparison and environment, not to a univers
 #heading(level: 2, numbering: none, "Study-case coverage map") <case-coverage>
 #table(columns: (1fr, 1.7fr), inset: 6pt, stroke: 0.4pt + palette.rule,
   table.header([Case], [Theory put into practice]),
-  [#link(<case-charity>)[Charity donations]], [Schemas, indexes, copied keys, rollups and embedding.],
+  [#link(<case-charity>)[Charity donations]], [Schemas, indexes, copied keys, rollups and embedding; #link(<case-charity-join-plan>)[planned join/filter comparison].],
   [#link(<case-ticket>)[Ticket booking]], [Hot rows, history and current state.],
   [#link(<case-seating>)[Reserved seating]], [Expiry, ownership and bounded embedding.],
   [#link(<case-config>)[Configuration portal]], [Rollup maintenance and concurrent editing.],

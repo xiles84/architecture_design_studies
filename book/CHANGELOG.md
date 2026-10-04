@@ -1,5 +1,16 @@
 # CHANGELOG — *Data Architecture Reference*
 
+## Edition 3 preview 3 — 2026-10-04
+
+Adds theory lessons for six equivalent join/filter forms, LEFT JOIN semantic
+boundaries and CTE folding/materialization. Study 01 gains a clearly planned
+case variation, without new timings. LOW resumes the existing measurement task;
+HIGH reviews its evidence and publishes the later case results. The new HIGH
+publication task supersedes the original LOW publication assignment.
+
+Frozen evidence, signed reports and producing tags are preserved. Milestone:
+`repo/book-join-theory-20261004`.
+
 ## Edition 3 preview 2 — 2026-10-04
 
 Replaces the mixed pilot/older-edition reading path with the owner's requested hierarchy:
