@@ -78,6 +78,15 @@ benchmark lock is free.
 - **Next (LOW):** about 36 new runs per handoff 2 (YB range arm, PG/YB domain
   isolated+blended, topology subset, colocated cluster3), reporting fixes and a
   v3 analysis. Then HIGH `select-synthesis` and `select-book-high`.
+- **Round-2 progress (LOW, attempt `attempt-20261004T215518Z-975148`):** the
+  range-index arm is implemented and gate-validated — feasibility run
+  `select-join-v3-feas-yb-range-20261005` records `indexdef … (rank ASC)` and
+  gate `20/200/2000 = used`. The compatibility class now includes node/client
+  budget and index arm; recorded limits are derived from the run's settings;
+  per-node and client throttling deltas and per-cell access evidence are
+  rendered; colocated-database creation and an endpoint-rotating writer are in
+  place. Code frozen at `b108fafe`; matrix runs are in progress under
+  `run/study-01/select-join-v3-*`.
 - **Open for `select-synthesis`:** the shared teaching DDL has the same YB
   default. Integrated YB access/existence runs show 0 index scans (access
   0/51 vs PostgreSQL 29/26), so YB access/existence verdicts may describe
