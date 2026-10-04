@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261002T131729Z-select-existence` |
-| State | `approved_for_integration` |
-| Sequence | `6` |
+| State | `completed` |
+| Sequence | `7` |
 | Active attempt | none |
 | Active worker | `model=deepseek-flash tool=opencode/CLI effort=unknown session=session-20261004T005525Z-c7a6bf capability=HIGH role=integrator` |
-| Last event | `event-20261004T013823Z-integrated` |
-| Updated at | `2026-10-04T01:38:23Z` |
-| Next capability | HIGH |
-| Next work role | integrator |
+| Last event | `event-20261004T013955Z-completed` |
+| Updated at | `2026-10-04T01:39:55Z` |
+| Next capability |  |
+| Next work role |  |
 | Branch | `study-01/select-existence` |
 | Worktree | `.worktrees/select-existence` |
 
-Integrated into local `main`. NEXT: `queue complete`.
+Task complete. The immutable event files remain the record.
