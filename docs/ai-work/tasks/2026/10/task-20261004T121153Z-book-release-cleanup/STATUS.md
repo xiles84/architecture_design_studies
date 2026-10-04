@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261004T121153Z-book-release-cleanup` |
-| State | `claimed` |
-| Sequence | `2` |
+| State | `awaiting_review` |
+| Sequence | `3` |
 | Active attempt | `attempt-20261004T121857Z-442a62` |
 | Active worker | `model=GPT-6 tool=Codex desktop effort=unknown session=session-20261004-book-release capability=HIGH role=integrator` |
-| Last event | `event-20261004T121857Z-claimed` |
-| Updated at | `2026-10-04T12:18:57Z` |
-| Next capability | LOW |
-| Next work role | executor |
+| Last event | `event-20261004T125339Z-submitted` |
+| Updated at | `2026-10-04T12:53:39Z` |
+| Next capability | HIGH |
+| Next work role | reviewer |
 | Branch | `repo/book-release-20261004` |
 | Worktree | `.worktrees/book-release-20261004` |
 
-Claimed by model=GPT-6 tool=Codex desktop effort=unknown session=session-20261004-book-release capability=HIGH role=integrator until 2026-10-04T14:18:57Z. Worktree `.worktrees/book-release-20261004`.
+Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/10/task-20261004T121153Z-book-release-cleanup/attempts/attempt-20261004T121857Z-442a62/RESULT.md`.
