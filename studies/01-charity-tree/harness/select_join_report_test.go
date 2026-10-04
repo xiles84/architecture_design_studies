@@ -187,3 +187,18 @@ func TestJoinGapsMatchRunSettings(t *testing.T) {
 		t.Fatal("YugabyteDB storage counters are parsed; the gap text must not say otherwise")
 	}
 }
+
+// M1 regression: the gate must check the named thresholds, not the first three
+// of the run's axis. The topology subset's third threshold is 180000 (90%),
+// where a sequential scan is correct; gating on it refused to measure the arm.
+func TestGateThresholdsFor(t *testing.T) {
+	if got := fmt.Sprint(gateThresholdsFor([]int{20, 200, 2000, 20000, 100000, 180000})); got != "[20 200 2000]" {
+		t.Fatalf("full axis gate = %s", got)
+	}
+	if got := fmt.Sprint(gateThresholdsFor([]int{20, 2000, 180000})); got != "[20 2000]" {
+		t.Fatalf("topology axis gate = %s", got)
+	}
+	if got := fmt.Sprint(gateThresholdsFor([]int{5, 10, 15})); got != "[5 10]" {
+		t.Fatalf("fallback gate = %s", got)
+	}
+}

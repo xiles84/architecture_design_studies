@@ -358,16 +358,17 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 		}
 	}
 
-	// Physical-arm gate (review M1): the default join at the three most
-	// selective thresholds must use the rank index, or the two engines are not
-	// running a matched index arm. The gate records the plan and the engine's
-	// estimates rather than proceeding silently to a matrix that would compare
-	// an index path with a full scan.
-	gateThresholds := thresholds
-	if len(gateThresholds) > 3 {
-		gateThresholds = gateThresholds[:3]
-	}
-	for _, t := range gateThresholds {
+	// Physical-arm gate (review M1): the default join at the named selective
+	// thresholds must use the rank index, or the two engines are not running a
+	// matched index arm. The gate records the plan and the engine's estimates
+	// rather than proceeding silently to a matrix that would compare an index
+	// path with a full scan.
+	// The gate checks the thresholds the handoff names (20, 200 and 2000), not
+	// the first three of whatever axis the run uses. The topology subset's third
+	// threshold is 180000 (90%), where a sequential scan is the correct plan and
+	// the index must not be required; gating on it wrongly refused to measure the
+	// subset (run select-join-v3-topo-single-i1-20261005 recorded exactly that).
+	for _, t := range gateThresholdsFor(thresholds) {
 		args := selectbench.JoinArgs{Threshold: t, Refs: 4, ConsumerMax: len(jf.Facts), ValidateOnly: true, StatementTimeout: budget}
 		specs := []selectbench.JoinSpec{{Statement: "j01_join_where", Axis: fmt.Sprintf("indexgate=%d", t), Args: args}}
 		cells := selectbench.RunJoinSpecs(ctx, q, cat, jf, specs, "feasibility", "validation")
@@ -861,6 +862,36 @@ func anyInt(v any) int {
 		i, _ := strconv.Atoi(fmt.Sprint(v))
 		return i
 	}
+}
+
+// containsInt reports whether xs contains v.
+func containsInt(xs []int, v int) bool {
+	for _, x := range xs {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+// gateThresholdsFor returns the thresholds the physical-arm gate checks: the
+// handoff's 20/200/2000 when the run includes them, otherwise the two most
+// selective thresholds the run has. The widest thresholds are excluded because
+// a sequential scan there is the correct plan, not a missing index.
+func gateThresholdsFor(thresholds []int) []int {
+	var out []int
+	for _, t := range []int{20, 200, 2000} {
+		if containsInt(thresholds, t) {
+			out = append(out, t)
+		}
+	}
+	if len(out) > 0 {
+		return out
+	}
+	if len(thresholds) > 2 {
+		return thresholds[:2]
+	}
+	return thresholds
 }
 
 func anyBool(v any) bool {
