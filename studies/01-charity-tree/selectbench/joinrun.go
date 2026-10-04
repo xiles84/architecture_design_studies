@@ -53,6 +53,22 @@ func queryRetry(ctx context.Context, q Querier, sql string) ([][]any, int, error
 	}
 }
 
+// explainRetry is the same policy for EXPLAIN ANALYZE, which also executes the
+// statement and can therefore hit the same transient conflict.
+func explainRetry(ctx context.Context, q Querier, sql string) (string, int, error) {
+	var plan string
+	var err error
+	for attempt := 0; ; attempt++ {
+		plan, err = q.Explain(ctx, sql)
+		if err == nil {
+			return plan, attempt, nil
+		}
+		if attempt >= joinMaxRetries || !isRetryable(err) {
+			return "", attempt, err
+		}
+	}
+}
+
 // JoinArgs are the bound parameters of one join/CTE cell.
 type JoinArgs struct {
 	Threshold        int
@@ -224,7 +240,8 @@ func prepareJoinCell(ctx context.Context, q Querier, c *Catalog, jf JoinFixture,
 	cell.ResultRows = len(rows)
 	encoded, _ := json.Marshal(rows)
 	cell.ResultJSONBytes = len(encoded)
-	plan, err := q.Explain(cellCtx, bound)
+	plan, explainRetries, err := explainRetry(cellCtx, q, bound)
+	cell.Retries += explainRetries
 	if err != nil {
 		cell.Status, cell.Note = failureStatus(err), err.Error()
 		return cell, bound, false
