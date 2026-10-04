@@ -106,17 +106,17 @@ used: the cluster comes up at RF3 under per-node 2 CPU/3 GiB, the client rotates
 its reader across all three endpoints (first cluster3 subset run 30/30 valid,
 endpoint ops 123/122/122, per-node throttling 20/82/11) — see
 `docs/select-query-templates/reviews/20261004-join-corrective/CLUSTER-BRINGUP.md`.
-Still open: the bounded subset matrix (3 runs/arm; the non-colocated baseline is
-supported and the colocated arm is an explicit gap — the pinned engine rejects
-`colocation = true` on the default database with SQLSTATE 0A000, see
-`PLACEMENT.md`), the full 5-trial blended phase pairs, and the successor signed
-analysis (C6); the task stays `claimed` and **unsubmitted**. The matched blended writer (C5) is
-implemented and validated: an independent `maintenance_updates` counter outside
-the projection/rank/token, one writer at an offered 10 updates/s, isolated and
-blended phases, and a Go ledger; the PG validation pair ran 30/30 valid and the
-blended writer offered and completed 10.002 updates/s with 0 ledger mismatches
-and 23/90 reader operations overlapping a write
-(`docs/select-query-templates/reviews/20261004-join-corrective/BLENDED.md`).
+Corrective cycle complete and **submitted for HIGH review**: the frozen 3+3
+domain matrix (`select-join-domain2-{pg,yb}{1,2,3}-20261004`, 91/91 valid each,
+one client build), the bounded topology subset (single / equal-total single /
+cluster3, isolated and blended, 3 runs each, all 30/30 valid,
+`reports/select-join-topology-subset-20261004.md`), the matched blended writer
+(sustained 10.02 updates/s, 0 ledger mismatches), and the signed successor
+analysis `reports/analyses/20261004T-select-join-cte-v2--deepseek-flash--2026-10-04.md`
+(supersedes the original). Explicit gaps: colocated placement (pinned engine
+rejects `colocation = true` on the default database, SQLSTATE 0A000,
+`PLACEMENT.md`) and cluster-balanced writes (the writer uses one endpoint).
+
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 

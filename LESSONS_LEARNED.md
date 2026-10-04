@@ -2680,5 +2680,20 @@ with one. Hash the input bytes consistently and prove render/re-render stability
 Original results and reports remain intact; this is a derived-report defect,
 not evidence that their original measurements changed.
 
+## A live writer restarts long unmaterialized reads, so concurrency phases need a recorded retry (2026-10-04)
+
+The first blended run on YugabyteDB failed its gate: the two longest
+`NOT MATERIALIZED` multi-reference reads came back `SQLSTATE 40001 (Restart read
+required)` while the maintenance writer was committing, and the run aborted with
+28/30 valid. `EXPLAIN ANALYZE` executes the statement too and can hit the same
+conflict, so retrying only the read path still left one error. A transient
+conflict is not a wrong answer: the reader now re-executes the same statement up
+to ten times with backoff, records the retry count on the cell, and still
+verifies the answer against the independent oracle, so a retry cannot hide an
+incorrect result. With that, all nine blended runs are 30/30 valid. The
+conflicts are themselves the finding: the engine restarts exactly the plan whose
+per-reference re-evaluation is longest, which is the mechanism under test.
+
+
 
 

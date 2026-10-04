@@ -33,11 +33,10 @@ reports, signed analysis and all ten producing tags are preserved unedited.
     documented in `docs/select-query-templates/reviews/20261004-join-corrective/DOMAIN-ARM.md`.
   - [x] PG live gate passes; exact threshold counts and rank-index evidence;
     `cte-domain` runs `select-join-domain2-feas-pg-20261004`.
-  - [~] Six validation whole runs measured (3 PG, 3 YB), 91/91 valid each, 5
-    samples and position control; report
-    `reports/20261004T-select-join-domain-replicated.md`. They span two client
-    builds (report-only changes landed between yb1 and yb2-3), so the completed
-    matrix must be re-run from one frozen commit; that frozen 3+3 matrix is open.
+  - [x] Frozen 3+3 domain matrix re-run from one client build:
+    `select-join-domain2-{pg,yb}{1,2,3}-20261004`, 91/91 valid each, both controls
+    fire; each engine is one compatibility class. Reports
+    `reports/select-join-domain2-*.md`.
 - [~] **C3 effective WSL resource recheck** and budget calibration.
   - [x] Attestation: 8 CPU / 16,109,780 kB effective (the 4 CPU / 2048 MiB podman
     config is stale metadata). Budget plan recorded in
@@ -53,12 +52,15 @@ reports, signed analysis and all ten producing tags are preserved unedited.
   - [x] Multi-endpoint client implemented (`harness/join_cluster.go`); first
     cluster3 subset run 30/30 valid with endpoint ops 123/122/122 and per-node
     throttling 20/82/11 (`select-join-topo-yb-smoke-20261004`).
-  - [~] Placement feature check: `noncolocated` supported (cluster3 subset
+  - [x] Placement feature check: `noncolocated` supported (cluster3 subset
     30/30 valid, placement recorded); `colocated` rejected by the pinned engine
     on the default non-colocated database (SQLSTATE 0A000), recorded as an
     explicit gap with error evidence (`PLACEMENT.md`).
-  - [ ] Bounded subset matrix: 3 whole runs per arm (single, equal-total single,
-    cluster3), non-colocated baseline; colocated requires a colocated database.
+  - [x] Bounded subset matrix complete: 3 whole runs per arm (single 2 CPU/3 GiB,
+    equal-total single 6 CPU/9 GiB, cluster3 3x2 CPU/3 GiB), 5 trials each;
+    isolated runs `…-{single,equal,cluster}-i{1,2,3}-20261004` and blended runs
+    `…-…-bo{1,2,3}-20261004`, all 30/30 valid, report
+    `reports/select-join-topology-subset-20261004.md`.
 - [~] **C5 matched blended read/write phase** (one fixed writer).
   - [x] Implemented: independent `maintenance_updates` counter outside the
     projection/rank/token; one fixed writer at 10 updates/s over 1000 keys;
@@ -67,8 +69,14 @@ reports, signed analysis and all ten producing tags are preserved unedited.
   - [x] Validation pair on PG single-node: both 30/30 valid; blended offered 66,
     completed 66, failed 0 (10.002/s), ledger 0 mismatch, 23/90 reader ops
     overlapped a write (`BLENDED.md`).
-  - [ ] Full 5-trial phase pairs on the domain matrix and the topology subset.
-- [ ] **C6** new signed successor analysis with corrected verdicts.
+  - [x] Full 5-trial phase pairs on all three topology arms, 3 runs each: writer
+    sustained 10.02/s, ledger 0 mismatch; YugabyteDB restarted the longest
+    unmaterialized reads (SQLSTATE 40001), so the reader retries transient
+    conflicts up to 10 times with backoff, records the count and still verifies
+    the oracle.
+- [x] **C6** new signed successor analysis with corrected verdicts
+      (`reports/analyses/20261004T-select-join-cte-v2--deepseek-flash--2026-10-04.md`,
+      supersedes the original; frozen `domain2` digests cited).
 
 ## Decision Log (this attempt)
 
