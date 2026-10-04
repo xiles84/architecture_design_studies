@@ -105,6 +105,11 @@ func selectSpec(scale string) selectbench.GenSpec {
 		// 10,000 parents so the aggregate/top-N parent-count axis can reach
 		// 10,000 parents with one deterministic fixture and a prefix filter.
 		return selectbench.GenSpec{Customers: 10000, OrdersPerParent: 2, NullAmountEvery: 29, NullFKEvery: 313}
+	case "deep":
+		// The access-path pagination axis needs more rows than 10,000 so the
+		// deepest protocol level addresses a real page. 200x60 = 12,000 rows,
+		// no hot parent and narrow rows to keep load bounded on both engines.
+		return selectbench.GenSpec{Customers: 200, OrdersPerParent: 60, NullAmountEvery: 23, NullFKEvery: 311}
 	default: // small
 		return selectbench.GenSpec{Customers: 50, OrdersPerParent: 5, NullAmountEvery: 7, NullFKEvery: 23}
 	}

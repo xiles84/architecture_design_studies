@@ -84,7 +84,7 @@ func runSelectAggregateMode(dsn, engine, topology, scale, out, reportOut string,
 	if gateErr == nil {
 		specs := selectbench.BuildAggregateSpecs(base, selectbench.ParentLevels(), trials)
 		if positionControl {
-			specs = append(specs, selectbench.PositionControlSpec(base, trials))
+			specs = append(specs, selectbench.AggregatePositionControlSpec(base, trials))
 		}
 		cells = selectbench.RunSpecs(ctx, q, cat, fx, specs, runID, topology)
 	}

@@ -81,10 +81,10 @@ func BuildAggregateSpecs(base Args, levels []int, trials int) []CellSpec {
 // matrix cell, re-run at the end of the phase under a distinct axis key.
 const PositionSuffix = ";position=last"
 
-// PositionControlSpec repeats the first matrix cell at the smallest parent
+// AggregatePositionControlSpec repeats the first matrix cell at the smallest parent
 // level, so a within-run position/session effect can be read off beside the
 // spelling pairs. It is an extra cell, never a replacement.
-func PositionControlSpec(base Args, trials int) CellSpec {
+func AggregatePositionControlSpec(base Args, trials int) CellSpec {
 	level := ParentLevels()[0]
 	a := base
 	a.ParentMax = level

@@ -2497,7 +2497,7 @@ the workload again rather than re-deriving the ratio.
 The aggregate/top-N sweep asked whether a correlated scalar aggregate wins at small parent sets and loses
 at large. On PostgreSQL it does: 0.70-0.98x post-join at one parent, crossing between 10 and 100 parents.
 On YugabyteDB the same query crossed between 1 and 10 parents and then collapsed to **8,460 ms at 10,000
-parents** (489-507x post-join), while PostgreSQL's was 20 ms. Pre-aggregation reversed only on PostgreSQL
+parents** (446-507x post-join), while PostgreSQL's was 20 ms. Pre-aggregation reversed only on PostgreSQL
 (winning at 10,000 parents) and never won on YugabyteDB. **The shape-level prediction was a PostgreSQL
 fact, not a general one.** A per-parent subquery pays the engine's per-statement overhead - on this YB
 build roughly 0.5-0.8 ms for every extra parent - so a prediction about a per-parent probe must name the
@@ -2520,5 +2520,25 @@ the shared control list must supply a complete Args, and an oracle should return
 dereference a missing argument.** The failed run's tag and log were retained as a harness-defect record; the
 fix was to bind the same predicate the teaching gate uses.
 
+
+## Report and matrix defects found by the SELECT access-path task (2026-10-03)
+
+### A cross-run report must key its aggregate on the environment, not the cell alone
+The access-path replicated report first pooled PostgreSQL and YugabyteDB cells under one `axis` key, so a
+single "across-run median/spread" mixed two engines and printed spreads over 1000% that described no
+environment. Fixing it meant keying every cell and pair row on `(engine, topology, axis)`. **An across-run
+spread that pools two environments is not measured variability; it is two different measurements added
+together**, and it hides exactly the engine contrast the study exists to show. Any multi-environment
+replication report must group by environment before it computes a spread.
+
+### A shape/spelling matrix needs a regime where the plan can actually differ
+The first access-path matrix used broad arms (~39% of rows). At that selectivity the planner chose one
+sequence scan for all three spellings, so the "indexable vs expression vs cast" factor changed nothing
+while every cell was valid and green — a null result that was a plan artifact, not a finding. Adding a
+selective regime (~1% per arm) made the index plan appear and made the expression index matter on
+PostgreSQL. **A spelling/shape factor is only measured where the plan can differ; include a regime that
+exercises the mechanism, or the null you report is the wrong one.** The same task also showed a labelled
+physical arm (an expression index) can move one engine and not another, so the regime must be crossed with
+the physical arm rather than assumed.
 
 

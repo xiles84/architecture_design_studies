@@ -43,24 +43,32 @@ summary, not a second ledger.
 
 ## Current state
 
-### Aggregate / top-N sweep measured — **task submitted for HIGH review (2026-10-03)**
+### SELECT measuring families — **access paths and aggregate/top-N integrated (2026-10-03)**
 
-`task-20261002T131729Z-select-aggregate-topn` (LOW deepseek-flash) measured the
-parent-aggregate and per-parent top-N sweep on a 10,000-parent fixture at levels
-{1,10,100,1000,10000}: six whole runs (PG 30/30/31 valid, YB 30/31/30 valid),
-both controls fired 6/6. Tags
-`run/study-01/select-agg-{pg-1b,pg-2,pg-3,yb-1,yb-2,yb-3}-20261003`. Findings:
-P8's reversal holds on PostgreSQL (correlated below ~10 parents, pre-aggregation
-only at 10,000) but not on YugabyteDB, where pre-aggregation never wins and the
-correlated subquery collapses to 8,460 ms at 10,000 parents; P9's LATERAL probe
-wins only at one parent and `DISTINCT ON` is the fastest top-N spelling at scale
-on both engines. Evidence: replicated report
-`studies/01-charity-tree/reports/20261003T-select-agg-replicated.md`, signed
-analysis
-`studies/01-charity-tree/reports/analyses/20261003T-select-agg--deepseek-flash--2026-10-03.md`.
-The benchmark lock is free; local-main integration and tag
-`study-01/select-v4-aggregate-topn` follow HIGH review. Remaining SELECT
-measuring families (join/CTE, existence) are still queued.
+Two of the four SELECT measuring families are measured, reviewed and integrated
+into local `main`:
+
+- **Access paths** (`task-20261002T131729Z-select-access-paths`, tag
+  `study-01/select-v5-access-paths`): seven whole runs on a 12,000-row fixture
+  (three PG, three YB, one PG position control), all cells oracle-gated. P11
+  (keyset vs OFFSET) is confirmed with an **engine-specific crossing** (PG between
+  depth 100 and 1,000; YB between 1,000 and 10,000); P10 (OR vs `UNION ALL`) is
+  **falsified as stated** — `OR` is never worse, and on YB is consistently faster;
+  the expression index is a labelled physical arm that changes the plan on
+  PostgreSQL only (0.845 → 0.265 ms).
+- **Aggregate / per-parent top-N** (`task-20261002T131729Z-select-aggregate-topn`,
+  tag `study-01/select-v4-aggregate-topn`): six whole runs on a 10,000-parent
+  fixture (three PG, three YB, two position controls), both controls fired 6/6.
+  P8's reversal holds only on PostgreSQL (correlated below ~10 parents,
+  pre-aggregation only at 10,000) and not on YugabyteDB, where the correlated
+  subquery reaches 8,460 ms at 10,000 parents; P9's LATERAL probe wins only at one
+  parent and `DISTINCT ON` is the fastest top-N spelling at scale on both engines.
+
+Evidence: replicated reports
+`studies/01-charity-tree/reports/20261003T-select-access-replicated.md` and
+`.../20261003T-select-agg-replicated.md`, with signed analyses beside each. The
+remaining two families (join/CTE, existence) are queued and start from this
+integrated state. The benchmark lock is free.
 
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 

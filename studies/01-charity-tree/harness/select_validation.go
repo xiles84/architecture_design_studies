@@ -50,8 +50,8 @@ func validateSelectFixtures(ctx context.Context, q selectbench.Querier, catalog 
 		}
 		if item.name == "teaching" {
 			controls = selectbench.RunControls(ctx, q, catalog, item.fx, item.args)
-			if len(controls) != 6 {
-				gateErr = fmt.Errorf("expected six live negative controls, got %d", len(controls))
+			if len(controls) != 7 {
+				gateErr = fmt.Errorf("expected seven live negative controls, got %d", len(controls))
 			}
 			for _, control := range controls {
 				if !control.Detected {

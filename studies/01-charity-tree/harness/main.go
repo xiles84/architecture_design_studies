@@ -80,7 +80,8 @@ func main() {
 		labelA       = flag.String("label-a", "", "report-compare: name for the -results regime")
 		labelB       = flag.String("label-b", "", "report-compare: name for the -compare regime")
 		stmtTimeout  = flag.Int("stmt-timeout-ms", 120000, "server-side statement_timeout")
-		positionCtl  = flag.Bool("position-control", false, "select-aggregate: repeat the first matrix cell at the end of the phase")
+		pageLimit    = flag.Int("page-limit", 5, "select-access: rows per pagination page")
+		positionCtl  = flag.Bool("position-control", false, "select-access/select-aggregate: repeat the first matrix cell at the end of the phase")
 	)
 	flag.Parse()
 	if *cmd == "report-enhancements" {
@@ -120,6 +121,16 @@ func main() {
 		return
 	case "select":
 		if err := runSelectMode(*dsn, *engine, *topology, *scale, *queries, *out, *reportOut, *seed, *trials, *envName, *runID, *stmtTimeout); err != nil {
+			fatal(err)
+		}
+		return
+	case "select-access":
+		if err := runSelectAccessMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *pageLimit, *envName, *runID, *stmtTimeout, *positionCtl); err != nil {
+			fatal(err)
+		}
+		return
+	case "access-report":
+		if err := runSelectAccessReport(*resultsDir, *reportOut); err != nil {
 			fatal(err)
 		}
 		return

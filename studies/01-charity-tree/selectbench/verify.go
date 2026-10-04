@@ -51,6 +51,9 @@ func oracleFor(group string, fx Fixture, a Args) (any, error) {
 		// than reading Args.N, so it stays comparable to the other top-N
 		// spellings at N=1 and only at N=1.
 		return TopNUpTo(fx, 1, a.ParentMax), nil
+	case "sel_predicate_alt":
+		a1, a2 := defaultArms(a)
+		return PredicateAlt(fx, a1, a2), nil
 	case ControlGroup:
 		return nil, fmt.Errorf("a deliberately wrong control has no oracle: it must be seen to FAIL, not to match")
 	}

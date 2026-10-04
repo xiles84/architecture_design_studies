@@ -26,7 +26,7 @@ var placeholderRe = regexp.MustCompile(`:([a-zA-Z_][a-zA-Z0-9_]*)`)
 // expressionParams are inlined verbatim: they are SQL expressions (a predicate),
 // not values, so quoting them would turn `WHERE :pred` into a constant. Every
 // other parameter is a value and is rendered as a literal.
-var expressionParams = map[string]bool{"pred": true}
+var expressionParams = map[string]bool{"pred": true, "pred_a": true, "pred_b": true}
 
 func sqlLiteral(v string) string {
 	if _, err := strconv.ParseFloat(v, 64); err == nil {

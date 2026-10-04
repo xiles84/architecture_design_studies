@@ -42,7 +42,7 @@ type Cell struct {
 	Topology        string
 	Statement       string
 	Group           string
-	Axis            string
+	Axis            string // matrix coordinate, e.g. "shape=expression;spelling=or" or "family=aggregate;parent_max=100"; empty for validation
 	Params          string
 	Status          Status
 	MedianMS        float64

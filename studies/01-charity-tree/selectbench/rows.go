@@ -237,6 +237,32 @@ func Canonicalize(group string, rows [][]any) (any, error) {
 		// ORDER BY cannot pass verification after the harness sorts it correctly.
 		return out, nil
 
+	case "sel_predicate_alt":
+		out := make([]PredAltRow, 0, len(rows))
+		for _, r := range rows {
+			if err := need(r, 2, group); err != nil {
+				return nil, err
+			}
+			oid, _, err := toInt(r[0])
+			if err != nil {
+				return nil, err
+			}
+			amt, anull, err := toInt(r[1])
+			if err != nil {
+				return nil, err
+			}
+			row := PredAltRow{OrderID: oid}
+			if !anull {
+				row.Amount = ip(amt)
+			}
+			out = append(out, row)
+		}
+		// A BAG: multiplicities are part of the answer, so only the ORDER is
+		// canonicalized. A UNION ALL over overlapping arms keeps its duplicate
+		// and is therefore seen to differ from the OR oracle.
+		sort.SliceStable(out, func(i, j int) bool { return out[i].OrderID < out[j].OrderID })
+		return out, nil
+
 	case ControlGroup:
 		return nil, fmt.Errorf("a deliberately wrong control has no canonical answer to verify against")
 	}

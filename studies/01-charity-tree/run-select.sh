@@ -9,6 +9,7 @@ SCALE="${SCALE:-tiny}"
 SEED="${SEED:-42}"
 ENGINE="postgres"
 FAMILY="select"
+PAGE_LIMIT=5
 POSITION_CONTROL=0
 TRIALS=3
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -21,6 +22,7 @@ while [[ $# -gt 0 ]]; do
     --engine) ENGINE="$2"; shift 2 ;;
     --trials) TRIALS="$2"; shift 2 ;;
     --family) FAMILY="$2"; shift 2 ;;
+    --page-limit) PAGE_LIMIT="$2"; shift 2 ;;
     --position-control) POSITION_CONTROL=1; shift ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
@@ -28,32 +30,36 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown argument $1" ;;
   esac
 done
-[[ "$SCALE" =~ ^(tiny|small|medium|large|sweep)$ ]] || die "unknown scale $SCALE"
-[[ "$FAMILY" =~ ^(select|aggregate)$ ]] || die "family must be select or aggregate"
+[[ "$SCALE" =~ ^(tiny|small|medium|large|deep|sweep)$ ]] || die "unknown scale $SCALE"
+[[ "$FAMILY" =~ ^(select|access|aggregate)$ ]] || die "family must be select, access or aggregate"
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"
+[[ "$PAGE_LIMIT" =~ ^[1-9][0-9]*$ ]] || die "page limit must be positive"
 [[ "$RUN_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || die "invalid run id"
 [[ "$TAG" == run/study-01/* ]] || die "provide an immutable --tag run/study-01/<id>"
 [[ -n "$ENVIRONMENT" && -f "$REPO/docs/environments/$ENVIRONMENT.md" ]] || die "provide a documented --environment"
+case "$FAMILY" in
+  access)    CLIENT_CMD="select-access";    OUT_JSON="access.json";    OUT_MD="access.md" ;;
+  aggregate) CLIENT_CMD="select-aggregate"; OUT_JSON="aggregate.json"; OUT_MD="aggregate.md" ;;
+  *)         CLIENT_CMD="select";           OUT_JSON="select.json";    OUT_MD="select.md" ;;
+esac
+POSITION_FLAG=""
+[[ "$POSITION_CONTROL" == 1 ]] && POSITION_FLAG="-position-control"
 case "$ENGINE" in
   postgres) TOPOLOGY_SCRIPT="$REPO/infra/pg-single.sh"; NODE=pg-single; ENGINE_IMAGE="$PG_IMAGE"; VOLUME=ads-pg-single-data ;;
   yugabyte) TOPOLOGY_SCRIPT="$REPO/infra/yb-single.sh"; NODE=yb-single; ENGINE_IMAGE="$YB_IMAGE"; VOLUME=ads-yb-single-data ;;
   *) die "engine must be postgres or yugabyte" ;;
 esac
-if [[ "$FAMILY" == aggregate ]]; then
-  CLIENT_CMD="select-aggregate"; OUT_JSON="aggregate.json"; OUT_MD="aggregate.md"
-else
-  CLIENT_CMD="select"; OUT_JSON="select.json"; OUT_MD="select.md"
-fi
-POSITION_FLAG=""
-[[ "$POSITION_CONTROL" == 1 ]] && POSITION_FLAG="-position-control"
 OUTDIR="${OUTDIR:-$HERE/results/$RUN_ID}"
 [[ ! -e "$OUTDIR" ]] || die "output already exists: $OUTDIR"
 GIT_ROOT="$(hostpath "$REPO")"
-STATUS="$(git -C "$GIT_ROOT" status --porcelain --untracked-files=all -- infra platform studies/01-charity-tree | grep -vE 'studies/01-charity-tree/results/' || true)"
-[[ -z "$STATUS" ]] || die "commit source before a SELECT run: $STATUS"
+# Exclude this study's results/ and reports/ explicitly: git's `:!` pathspec
+# does not suppress UNTRACKED files, so a previous run's output would otherwise
+# make the tree look dirty and block every later run (see LESSONS_LEARNED).
+STATUS="$(git -C "$GIT_ROOT" status --porcelain --untracked-files=all -- infra platform studies/01-charity-tree | grep -vE 'studies/01-charity-tree/(results|reports)/' || true)"
+[[ -z "$STATUS" ]] || die "commit source and reports before a SELECT run: $STATUS"
 SOURCE_COMMIT="$(git -C "$GIT_ROOT" rev-parse HEAD)"
 IMAGE="localhost/charitybench-select:$RUN_ID"
-run_lock_acquire "study-01 SELECT validation $RUN_ID $ENGINE"
+run_lock_acquire "study-01 SELECT $FAMILY $RUN_ID $ENGINE"
 STARTED=no
 cleanup() {
   local rc=$?
@@ -91,7 +97,7 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology single -scale "$SCALE" -seed "$SEED" \
-  -trials "$TRIALS" $POSITION_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e

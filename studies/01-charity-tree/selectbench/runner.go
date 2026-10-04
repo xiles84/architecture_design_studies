@@ -43,6 +43,10 @@ func (a Args) ParamMap(s Statement) map[string]string {
 		switch p {
 		case "pred":
 			m[p] = firstNonEmpty(a.PredSQL, "amount > 100")
+		case "pred_a":
+			m[p] = firstNonEmpty(a.PredASQL, "amount <= 100")
+		case "pred_b":
+			m[p] = firstNonEmpty(a.PredBSQL, "amount >= 400")
 		case "n":
 			m[p] = strconv.Itoa(topNArg(a))
 		case "parent_max":
@@ -92,8 +96,9 @@ func Prepare(ctx context.Context, q Querier, fx Fixture) error {
 }
 
 // CellSpec is one cell to execute: a statement plus the exact Args it is bound
-// with. The aggregate/top-N sweep binds a different parent prefix per cell, so
-// the runner works from specs rather than one shared Args for every name.
+// with. The access-path and aggregate/top-N matrices bind different Args per
+// cell (a parent prefix, a page offset, a cursor, a predicate shape), so the
+// runner works from specs rather than one shared Args for every name.
 type CellSpec struct {
 	Statement string
 	Axis      string

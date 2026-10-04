@@ -209,7 +209,7 @@ func TestAggregatePairsRecomputeBothDirections(t *testing.T) {
 
 func TestPositionControlSpecPairsWithTheFirstCell(t *testing.T) {
 	levels := ParentLevels()
-	pc := PositionControlSpec(Args{}, 3)
+	pc := AggregatePositionControlSpec(Args{}, 3)
 	if pc.Statement != AggregateStatements[0] || pc.Args.ParentMax != levels[0] || pc.Args.Trials != 3 {
 		t.Fatalf("position spec = %+v", pc)
 	}
