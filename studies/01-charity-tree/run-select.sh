@@ -14,6 +14,7 @@ POSITION_CONTROL=0
 FEASIBILITY=0
 TOPO_SUBSET=0
 PHASE="isolated"
+PLACEMENT=""
 TOPOLOGY="single"
 TRIALS=3
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -31,6 +32,7 @@ while [[ $# -gt 0 ]]; do
     --feasibility) FEASIBILITY=1; shift ;;
     --topo-subset) TOPO_SUBSET=1; shift ;;
     --phase) PHASE="$2"; shift 2 ;;
+    --placement) PLACEMENT="$2"; shift 2 ;;
     --topology) TOPOLOGY="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
@@ -107,9 +109,9 @@ IMAGE_ID="$(podman image inspect "$IMAGE" --format '{{.Id}}')"
 ENGINE_IMAGE_ID="$(podman image inspect "$ENGINE_IMAGE" --format '{{.Id}}')"
 git -C "$GIT_ROOT" tag -a "$TAG" "$SOURCE_COMMIT" -m "Study 01 SELECT validation $RUN_ID; source $SOURCE_COMMIT; actor in task/run commit archive"
 mkdir -p "$OUTDIR/resources"
-printf 'environment=%s\nrepo_commit=%s\nrun_tag=%s\nengine=%s\nengine_image=%s\nengine_image_id=%s\nclient_image=%s\nclient_image_id=%s\nnode_budget=%s CPU %s\nclient_budget=%s CPU %s\ntrials=%s\nphase=%s\ntopology=%s\nwhole_runs=1\n' \
+printf 'environment=%s\nrepo_commit=%s\nrun_tag=%s\nengine=%s\nengine_image=%s\nengine_image_id=%s\nclient_image=%s\nclient_image_id=%s\nnode_budget=%s CPU %s\nclient_budget=%s CPU %s\ntrials=%s\nphase=%s\nplacement=%s\ntopology=%s\nwhole_runs=1\n' \
   "$ENVIRONMENT" "$SOURCE_COMMIT" "$TAG" "$ENGINE" "$ENGINE_IMAGE" "$ENGINE_IMAGE_ID" "$IMAGE" "$IMAGE_ID" \
-  "$DB_CPUS" "$DB_MEMORY" "$CLIENT_CPUS" "$CLIENT_MEMORY" "$TRIALS" "$PHASE" "$TOPOLOGY" >"$OUTDIR/manifest.env"
+  "$DB_CPUS" "$DB_MEMORY" "$CLIENT_CPUS" "$CLIENT_MEMORY" "$TRIALS" "$PHASE" "${PLACEMENT:-engine-default}" "$TOPOLOGY" >"$OUTDIR/manifest.env"
 podman machine inspect >"$OUTDIR/resources/machine.json"
 podman image inspect "$IMAGE" "$ENGINE_IMAGE" >"$OUTDIR/resources/images.json"
 STARTED=yes
@@ -138,7 +140,7 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" \
   -e "ADS_ENGINE_IMAGE=$ENGINE_IMAGE" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology "$TOPOLOGY" -scale "$SCALE" -seed "$SEED" \
-  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG $TOPO_FLAG -phase "$PHASE" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG $TOPO_FLAG -phase "$PHASE" -placement "$PLACEMENT" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e

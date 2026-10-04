@@ -91,23 +91,25 @@ func selectJoinDomainSpec(scale string) selectbench.JoinDomainGenSpec {
 // through the charity relationship). The catalogue is shared; only the fixture,
 // the search_path schema and the provenance label differ.
 type joinArm struct {
-	name         string
-	dataset      string
-	schema       string
-	rankIndex    string
-	scale        string
-	factCount    int
-	parents      int
-	fingerprint  string
-	oracle       selectbench.JoinFixture
-	edgeOracle   selectbench.JoinFixture
-	emptyOracle  selectbench.JoinFixture
-	prepare      func(context.Context, selectbench.Querier) error
-	prepareEdge  func(context.Context, selectbench.Querier) error
-	prepareEmpty func(context.Context, selectbench.Querier) error
+	name          string
+	dataset       string
+	schema        string
+	rankIndex     string
+	scale         string
+	placement     string
+	placementNote string
+	factCount     int
+	parents       int
+	fingerprint   string
+	oracle        selectbench.JoinFixture
+	edgeOracle    selectbench.JoinFixture
+	emptyOracle   selectbench.JoinFixture
+	prepare       func(context.Context, selectbench.Querier) error
+	prepareEdge   func(context.Context, selectbench.Querier) error
+	prepareEmpty  func(context.Context, selectbench.Querier) error
 }
 
-func selectJoinArm(seed int64, scale string) joinArm {
+func selectJoinArm(seed int64, scale, engine, placement string) joinArm {
 	if isJoinDomainScale(scale) {
 		dspec := selectJoinDomainSpec(scale)
 		df := selectbench.GenerateJoinDomain(seed, dspec)
@@ -119,26 +121,48 @@ func selectJoinArm(seed int64, scale string) joinArm {
 				{ID: 2, CharityID: 1, FullName: "Ben"},
 			},
 		}
+		// Colocation is a YugabyteDB table property. Requesting it on any other
+		// engine is recorded as not applicable, never silently applied.
+		effPlacement, note := "", ""
+		if placement != "" {
+			if engine == "yugabyte" {
+				effPlacement = placement
+			} else {
+				note = "placement `" + placement + "` is not applicable on " + engine + "; engine default used"
+			}
+		}
 		return joinArm{
 			name: "study01-domain", dataset: "study01-person-donation-charity",
 			schema: selectbench.JoinDomainSchema, rankIndex: "donation_rank_idx", scale: scale,
+			placement: effPlacement, placementNote: note,
 			factCount: dspec.Donations, parents: dspec.Persons,
-			fingerprint:  selectbench.JoinDomainFingerprint(df),
-			oracle:       df.AsJoinFixture(),
-			edgeOracle:   edge.AsJoinFixture(),
-			emptyOracle:  empty.AsJoinFixture(),
-			prepare:      func(ctx context.Context, q selectbench.Querier) error { return prepareJoinDomain(ctx, q, df) },
-			prepareEdge:  func(ctx context.Context, q selectbench.Querier) error { return prepareJoinDomain(ctx, q, edge) },
-			prepareEmpty: func(ctx context.Context, q selectbench.Querier) error { return prepareJoinDomain(ctx, q, empty) },
+			fingerprint: selectbench.JoinDomainFingerprint(df),
+			oracle:      df.AsJoinFixture(),
+			edgeOracle:  edge.AsJoinFixture(),
+			emptyOracle: empty.AsJoinFixture(),
+			prepare: func(ctx context.Context, q selectbench.Querier) error {
+				return prepareJoinDomain(ctx, q, df, effPlacement)
+			},
+			prepareEdge: func(ctx context.Context, q selectbench.Querier) error {
+				return prepareJoinDomain(ctx, q, edge, effPlacement)
+			},
+			prepareEmpty: func(ctx context.Context, q selectbench.Querier) error {
+				return prepareJoinDomain(ctx, q, empty, effPlacement)
+			},
 		}
 	}
 	spec := selectJoinSpec(scale)
 	jf := selectbench.GenerateJoin(seed, spec)
 	empty := selectbench.JoinFixture{Customers: []selectbench.Customer{{ID: 1, Name: "Ana"}, {ID: 2, Name: "Ben"}}}
+	note := ""
+	if placement != "" {
+		note = "placement `" + placement + "` is not applicable to the synthetic microfixture arm; engine default used"
+	}
 	return joinArm{
 		name: "synthetic-microfixture", dataset: "synthetic-customers-facts",
 		schema: selectbench.JoinSchema, rankIndex: "facts_rank_idx", scale: scale,
-		factCount: spec.FactCount, parents: spec.Customers,
+		placementNote: note,
+		factCount:     spec.FactCount, parents: spec.Customers,
 		fingerprint: selectbench.JoinFingerprint(jf),
 		oracle:      jf,
 		edgeOracle:  selectbench.JoinEdge(),
@@ -166,8 +190,8 @@ func prepareJoinFixture(ctx context.Context, q selectbench.Querier, jf selectben
 // prepareJoinDomain loads the Study 01 domain tables and their catalogue-binding
 // views. The views are the only place person/donation are mapped onto the shared
 // projection, so the measured SQL never changes between arms.
-func prepareJoinDomain(ctx context.Context, q selectbench.Querier, df selectbench.JoinDomainFixture) error {
-	if err := q.Exec(ctx, selectbench.JoinDomainSchemaSQL()); err != nil {
+func prepareJoinDomain(ctx context.Context, q selectbench.Querier, df selectbench.JoinDomainFixture, placement string) error {
+	if err := q.Exec(ctx, selectbench.JoinDomainSchemaSQLPlacement(placement)); err != nil {
 		return err
 	}
 	for _, stmt := range selectbench.JoinDomainLoadSQL(df, 1000) {
@@ -331,7 +355,7 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 	return f
 }
 
-func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID, phase string, statementTimeout int, positionControl, feasibilityOnly, topoSubset bool) error {
+func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID, phase, placement string, statementTimeout int, positionControl, feasibilityOnly, topoSubset bool) error {
 	if dsn == "" {
 		return fmt.Errorf("-cmd select-join needs -dsn")
 	}
@@ -356,7 +380,7 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	// The arm is chosen by the scale name: `cte`/`cte-small` measure the
 	// synthetic microfixture, `cte-domain`/`cte-domain-small` measure the Study 01
 	// person/donation fixture bound through the charity views.
-	arm := selectJoinArm(seed, scale)
+	arm := selectJoinArm(seed, scale, engine, placement)
 	thresholds := selectbench.JoinThresholds(arm.factCount)
 	if topoSubset {
 		thresholds = selectbench.JoinTopologyThresholds(arm.factCount)
@@ -468,6 +492,14 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	result.Provenance.Settings["phase"] = phase
 	result.Provenance.Settings["writer_target_rate_per_sec"] = fmt.Sprint(selectbench.WriterTargetRate)
 	result.Provenance.Settings["writer_keys"] = fmt.Sprint(maintenanceKeyCount)
+	placementLabel := arm.placement
+	if placementLabel == "" {
+		placementLabel = "engine default"
+	}
+	result.Provenance.Settings["placement"] = placementLabel
+	if arm.placementNote != "" {
+		result.Notes = append(result.Notes, arm.placementNote)
+	}
 	result.Notes = append(result.Notes, joinGaps(engine, topology)...)
 	return writeJoinOutputs(result, nil, feasibilityOnly, out, reportOut)
 }

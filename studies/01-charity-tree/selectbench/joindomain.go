@@ -158,8 +158,23 @@ func (df JoinDomainFixture) AsJoinFixture() JoinFixture {
 }
 
 // JoinDomainSchemaSQL creates the domain tables and the two binding views,
-// dropping any previous copy.
-func JoinDomainSchemaSQL() string {
+// dropping any previous copy, with the engine's default placement.
+func JoinDomainSchemaSQL() string { return JoinDomainSchemaSQLPlacement("") }
+
+// JoinDomainSchemaSQLPlacement creates the same schema with an explicit
+// placement. YugabyteDB places tables with `WITH (colocation = true|false)`:
+// colocated tables share a tablet per node, non-colocated tables are
+// range-sharded across nodes. An empty placement keeps the engine default, and
+// the feature check is empirical — a placement the pinned engine rejects must
+// surface as a load error, not be assumed to work.
+func JoinDomainSchemaSQLPlacement(placement string) string {
+	clause := ""
+	switch placement {
+	case "colocated":
+		clause = " WITH (colocation = true)"
+	case "noncolocated":
+		clause = " WITH (colocation = false)"
+	}
 	return `CREATE SCHEMA IF NOT EXISTS ` + JoinDomainSchema + `;
 DROP VIEW IF EXISTS ` + JoinDomainSchema + `.facts;
 DROP VIEW IF EXISTS ` + JoinDomainSchema + `.customers;
@@ -169,12 +184,12 @@ DROP TABLE IF EXISTS ` + JoinDomainSchema + `.charity;
 CREATE TABLE ` + JoinDomainSchema + `.charity (
   charity_id integer PRIMARY KEY,
   name       text    NOT NULL
-);
+)` + clause + `;
 CREATE TABLE ` + JoinDomainSchema + `.person (
   person_id  integer PRIMARY KEY,
   charity_id integer NOT NULL REFERENCES ` + JoinDomainSchema + `.charity(charity_id),
   full_name  text    NOT NULL
-);
+)` + clause + `;
 CREATE TABLE ` + JoinDomainSchema + `.donation (
   donation_id  integer PRIMARY KEY,
   person_id    integer NOT NULL REFERENCES ` + JoinDomainSchema + `.person(person_id),
@@ -182,7 +197,7 @@ CREATE TABLE ` + JoinDomainSchema + `.donation (
   amount_cents integer,
   note         text,
   maintenance_updates integer NOT NULL DEFAULT 0
-);
+)` + clause + `;
 CREATE INDEX donation_rank_idx ON ` + JoinDomainSchema + `.donation (rank);
 CREATE INDEX donation_person_idx ON ` + JoinDomainSchema + `.donation (person_id);
 CREATE VIEW ` + JoinDomainSchema + `.customers AS
