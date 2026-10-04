@@ -43,6 +43,26 @@ summary, not a second ledger.
 
 ## Current state
 
+### Join/CTE measurement family — **running; do not start databases (2026-10-04)**
+
+The ready task `task-20261002T131729Z-select-join-cte` was claimed by a LOW
+`deepseek-flash` session and resumed from the 2026-10-04 handoff. The join/CTE
+harness is implemented, unit-tested and committed: six inner-join spellings and
+forced `MATERIALIZED`/`NOT MATERIALIZED` on the two CTE forms, a generated
+reuse ladder (3 policies x {1,2,4,8,16} x {1%,100%} consumers), a 200,000-row
+rank-permutation fixture with exact thresholds, and independent Go oracles.
+Both single-node feasibility checks passed and are committed under
+`results/select-join-feas-*`; the report now keys materialization evidence on
+`CTE Scan` because PostgreSQL 17 prints no `Materialize` node for
+`AS MATERIALIZED` (checked by hand).
+
+Six whole runs (**3 PostgreSQL, 3 YugabyteDB single-node**, 5 trials, seeded
+interleaving, position control) are running sequentially under `ads-run-lock`
+as `select-join-pg{1,2,3}-20261004` and `select-join-yb{1,2,3}-20261004`.
+**Do not start databases until this note is replaced.** The 3-node YB RF=3 and
+colocated/non-colocated placement arms remain conditional on the fixed 2 GiB
+machine and will be recorded as gaps with resource evidence if they do not fit.
+
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 
 The owner requested the missing comparison and specified LOW measurement followed
