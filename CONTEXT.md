@@ -58,7 +58,9 @@ Existing HIGH `select-synthesis` reviews it; new HIGH
 The original LOW book assignment has a mandatory supersession amendment; its
 immutable spec/queue state remains historical because queue v1 has no supersede command.
 
-This task is theory/source/render validation and planning only. No database or
+The canonical preview is **89 pages**, with 31/31 existing claims and 17 reproduced
+figures; new theory/case/navigation pages were visually reviewed. This task is
+theory/source/render validation and planning only. No database or
 benchmark is started. Completion milestone: `repo/book-join-theory-20261004`;
 validation: [dated receipt](docs/book-join-theory-20261004/VALIDATION.md).
 

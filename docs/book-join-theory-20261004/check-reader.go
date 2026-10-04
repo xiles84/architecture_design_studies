@@ -13,7 +13,9 @@ func read(path string) string { b,e:=os.ReadFile(path); if e!=nil { panic(e) }; 
 func require(ok bool, message string) { if !ok { panic(message) } }
 func main() {
  root:=os.Args[1]
- text:=read(filepath.Join(root,"docs/book-join-theory-20261004/rendered.txt"))
+ textFile:="docs/book-join-theory-20261004/rendered.txt"
+ if len(os.Args)>2 {textFile=os.Args[2]}
+ text:=read(filepath.Join(root,textFile))
  theory,e:=filepath.Glob(filepath.Join(root,"book/theory/*.typ")); if e!=nil {panic(e)}
  count:=0; for _,f:=range theory {count+=strings.Count(read(f),"#strategy(")}
  require(len(theory)==6 && count==22,"wrong theory coverage")

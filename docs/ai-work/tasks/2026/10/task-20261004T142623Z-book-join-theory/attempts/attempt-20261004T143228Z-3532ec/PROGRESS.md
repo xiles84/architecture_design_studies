@@ -23,4 +23,14 @@ LOW measurement, HIGH evidence review and HIGH book publication later.
    failed container path resolution; relative links preserve the same checkout.
    High confidence; affects task coordination only. No peer worktree was modified.
 
+6. **Use native Git for the WSL build and process-local stat settings for the
+   queue.** Cross-platform index refresh made container commits slow and a WSL
+   read briefly held this task's index lock. Minimal stat checks/trustctime=false
+   do not skip content or alter peers. The HIGH task publication's failed commit
+   was finished with native Git over exactly the CLI-generated owned paths.
+   High confidence; affects coordination only. Image source-check and audit pass.
+7. **Keep the planned case with its coverage limit on one page.** Initial visual
+   review found a sparse continuation. A local pagebreak fixes it without changing
+   evidence. High confidence; affects case layout only. Final proofs inspected.
+
 NEXT MODEL: LOW
