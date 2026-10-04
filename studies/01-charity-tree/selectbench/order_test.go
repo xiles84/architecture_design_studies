@@ -96,3 +96,36 @@ func TestInterleavedSkipsCellsWithNoTrials(t *testing.T) {
 		t.Fatalf("trials=0 did not fall back to one sample: %+v", cells[0])
 	}
 }
+
+type recordingOrderQ struct {
+	*fakeQ
+	queries []string
+	wrongAt int
+}
+
+func (q *recordingOrderQ) Query(ctx context.Context, sql string) ([][]any, error) {
+	q.queries = append(q.queries, q.nameByBound[sql])
+	if q.wrongAt == len(q.queries) {
+		return nil, nil
+	}
+	return q.fakeQ.Query(ctx, sql)
+}
+
+func TestInterleavedExecutesRoundsAndDropsEarlierSamplesOnLateMismatch(t *testing.T) {
+	c := load(t)
+	fx := Teaching()
+	a := Args{Pred: AmountGreaterThan(100), PredSQL: "amount > 100", Trials: 3}
+	specs := []CellSpec{{Statement: "s01_join_where", Args: a}, {Statement: "s06_exists_parent", Args: a}}
+	q := &recordingOrderQ{fakeQ: newFakeQ(t, c, fx, a), wrongAt: 8}
+	cells := RunSpecsInterleaved(context.Background(), q, c, fx, specs, OrderPlan{Order: []int{1, 0}}, "run", "single")
+	want := []string{"s06_exists_parent", "s01_join_where", "s06_exists_parent", "s01_join_where", "s06_exists_parent", "s01_join_where", "s06_exists_parent", "s01_join_where"}
+	if !reflect.DeepEqual(q.queries, want) {
+		t.Fatalf("samples were not interleaved after verification: %v", q.queries)
+	}
+	if cells[0].Status != StatusInvalid || cells[0].TimingMeasured || len(cells[0].SamplesMS) != 0 {
+		t.Fatalf("late wrong answer retained timing: %+v", cells[0])
+	}
+	if cells[1].Status != StatusValid || cells[1].Trials != 3 {
+		t.Fatalf("independent valid cell lost samples: %+v", cells[1])
+	}
+}

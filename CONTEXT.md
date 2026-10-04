@@ -55,11 +55,11 @@ correctness-gated observations; they are not accepted for promotion as fully
 controlled replicated numeric claims. The [signed review](studies/01-charity-tree/reports/discussions/20261004T-select-evidence--gpt6.md)
 and [exact input check](docs/select-evidence-review-20261004/CHECKS.md) preserve the
 original analyses and explain the disagreement. Targeted correction task
-`task-20261004T100822Z-select-order-correction` carries a LOW handoff to record
-randomized/interleaved execution and rerun matched phases. Final HIGH synthesis
-must review that correction as well as the remaining join/CTE family.
+`task-20261004T100822Z-select-order-correction` executed that targeted handoff.
+The independent correction review below qualifies its interpretation. Final HIGH
+synthesis still waits for the remaining join/CTE family.
 
-**The correction is now measured and awaits HIGH review.** 18 whole runs
+**The correction is measured and accepted by HIGH for integration (2026-10-04).** 18 whole runs
 (`results/select-order-*`) use a seeded per-run permutation with interleaved
 samples and record the seed and actual sequence; each family/engine has three
 distinct orders. The position control repeats the actual first cell and brackets
@@ -71,10 +71,15 @@ partly **unresolved** - `DISTINCT ON` vs `ROW_NUMBER` is mixed-sign at PG levels
 10 and 100 and at YB level 100, so "DISTINCT ON fastest at scale" is narrowed.
 Signed correction analysis in
 `studies/01-charity-tree/reports/analyses/20261004T-select-order-correction--deepseek-flash--2026-10-04.md`;
-primary inputs pinned by `reports/20261004T-select-order-manifest-*.md`. Branch
-`study-01/select-order-correction`, tag `study-01/select-v7-order-controls`
-(pending review and local-main integration). Original runs are retained and not
-relabelled.
+primary inputs independently pinned, including producing tags, by
+[`CORRECTION-INPUTS.md`](docs/book-release-20261004/CORRECTION-INPUTS.md).
+The original manifests' empty tag column was an exporter field-name defect;
+the raw inputs and all 18 annotated producing tags were correct and unchanged.
+The [signed HIGH qualification](studies/01-charity-tree/reports/discussions/20261004T-select-order-review--gpt6.md)
+corrects the LOW analysis's YB level-10 sign (mixed) and keeps the near-equality
+level-10,000 aggregate effect unresolved. Source/checks and tagged raw evidence
+are consolidated for local-main integration under `study-01/select-v7-order-controls`.
+Original runs and analyses are retained; no SELECT timing claim is added to the book.
 
 - **Access paths** (`task-20261002T131729Z-select-access-paths`, tag
   `study-01/select-v5-access-paths`): seven whole runs on a 12,000-row fixture
@@ -108,8 +113,9 @@ relabelled.
 Evidence: replicated reports
 `studies/01-charity-tree/reports/20261003T-select-access-replicated.md` and
 `.../20261003T-select-agg-replicated.md` and `.../20261004T-select-exist-replicated.md`,
-with signed analyses beside each. The remaining family (join/CTE) is queued and
-starts from this integrated state. The benchmark lock is free.
+with signed analyses beside each. The remaining family (join/CTE) yielded a
+committed feasibility plan back to `ready` without running its matrix; its
+worktree is retained. The benchmark lock is free.
 
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 
@@ -120,8 +126,9 @@ tasks. Twelve proposals have explicit resource deferrals; four feasible Study 09
 proposals remain behind the empirical program's T1/T2-before-T5 gate; the cache protocol
 comparison was conditional at the snapshot and is now released (Study 05 below);
 SELECT synthesis waits for its four measuring workers and
-their separately claimed harness. The Edition 3 pilot also awaits the owner's preview
-approval before integration; its PDF was requested to open and approval asked in chat.
+their separately claimed harness. At that snapshot the Edition 3 pilot awaited
+the owner's preview approval; the owner authorized integration and release on
+2026-10-04, as recorded in the book release entry below.
 The audit had zero errors and three existing coordination warnings, retained in its
 inputs. The sweep receipt is intended for local-main integration and annotated milestone
 `repo/high-task-sweep-20261003`; its queue status records the observed outcome. This
@@ -193,23 +200,26 @@ validation does not complete SELECT evidence synthesis or its four measuring tas
   converts the rest. Tag `repo/data-architecture-book-ed3-plan`. **T2–T5 workers:** the book's prose is
   being moved into concept chapters; re-scope a changed number wherever it is quoted, including the new
   case boxes.
-  - **Pilot built by LOW, reviewed by HIGH, now awaiting the owner's approval of the style (2026-10-01).**
+  - **Pilot built by LOW, reviewed by HIGH; owner authorized integration and Edition 3 preview 1 on 2026-10-04.**
     HIGH review rendered the pages and found five defects no source check could see (headings numbered `0.x`,
     a stray comma in the verdict tag, the front page overflowing to a second page, the checklist split
     orphaning a row, the `CHAPTER 4` eyebrow on the previous page); all five are fixed in `6b6dd6d`. The task
-    is `approved_for_integration` with integration deliberately deferred to the owner's approval, per its
-    brief. Seven validated components in `lib/config.typ` (each panics on out-of-rule
+    was `approved_for_integration` pending owner approval; the current release request and
+    general approval satisfy that gate. Seven validated components in `lib/config.typ` (each panics on out-of-rule
     input), `claim-badge(id)` in `lib/evidence.typ` that links to its card and prints the card's page,
     `check.sh` extended to scan `claim-badge("…")` (proved by a bogus id failing the check), the front page
     `front/how-to-use.typ`, chapter 4 `concepts/rollup.typ` (template, 3 pages) and the profile
     `cases/04-configuration-portal.typ` (1 page). Main.typ now builds the Edition 3 parts first and keeps
     every Edition 2 chapter after a divider that says they await conversion. Preview:
-    `book/dist/edition3-pilot.pdf` + `dist/edition3-pilot-manifest.json`, **untracked in the task worktree**
-    by the task's own rule — 90 pages (front p. 3, chapter 4 pp. 8–9, profile p. 13), 31/31 claims,
+    `book/dist/edition3-pilot.pdf` + `dist/edition3-pilot-manifest.json`, originally untracked
+    by the task's own rule, now hash-preserved in `docs/book-release-20261004/archive/edition3-pilot/`
+    — 90 pages (front p. 3, chapter 4 pp. 8–9, profile p. 13), 31/31 claims,
     6/6 fonts, no banner. Evidence: the attempt's
     `RESULT.md` and `PROGRESS.md` (D1–D9) under
-    `docs/ai-work/tasks/2026/10/task-20261001T155900Z-book-ed3-pilot/`. The tracked Edition 2 release
-    artefact was not rebuilt; that is phase 3.
+    `docs/ai-work/tasks/2026/10/task-20261001T155900Z-book-ed3-pilot/`. The combined-source
+    release is **Edition 3 preview 1**, milestone `repo/data-architecture-book-v3-preview-1`.
+    The remaining concept-first conversion is unfinished; legacy chapters stay in the PDF.
+    Consolidation, preservation and build checks: `docs/book-release-20261004/`.
 - The queue CLI (v1) is **complete and integrated**, tagged `repo/ai-task-queue-v1`, with capability
   aliases tagged `repo/ai-capability-aliases`.
 - This document's rewrite is `task-20260922T025912Z-history-status-reconcile`; it imports EH-01,
@@ -877,12 +887,9 @@ what a score contains. `queue integrate` could not run because the canonical bra
 to stop a branch/tag name clash; the branch was restored at the merged commit.
 `…-t2-study02-replication` was initially claimed and then **yielded unstarted** for the higher-priority
 Edition 3 pilot; it later completed with HIGH review as recorded below. `t3`–`t5` remain `ready`.
-`task-20261001T155900Z-book-ed3-pilot` is **approved_for_integration**, with integration deliberately deferred
-to the owner's approval of the preview style as its brief requires. The review rendered the pages and found five
-defects no source check could see (headings numbered `0.x`, a stray comma in the verdict tag, the front page
-overflowing to a second page, the checklist split orphaning a row, the `CHAPTER 4` eyebrow on the previous
-page); all five are fixed on `book/ed3-pilot` at `6b6dd6d`. The preview is 90 pages (front p. 3, chapter 4
-pp. 8–9, Study 04 profile p. 13), 31/31 claims, 6/6 fonts, no banner, and stays untracked in the task worktree.
+The Edition 3 pilot's review, five rendered fixes at `6b6dd6d` and the owner's
+2026-10-04 approval are consolidated in the current book release entry above.
+The original 90-page preview is archived byte-for-byte before worktree cleanup.
 
 **T2 — Study 02's `v2-07` replicated, its storage figure re-scoped (2026-10-02, LOW deepseek-flash).**
 `task-20261001T133759Z-t2-study02-replication` re-derived `v2-07` in **four whole runs of all fifteen designs**

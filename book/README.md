@@ -24,7 +24,7 @@ book/
   concepts/*.typ           Edition 3 concept chapters (rollup) plus the 8 Edition 2 concepts
                            (placement, indexes, concurrency, derived state, expiry, cache
                            consistency, distributed placement, reading benchmarks)
-  evidence/                the frozen v1-v4 packages, the active v5 package, and check.sh
+  evidence/                the frozen v1-v5 packages, the active v6 package, and check.sh
   assets/                  generated figures, their canonical .puml sources and the manifest
   Containerfile            pinned Typst image (by immutable manifest digest)
   build.sh                 builds and verifies the PDF, writes dist/build-manifest.json
@@ -41,17 +41,19 @@ book/evidence/check.sh                                                       # s
 
 ## Editions
 
-`book-edition` in `lib/config.typ` names the edition the sources build. **Edition 3 (draft)** is the
+`book-edition` in `lib/config.typ` names the edition the sources build. **Edition 3 preview 1** is the
 concept-first edition (owner decision 2026-10-01, `STYLE.md`): each chapter teaches one concept and the
 studies show when it fits. It is being built part by part — a part opener names the chapters it will
 hold, a converted chapter appears in its part, and the Edition 2 chapters follow a divider that says
 they await conversion. The first converted part is part I's chapter 4 (Rollup) plus the Study 04
 profile; `front/how-to-use.typ` explains the shape to the reader.
 
-The pilot of that edition is built separately and is *not* the tracked release artefact:
-`book/build.sh --out dist/edition3-pilot.pdf --manifest dist/edition3-pilot-manifest.json`. The pilot
-output stays untracked in its task worktree for the owner's review; `dist/data-architecture-reference.pdf`
-remains the Edition 2 release until the conversion is complete.
+The owner authorized integration and a new local release on 2026-10-04. The tracked
+`dist/data-architecture-reference.pdf` now contains the approved pilot slice and the retained
+Edition 2 chapters. This is a preview release: the remaining concept-first conversion is unfinished.
+Its immutable milestone is `repo/data-architecture-book-v3-preview-1`; the earlier Edition 2
+release remains available through its existing tags. The original pilot PDF and manifest are
+preserved under `docs/book-release-20261004/archive/edition3-pilot/`.
 
 Nothing runs on the host: the script builds the pinned image, compiles `main.typ` to
 `dist/data-architecture-reference.pdf`, verifies the result, and writes `dist/build-manifest.json`.

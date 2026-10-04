@@ -1,4 +1,18 @@
-# CHANGELOG — *Data Architecture Reference*, Edition 2 revision (2026-09-24)
+# CHANGELOG — *Data Architecture Reference*
+
+## Edition 3 preview 1 — 2026-10-04
+
+Owner-authorized local release of the reviewed concept-first pilot combined with all committed
+repository work. Adds the reading guide, validated chapter components, compact linked evidence
+badges, the Rollup chapter and the Study 04 profile. The retained Edition 2 chapters and concepts
+are explicitly marked as awaiting conversion. This preview does not claim the full rewrite is done.
+
+The active v6 evidence package remains unchanged; SELECT correction results are preserved in the
+repository, without adding their timing claims to the book. Built with the canonical pinned Podman
+toolchain, source/figure/evidence gates and rendered review. Details and cleanup provenance:
+`docs/book-release-20261004/VALIDATION.md`. Release tag: `repo/data-architecture-book-v3-preview-1`.
+
+## Edition 2 revision — 2026-09-24
 
 This revision applies the owner-supplied external review of the Edition 2 PDF. It changes prose and
 figures only: **no measured number, claim id, trial count, evidence classification, confound or gap was

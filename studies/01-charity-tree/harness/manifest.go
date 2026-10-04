@@ -70,7 +70,8 @@ func runManifest(dir, reportOut string) error {
 	return os.WriteFile(reportOut, []byte(b.String()), 0o644)
 }
 
-var runTagRE = regexp.MustCompile(`"run_tag"\s*:\s*"([^"]*)"`)
+// SELECT provenance uses RunTag; keep the older snake-case spelling compatible.
+var runTagRE = regexp.MustCompile(`"(?:run_tag|RunTag)"\s*:\s*"([^"]*)"`)
 
 func extractString(data []byte, key string) string {
 	if key == "run_tag" {

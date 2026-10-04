@@ -195,7 +195,7 @@ type RunOrder struct {
 // RunSpecsInterleaved verifies and plans each cell once in the plan's order,
 // then takes one sample of every valid cell per round, so within-run drift is
 // spread across cells instead of being concentrated in the late ones. Cells are
-// returned in plan order.
+// returned in original spec order; the recorded sequence carries execution order.
 func RunSpecsInterleaved(ctx context.Context, q Querier, c *Catalog, fx Fixture, specs []CellSpec, plan OrderPlan, runID, topology string) []Cell {
 	cells := make([]Cell, len(specs))
 	bounds := make([]string, len(specs))

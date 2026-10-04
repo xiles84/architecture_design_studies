@@ -10,6 +10,23 @@ experiments**.
 
 ## Measurement
 
+### A manifest's missing tag can be an exporter defect
+
+The SELECT correction JSONs stored `provenance.RunTag`; the new exporter searched
+only for `run_tag`, producing blank tag cells despite 18 valid annotated producing
+tags. The 2026-10-04 release review fixed the reader and added a real provenance
+fixture test. Check the recorded JSON schema and tag targets together, and publish
+an exact corrected manifest without rewriting earlier evidence or signed analyses.
+Review: `docs/book-release-20261004/REVIEW-ORDER.md`.
+
+### Inspect ignored files before removing a clean worktree
+
+Tracked-clean does not mean empty: completed worktrees still held ignored queue
+drafts and untracked pilot PDFs and older run evidence. The 2026-10-04 consolidation
+hash-preserved 120 files before cleanup, retaining the original paths for study
+evidence and byte-preserving attributes for the archive. Retain yielded unfinished
+worktrees even when their committed plan is reachable from main.
+
 ### Repeated whole runs do not balance a fixed spelling order
 
 The 2026-10-04 independent SELECT review checked 19 primary whole runs: each
