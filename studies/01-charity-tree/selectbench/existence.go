@@ -186,11 +186,9 @@ func newMembershipPair(fanout int, a, b Cell, label string) MembershipPair {
 
 // PositionPair returns the first membership cell and its repeat, if present.
 func (r ExistenceResult) PositionPair() (MembershipPair, bool) {
-	fanout := FanoutLevels()[0]
-	first, okFirst := r.Find(ExistenceAxis("membership", MembershipStatements[0], fanout))
-	last, okLast := r.Find(ExistenceAxis("membership", MembershipStatements[0], fanout) + PositionSuffix)
-	if !okFirst || !okLast {
+	first, last, ok := positionPairCells(r.Cells)
+	if !ok {
 		return MembershipPair{}, false
 	}
-	return newMembershipPair(fanout, first, last, "position control exists first vs last"), true
+	return newMembershipPair(FanoutLevels()[0], first, last, "position control first vs last"), true
 }

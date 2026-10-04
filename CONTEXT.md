@@ -59,11 +59,30 @@ original analyses and explain the disagreement. Targeted correction task
 randomized/interleaved execution and rerun matched phases. Final HIGH synthesis
 must review that correction as well as the remaining join/CTE family.
 
+**The correction is now measured and awaits HIGH review.** 18 whole runs
+(`results/select-order-*`) use a seeded per-run permutation with interleaved
+samples and record the seed and actual sequence; each family/engine has three
+distinct orders. The position control repeats the actual first cell and brackets
+first-to-last drift at 1.5-2.4% (access), 13-22% (existence) and **29-74%**
+(aggregate). Corrected verdicts: access P11 keeps a stable sign at every depth
+and narrows the PostgreSQL crossing to between depth 100 and 1,000 (depth 100 now
+3/3 keyset-slower); existence P6/P7 keep their signs; the aggregate family is
+partly **unresolved** - `DISTINCT ON` vs `ROW_NUMBER` is mixed-sign at PG levels
+10 and 100 and at YB level 100, so "DISTINCT ON fastest at scale" is narrowed.
+Signed correction analysis in
+`studies/01-charity-tree/reports/analyses/20261004T-select-order-correction--deepseek-flash--2026-10-04.md`;
+primary inputs pinned by `reports/20261004T-select-order-manifest-*.md`. Branch
+`study-01/select-order-correction`, tag `study-01/select-v7-order-controls`
+(pending review and local-main integration). Original runs are retained and not
+relabelled.
+
 - **Access paths** (`task-20261002T131729Z-select-access-paths`, tag
   `study-01/select-v5-access-paths`): seven whole runs on a 12,000-row fixture
   (three PG, three YB, one PG position control), all cells oracle-gated. P11
   (keyset vs OFFSET) has an observed **engine-specific sign change** (PG between
-  depth 10 and 1,000, with depth 100 unresolved; YB between 1,000 and 10,000); P10 (OR vs `UNION ALL`) is
+  depth 10 and 1,000, with depth 100 unresolved in the fixed-order runs and
+  resolved to keyset-slower in the corrected randomized runs, narrowing the PG
+  crossing to between 100 and 1,000; YB between 1,000 and 10,000); P10 (OR vs `UNION ALL`) is
   **falsified in the measured regimes** — `UNION ALL` has no resolved
   replicated advantage, and YB observations consistently favor `OR`;
   the expression index is a labelled physical arm that changes the plan on

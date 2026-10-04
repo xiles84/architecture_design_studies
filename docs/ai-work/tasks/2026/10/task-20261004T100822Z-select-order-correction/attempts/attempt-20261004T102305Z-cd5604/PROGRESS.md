@@ -9,16 +9,17 @@ Source: independent HIGH review
 
 ## Plan
 
-1. Recon and premeasurement plan, corrected environment page, Decision Log.
+1. Recon and premeasurement plan, corrected environment page, Decision Log. **[done]**
 2. Seeded per-run order + recorded sequence in `selectbench` (`PlanOrder`,
-   `OrderSeedFor`, `RunOrder`, `RunSpecsInterleaved`).
-3. Interleaved sample rounds; actual-first position control; unit tests.
-4. Wire access, aggregate and existence modes; access index arm as its own phase.
+   `OrderSeedFor`, `RunOrder`, `RunSpecsInterleaved`). **[done, ca2a38fb]**
+3. Interleaved sample rounds; actual-first position control; unit tests. **[done]**
+4. Wire access, aggregate and existence modes; access index arm as its own phase. **[done]**
 5. >=3 whole runs per engine/family (18 runs), 5 trials, under `ads-run-lock`,
-   one run per engine/family with the position control.
+   one run per engine/family with the position control. **[done, all cells valid]**
 6. Primary-input manifest (per-file + corpus digests) and correction reports
-   with run ids on ratio rows.
+   with run ids on ratio rows. **[done]**
 7. Signed correction analysis; RESULT.md; CONTEXT/LESSONS; submit for HIGH.
+   **[analysis + RESULT done; submitting]**
 
 ## Decision Log
 
@@ -55,3 +56,11 @@ Source: independent HIGH review
 
 Single-node only; no cluster arm; one sequential reader; five samples; YB
 RPC/storage counters not parsed.
+
+## Checkpoints
+
+- `ca2a38fb` order machinery + plan + env page.
+- 18 whole runs at the measurement commit, all cells valid, 3 distinct orders per
+  family/engine.
+- Position drift measured: access 1.5-2.4%, existence 13-22%, aggregate 29-74%.
+- Corrected verdicts in the signed analysis; aggregate medium levels unresolved.

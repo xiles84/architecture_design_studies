@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -224,6 +225,24 @@ func RunSpecsInterleaved(ctx context.Context, q Querier, c *Catalog, fx Fixture,
 		finishCell(&cells[i])
 	}
 	return cells
+}
+
+// positionPairCells finds the cell whose axis carries PositionSuffix and the
+// cell it repeats, by stripping the suffix. It works for the actual randomized
+// first cell, not a hard-coded one.
+func positionPairCells(cells []Cell) (Cell, Cell, bool) {
+	for _, last := range cells {
+		if !strings.HasSuffix(last.Axis, PositionSuffix) {
+			continue
+		}
+		base := strings.TrimSuffix(last.Axis, PositionSuffix)
+		for _, first := range cells {
+			if first.Axis == base {
+				return first, last, true
+			}
+		}
+	}
+	return Cell{}, Cell{}, false
 }
 
 // prepareCell binds, verifies and plans one cell. The bound SQL and whether the

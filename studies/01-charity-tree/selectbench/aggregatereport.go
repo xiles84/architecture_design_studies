@@ -189,7 +189,7 @@ func RenderAggReplicated(runs []AggResult) (string, error) {
 			} else if p.RatioBA < 1 {
 				sign = "<1"
 			}
-			fmt.Fprintf(&b, "| %s | %s | %s | %d | %s | %.4f | %s |\n", r.Engine, r.Topology, p.Family, p.Level, p.Label, p.RatioBA, sign)
+			fmt.Fprintf(&b, "| %s | %s | %s | %s | %d | %s | %.4f | %s |\n", r.RunID, r.Engine, r.Topology, p.Family, p.Level, p.Label, p.RatioBA, sign)
 		}
 	}
 	b.WriteString("\n## Recorded limits\n\n")

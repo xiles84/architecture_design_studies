@@ -398,6 +398,7 @@ func RenderAccessReplicated(runs []AccessResult) (string, error) {
 			} else if p.RatioBA < 1 {
 				sign = "<1"
 			}
+			pairs[k].ids = append(pairs[k].ids, r.RunID)
 			pairs[k].ratios = append(pairs[k].ratios, fmt.Sprintf("%.4f", p.RatioBA))
 			pairs[k].signs = append(pairs[k].signs, sign)
 		}

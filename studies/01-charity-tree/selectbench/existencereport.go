@@ -163,7 +163,11 @@ func RenderExistenceReplicated(runs []ExistenceResult) (string, error) {
 	}
 	b.WriteString("\n## Membership pair ratios per run (per engine)\n\n| run | engine | topology | fanout | pair | ratio (B/A) | sign |\n|---|---|---|---|---|---|---|\n")
 	for _, r := range runs {
-		for _, p := range r.MembershipPairs() {
+		pairs := r.MembershipPairs()
+		if pp, ok := r.PositionPair(); ok {
+			pairs = append(pairs, pp)
+		}
+		for _, p := range pairs {
 			if p.RatioBA <= 0 {
 				continue
 			}
