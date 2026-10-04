@@ -108,3 +108,20 @@ func TestExistencePositionControlPairsTheFirstMembershipCell(t *testing.T) {
 		t.Fatalf("position pair = %+v, ok=%v", pp, ok)
 	}
 }
+
+func TestExistenceShapeMakesBothControlsFireAtEveryLevel(t *testing.T) {
+	c := load(t)
+	a := Args{Pred: AmountGreaterThan(100), PredSQL: "amount > 100"}
+	for _, fanout := range FanoutLevels() {
+		fx := ExistenceShape(Generate(42, GenSpec{Customers: TotalChildren / fanout, OrdersPerParent: fanout,
+			NullAmountEvery: 11, NullFKEvery: 97}))
+		for name, group := range map[string]string{
+			"x02_not_in_nullable":       "sel_absence",
+			"x07_membership_multiplier": "sel_membership",
+		} {
+			if err := DetectControl(c, name, fx, a, Evaluators[name](fx, a), group); err != nil {
+				t.Errorf("fanout=%d: %v", fanout, err)
+			}
+		}
+	}
+}

@@ -80,12 +80,12 @@ func runSelectExistenceMode(dsn, engine, topology, scale, out, reportOut string,
 	var levels []selectbench.FanoutLevel
 	var controls []selectbench.ControlResult
 	for i, fanout := range selectbench.FanoutLevels() {
-		fx := selectbench.Generate(seed, selectbench.GenSpec{
+		fx := selectbench.ExistenceShape(selectbench.Generate(seed, selectbench.GenSpec{
 			Customers:       selectbench.TotalChildren / fanout,
 			OrdersPerParent: fanout,
 			NullAmountEvery: 11,
 			NullFKEvery:     97,
-		})
+		}))
 		if err := selectbench.Prepare(ctx, q, fx); err != nil {
 			return fmt.Errorf("load fanout=%d fixture: %w", fanout, err)
 		}
