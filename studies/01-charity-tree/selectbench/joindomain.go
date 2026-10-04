@@ -180,7 +180,8 @@ CREATE TABLE ` + JoinDomainSchema + `.donation (
   person_id    integer NOT NULL REFERENCES ` + JoinDomainSchema + `.person(person_id),
   rank         integer NOT NULL,
   amount_cents integer,
-  note         text
+  note         text,
+  maintenance_updates integer NOT NULL DEFAULT 0
 );
 CREATE INDEX donation_rank_idx ON ` + JoinDomainSchema + `.donation (rank);
 CREATE INDEX donation_person_idx ON ` + JoinDomainSchema + `.donation (person_id);

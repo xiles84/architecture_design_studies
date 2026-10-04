@@ -218,6 +218,32 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 	}
 	b.WriteString("\n")
 
+	b.WriteString("## Matched blended workload\n\n")
+	if r.Writer == nil {
+		b.WriteString("No writer record: this run predates the phase field or is feasibility-only.\n\n")
+	} else {
+		wt := r.Writer
+		fmt.Fprintf(&b, "- phase: `%s`; target offered rate: %d updates/s\n", orUnknown(wt.Phase), wt.TargetRate)
+		fmt.Fprintf(&b, "- offered %d, committed %d, failed %d over %.3f s\n", wt.Offered, wt.Completed, wt.Failed, wt.WallSeconds)
+		fmt.Fprintf(&b, "- offered rate %.3f/s, completed rate %.3f/s\n", wt.OfferedRate, wt.CompletedRate)
+		if wt.Phase == "blended" {
+			fmt.Fprintf(&b, "- reader operations overlapping a committed write: %d of %d\n", r.WriterOverlapSamples, r.WriterSamples)
+		}
+		fmt.Fprintf(&b, "- per key: %s\n", joinPerKeySpread(wt.PerKey))
+		fmt.Fprintf(&b, "- ledger: %d keys reconciled, %d mismatch", wt.LedgerKeys, wt.LedgerMismatch)
+		if wt.LedgerDetail != "" {
+			fmt.Fprintf(&b, " (%s)", wt.LedgerDetail)
+		}
+		b.WriteString("\n")
+		if len(wt.LatencyMS) > 0 {
+			fmt.Fprintf(&b, "- update latency: %s\n", joinLatencySummary(wt.LatencyMS))
+		}
+		if wt.Error != "" {
+			fmt.Fprintf(&b, "- writer error: %s\n", wt.Error)
+		}
+		b.WriteString("\nA phase whose reader operations never overlapped a committed write is not a concurrent measurement. The counter is outside the projection, the rank/index set and the MD5 token, so read answers are unchanged; the ledger is the independent check that no update was lost or duplicated.\n\n")
+	}
+
 	b.WriteString("## Execution order\n\n")
 	fmt.Fprintf(&b, "- order seed `%d`, %d interleaved rounds\n", r.Order.Seed, r.Order.Rounds)
 	for i, axis := range r.Order.Sequence {

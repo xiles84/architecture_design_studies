@@ -331,7 +331,7 @@ func joinFeasibility(ctx context.Context, pool *pgxpool.Pool, q selectbench.Quer
 	return f
 }
 
-func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID string, statementTimeout int, positionControl, feasibilityOnly, topoSubset bool) error {
+func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed int64, trials int, environment, runID, phase string, statementTimeout int, positionControl, feasibilityOnly, topoSubset bool) error {
 	if dsn == "" {
 		return fmt.Errorf("-cmd select-join needs -dsn")
 	}
@@ -342,6 +342,12 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	}
 	if environment == "" || environment == "unknown" || runID == "" || trials < 1 || statementTimeout < 1 {
 		return fmt.Errorf("SELECT join requires a named environment/run and positive trials/statement budget")
+	}
+	if phase == "" {
+		phase = "isolated"
+	}
+	if phase != "isolated" && phase != "blended" {
+		return fmt.Errorf("phase must be isolated or blended, got %q", phase)
 	}
 	cat, err := selectbench.LoadJoin()
 	if err != nil {
@@ -408,6 +414,20 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	result.Feasibility = joinFeasibility(ctx, pools[0], q, cat, arm.oracle, thresholds, budget, arm.schema, arm.rankIndex)
 
 	base := selectbench.JoinArgs{Trials: trials, StatementTimeout: budget}
+	// Blended phase: the fixed writer starts before the measured cells so no
+	// cell runs concurrently with a writer that has not started, and the reader
+	// overlap counters are scoped to exactly this window.
+	result.Phase = phase
+	var writer *maintenanceWriter
+	if phase == "blended" {
+		table, idCol := writerPlan(arm)
+		writer = newMaintenanceWriter(pools[0], arm.schema, table, idCol,
+			selectbench.MaintenanceKeys(arm.factCount, maintenanceKeyCount), selectbench.WriterTargetRate)
+		q.writer = writer
+		writer.start(ctx)
+	}
+	q.resetWriterOverlap()
+	phaseStart := time.Now()
 	if !feasibilityOnly {
 		var specs []selectbench.JoinSpec
 		if topoSubset {
@@ -426,6 +446,18 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 			result.Order.Sequence = append(result.Order.Sequence, pc.Axis)
 		}
 	}
+	phaseWall := time.Since(phaseStart).Seconds()
+	samples, overlap := q.writerOverlap()
+	result.WriterSamples, result.WriterOverlapSamples = samples, overlap
+	if writer != nil {
+		writer.stopAndWait()
+		st := writer.stats(phase, phaseWall)
+		k, mm, detail := writer.ledger(ctx)
+		st.LedgerKeys, st.LedgerMismatch, st.LedgerDetail = k, mm, detail
+		result.Writer = st
+	} else {
+		result.Writer = &selectbench.WriterStats{Phase: phase, TargetRate: selectbench.WriterTargetRate}
+	}
 
 	version := ""
 	_ = pools[0].QueryRow(ctx, "SELECT version()").Scan(&version)
@@ -433,9 +465,15 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	result.EndpointOps = q.ops
 	result.EndpointConns = q.conns()
 	result.Provenance = joinProvenance(version, environment, scale, arm.dataset, arm.factCount, arm.parents, thresholds, engine, topology, seed, trials, statementTimeout, cpuBefore, arm.fingerprint, endpoints)
+	result.Provenance.Settings["phase"] = phase
+	result.Provenance.Settings["writer_target_rate_per_sec"] = fmt.Sprint(selectbench.WriterTargetRate)
+	result.Provenance.Settings["writer_keys"] = fmt.Sprint(maintenanceKeyCount)
 	result.Notes = append(result.Notes, joinGaps(engine, topology)...)
 	return writeJoinOutputs(result, nil, feasibilityOnly, out, reportOut)
 }
+
+// maintenanceKeyCount is the size of the fixed writer key set.
+const maintenanceKeyCount = 1000
 
 func joinProvenance(version, environment, scale, dataset string, factCount, parents int, thresholds []int, engine, topology string, seed int64, trials, statementTimeout int, cpuBefore, fingerprint string, endpoints []string) selectbench.Provenance {
 	rpc := "not parsed; raw EXPLAIN retained (coverage gap)"

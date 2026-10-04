@@ -32,7 +32,8 @@ CREATE TABLE ` + JoinSchema + `.facts (
   customer_id integer REFERENCES ` + JoinSchema + `.customers(id),
   rank        integer NOT NULL,
   amount      integer,
-  payload     text
+  payload     text,
+  maintenance_updates integer NOT NULL DEFAULT 0
 );
 CREATE INDEX facts_rank_idx ON ` + JoinSchema + `.facts (rank);
 CREATE INDEX facts_customer_idx ON ` + JoinSchema + `.facts (customer_id);

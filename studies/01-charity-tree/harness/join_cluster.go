@@ -24,6 +24,36 @@ type rrQuerier struct {
 	next        int
 	ops         []int
 	explainOpts string
+
+	// writer, when set, lets the reader count how many of its operations ran
+	// while at least one maintenance update committed. A phase whose reader
+	// operations never overlapped a write is not a concurrent measurement.
+	writer  *maintenanceWriter
+	samples int
+	overlap int
+}
+
+// resetWriterOverlap scopes the overlap counters to the measured cell phase, so
+// gate and feasibility operations do not inflate the denominator.
+func (q *rrQuerier) resetWriterOverlap() { q.samples, q.overlap = 0, 0 }
+
+func (q *rrQuerier) writerOverlap() (samples, overlap int) { return q.samples, q.overlap }
+
+func (q *rrQuerier) beginOp() int64 {
+	if q.writer == nil {
+		return 0
+	}
+	return q.writer.completedCount()
+}
+
+func (q *rrQuerier) endOp(before int64) {
+	if q.writer == nil {
+		return
+	}
+	q.samples++
+	if q.writer.completedCount() > before {
+		q.overlap++
+	}
 }
 
 func (q *rrQuerier) pick() int {
@@ -39,8 +69,10 @@ func (q *rrQuerier) Exec(ctx context.Context, sql string) error {
 }
 
 func (q *rrQuerier) Query(ctx context.Context, sqlText string) ([][]any, error) {
+	before := q.beginOp()
 	rows, err := q.pools[q.pick()].Query(ctx, sqlText)
 	if err != nil {
+		q.endOp(before)
 		return nil, classifyEngineError(err)
 	}
 	defer rows.Close()
@@ -48,10 +80,12 @@ func (q *rrQuerier) Query(ctx context.Context, sqlText string) ([][]any, error) 
 	for rows.Next() {
 		vals, err := rows.Values()
 		if err != nil {
+			q.endOp(before)
 			return nil, err
 		}
 		out = append(out, vals)
 	}
+	q.endOp(before)
 	return out, rows.Err()
 }
 
@@ -60,8 +94,10 @@ func (q *rrQuerier) Explain(ctx context.Context, sqlText string) (string, error)
 	if opt == "" {
 		opt = "ANALYZE, BUFFERS, FORMAT TEXT"
 	}
+	before := q.beginOp()
 	rows, err := q.pools[q.pick()].Query(ctx, "EXPLAIN ("+opt+") "+sqlText)
 	if err != nil {
+		q.endOp(before)
 		return "", classifyEngineError(err)
 	}
 	defer rows.Close()
@@ -69,11 +105,13 @@ func (q *rrQuerier) Explain(ctx context.Context, sqlText string) (string, error)
 	for rows.Next() {
 		var line string
 		if err := rows.Scan(&line); err != nil {
+			q.endOp(before)
 			return "", err
 		}
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
+	q.endOp(before)
 	return b.String(), rows.Err()
 }
 

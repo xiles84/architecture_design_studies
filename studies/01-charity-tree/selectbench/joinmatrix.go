@@ -243,27 +243,31 @@ type JoinFeasibility struct {
 
 // JoinResult is one whole join/CTE run.
 type JoinResult struct {
-	RunID          string              `json:"run_id"`
-	Engine         string              `json:"engine"`
-	Topology       string              `json:"topology"`
-	Scale          string              `json:"scale"`
-	Arm            string              `json:"arm,omitempty"`
-	FactCount      int                 `json:"fact_count"`
-	Customers      int                 `json:"customers"`
-	Seed           int64               `json:"seed"`
-	Thresholds     []int               `json:"thresholds"`
-	Provenance     Provenance          `json:"provenance"`
-	Cells          []Cell              `json:"cells"`
-	Controls       []JoinControlResult `json:"controls,omitempty"`
-	Order          RunOrder            `json:"order"`
-	Feasibility    *JoinFeasibility    `json:"feasibility,omitempty"`
-	ExplainOptions string              `json:"explain_options,omitempty"`
-	Endpoints      []string            `json:"endpoints,omitempty"`
-	EndpointOps    []int               `json:"endpoint_ops,omitempty"`
-	EndpointConns  []int               `json:"endpoint_conns,omitempty"`
-	Summary        map[string]int      `json:"summary"`
-	Notes          []string            `json:"notes,omitempty"`
-	Error          string              `json:"error,omitempty"`
+	RunID                string              `json:"run_id"`
+	Engine               string              `json:"engine"`
+	Topology             string              `json:"topology"`
+	Scale                string              `json:"scale"`
+	Arm                  string              `json:"arm,omitempty"`
+	FactCount            int                 `json:"fact_count"`
+	Customers            int                 `json:"customers"`
+	Seed                 int64               `json:"seed"`
+	Thresholds           []int               `json:"thresholds"`
+	Provenance           Provenance          `json:"provenance"`
+	Cells                []Cell              `json:"cells"`
+	Controls             []JoinControlResult `json:"controls,omitempty"`
+	Order                RunOrder            `json:"order"`
+	Feasibility          *JoinFeasibility    `json:"feasibility,omitempty"`
+	ExplainOptions       string              `json:"explain_options,omitempty"`
+	Endpoints            []string            `json:"endpoints,omitempty"`
+	EndpointOps          []int               `json:"endpoint_ops,omitempty"`
+	EndpointConns        []int               `json:"endpoint_conns,omitempty"`
+	Phase                string              `json:"phase,omitempty"`
+	Writer               *WriterStats        `json:"writer,omitempty"`
+	WriterSamples        int                 `json:"writer_samples,omitempty"`
+	WriterOverlapSamples int                 `json:"writer_overlap_samples,omitempty"`
+	Summary              map[string]int      `json:"summary"`
+	Notes                []string            `json:"notes,omitempty"`
+	Error                string              `json:"error,omitempty"`
 }
 
 // Valid counts cells whose answer matched the oracle and whose timing measured.
