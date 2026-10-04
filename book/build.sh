@@ -104,9 +104,9 @@ if ! podman image exists "$BOOK_IMAGE"; then
 fi
 
 # ---- actual build inputs ------------------------------------------------
-COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-DESCRIBE="$(git -C "$REPO_ROOT" describe --tags --always 2>/dev/null || echo "$COMMIT")"
-if [[ -n "$(git -C "$REPO_ROOT" status --porcelain --untracked-files=no)" ]]; then
+COMMIT="$(git -C "$(hostpath "$REPO_ROOT")" rev-parse HEAD)"
+DESCRIBE="$(git -C "$(hostpath "$REPO_ROOT")" describe --tags --always 2>/dev/null || echo "$COMMIT")"
+if [[ -n "$(git -C "$(hostpath "$REPO_ROOT")" status --porcelain --untracked-files=no)" ]]; then
   DIRTY="true"
 else
   DIRTY="false"
