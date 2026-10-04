@@ -16,6 +16,43 @@ import (
 // or ranked. It differs in carrying the join Args and in recording the observed
 // CTE materialization evidence the policy contract requires.
 
+// joinMaxRetries bounds how many times a statement re-executes after a transient
+// concurrency conflict. A blended phase with a live writer will occasionally see
+// SQLSTATE 40001; retrying is not weakening the gate, because the answer is
+// verified against the oracle after the retry and the count is recorded.
+const joinMaxRetries = 3
+
+// isRetryable reports whether an engine error is a transient concurrency
+// conflict the same statement may safely retry. A wrong answer is not retryable.
+func isRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, s := range []string{"40001", "restart read required", "could not serialize", "deadlock detected", "40003", "statement completion unknown"} {
+		if strings.Contains(msg, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// queryRetry runs a query, re-executing only on a retryable conflict. It returns
+// the rows, the number of retries used, and the final error.
+func queryRetry(ctx context.Context, q Querier, sql string) ([][]any, int, error) {
+	var rows [][]any
+	var err error
+	for attempt := 0; ; attempt++ {
+		rows, err = q.Query(ctx, sql)
+		if err == nil {
+			return rows, attempt, nil
+		}
+		if attempt >= joinMaxRetries || !isRetryable(err) {
+			return nil, attempt, err
+		}
+	}
+}
+
 // JoinArgs are the bound parameters of one join/CTE cell.
 type JoinArgs struct {
 	Threshold        int
@@ -174,7 +211,8 @@ func prepareJoinCell(ctx context.Context, q Querier, c *Catalog, jf JoinFixture,
 	}
 	cellCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
-	rows, err := q.Query(cellCtx, bound)
+	rows, retries, err := queryRetry(cellCtx, q, bound)
+	cell.Retries += retries
 	if err != nil {
 		cell.Status, cell.Note = failureStatus(err), err.Error()
 		return cell, bound, false
@@ -213,8 +251,9 @@ func sampleJoinCell(ctx context.Context, q Querier, c *Catalog, jf JoinFixture, 
 	cellCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	start := time.Now()
-	observed, err := q.Query(cellCtx, bound)
+	observed, retries, err := queryRetry(cellCtx, q, bound)
 	elapsed := float64(time.Since(start).Nanoseconds()) / 1e6
+	cell.Retries += retries
 	if err != nil {
 		cell.Status, cell.Note = failureStatus(err), err.Error()
 		return

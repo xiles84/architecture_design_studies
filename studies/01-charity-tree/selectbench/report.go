@@ -40,16 +40,20 @@ type Provenance struct {
 
 // Cell is one (statement, topology) measurement, with the plan that produced it.
 type Cell struct {
-	RunID           string
-	Topology        string
-	Statement       string
-	Group           string
-	Axis            string // matrix coordinate, e.g. "shape=expression;spelling=or" or "family=aggregate;parent_max=100"; empty for validation
-	Params          string
-	Status          Status
-	MedianMS        float64
-	SpreadPct       float64
-	Trials          int
+	RunID     string
+	Topology  string
+	Statement string
+	Group     string
+	Axis      string // matrix coordinate, e.g. "shape=expression;spelling=or" or "family=aggregate;parent_max=100"; empty for validation
+	Params    string
+	Status    Status
+	MedianMS  float64
+	SpreadPct float64
+	Trials    int
+	// Retries counts transient concurrency conflicts (e.g. SQLSTATE 40001)
+	// that the statement survived by re-executing. The answer is verified after
+	// the retry, so a retry can never hide a wrong answer.
+	Retries         int `json:"retries,omitempty"`
 	Plan            string
 	Note            string
 	TimingMeasured  bool

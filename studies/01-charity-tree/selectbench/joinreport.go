@@ -234,6 +234,11 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 		fmt.Fprintf(&b, "- offered rate %.3f/s, completed rate %.3f/s\n", wt.OfferedRate, wt.CompletedRate)
 		if wt.Phase == "blended" {
 			fmt.Fprintf(&b, "- reader operations overlapping a committed write: %d of %d\n", r.WriterOverlapSamples, r.WriterSamples)
+			retries := 0
+			for _, c := range r.Cells {
+				retries += c.Retries
+			}
+			fmt.Fprintf(&b, "- reader retries of transient conflicts: %d\n", retries)
 		}
 		fmt.Fprintf(&b, "- per key: %s\n", joinPerKeySpread(wt.PerKey))
 		fmt.Fprintf(&b, "- ledger: %d keys reconciled, %d mismatch", wt.LedgerKeys, wt.LedgerMismatch)
