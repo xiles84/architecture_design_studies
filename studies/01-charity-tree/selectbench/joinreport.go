@@ -23,9 +23,13 @@ func joinClass(r JoinResult) string {
 		sb.WriteString(p.Settings[k])
 		sb.WriteByte(';')
 	}
+	// Key on the image DIGESTS, not their names: a client image is tagged with
+	// its run id, so including the name would make every run its own class and
+	// silently disable cross-run replication. Two runs are compatible when the
+	// content they ran (client build, engine build, dataset, settings) matches.
 	raw := strings.Join([]string{
-		p.Environment, p.ClientImage, p.ClientImageDigest,
-		p.EngineImage, p.EngineImageDigest, p.DatasetFingerprint, sb.String(),
+		p.Environment, p.ClientImageDigest,
+		p.EngineImageDigest, p.DatasetFingerprint, sb.String(),
 	}, "|")
 	sum := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(sum[:])[:12]
