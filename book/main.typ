@@ -117,65 +117,46 @@ is in *How to use this book*, on the page after this one.
 #include "front/how-to-use.typ"
 
 // ------------------------------------------------------------------- contents
-#outline(title: "Contents", indent: 1em, depth: 2)
+#outline(title: "Contents", indent: 1em, depth: 3)
 
-// ------------------------------------------------- Edition 3 parts (book/STYLE.md)
-//
-// The concept-first edition is built part by part: a part appears when it exists, a part
-// opener names the chapters it will hold, and a chapter appears only once it is converted.
-// An unconverted chapter is named and numbered in its part opener, so a reader can see what
-// is missing instead of inferring it. The Edition 2 chapters follow the divider below in
-// full, so nothing measured leaves the book while the conversion is in progress.
-#part-opener(1, "Placing data",
-  [Where a fact lives, what an index costs, and the two directions of copying a value: down to the
-   children, or up to the parent.])
+// -------------------------------------------------------- reader structure
+#set heading(numbering: none)
+#heading(level: 1, numbering: none, "Part I · Theory") <part-theory>
+Theory explains the choice. Each topic groups strategies; each strategy shows its mechanism,
+fit, cost and an experiment that could challenge the expectation.
 
-#include "concepts/rollup.typ"
+#include "theory/schemas.typ"
+#include "theory/selects.typ"
+#include "theory/writers.typ"
+#include "theory/caches.typ"
+#include "theory/queues.typ"
+#include "theory/placement.typ"
 
-#part-opener(2, "Many writers",
-  [What happens when several writers want the same row, and what each coordination choice guarantees.
-   Chapters 6–8 are not converted yet.])
+#heading(level: 1, numbering: none, "Part II · Study cases") <part-cases>
+Each case starts with its business problem, then applies the strategies from Part I.
+Summary numbers belong to the named comparison and environment, not to a universal ranking.
 
-#part-opener(3, "Time and copies",
-  [History against current state, caches against freshness, and where a cluster puts the data.
-   Chapters 9–11 are not converted yet.])
+#heading(level: 2, numbering: none, "Study-case coverage map") <case-coverage>
+#table(columns: (1fr, 1.7fr), inset: 6pt, stroke: 0.4pt + palette.rule,
+  table.header([Case], [Theory put into practice]),
+  [#link(<case-charity>)[Charity donations]], [Schemas, indexes, copied keys, rollups and embedding.],
+  [#link(<case-ticket>)[Ticket booking]], [Hot rows, history and current state.],
+  [#link(<case-seating>)[Reserved seating]], [Expiry, ownership and bounded embedding.],
+  [#link(<case-config>)[Configuration portal]], [Rollup maintenance and concurrent editing.],
+  [#link(<case-cache>)[Cache consistency]], [Freshness, invalidation, fencing and cluster access.],
+)
+#gap[SELECT theory is supported by query protocols and correctness work, but the frozen registry
+does not yet promote the newer SELECT measurement families. Queues have no registered measured case.
+Their expected boundaries are teaching examples, not benchmark results.]
 
-#part-opener(4, "Putting it together",
-  [One profile per study, then how to choose and how to read a benchmark. Chapter 12 holds the one
-   converted profile; chapters 13 and 14 are not converted yet.])
-
+#include "cases/01-charity.typ"
+#include "cases/02-ticket-booking.typ"
+#include "cases/03-reserved-seating.typ"
 #include "cases/04-configuration-portal.typ"
+#include "cases/05-cache-consistency.typ"
 
-// ------------------------------------------- Edition 2 chapters (awaiting conversion)
-#pagebreak()
-#heading(level: 1, numbering: none, "Edition 2 chapters")
-#marker("edition", "2 · awaiting conversion")
-
-The chapters below were written before the concept-first edition. They are *kept in the build* so that no
-measured result leaves the book, and they await conversion into the concept chapters that own them
-(book/STYLE.md, "Old file → new home"). Where a chapter below overlaps a converted one, the converted
-chapter is the one to read.
-
-#include "chapters/how-to-choose.typ"
-#include "chapters/major-families.typ"
-#include "chapters/minor-variants.typ"
-#include "chapters/cross-family-comparisons.typ"
-#include "chapters/topologies.typ"
-#include "chapters/scenarios.typ"
-#include "chapters/evidence-and-reproduction.typ"
-
-#pagebreak()
-#heading(level: 1, numbering: none, "Edition 2 concepts")
-#marker("edition", "2 · awaiting conversion")
-
-#include "concepts/information-placement.typ"
-#include "concepts/indexes-and-hot-rows.typ"
-#include "concepts/concurrency-control.typ"
-#include "concepts/derived-state-and-history.typ"
-#include "concepts/expiry-and-clock-authority.typ"
-#include "concepts/cache-consistency.typ"
-#include "concepts/distributed-placement.typ"
-#include "concepts/reading-benchmarks.typ"
+#heading(level: 1, numbering: none, "Appendix · Evidence and reproduction")
+#include "appendix/reading-results.typ"
 
 // ------------------------------------------------------------------- glossary
 #pagebreak()
@@ -185,7 +166,7 @@ chapter is the one to read.
 #pagebreak()
 // The heading names the registry from the single derived value, so a version bump
 // cannot leave one page claiming a different package from the cover.
-#heading("Evidence registry (active " + registry-version + " claims)")
+#heading(level: 2, numbering: none, "Evidence registry (active " + registry-version + " claims)")
 The active registry holds #active-claims().len() claims that may be cited as evidence. This index is
 rendered from #raw(registry-label) at build time; the digest above identifies its content.
 

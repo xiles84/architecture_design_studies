@@ -23,7 +23,7 @@
 #let mono-font = "DejaVu Sans Mono"
 
 #let book-title = "Data Architecture Reference"
-#let book-edition = "Edition 3 preview 1"
+#let book-edition = "Edition 3 preview 2"
 
 // ---- page geometry and running matter --------------------------------
 
@@ -75,15 +75,21 @@
       #line(length: 100%, stroke: 1.2pt + palette.accent)
     ]
   }
-  show heading.where(level: 2): it => block(above: 1.3em, below: 0.7em)[
+  show heading.where(level: 2): it => {
+    pagebreak(weak: true)
+    block(above: 1.3em, below: 0.7em)[
     #set text(size: 14pt, weight: "bold", fill: palette.ink)
     #it
-  ]
+    ]
+  }
   show heading.where(level: 3): it => block(above: 0.95em, below: 0.55em)[
-    #set text(size: 11.5pt, weight: "bold", fill: palette.muted)
+    #set text(size: 14pt, weight: "bold", fill: palette.accent)
     #it
   ]
   // Accessible code: monospace, generous leading, a labelled surface, and no
+  show heading.where(level: 4): it => block(above: 0.8em, below: 0.4em)[
+    #text(size: 10.5pt, weight: "bold", fill: palette.accent)[#it]
+  ]
   // forced hyphenation of commands. `raw` is the only block code the book uses.
   show raw.where(block: true): it => block(
     width: 100%,
