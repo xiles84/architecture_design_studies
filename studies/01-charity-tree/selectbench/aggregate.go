@@ -128,6 +128,7 @@ type AggResult struct {
 	Provenance Provenance      `json:"provenance,omitempty"`
 	Cells      []Cell          `json:"cells"`
 	Controls   []ControlResult `json:"controls,omitempty"`
+	Order      RunOrder        `json:"order"`
 	Summary    map[string]int  `json:"summary"`
 	Notes      []string        `json:"notes,omitempty"`
 	Error      string          `json:"error,omitempty"`

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"hash/fnv"
+	"math/rand"
 	"sort"
 	"strconv"
 	"time"
@@ -126,30 +128,120 @@ func RunCells(ctx context.Context, q Querier, c *Catalog, fx Fixture, a Args, na
 	return RunSpecs(ctx, q, c, fx, specs, runID, topology)
 }
 
-// RunSpecs executes one cell per spec, preserving order.
+// RunSpecs executes one cell per spec, preserving order, taking all of a
+// cell's samples before the next cell starts. The order-corrected matrix uses
+// RunSpecsInterleaved instead.
 func RunSpecs(ctx context.Context, q Querier, c *Catalog, fx Fixture, specs []CellSpec, runID, topology string) []Cell {
 	cells := make([]Cell, 0, len(specs))
 	for _, spec := range specs {
-		cells = append(cells, runOne(ctx, q, c, fx, spec, runID, topology))
+		cell, bound, ok := prepareCell(ctx, q, c, fx, spec, runID, topology)
+		trials := spec.Args.Trials
+		if trials < 1 {
+			trials = 1
+		}
+		for t := 0; ok && !spec.Args.ValidateOnly && t < trials && cell.Status == StatusValid; t++ {
+			sampleCell(ctx, q, c, fx, spec, bound, &cell)
+		}
+		finishCell(&cell)
+		cells = append(cells, cell)
 	}
 	return cells
 }
 
-func runOne(ctx context.Context, q Querier, c *Catalog, fx Fixture, spec CellSpec, runID, topology string) Cell {
+// OrderPlan is a seeded execution order over n cells.
+type OrderPlan struct {
+	Seed  int64 `json:"seed"`
+	Order []int `json:"order"`
+}
+
+// PlanOrder returns a deterministic Fisher-Yates permutation of 0..n-1 from the
+// seed, so a run's cell order is reproducible and recorded rather than implied.
+func PlanOrder(seed int64, n int) OrderPlan {
+	order := make([]int, n)
+	for i := range order {
+		order[i] = i
+	}
+	r := rand.New(rand.NewSource(seed))
+	r.Shuffle(n, func(i, j int) { order[i], order[j] = order[j], order[i] })
+	return OrderPlan{Seed: seed, Order: order}
+}
+
+// Sequence reports the axis of each spec in plan order.
+func (p OrderPlan) Sequence(specs []CellSpec) []string {
+	out := make([]string, 0, len(p.Order))
+	for _, i := range p.Order {
+		out = append(out, specs[i].Axis)
+	}
+	return out
+}
+
+// OrderSeedFor derives a per-run order seed from the dataset seed and the run
+// id, so every whole run gets its own recorded order.
+func OrderSeedFor(seed int64, runID string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(runID))
+	return seed*1000003 + int64(h.Sum64()%1000000)
+}
+
+// RunOrder records how a phase was executed: the seed, the number of
+// interleaved sample rounds, and the actual axis sequence.
+type RunOrder struct {
+	Seed     int64    `json:"seed"`
+	Rounds   int      `json:"rounds"`
+	Sequence []string `json:"sequence"`
+}
+
+// RunSpecsInterleaved verifies and plans each cell once in the plan's order,
+// then takes one sample of every valid cell per round, so within-run drift is
+// spread across cells instead of being concentrated in the late ones. Cells are
+// returned in plan order.
+func RunSpecsInterleaved(ctx context.Context, q Querier, c *Catalog, fx Fixture, specs []CellSpec, plan OrderPlan, runID, topology string) []Cell {
+	cells := make([]Cell, len(specs))
+	bounds := make([]string, len(specs))
+	ready := make([]bool, len(specs))
+	for _, i := range plan.Order {
+		cell, bound, ok := prepareCell(ctx, q, c, fx, specs[i], runID, topology)
+		cells[i], bounds[i], ready[i] = cell, bound, ok
+	}
+	rounds := 1
+	for _, spec := range specs {
+		if t := spec.Args.Trials; t > rounds {
+			rounds = t
+		}
+	}
+	for round := 0; round < rounds; round++ {
+		for _, i := range plan.Order {
+			if !ready[i] || specs[i].Args.ValidateOnly || cells[i].Status != StatusValid {
+				continue
+			}
+			if t := specs[i].Args.Trials; t > 0 && round >= t {
+				continue
+			}
+			sampleCell(ctx, q, c, fx, specs[i], bounds[i], &cells[i])
+		}
+	}
+	for i := range cells {
+		finishCell(&cells[i])
+	}
+	return cells
+}
+
+// prepareCell binds, verifies and plans one cell. The bound SQL and whether the
+// cell is ready to time are returned with it.
+func prepareCell(ctx context.Context, q Querier, c *Catalog, fx Fixture, spec CellSpec, runID, topology string) (Cell, string, bool) {
 	a := spec.Args
 	name := spec.Statement
 	s, ok := c.Statements[name]
 	if !ok {
 		return Cell{RunID: runID, Topology: topology, Statement: name, Axis: spec.Axis,
-			Status: StatusInvalid, Note: "unknown statement"}
+			Status: StatusInvalid, Note: "unknown statement"}, "", false
 	}
 	cell := Cell{RunID: runID, Topology: topology, Statement: name, Group: s.Group, Axis: spec.Axis,
 		Params: describeParams(a.ParamMap(s))}
-
 	bound, _, err := Bind(s.SQL, a.ParamMap(s))
 	if err != nil {
 		cell.Status, cell.Note = StatusInvalid, err.Error()
-		return cell
+		return cell, "", false
 	}
 	budget := a.StatementTimeout
 	if budget <= 0 {
@@ -160,11 +252,11 @@ func runOne(ctx context.Context, q Querier, c *Catalog, fx Fixture, spec CellSpe
 	rows, err := q.Query(cellCtx, bound)
 	if err != nil {
 		cell.Status, cell.Note = failureStatus(err), err.Error()
-		return cell
+		return cell, bound, false
 	}
 	if err := VerifyRows(c, name, fx, a, rows); err != nil {
 		cell.Status, cell.Note = StatusInvalid, err.Error()
-		return cell
+		return cell, bound, false
 	}
 	cell.ResultRows = len(rows)
 	encoded, _ := json.Marshal(rows)
@@ -172,53 +264,60 @@ func runOne(ctx context.Context, q Querier, c *Catalog, fx Fixture, spec CellSpe
 	plan, err := q.Explain(cellCtx, bound)
 	if err != nil {
 		cell.Status, cell.Note = failureStatus(err), err.Error()
-		return cell
+		return cell, bound, false
 	}
 	cell.Plan = plan
 	if plan == "" {
 		cell.Status, cell.Note = StatusError, "missing EXPLAIN evidence"
-		return cell
+		return cell, bound, false
 	}
 	cell.PlanningMS, cell.ExecutionMS = planTimes(plan)
 	cell.Status = StatusValid
-	if a.ValidateOnly {
-		return cell
+	return cell, bound, true
+}
+
+// sampleCell takes one timed, verified sample and appends it to the cell.
+func sampleCell(ctx context.Context, q Querier, c *Catalog, fx Fixture, spec CellSpec, bound string, cell *Cell) {
+	a := spec.Args
+	budget := a.StatementTimeout
+	if budget <= 0 {
+		budget = 2 * time.Minute
 	}
-	trials := a.Trials
-	if trials < 1 {
-		trials = 1
+	cellCtx, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+	start := time.Now()
+	observed, err := q.Query(cellCtx, bound)
+	elapsed := float64(time.Since(start).Nanoseconds()) / 1e6
+	if err != nil {
+		cell.Status, cell.Note = failureStatus(err), err.Error()
+		return
 	}
-	for trial := 0; trial < trials; trial++ {
-		start := time.Now()
-		observed, err := q.Query(cellCtx, bound)
-		elapsed := float64(time.Since(start).Nanoseconds()) / 1e6
-		if err != nil {
-			cell.Status, cell.Note = failureStatus(err), err.Error()
-			break
-		}
-		if err := VerifyRows(c, name, fx, a, observed); err != nil {
-			cell.Status, cell.Note = StatusInvalid, err.Error()
-			break
-		}
-		cell.SamplesMS = append(cell.SamplesMS, elapsed)
+	if err := VerifyRows(c, spec.Statement, fx, a, observed); err != nil {
+		cell.Status, cell.Note = StatusInvalid, err.Error()
+		return
 	}
-	if cell.Status == StatusValid {
-		cell.Trials = len(cell.SamplesMS)
-		cell.TimingMeasured = true
-		ordered := append([]float64(nil), cell.SamplesMS...)
-		sort.Float64s(ordered)
-		cell.MedianMS = ordered[len(ordered)/2]
-		if len(ordered)%2 == 0 {
-			cell.MedianMS = (ordered[len(ordered)/2-1] + cell.MedianMS) / 2
-		}
-		if cell.MedianMS > 0 {
-			cell.SpreadPct = 100 * (ordered[len(ordered)-1] - ordered[0]) / cell.MedianMS
-		}
-	} else {
-		// A late mismatch invalidates the whole cell, including earlier samples.
+	cell.SamplesMS = append(cell.SamplesMS, elapsed)
+}
+
+// finishCell computes trials, median and spread from the accumulated samples and
+// invalidates the whole cell, including earlier samples, if it failed.
+func finishCell(cell *Cell) {
+	if cell.Status != StatusValid || len(cell.SamplesMS) == 0 {
 		cell.SamplesMS = nil
+		cell.TimingMeasured = false
+		return
 	}
-	return cell
+	cell.Trials = len(cell.SamplesMS)
+	cell.TimingMeasured = true
+	ordered := append([]float64(nil), cell.SamplesMS...)
+	sort.Float64s(ordered)
+	cell.MedianMS = ordered[len(ordered)/2]
+	if len(ordered)%2 == 0 {
+		cell.MedianMS = (ordered[len(ordered)/2-1] + cell.MedianMS) / 2
+	}
+	if cell.MedianMS > 0 {
+		cell.SpreadPct = 100 * (ordered[len(ordered)-1] - ordered[0]) / cell.MedianMS
+	}
 }
 
 func failureStatus(err error) Status {

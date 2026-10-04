@@ -30,6 +30,15 @@ func RenderExistenceRun(r ExistenceResult) (string, error) {
 	}
 	b.WriteString("\n")
 
+	b.WriteString("## Execution order (per fanout phase)\n\n")
+	for _, l := range r.Levels {
+		fmt.Fprintf(&b, "- fanout %d: order seed `%d`, %d interleaved rounds\n", l.Fanout, l.Order.Seed, l.Order.Rounds)
+		for i, axis := range l.Order.Sequence {
+			fmt.Fprintf(&b, "  %d. %s\n", i+1, axis)
+		}
+	}
+	b.WriteString("\n")
+
 	b.WriteString("## P6 — membership (parent identity set)\n\nEach row is one fanout level; ms are this run's medians. `in/exists`, `jd/exists` and `jd/in` are the B spelling over A at the same level and predicate.\n\n")
 	b.WriteString("| fanout | exists ms | in ms | in_notnull ms | join_distinct ms | in/exists | jd/exists | jd/in |\n|---|---|---|---|---|---|---|---|\n")
 	for _, f := range r.Fanouts() {
@@ -152,7 +161,7 @@ func RenderExistenceReplicated(runs []ExistenceResult) (string, error) {
 		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %d |\n",
 			k.engine, k.topology, k.axis, strings.Join(shown, ", "), med, spread, len(medians))
 	}
-	b.WriteString("\n## Membership pair ratios per run (per engine)\n\n| engine | topology | fanout | pair | ratios (B/A) | signs |\n|---|---|---|---|---|---|\n")
+	b.WriteString("\n## Membership pair ratios per run (per engine)\n\n| run | engine | topology | fanout | pair | ratio (B/A) | sign |\n|---|---|---|---|---|---|---|\n")
 	for _, r := range runs {
 		for _, p := range r.MembershipPairs() {
 			if p.RatioBA <= 0 {
@@ -164,7 +173,7 @@ func RenderExistenceReplicated(runs []ExistenceResult) (string, error) {
 			} else if p.RatioBA < 1 {
 				sign = "<1"
 			}
-			fmt.Fprintf(&b, "| %s | %s | %d | %s | %.4f | %s |\n", r.Engine, r.Topology, p.Fanout, p.Label, p.RatioBA, sign)
+			fmt.Fprintf(&b, "| %s | %s | %s | %d | %s | %.4f | %s |\n", r.RunID, r.Engine, r.Topology, p.Fanout, p.Label, p.RatioBA, sign)
 		}
 	}
 	b.WriteString("\n## Recorded limits\n\n")

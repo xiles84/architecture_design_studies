@@ -254,6 +254,8 @@ type AccessResult struct {
 	Overlap    []OverlapRecord `json:"overlap"`
 	Index      IndexCost       `json:"index_cost"`
 	Snapshot   SnapshotCheck   `json:"snapshot_check"`
+	Order      RunOrder        `json:"order"`
+	IndexOrder RunOrder        `json:"index_order"`
 	Notes      []string        `json:"notes,omitempty"`
 	Error      string          `json:"error,omitempty"`
 }

@@ -98,10 +98,11 @@ func ExistenceControlSpecs(base Args, trials int) []ControlSpec {
 
 // FanoutLevel records one loaded fanout fixture.
 type FanoutLevel struct {
-	Fanout      int    `json:"fanout"`
-	Parents     int    `json:"parents"`
-	Children    int    `json:"children"`
-	Fingerprint string `json:"fingerprint"`
+	Fanout      int      `json:"fanout"`
+	Parents     int      `json:"parents"`
+	Children    int      `json:"children"`
+	Fingerprint string   `json:"fingerprint"`
+	Order       RunOrder `json:"order"`
 }
 
 // ExistenceResult is one whole membership/absence run.
