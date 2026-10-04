@@ -39,6 +39,7 @@ exist, fails the build's source checks.
 | `indexes-and-hot-rows` | direct | direct | direct | mechanism | mechanism | mechanism | mechanism | direct |
 | `concurrency-control` | direct | direct | direct | mechanism | mechanism | mechanism | mechanism | direct |
 | `derived-state-and-history` | direct | direct | direct | direct | direct | mechanism | gap | direct |
+| `rollup` | direct | direct | direct | direct | direct | mechanism | gap | direct |
 | `expiry-and-clock-authority` | direct | direct | mechanism | mechanism | mechanism | direct | gap | direct |
 | `cache-consistency` | direct | direct | direct | mechanism | mechanism | direct | gap | direct |
 | `distributed-placement` | gap | gap | gap | gap | gap | gap | gap | gap |

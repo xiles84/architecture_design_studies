@@ -7,42 +7,12 @@
 // page full of placeholders.
 
 #import "lib/config.typ": *
-#import "lib/evidence.typ": evidence-index, active-claims, registry-card, registry-label, registry-version, gap-kind-label
+#import "lib/evidence.typ": evidence-index, active-claims, registry-card, registry-label, registry-version
 
-// The kinds of gap the page explains are the ones the registry actually uses. A new
-// kind therefore cannot appear without someone writing its definition: the build
-// fails and names the missing one, instead of the page quietly listing three kinds
-// while the cards use four.
-#let gap-kind-description = (
-  coverage: [the case simply has not been measured yet],
-  schema_limitation: [the representation cannot answer the question, so no run would],
-  instrument: [the property could not be observed with the tools the study had],
-  unstable_measurement: [the number moved between runs with no code change],
-)
-#let gap-kind-order = ("schema_limitation", "coverage", "instrument", "unstable_measurement")
-#let gap-kinds-in-use = {
-  let kinds = ()
-  for c in active-claims() {
-    for k in c.at("gap_kind", default: ()) {
-      if k not in kinds { kinds.push(k) }
-    }
-  }
-  // A fixed reading order, with any kind the registry adds later at the end.
-  kinds.sorted(key: k => {
-    let i = gap-kind-order.position(x => x == k)
-    if i == none { 99 } else { i }
-  })
-}
-#for k in gap-kinds-in-use {
-  if k not in gap-kind-description {
-    panic("gap kind " + k + " has no definition in the legend that explains the evidence system")
-  }
-}
-#let gap-kinds-legend() = {
-  for k in gap-kinds-in-use [
-    *#gap-kind-label(k)* — #gap-kind-description.at(k) · 
-  ]
-}
+// The gap-kind legend that used to live here moved to the front page
+// (front/how-to-use.typ) with the rest of "how to read a number": the reader who
+// needs it is deciding how to read the book, not checking this build's provenance.
+// Its panic for an undefined kind moved with it.
 
 #let input(key, default: "unknown") = sys.inputs.at(key, default: default)
 
@@ -140,30 +110,52 @@
     a run must check out the run tag to get the code, then read the committed results directory.
   ]
 
-  #heading("How to read a number here")
-  #list(
-    [Every *major-family* section follows the same progressive structure: quick choice, where it
-      thrives and perishes, common scenarios, mechanism, costs, evidence and reproduction.
-      Variant, scenario and concept chapters use the shape their role needs, because a case study
-      and a reusable explanation are not the same thing.],
-    [*Direct evidence* is measured in the cited run. *Mechanism evidence* demonstrates how
-      something works without establishing a rate. *Analogy* is a labelled transfer to a family
-      that was not measured. A #text(weight: "bold")[gap] callout is not one thing: each card
-      names its own kind.],
-    [The kinds of gap in use, read from the registry rather than restated here, because they close
-      differently: #gap-kinds-legend()],
-    [A claim can also be *partially superseded* — part of it has been replaced, the card names what
-      moved to which successor, and the dimensions still open stay listed. A *retired* claim is no
-      longer active and is not cited at all.],
-    [Gaps are never null results: "not measured" must not be read as "would not change this".],
-    [No cross-study numeric ranking appears anywhere; no comparability record exists.],
-  )
+  How to read a number — the badge legend, the gap kinds and the rules that hold everywhere —
+is in *How to use this book*, on the page after this one.
 ]
+
+#include "front/how-to-use.typ"
 
 // ------------------------------------------------------------------- contents
 #outline(title: "Contents", indent: 1em, depth: 2)
 
-// ------------------------------------------------------------------- chapters
+// ------------------------------------------------- Edition 3 parts (book/STYLE.md)
+//
+// The concept-first edition is built part by part: a part appears when it exists, a part
+// opener names the chapters it will hold, and a chapter appears only once it is converted.
+// An unconverted chapter is named and numbered in its part opener, so a reader can see what
+// is missing instead of inferring it. The Edition 2 chapters follow the divider below in
+// full, so nothing measured leaves the book while the conversion is in progress.
+#part-opener(1, "Placing data",
+  [Where a fact lives, what an index costs, and the two directions of copying a value: down to the
+   children, or up to the parent.])
+
+#include "concepts/rollup.typ"
+
+#part-opener(2, "Many writers",
+  [What happens when several writers want the same row, and what each coordination choice guarantees.
+   Chapters 6–8 are not converted yet.])
+
+#part-opener(3, "Time and copies",
+  [History against current state, caches against freshness, and where a cluster puts the data.
+   Chapters 9–11 are not converted yet.])
+
+#part-opener(4, "Putting it together",
+  [One profile per study, then how to choose and how to read a benchmark. Chapter 12 holds the one
+   converted profile; chapters 13 and 14 are not converted yet.])
+
+#include "cases/04-configuration-portal.typ"
+
+// ------------------------------------------- Edition 2 chapters (awaiting conversion)
+#pagebreak()
+#heading(level: 1, numbering: none, "Edition 2 chapters")
+#marker("edition", "2 · awaiting conversion")
+
+The chapters below were written before the concept-first edition. They are *kept in the build* so that no
+measured result leaves the book, and they await conversion into the concept chapters that own them
+(book/STYLE.md, "Old file → new home"). Where a chapter below overlaps a converted one, the converted
+chapter is the one to read.
+
 #include "chapters/how-to-choose.typ"
 #include "chapters/major-families.typ"
 #include "chapters/minor-variants.typ"
@@ -172,17 +164,9 @@
 #include "chapters/scenarios.typ"
 #include "chapters/evidence-and-reproduction.typ"
 
-// -------------------------------------------------------------------- concepts
 #pagebreak()
-#heading("Part II — Concepts")
-The first part measured what each family does under this corpus's workloads. This part explains the
-mechanisms those results came from, in the order the decisions bind: where information is placed,
-what the indexes cost, who arbitrates a contended row, what derived state owes its maintainer, who
-owns expiry, what a cache must prove, and where a cluster actually puts the data. The last chapter is
-the checklist for reading any number in the first part.
-
-#text(size: 9.5pt, fill: palette.muted)[Each concept names the claim cards that measured it, and the
-glossary at the end of the book is the single definition site for every term used here.]
+#heading(level: 1, numbering: none, "Edition 2 concepts")
+#marker("edition", "2 · awaiting conversion")
 
 #include "concepts/information-placement.typ"
 #include "concepts/indexes-and-hot-rows.typ"

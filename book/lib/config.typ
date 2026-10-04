@@ -23,7 +23,7 @@
 #let mono-font = "DejaVu Sans Mono"
 
 #let book-title = "Data Architecture Reference"
-#let book-edition = "Edition 2 (draft)"
+#let book-edition = "Edition 3 (draft)"
 
 // ---- page geometry and running matter --------------------------------
 
@@ -222,3 +222,233 @@
   regex("([0-9])-([0-9])"),
   m => m.captures.at(0) + "–" + m.captures.at(1),
 )
+
+// ---- Edition 3: the concept-first didactic components ------------------
+//
+// Owner decision 2026-10-01 (book/STYLE.md). Every chapter teaches one
+// concept, the case studies show when it fits, and the text stays short.
+// These components exist so a writer cannot accidentally publish a chapter
+// that breaks the style: each one validates its input and panics with a
+// message that names the rule, the value it got, and where to look. A panic
+// is the right failure here — a rule nobody can check is a rule that drifts.
+
+
+// Plain text of a content value, for the word-count guards below. A content
+// sequence (for example one containing an em dash) has no `.text`, so walk
+// the children and join what they say.
+#let content-text(c) = {
+  if type(c) == str { c }
+  else if type(c) == content {
+    let f = c.fields()
+    if f.keys().contains("text") and type(f.text) == str { f.text }
+    else if f.keys().contains("children") { f.children.map(content-text).join(" ") }
+    else { "" }
+  } else { "" }
+}
+
+#let word-count(c) = {
+  let t = content-text(c).trim()
+  if t == "" { 0 } else { t.split(" ").filter(w => w != "").len() }
+}
+
+#let enforce(cond, message) = if not cond { panic(message) }
+
+// 1. Opener. `idea` is the key idea, at most 25 words (STYLE.md, template 1).
+#let concept-opener(number, title, idea) = {
+  let n = word-count(idea)
+  enforce(n <= 25, "concept-opener " + title + ": the key idea has " + str(n) +
+    " words; STYLE.md allows 25. Shorten it, or move the detail to the prose below.")
+  // The number belongs above the title, but a level-1 heading breaks the page first
+  // (page-setup's show rule), so an eyebrow emitted before it lands on the previous
+  // page. It is emitted after the heading instead, under the rule, where it reads as
+  // the chapter's label without risking the contents entry.
+  heading(level: 1, numbering: none, title)
+  block(above: 0em, below: 0.2em)[
+    #text(size: 8.5pt, tracking: 0.4pt, fill: palette.muted)[CHAPTER #number]
+  ]
+  block(
+    width: 100%,
+    inset: 8pt,
+    radius: 3pt,
+    stroke: 0.6pt + palette.accent,
+    fill: palette.accent.transparentize(95%),
+    below: 0.9em,
+  )[
+    #set text(size: 10.5pt)
+    #text(weight: "bold", fill: palette.accent)[Key idea: ]#idea
+  ]
+}
+
+// 2. Fit table. STYLE.md wants 3-4 rows per side; more means the chapter is
+// hedging and the reader leaves with nothing to decide on.
+#let fit-table(use: (), avoid: ()) = {
+  enforce(use.len() >= 3 and use.len() <= 4,
+    "fit-table: \"fits when\" needs 3-4 rows, got " + str(use.len()) + " (STYLE.md, template 5)")
+  enforce(avoid.len() >= 3 and avoid.len() <= 4,
+    "fit-table: \"does not fit when\" needs 3-4 rows, got " + str(avoid.len()) + " (STYLE.md, template 5)")
+  let rows = ()
+  for i in range(calc.max(use.len(), avoid.len())) {
+    rows.push(if i < use.len() { use.at(i) } else { [] })
+    rows.push(if i < avoid.len() { avoid.at(i) } else { [] })
+  }
+  block(width: 100%, above: 0.7em, below: 0.7em)[
+    #set text(size: 9.5pt)
+    #table(
+      columns: (1fr, 1fr),
+      inset: 7pt,
+      stroke: 0.4pt + palette.rule,
+      align: (left + top, left + top),
+      table.header(
+        text(weight: "bold", fill: palette.direct)[It fits when],
+        text(weight: "bold", fill: palette.gap)[It does not fit when],
+      ),
+      ..rows,
+    )
+  ]
+}
+
+// 3. Cost table: five rows, one phrase each, reads first because that is what
+// the decision buys.
+#let cost-table(reads: none, writes: none, storage: none, correctness: none, operations: none) = {
+  let cells = (
+    ("Reads", reads), ("Writes", writes), ("Storage", storage),
+    ("Correctness", correctness), ("Operations", operations),
+  )
+  for (name, v) in cells {
+    enforce(v != none, "cost-table: the \"" + name + "\" row is missing; STYLE.md gives the table five fixed rows")
+    enforce(word-count(v) <= 12,
+      "cost-table: the \"" + name + "\" row has " + str(word-count(v)) + " words; " +
+      "STYLE.md wants one phrase per row (12 words is the ceiling here)")
+  }
+  block(width: 100%, above: 0.7em, below: 0.7em)[
+    #set text(size: 9.5pt)
+    #table(
+      columns: (auto, 1fr),
+      inset: 6pt,
+      stroke: 0.4pt + palette.rule,
+      align: (left + top, left + top),
+      ..cells.map(((name, v)) => (
+        text(weight: "bold", fill: palette.muted, size: 8.5pt)[#name], v,
+      )).flatten(),
+    )
+  ]
+}
+
+// 4. Case box: one study, one lesson about this concept. `verdict` is the
+// only controlled vocabulary; the colours match the callouts a reader has
+// already met, so "does not fit" is the same red as a gap.
+#let case-verdicts = ("fits", "does not fit", "depends")
+#let case-box(study: "", verdict: "", situation: none, compared: none, result: none,
+              lesson: none, watch-out: none, evidence: none) = {
+  enforce(verdict in case-verdicts,
+    "case-box " + study + ": verdict \"" + verdict + "\" is not one of " +
+    case-verdicts.map(str).join(", ") + " (STYLE.md, case box)")
+  for (name, v) in (("situation", situation), ("compared", compared), ("result", result),
+                    ("lesson", lesson), ("watch-out", watch-out), ("evidence", evidence)) {
+    enforce(v != none, "case-box " + study + ": the \"" + name + "\" field is missing; " +
+      "STYLE.md gives the case box eight fields")
+  }
+  let colour = if verdict == "fits" { palette.direct }
+    else if verdict == "does not fit" { palette.gap }
+    else { palette.analogy }
+  block(
+    width: 100%, inset: 9pt, radius: 3pt, breakable: false,
+    stroke: 0.6pt + palette.rule, fill: palette.surface,
+    above: 0.8em, below: 0.8em,
+  )[
+    #set text(size: 9.5pt)
+    #grid(
+      columns: (1fr, auto),
+      align: (left, right),
+      text(weight: "bold", fill: palette.accent)[#study],
+      box(inset: (x: 5pt, y: 2pt), radius: 2pt, fill: colour.transparentize(85%))[
+        #text(size: 8.5pt, weight: "bold", fill: colour)[#upper(verdict)]
+      ],
+    )
+    #v(4pt)
+    #grid(
+      columns: (58pt, 1fr), row-gutter: 4pt, column-gutter: 8pt, align: (left + top, left + top),
+      text(size: 8.5pt, fill: palette.muted)[Situation], situation,
+      text(size: 8.5pt, fill: palette.muted)[Compared], compared,
+      text(size: 8.5pt, fill: palette.muted)[Result], result,
+      text(size: 8.5pt, fill: palette.muted)[Lesson], lesson,
+      text(size: 8.5pt, fill: palette.muted)[Watch out], watch-out,
+    )
+    #v(4pt)
+    #evidence
+  ]
+}
+
+// 5. Remember: at most three bullets. A fourth means the chapter has not
+// decided what it is about.
+#let remember(..bullets) = {
+  let items = bullets.pos()
+  enforce(items.len() >= 1 and items.len() <= 3,
+    "remember: needs 1-3 bullets, got " + str(items.len()) + " (STYLE.md, template 9)")
+  block(width: 100%, inset: 8pt, radius: 3pt, stroke: 0.5pt + palette.rule,
+        fill: palette.surface, above: 0.8em, below: 0.8em)[
+    #set text(size: 9.5pt)
+    #text(weight: "bold", fill: palette.accent)[Remember]
+    #v(3pt)
+    #list(..items)
+  ]
+}
+
+// 6. Checklist table: exactly eight rows (methodology 21), each ending in an
+// evidence status. The status is the answer's honesty label, so an unknown
+// one must stop the build rather than render unlabelled.
+#let checklist-statuses = ("direct", "mechanism", "analogy", "gap")
+#let checklist-status-label(s) = {
+  if s == "direct" { "direct" }
+  else if s == "mechanism" { "mechanism" }
+  else if s == "analogy" { "analogy" }
+  else if s == "gap" { "gap" }
+  else { panic("checklist-table: unknown status \"" + s + "\"; use one of " +
+    checklist-statuses.map(str).join(", ") + " (book/concepts/CHECKLIST.md)") }
+}
+#let checklist-table(rows) = {
+  enforce(rows.len() == 8, "checklist-table: needs exactly 8 rows, got " + str(rows.len()) +
+    " (methodology 21; the eight questions are fixed)")
+  let body = ()
+  for i in range(rows.len()) {
+    let row = rows.at(i)
+    enforce(row.len() == 3, "checklist-table row " + str(i + 1) +
+      ": expected (question, answer, status), got " + str(row.len()) + " items")
+    let (question, answer, status) = row
+    let label = checklist-status-label(status)
+    enforce(word-count(answer) <= 15, "checklist-table row " + str(i + 1) + " (\"" + question +
+      "\"): the answer has " + str(word-count(answer)) + " words; STYLE.md allows 15")
+    body.push(text(weight: "bold", size: 9pt)[#question])
+    body.push(text(size: 9pt)[#answer])
+    body.push(text(size: 8pt, fill: palette.muted)[#label])
+  }
+  block(width: 100%, above: 0.7em, below: 0.7em)[
+    #set text(size: 9.5pt)
+    #table(
+      columns: (1.1fr, 1.6fr, auto),
+      inset: 6pt,
+      stroke: 0.4pt + palette.rule,
+      align: (left + top, left + top, left + top),
+      table.header([Question], [Answer], [Evidence]),
+      ..body,
+    )
+  ]
+}
+
+// 7. Part opener: one page per part, so the structure of the book is visible
+// in the contents and on the page.
+#let part-opener(number, title, blurb) = {
+  pagebreak(weak: true)
+  block(above: 12mm)[
+    #text(size: 8.5pt, tracking: 0.4pt, fill: palette.muted)[PART #number]
+    #v(2pt)
+    #text(size: 22pt, weight: "bold", fill: palette.accent)[#title]
+    #v(2mm)
+    #line(length: 60%, stroke: 1.2pt + palette.accent)
+    #v(3mm)
+    #block(width: 85%)[
+      #set text(size: 10.5pt)
+      #blurb
+    ]
+  ]
+}
