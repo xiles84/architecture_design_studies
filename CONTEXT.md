@@ -96,10 +96,14 @@ two views bind them to the unchanged catalogue, projecting
 `(person_id, charity_name, donation_id, amount_cents)` with `donation.rank` as
 the documented exact-selectivity proxy (`commit 1216bf0f`; contract in
 `docs/select-query-templates/reviews/20261004-join-corrective/DOMAIN-ARM.md`).
-The corrected domain matrix is running: `select-join-domain-pg{1,2,3}-20261004`
-on PostgreSQL, 91/91 valid in run 1. The bounded cluster/placement subset (C4),
-matched blended writer (C5) and the successor signed analysis (C6) remain open;
-the task stays `claimed` and **unsubmitted**.
+The domain arm is measured: six validation whole runs (3 PG, 3 YB) at 91/91
+valid each with 5 samples and position control, and the domain-only report
+`studies/01-charity-tree/reports/20261004T-select-join-domain-replicated.md`,
+which partitions on image digests. Because report-only commits landed between
+yb1 and yb2-3, the runs span two client builds; the completed matrix will be
+re-run from one frozen commit after C4/C5. The bounded cluster/placement subset
+(C4), matched blended writer (C5) and the successor signed analysis (C6) remain
+open; the task stays `claimed` and **unsubmitted**.
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 

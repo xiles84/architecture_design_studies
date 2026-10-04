@@ -33,8 +33,11 @@ reports, signed analysis and all ten producing tags are preserved unedited.
     documented in `docs/select-query-templates/reviews/20261004-join-corrective/DOMAIN-ARM.md`.
   - [x] PG live gate passes; exact threshold counts and rank-index evidence;
     `cte-domain` runs `select-join-domain2-feas-pg-20261004`.
-  - [ ] Corrected single-node matrix: 3 whole runs/engine x 5 trials, both
-    engines, under new run ids.
+  - [~] Six validation whole runs measured (3 PG, 3 YB), 91/91 valid each, 5
+    samples and position control; report
+    `reports/20261004T-select-join-domain-replicated.md`. They span two client
+    builds (report-only changes landed between yb1 and yb2-3), so the completed
+    matrix must be re-run from one frozen commit; that frozen 3+3 matrix is open.
 - [~] **C3 effective WSL resource recheck** and budget calibration.
   - [x] Attestation: 8 CPU / 16,109,780 kB effective (the 4 CPU / 2048 MiB podman
     config is stale metadata). Budget plan recorded in

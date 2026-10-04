@@ -65,8 +65,27 @@ Unit tests (`selectbench/joindomain_test.go`) cover the projection binding,
 determinism, the rank permutation and the load/view order; `go vet` and
 `go test` pass in Podman.
 
+## Validation matrix runs (six, 91/91 valid each)
+
+| run | tag | class |
+|---|---|---|
+| `select-join-domain-pg1-20261004` | `run/study-01/select-join-domain-pg1-20261004` | PG client build A |
+| `select-join-domain-pg2-20261004` | `run/study-01/select-join-domain-pg2-20261004` | PG client build A |
+| `select-join-domain-pg3-20261004` | `run/study-01/select-join-domain-pg3-20261004` | PG client build A |
+| `select-join-domain-yb1-20261004` | `run/study-01/select-join-domain-yb1-20261004` | YB client build A |
+| `select-join-domain-yb2-20261004` | `run/study-01/select-join-domain-yb2-20261004` | YB client build B |
+| `select-join-domain-yb3-20261004` | `run/study-01/select-join-domain-yb3-20261004` | YB client build B |
+
+All six: 91 cells, 5 samples each, five interleaved rounds, position control,
+both controls firing, exact threshold counts. The report
+`reports/20261004T-select-join-domain-replicated.md` pools the three PG runs into
+one compatibility class; the YB runs split into build A (yb1) and build B
+(yb2–yb3) because the report-only `-arm` filter commit changed the client binary
+between them. This is truthful partitioning, not a measurement difference.
+
 ## Open
 
-The corrected single-node matrix (3 whole runs per engine, 5 trials) has not
-been run; it is the next step, under the new run ids and the calibrated 1-CPU
-client. The 3-node/cluster and blended phases remain C4 and C5.
+The **frozen-commit matrix** — all 6 (and later cluster) runs built from one
+source commit so each engine is one compatibility class — will be run after C4
+and C5 land, under new run ids. The 3-node/cluster and blended phases are C4 and
+C5; the corrected interpretation is C6.
