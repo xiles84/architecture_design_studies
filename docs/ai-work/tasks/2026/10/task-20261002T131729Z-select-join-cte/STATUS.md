@@ -3,15 +3,17 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261002T131729Z-select-join-cte` |
-| State | `awaiting_review` |
-| Sequence | `5` |
-| Active attempt | `attempt-20261004T152035Z-f82109` |
-| Active worker | `model=deepseek-flash tool=opencode/CLI effort=unknown session=unknown capability=LOW role=executor` |
-| Last event | `event-20261004T160600Z-submitted` |
-| Updated at | `2026-10-04T16:06:00Z` |
-| Next capability | HIGH |
-| Next work role | reviewer |
+| State | `changes_requested` |
+| Sequence | `6` |
+| Active attempt | none |
+| Active worker | `model=GPT-6 tool=Codex desktop effort=unknown session=session-20261004-select-join-high-review capability=HIGH role=reviewer` |
+| Last event | `event-20261004T171719Z-changes-requested` |
+| Updated at | `2026-10-04T17:17:19Z` |
+| Next capability | LOW |
+| Next work role | executor |
 | Branch | `study-01/select-join-cte` |
 | Worktree | `.worktrees/select-join-cte` |
 
-Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/10/task-20261002T131729Z-select-join-cte/attempts/attempt-20261004T152035Z-f82109/RESULT.md`.
+Corrections required: Apply committed HIGH correction handoff: effective resource sizing and required domain/blended/topology coverage; engine-specific plan/RPC evidence; stable input digests; qualified prediction and crossover verdicts.
+
+Claim again with `queue claim --task task-20261002T131729Z-select-join-cte`.
