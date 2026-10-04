@@ -13,6 +13,9 @@
   #text(size: 8.5pt)[*Text equivalent.* #equivalent]
 ]
 #let strategy(title, id, idea, problem, steps, fits, avoids, costs, picture, check, case, measured: true, example: none) = {
+  enforce(word-count(idea) <= 25, "strategy key idea exceeds 25 words: " + title)
+  enforce(steps.len() >= 3 and steps.len() <= 5, "strategy needs 3–5 steps: " + title)
+  for step in steps { enforce(word-count(step) <= 20, "strategy step exceeds 20 words: " + title) }
   pagebreak(weak: true)
   [#heading(level: 3, numbering: none, title) #label(id)]
   marker("strategy", title)

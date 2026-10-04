@@ -1,6 +1,6 @@
 #import "lib/config.typ": *
 
-#heading("Glossary")
+#heading(level: 2, numbering: none, "Glossary")
 #marker("appendix", "glossary")
 The single definition site for the vocabulary the rest of the book uses. Where a term is also a
 registry field, the registry's value is named in brackets.
