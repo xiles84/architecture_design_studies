@@ -78,6 +78,22 @@ tag or local-main measurement merge is claimed at this checkpoint. HIGH
 `task-20261002T131729Z-select-synthesis` then `task-20261004T142623Z-select-book-high`
 own that. Benchmark lock is free.
 
+**Corrective attempt underway (LOW, 2026-10-04, claim `claim-03114d688bd5fe53`,
+expires 19:36Z).** The reporting/evidence defects from R2–R4 are fixed and
+committed (`caba4779`): the inputs digest has one definition and re-rendering the
+original pg1 input now reproduces `070df793…` (the review's broken re-render
+showed `7c879564…`); client and engine provenance are separate fields; the
+replicated report is partitioned by a compatibility class; the PG `VERBOSE`/YB
+`DIST` EXPLAIN options are probed and recorded; the live gate adds an empty-input
+fixture and the filtered-child LEFT JOIN; latency and derived-throughput
+summaries are present, with failing-before/passing-after tests. The D8 resource
+deferral is retracted — 8 CPU / 16,109,780 kB effective — with the budget plan in
+`docs/select-query-templates/reviews/20261004-join-corrective/RESOURCES.md`, and a
+bounded 1-CPU client calibration ran with 0 throttled periods
+(`select-join-calib-pg-20261004`). The Study 01 domain arm (C2), bounded
+cluster/placement subset (C4), matched blended writer (C5) and the successor
+signed analysis (C6) remain open; the task stays `claimed` and **unsubmitted**.
+
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 
 The owner requested the missing comparison and specified LOW measurement followed
