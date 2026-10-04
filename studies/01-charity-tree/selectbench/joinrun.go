@@ -19,8 +19,15 @@ import (
 // joinMaxRetries bounds how many times a statement re-executes after a transient
 // concurrency conflict. A blended phase with a live writer will occasionally see
 // SQLSTATE 40001; retrying is not weakening the gate, because the answer is
-// verified against the oracle after the retry and the count is recorded.
-const joinMaxRetries = 3
+// verified against the oracle after the retry and the count is recorded. A
+// sustained writer can restart a long multi-reference read several times, so the
+// budget is generous and each retry backs off briefly.
+const joinMaxRetries = 10
+
+// joinRetryBackoff is the pause before retry attempt n (1-based).
+func joinRetryBackoff(attempt int) time.Duration {
+	return time.Duration(5*(attempt+1)) * time.Millisecond
+}
 
 // isRetryable reports whether an engine error is a transient concurrency
 // conflict the same statement may safely retry. A wrong answer is not retryable.
@@ -50,6 +57,11 @@ func queryRetry(ctx context.Context, q Querier, sql string) ([][]any, int, error
 		if attempt >= joinMaxRetries || !isRetryable(err) {
 			return nil, attempt, err
 		}
+		select {
+		case <-time.After(joinRetryBackoff(attempt)):
+		case <-ctx.Done():
+			return nil, attempt, ctx.Err()
+		}
 	}
 }
 
@@ -65,6 +77,11 @@ func explainRetry(ctx context.Context, q Querier, sql string) (string, int, erro
 		}
 		if attempt >= joinMaxRetries || !isRetryable(err) {
 			return "", attempt, err
+		}
+		select {
+		case <-time.After(joinRetryBackoff(attempt)):
+		case <-ctx.Done():
+			return "", attempt, ctx.Err()
 		}
 	}
 }
