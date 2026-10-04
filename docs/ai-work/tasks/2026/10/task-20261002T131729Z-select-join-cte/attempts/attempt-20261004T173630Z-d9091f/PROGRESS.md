@@ -55,7 +55,15 @@ reports, signed analysis and all ten producing tags are preserved unedited.
     throttling 20/82/11 (`select-join-topo-yb-smoke-20261004`).
   - [ ] Bounded subset matrix: 3 whole runs per arm (single, equal-total single,
     cluster3), colocated vs non-colocated placement.
-- [ ] **C5 matched blended read/write phase** (one fixed writer).
+- [~] **C5 matched blended read/write phase** (one fixed writer).
+  - [x] Implemented: independent `maintenance_updates` counter outside the
+    projection/rank/token; one fixed writer at 10 updates/s over 1000 keys;
+    isolated and blended phases; offered/completed/failed, latency, per-key
+    spread, Go ledger and reader-write overlap recorded.
+  - [x] Validation pair on PG single-node: both 30/30 valid; blended offered 66,
+    completed 66, failed 0 (10.002/s), ledger 0 mismatch, 23/90 reader ops
+    overlapped a write (`BLENDED.md`).
+  - [ ] Full 5-trial phase pairs on the domain matrix and the topology subset.
 - [ ] **C6** new signed successor analysis with corrected verdicts.
 
 ## Decision Log (this attempt)
