@@ -42,6 +42,12 @@ func classifyEngineError(err error) error {
 		if pgErr.Code == "0A000" {
 			return fmt.Errorf("%w: %v", selectbench.ErrUnsupported, err)
 		}
+		// A syntax error is how an engine that cannot express a spelling (for
+		// example a CTE policy keyword it does not know) refuses it. It is an
+		// explicit unsupported cell, not a harness defect.
+		if pgErr.Code == "42601" {
+			return fmt.Errorf("%w: %v", selectbench.ErrUnsupported, err)
+		}
 		if pgErr.Code == "57014" {
 			return fmt.Errorf("%w: %v", context.DeadlineExceeded, err)
 		}

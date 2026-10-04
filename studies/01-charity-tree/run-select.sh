@@ -11,6 +11,8 @@ ENGINE="postgres"
 FAMILY="select"
 PAGE_LIMIT=5
 POSITION_CONTROL=0
+FEASIBILITY=0
+TOPOLOGY="single"
 TRIALS=3
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 TAG=""
@@ -24,14 +26,17 @@ while [[ $# -gt 0 ]]; do
     --family) FAMILY="$2"; shift 2 ;;
     --page-limit) PAGE_LIMIT="$2"; shift 2 ;;
     --position-control) POSITION_CONTROL=1; shift ;;
+    --feasibility) FEASIBILITY=1; shift ;;
+    --topology) TOPOLOGY="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --tag) TAG="$2"; shift 2 ;;
     --environment) ENVIRONMENT="$2"; shift 2 ;;
     *) die "unknown argument $1" ;;
   esac
 done
-[[ "$SCALE" =~ ^(tiny|small|medium|large|deep|sweep|fanout)$ ]] || die "unknown scale $SCALE"
-[[ "$FAMILY" =~ ^(select|access|aggregate|existence)$ ]] || die "family must be select, access, aggregate or existence"
+[[ "$SCALE" =~ ^(tiny|small|medium|large|deep|sweep|fanout|cte|cte-small)$ ]] || die "unknown scale $SCALE"
+[[ "$FAMILY" =~ ^(select|access|aggregate|existence|join)$ ]] || die "family must be select, access, aggregate, existence or join"
+[[ "$TOPOLOGY" =~ ^(single|cluster3)$ ]] || die "topology must be single or cluster3"
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"
 [[ "$PAGE_LIMIT" =~ ^[1-9][0-9]*$ ]] || die "page limit must be positive"
 [[ "$RUN_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || die "invalid run id"
@@ -41,15 +46,29 @@ case "$FAMILY" in
   access)    CLIENT_CMD="select-access";    OUT_JSON="access.json";    OUT_MD="access.md" ;;
   aggregate) CLIENT_CMD="select-aggregate"; OUT_JSON="aggregate.json"; OUT_MD="aggregate.md" ;;
   existence) CLIENT_CMD="select-existence"; OUT_JSON="existence.json"; OUT_MD="existence.md" ;;
+  join)      CLIENT_CMD="select-join";      OUT_JSON="join.json";      OUT_MD="join.md" ;;
   *)         CLIENT_CMD="select";           OUT_JSON="select.json";    OUT_MD="select.md" ;;
 esac
 POSITION_FLAG=""
 [[ "$POSITION_CONTROL" == 1 ]] && POSITION_FLAG="-position-control"
+FEASIBILITY_FLAG=""
+[[ "$FEASIBILITY" == 1 ]] && FEASIBILITY_FLAG="-feasibility"
 case "$ENGINE" in
-  postgres) TOPOLOGY_SCRIPT="$REPO/infra/pg-single.sh"; NODE=pg-single; ENGINE_IMAGE="$PG_IMAGE"; VOLUME=ads-pg-single-data ;;
-  yugabyte) TOPOLOGY_SCRIPT="$REPO/infra/yb-single.sh"; NODE=yb-single; ENGINE_IMAGE="$YB_IMAGE"; VOLUME=ads-yb-single-data ;;
+  postgres)
+    [[ "$TOPOLOGY" == single ]] || die "postgres has no cluster3 topology here"
+    TOPOLOGY_SCRIPT="$REPO/infra/pg-single.sh"; ENGINE_IMAGE="$PG_IMAGE"
+    NODES=(pg-single); VOLUMES=(ads-pg-single-data) ;;
+  yugabyte)
+    if [[ "$TOPOLOGY" == cluster3 ]]; then
+      TOPOLOGY_SCRIPT="$REPO/infra/yb-cluster3.sh"; ENGINE_IMAGE="$YB_IMAGE"
+      NODES=(yb-n1 yb-n2 yb-n3); VOLUMES=(ads-yb-n1-data ads-yb-n2-data ads-yb-n3-data)
+    else
+      TOPOLOGY_SCRIPT="$REPO/infra/yb-single.sh"; ENGINE_IMAGE="$YB_IMAGE"
+      NODES=(yb-single); VOLUMES=(ads-yb-single-data)
+    fi ;;
   *) die "engine must be postgres or yugabyte" ;;
 esac
+NODE="${NODES[0]}"
 OUTDIR="${OUTDIR:-$HERE/results/$RUN_ID}"
 [[ ! -e "$OUTDIR" ]] || die "output already exists: $OUTDIR"
 GIT_ROOT="$(hostpath "$REPO")"
@@ -72,8 +91,10 @@ cleanup() {
   return "$rc"
 }
 trap cleanup EXIT
-! podman container exists "$NODE" || die "$NODE already exists; preserve its owner"
-! podman volume exists "$VOLUME" || die "$VOLUME already exists; inspect its owner"
+for i in "${!NODES[@]}"; do
+  ! podman container exists "${NODES[$i]}" || die "${NODES[$i]} already exists; preserve its owner"
+  ! podman volume exists "${VOLUMES[$i]}" || die "${VOLUMES[$i]} already exists; inspect its owner"
+done
 ! git -C "$GIT_ROOT" rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1 || die "tag exists; choose a new run id"
 podman build -t "$IMAGE" -f "$(buildpath "$(hostpath "$HERE/Containerfile")")" "$(buildpath "$(hostpath "$HERE")")"
 IMAGE_ID="$(podman image inspect "$IMAGE" --format '{{.Id}}')"
@@ -97,8 +118,8 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -v "$(winpath "$(hostpath "$OUTDIR")"):/results" \
   -e "ADS_RUN_LOCK_HELD=$ADS_RUN_LOCK_HELD" -e "ADS_REPO_COMMIT=$SOURCE_COMMIT" \
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
-  "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology single -scale "$SCALE" -seed "$SEED" \
-  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
+  "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology "$TOPOLOGY" -scale "$SCALE" -seed "$SEED" \
+  -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
 RESULT_RC=$?
 set -e

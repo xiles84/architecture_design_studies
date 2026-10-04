@@ -56,6 +56,10 @@ type Cell struct {
 	ResultJSONBytes int
 	PlanningMS      *float64
 	ExecutionMS     *float64
+	// PolicyNote records the join/CTE family's observed materialization
+	// evidence (policy=materialized; observed=true, ...). Additive: the
+	// teaching families leave it empty.
+	PolicyNote string `json:"policy_note,omitempty"`
 }
 
 func (c Cell) structureSig() string { return StructureSignature(c.Plan) }

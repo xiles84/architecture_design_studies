@@ -82,6 +82,7 @@ func main() {
 		stmtTimeout  = flag.Int("stmt-timeout-ms", 120000, "server-side statement_timeout")
 		pageLimit    = flag.Int("page-limit", 5, "select-access: rows per pagination page")
 		positionCtl  = flag.Bool("position-control", false, "select-access/select-aggregate: repeat the first matrix cell at the end of the phase")
+		feasibility  = flag.Bool("feasibility", false, "select-join: run the correctness gate and per-engine feasibility probes only")
 	)
 	flag.Parse()
 	if *cmd == "report-enhancements" {
@@ -151,6 +152,16 @@ func main() {
 		return
 	case "existence-report":
 		if err := runSelectExistenceReport(*resultsDir, *reportOut); err != nil {
+			fatal(err)
+		}
+		return
+	case "select-join":
+		if err := runSelectJoinMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *envName, *runID, *stmtTimeout, *positionCtl, *feasibility); err != nil {
+			fatal(err)
+		}
+		return
+	case "join-report":
+		if err := runSelectJoinReport(*resultsDir, *reportOut); err != nil {
 			fatal(err)
 		}
 		return
