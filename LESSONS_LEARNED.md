@@ -2694,6 +2694,42 @@ incorrect result. With that, all nine blended runs are 30/30 valid. The
 conflicts are themselves the finding: the engine restarts exactly the plan whose
 per-reference re-evaluation is longest, which is the mechanism under test.
 
+## The same index DDL is a different physical index on YugabyteDB (2026-10-04)
 
+`CREATE INDEX donation_rank_idx ON donation (rank)` is a btree on PostgreSQL. On
+YugabyteDB, the first key column is hash-sharded by default, so the index serves
+equality but not `rank <= threshold`. In the join/CTE domain matrix, 0 of 273 YB
+plans used it. Every YB cell scanned all 200,000 rows, even when returning 20.
+A PG-vs-YB "materialization penalty" contrast (67–88x vs 1.4–1.7x) therefore
+measured index availability, not CTE handling. The run's own feasibility table
+had printed `rank index observed: false` for every YB statement, and the matrix
+still ran.
 
+- **Treat failed index use in feasibility as a gate failure, not a footnote.**
+- **Write range-capable YB keys explicitly** (`ASC`/`DESC`), or label hash
+  sharding as its own physical arm.
 
+The shared SELECT teaching DDL has the same default: integrated YB access and
+existence plans show 0 index scans. Evidence:
+`docs/select-query-templates/reviews/20261004-join-high-2/CHECKS.md`.
+
+## A feature check must run where the feature can exist (2026-10-04)
+
+`WITH (colocation = true)` on a table inside YugabyteDB's default non-colocated
+database fails with SQLSTATE 0A000. That proves only that this database is not
+colocated, not that the engine cannot colocate. A database created with
+`COLOCATION = true` is the required context. Record an unsupported placement as
+a gap only after the attempt is made in the context that supports it.
+
+## Live queue commands must use the real clock (2026-10-04)
+
+A LOW worker passed a forwarded `--now` to `recover` and `submit`. Both events
+recorded `occurred_at 20:00:00Z`, while their commits were made at 19:52Z and
+21:23Z. Two consequences:
+
+- The recovery skipped its 10-minute grace period, which exists to protect a
+  possibly live earlier claim.
+- The submission time is 83 minutes early.
+
+Events are immutable and the audit cannot detect a plausible past time. `--now`
+is for tests; live coordination uses the wall clock and real heartbeats.

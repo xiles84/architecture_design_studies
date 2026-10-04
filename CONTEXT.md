@@ -43,80 +43,48 @@ summary, not a second ledger.
 
 ## Current state
 
-### Join/CTE measurement family — **HIGH reviewed; LOW corrections required (2026-10-04)**
+### Join/CTE measurement family — **second HIGH review: LOW corrections required (2026-10-04)**
 
-The LOW `deepseek-flash` session submitted `task-20261002T131729Z-select-join-cte`
-from the 2026-10-04 handoff. The join/CTE harness is implemented, unit-tested and
-committed: six inner-join spellings and forced `MATERIALIZED`/`NOT MATERIALIZED`
-on the two CTE forms, a generated reuse ladder (3 policies x {1,2,4,8,16} x
-{1%,100%} consumers), a 200,000-row rank-permutation fixture with exact
-thresholds, and independent Go oracles.
+`task-20261002T131729Z-select-join-cte` (branch `study-01/select-join-cte`,
+worktree `.worktrees/select-join-cte`) is `changes_requested` again. It is not
+integrated into local `main`, and no SELECT timing claim is promoted. The
+benchmark lock is free.
 
-**Six whole single-node runs are measured, all correctness-gated (91/91 valid
-each, 0 invalid/timeout/error):** 3x PostgreSQL 17.11 and 3x YugabyteDB 2025.2.6,
-5 trials, seeded interleaving, position control. Independent HIGH GPT-6 checks
-validated all six original digests, medians, orders and control firing. The
-synthetic parent/fact observations are retained, but the submission is **not
-approved for integration or book promotion**. The matched policy effect has
-mixed signs at YB's widest predicate; the claimed reuse crossover is overstated,
-and small effects remain bounded by substantial variability.
-
-Per-run reports and digests are under `results/select-join-{pg,yb}{1,2,3}-20261004/`;
-replicated report `reports/20261004T-select-join-replicated.md`; signed LOW
-analysis `reports/analyses/20261004T-select-join-cte--deepseek-flash--2026-10-04.md`;
-RESULT and Decision Log under the task's attempt directory. Two harness defects
-found by feasibility were fixed before the matrix. The resource deferral was
-rejected: all saved guest snapshots expose ~15.36 GiB and 8 CPUs, despite the
-machine configuration's 2 GiB/4 CPU metadata. Required domain, blended,
-3-node/equal-total/placement and engine-counter coverage is incomplete;
-re-rendering also changes the advertised input digest by adding a newline.
-The [HIGH review and targeted handoff](docs/select-query-templates/reviews/20261004-join-high/REVIEW.md)
-return the same retained branch/worktree to LOW through `changes_requested`.
-The [signed qualification](studies/01-charity-tree/reports/discussions/20261004T-select-join-review--gpt6.md)
-preserves the original LOW interpretation and all producing tags. No completion
-tag or local-main measurement merge is claimed at this checkpoint. HIGH
-`task-20261002T131729Z-select-synthesis` then `task-20261004T142623Z-select-book-high`
-own that. Benchmark lock is free.
-
-**Corrective attempt underway (LOW, 2026-10-04, claim `claim-03114d688bd5fe53`,
-expires 19:36Z).** The reporting/evidence defects from R2–R4 are fixed and
-committed (`caba4779`): the inputs digest has one definition and re-rendering the
-original pg1 input now reproduces `070df793…` (the review's broken re-render
-showed `7c879564…`); client and engine provenance are separate fields; the
-replicated report is partitioned by a compatibility class; the PG `VERBOSE`/YB
-`DIST` EXPLAIN options are probed and recorded; the live gate adds an empty-input
-fixture and the filtered-child LEFT JOIN; latency and derived-throughput
-summaries are present, with failing-before/passing-after tests. The D8 resource
-deferral is retracted — 8 CPU / 16,109,780 kB effective — with the budget plan in
-`docs/select-query-templates/reviews/20261004-join-corrective/RESOURCES.md`, and a
-bounded 1-CPU client calibration ran with 0 throttled periods
-(`select-join-calib-pg-20261004`). The Study 01 domain arm is implemented and
-verified live: `selectjoin_domain` loads real charity/person/donation rows and
-two views bind them to the unchanged catalogue, projecting
-`(person_id, charity_name, donation_id, amount_cents)` with `donation.rank` as
-the documented exact-selectivity proxy (`commit 1216bf0f`; contract in
-`docs/select-query-templates/reviews/20261004-join-corrective/DOMAIN-ARM.md`).
-The domain arm is measured: six validation whole runs (3 PG, 3 YB) at 91/91
-valid each with 5 samples and position control, and the domain-only report
-`studies/01-charity-tree/reports/20261004T-select-join-domain-replicated.md`,
-which partitions on image digests. Because report-only commits landed between
-yb1 and yb2-3, the runs span two client builds; the completed matrix will be
-re-run from one frozen commit after C4/C5. The 3-node arm is now reachable and
-used: the cluster comes up at RF3 under per-node 2 CPU/3 GiB, the client rotates
-its reader across all three endpoints (first cluster3 subset run 30/30 valid,
-endpoint ops 123/122/122, per-node throttling 20/82/11) — see
-`docs/select-query-templates/reviews/20261004-join-corrective/CLUSTER-BRINGUP.md`.
-Corrective cycle complete and **submitted for HIGH review**: the frozen 3+3
-domain matrix (`select-join-domain2-{pg,yb}{1,2,3}-20261004`, 91/91 valid each,
-one client build), the bounded topology subset (single / equal-total single /
-cluster3, isolated and blended, 3 runs each, all 30/30 valid,
-`reports/select-join-topology-subset-20261004.md`), the matched blended writer
-(sustained 10.02 updates/s, 0 ledger mismatches), and the signed successor
-analysis `reports/analyses/20261004T-select-join-cte-v2--deepseek-flash--2026-10-04.md`
-(supersedes the original). Explicit gaps: colocated placement (pinned engine
-rejects `colocation = true` on the default database, SQLSTATE 0A000,
-`PLACEMENT.md`) and cluster-balanced writes (the writer uses one endpoint).
-
+- **Measured so far (all correctness-gated, tags `run/study-01/select-join-*`):**
+  - six synthetic single-node runs (first submission);
+  - the frozen Study 01 domain matrix `select-join-domain2-{pg,yb}{1,2,3}-20261004`
+    (91/91 valid each; isolated phase only);
+  - an 18-run YB topology subset (single 2 CPU/3 GiB, equal-total 6 CPU/9 GiB,
+    cluster3 RF3; isolated and blended; 30/30 valid);
+  - placement, blend, calibration and smoke checks.
+  - The signed LOW analyses are `…select-join-cte--deepseek-flash…` and its
+    successor `…select-join-cte-v2--deepseek-flash…`.
+- **Review 1** (GPT-6, [review](docs/select-query-templates/reviews/20261004-join-high/REVIEW.md)):
+  reproducibility, resource, domain, blended, topology and engine-plan
+  corrections. Most were delivered and accepted in review 2.
+- **Review 2** (Claude Opus 5.5, [review](docs/select-query-templates/reviews/20261004-join-high-2/REVIEW.md),
+  [handoff](docs/select-query-templates/reviews/20261004-join-high-2/CORRECTIVE-HANDOFF.md),
+  [signed discussion](studies/01-charity-tree/reports/discussions/20261004T-select-join-review-2--claude-opus-5-5.md)):
+  - The YB rank index is hash-sharded (`CREATE INDEX … (rank)`), so 0 of 273
+    YB domain plans use it and every YB cell is a full 200k-row scan. The v2
+    PG-vs-YB materialization contrast is an index artefact until a
+    range-index (`rank ASC`) arm is measured.
+  - The colocated arm was never attempted on a `COLOCATION = true` database.
+  - The topology report pools the two single-node budgets.
+  - Generated limits contradict blended and equal-total runs; per-node
+    throttling is unrendered.
+  - The domain matrix has no blended phase.
+  - The attempt has no Decision Log of its own.
+- **Next (LOW):** about 36 new runs per handoff 2 (YB range arm, PG/YB domain
+  isolated+blended, topology subset, colocated cluster3), reporting fixes and a
+  v3 analysis. Then HIGH `select-synthesis` and `select-book-high`.
+- **Open for `select-synthesis`:** the shared teaching DDL has the same YB
+  default. Integrated YB access/existence runs show 0 index scans (access
+  0/51 vs PostgreSQL 29/26), so YB access/existence verdicts may describe
+  hash-only physical designs.
+- Review checkpoint tags: `study-01/select-join-high-review-20261004` and
+  `study-01/select-join-high-review-2-20261004`. The completion tag
+  `study-01/select-v2-join-cte` is absent.
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 
