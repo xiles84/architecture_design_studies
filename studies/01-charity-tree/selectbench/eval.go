@@ -90,6 +90,9 @@ var Evaluators = map[string]EvalFunc{
 		a1, a2 := defaultArms(a)
 		return PredicateAlt(fx, a1, a2)
 	},
+	// membership / absence at the NOT-NULL contract, and the multiplier control
+	"e12_in_notnull":     func(fx Fixture, a Args) any { return Membership(fx, a.Pred) },
+	"e13_not_in_notnull": func(fx Fixture, a Args) any { return Absence(fx, a.Pred) },
 	// deliberately wrong controls
 	"x01_optional_where":         func(fx Fixture, a Args) any { return ControlOptionalWhere(fx, a.Pred) },
 	"x02_not_in_nullable":        func(fx Fixture, a Args) any { return ControlNotNullIn(fx, a.Pred) },
@@ -97,6 +100,7 @@ var Evaluators = map[string]EvalFunc{
 	"x04_limit_before_join":      func(fx Fixture, a Args) any { return ControlLimitBeforeJoin(fx, a.Pred, a.Limit) },
 	"x05_aggregate_double_count": func(fx Fixture, a Args) any { return DoubleCountAggregate(fx, a.ParentMax) },
 	"x06_topn_rank_ties":         func(fx Fixture, a Args) any { return RankTiesTopN(fx, topNArg(a), a.ParentMax) },
+	"x07_membership_multiplier":  func(fx Fixture, a Args) any { return MembershipWithMultiplicity(fx, a.Pred) },
 	"x05_union_all_overlap": func(fx Fixture, a Args) any {
 		a1, _ := defaultArms(a)
 		return PredicateAltOverlap(fx, a1)

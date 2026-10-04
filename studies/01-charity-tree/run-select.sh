@@ -30,8 +30,8 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown argument $1" ;;
   esac
 done
-[[ "$SCALE" =~ ^(tiny|small|medium|large|deep|sweep)$ ]] || die "unknown scale $SCALE"
-[[ "$FAMILY" =~ ^(select|access|aggregate)$ ]] || die "family must be select, access or aggregate"
+[[ "$SCALE" =~ ^(tiny|small|medium|large|deep|sweep|fanout)$ ]] || die "unknown scale $SCALE"
+[[ "$FAMILY" =~ ^(select|access|aggregate|existence)$ ]] || die "family must be select, access, aggregate or existence"
 [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]] || die "trials must be positive"
 [[ "$PAGE_LIMIT" =~ ^[1-9][0-9]*$ ]] || die "page limit must be positive"
 [[ "$RUN_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || die "invalid run id"
@@ -40,6 +40,7 @@ done
 case "$FAMILY" in
   access)    CLIENT_CMD="select-access";    OUT_JSON="access.json";    OUT_MD="access.md" ;;
   aggregate) CLIENT_CMD="select-aggregate"; OUT_JSON="aggregate.json"; OUT_MD="aggregate.md" ;;
+  existence) CLIENT_CMD="select-existence"; OUT_JSON="existence.json"; OUT_MD="existence.md" ;;
   *)         CLIENT_CMD="select";           OUT_JSON="select.json";    OUT_MD="select.md" ;;
 esac
 POSITION_FLAG=""

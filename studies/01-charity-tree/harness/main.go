@@ -144,6 +144,16 @@ func main() {
 			fatal(err)
 		}
 		return
+	case "select-existence":
+		if err := runSelectExistenceMode(*dsn, *engine, *topology, *scale, *out, *reportOut, *seed, *trials, *envName, *runID, *stmtTimeout, *positionCtl); err != nil {
+			fatal(err)
+		}
+		return
+	case "existence-report":
+		if err := runSelectExistenceReport(*resultsDir, *reportOut); err != nil {
+			fatal(err)
+		}
+		return
 	}
 	if *cmd == "list" {
 		for _, d := range designs {

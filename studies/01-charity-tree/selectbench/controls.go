@@ -24,6 +24,7 @@ var controlContracts = map[string]string{
 	"x05_aggregate_double_count": "sel_aggregate_sel",
 	"x06_topn_rank_ties":         "sel_topn_sel",
 	"x05_union_all_overlap":      "sel_predicate_alt",
+	"x07_membership_multiplier":  "sel_membership",
 }
 
 // DetectControlRows requires a successful query with the same column shape as

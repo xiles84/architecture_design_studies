@@ -190,6 +190,53 @@ func Membership(fx Fixture, pred Pred) []int {
 	return out
 }
 
+// MembershipWithMultiplicity is the deliberately-wrong membership grain: one
+// entry per qualifying child row, so a parent with several qualifying children
+// appears several times. It mirrors the x07 control (a plain join without
+// DISTINCT) and must differ from Membership wherever a parent has >1 match.
+func MembershipWithMultiplicity(fx Fixture, pred Pred) []int {
+	var out []int
+	for _, o := range fx.Orders {
+		if o.CustomerID != nil && pred(o) {
+			out = append(out, *o.CustomerID)
+		}
+	}
+	sort.Ints(out)
+	return out
+}
+
+// ExistenceShape reshapes a membership/absence fixture so the two controls can
+// fire at every fanout level, without changing the total child count: the last
+// parent's children are moved to the first parent (so one parent always has
+// several children, making the x07 plain-join multiplier differ from the set),
+// and the first parent's first two orders are given amount 400 (so they qualify
+// under any positive threshold). The last parent is therefore childless, which
+// keeps the absence set non-empty for the x02 nullable-NOT IN control. It is a
+// fixture shape for the controls, reflected in the dataset fingerprint.
+func ExistenceShape(fx Fixture) Fixture {
+	if len(fx.Customers) < 2 || len(fx.Orders) == 0 {
+		return fx
+	}
+	hot := fx.Customers[0].ID
+	empty := fx.Customers[len(fx.Customers)-1].ID
+	for i := range fx.Orders {
+		if fx.Orders[i].CustomerID != nil && *fx.Orders[i].CustomerID == empty {
+			fx.Orders[i].CustomerID = ip(hot)
+		}
+	}
+	set := 0
+	for i := range fx.Orders {
+		if fx.Orders[i].CustomerID != nil && *fx.Orders[i].CustomerID == hot {
+			fx.Orders[i].Amount = ip(400)
+			set++
+			if set == 2 {
+				break
+			}
+		}
+	}
+	return fx
+}
+
 // Absence is the set of parent identities with no qualifying child.
 func Absence(fx Fixture, pred Pred) []int {
 	has := map[int]bool{}

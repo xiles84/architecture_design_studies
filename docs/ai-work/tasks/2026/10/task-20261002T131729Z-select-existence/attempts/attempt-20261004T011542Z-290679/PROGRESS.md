@@ -8,9 +8,9 @@ LOW executor (deepseek-flash / opencode CLI). Milestone tag:
 
 1. Recon and premeasurement plan (this file, the bounded-matrix plan, the
    environment page) committed before any run.
-2. Catalogue additions (`e12`, `e13`, `x07`), oracle reuse, controls, pure tests.
-3. Fanout-sweep runner (`BuildExistenceSpecs`), per-run and replicated reports.
-4. Harness `-cmd select-existence`, runner `--family existence`.
+2. Catalogue additions (`e12`, `e13`, `x07`), oracle reuse, controls, pure tests. **[done]**
+3. Fanout-sweep runner (`BuildExistenceSpecs`), per-run and replicated reports. **[done]**
+4. Harness `-cmd select-existence`, runner `--family existence`. **[done]**
 5. PostgreSQL single-node: 3 whole runs (one position control); YugabyteDB
    single-node: 3 whole runs.
 6. Signed analysis with P6/P7 verdicts; RESULT.md; submit for HIGH review.
@@ -44,7 +44,13 @@ LOW executor (deepseek-flash / opencode CLI). Milestone tag:
    the first to build on it directly, with no new runner code. Confidence High.
 7. **Position control repeats the first membership cell at the end of the phase**
    (opt-in), as in the other families. Confidence High.
-8. **One fingerprint per fanout level.** Each level is a different dataset, so
+8. **`ExistenceShape` moves the last parent's children to the first parent and
+   gives the first parent two amount-400 orders.** Without it no parent has more
+   than one qualifying child at fanout=1, so the x07 multiplier cannot fire, and
+   no parent is childless, so the x02 nullable-`NOT IN` control cannot differ
+   from the absence set. The total child count is unchanged and the shape is in
+   the fingerprint. Confidence High. Affects the control gate at every level.
+9. **One fingerprint per fanout level.** Each level is a different dataset, so
    the run's provenance table records the level's customer/order counts and
    fingerprint rather than a single global one. Confidence High.
 
