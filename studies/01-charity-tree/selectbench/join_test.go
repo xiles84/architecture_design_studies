@@ -204,6 +204,46 @@ func TestReusePolicySQLAndBinding(t *testing.T) {
 	}
 }
 
+func TestPolicyEvidence(t *testing.T) {
+	// PostgreSQL 17 text plans: an inlined CTE prints no CTE Scan; a materialized
+	// CTE prints a `CTE e` block and `CTE Scan on e`. There is no "Materialize"
+	// node in the text output (verified directly, 2026-10-04).
+	inlined := "Hash Join\n  Hash Cond: (c.id = f.customer_id)\n  -> Seq Scan on customers c\n  -> Hash\n       -> Index Scan using facts_rank_idx on facts f\n"
+	materialized := "Aggregate\n  CTE e\n    -> Index Scan using facts_rank_idx on facts\n  -> Hash Join\n       -> CTE Scan on e\n"
+	cases := []struct {
+		name     string
+		plan     string
+		wantBad  bool
+		observed string
+	}{
+		{"j04m_cte_filtered_mat", materialized, false, "true"},
+		{"j04m_cte_filtered_mat", inlined, true, "false"},
+		{"j04n_cte_filtered_notmat", inlined, false, "false"},
+		{"j04_cte_filtered", inlined, false, "false"},
+		{"j05m_cte_joined_outer_mat", materialized, false, "true"},
+		{"r_mat_n4_c100", materialized, false, "true"},
+		{"r_notmat_n4_c100", inlined, false, "false"},
+	}
+	for _, tc := range cases {
+		cell := Cell{}
+		ok := applyPolicyEvidence(&cell, tc.name, tc.plan)
+		if wantOK := !tc.wantBad; ok != wantOK {
+			t.Errorf("%s: ok=%v, want %v (note %q)", tc.name, ok, wantOK, cell.Note)
+		}
+		if tc.wantBad && cell.Status != StatusUnsupported {
+			t.Errorf("%s: inlined materialized cell status = %s, want unsupported", tc.name, cell.Status)
+		}
+		if !strings.Contains(cell.PolicyNote, "observed_cte_scan="+tc.observed) {
+			t.Errorf("%s: policy note %q lacks observed_cte_scan=%s", tc.name, cell.PolicyNote, tc.observed)
+		}
+	}
+	// A statement with no CTE at all is unconstrained.
+	plain := Cell{}
+	if !applyPolicyEvidence(&plain, "j01_join_where", inlined) || plain.PolicyNote != "" {
+		t.Errorf("plain join should carry no policy note, got %q", plain.PolicyNote)
+	}
+}
+
 func TestJoinMatrixShape(t *testing.T) {
 	specs := BuildJoinSpecs(JoinArgs{}, 200000, 5)
 	want := len(JoinStatements)*len(joinPercents) + len(reusePolicies)*len(ReuseLevels())*len(ReuseConsumerPercents())

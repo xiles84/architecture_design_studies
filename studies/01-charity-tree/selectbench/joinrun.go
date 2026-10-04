@@ -49,16 +49,20 @@ func JoinParamMap(s Statement, a JoinArgs) map[string]string {
 	return m
 }
 
-// planHasMaterialize reports whether the plan really materializes a CTE. It is
-// the evidence that a forced MATERIALIZED policy was honoured (or that a
-// NOT MATERIALIZED one was not inlined).
-func planHasMaterialize(plan string) bool {
-	return strings.Contains(strings.ToLower(plan), "materialize")
+// planHasCTEScan reports whether the plan kept the CTE rather than inlining it.
+// It is the observable evidence that a forced MATERIALIZED policy was honoured
+// (or that a NOT MATERIALIZED / default CTE was inlined).
+func planHasCTEScan(plan string) bool {
+	return strings.Contains(strings.ToLower(plan), "cte scan on")
 }
 
-// applyPolicyEvidence records whether the forced CTE policy was observed. A
-// forced MATERIALIZED cell whose plan shows no materialization is unsupported:
-// the harness must not silently report a default fold as a MATERIALIZED run.
+// applyPolicyEvidence records whether the forced CTE policy was observed. The
+// evidence is the CTE Scan: PostgreSQL 17 does not print a Materialize node for
+// an `AS MATERIALIZED` CTE (verified directly, 2026-10-04), it prints a `CTE e`
+// subplan plus `CTE Scan on e`. An inlined CTE (default single reference, or
+// NOT MATERIALIZED) is expanded into the main plan and prints neither. A forced
+// MATERIALIZED cell that was inlined is unsupported: the harness must not
+// silently report a default fold as a MATERIALIZED run.
 func applyPolicyEvidence(cell *Cell, name, plan string) bool {
 	policy := joinPolicyFor(name)
 	if policy == "" {
@@ -77,20 +81,20 @@ func applyPolicyEvidence(cell *Cell, name, plan string) bool {
 	if policy == "" {
 		return true
 	}
-	observed := planHasMaterialize(plan)
+	observed := planHasCTEScan(plan)
 	switch policy {
 	case "materialized":
 		if !observed {
 			cell.Status = StatusUnsupported
-			cell.Note = "MATERIALIZED requested but the plan shows no Materialize node"
-			cell.PolicyNote = "policy=materialized; observed=false"
+			cell.Note = "MATERIALIZED requested but the plan shows no CTE Scan (the CTE was inlined)"
+			cell.PolicyNote = "policy=materialized; observed_cte_scan=false"
 			return false
 		}
-		cell.PolicyNote = "policy=materialized; observed=true"
+		cell.PolicyNote = "policy=materialized; observed_cte_scan=true"
 	case "not_materialized":
-		cell.PolicyNote = "policy=not_materialized; observed_materialize=" + strconv.FormatBool(observed)
+		cell.PolicyNote = "policy=not_materialized; observed_cte_scan=" + strconv.FormatBool(observed)
 	default:
-		cell.PolicyNote = "policy=default; observed_materialize=" + strconv.FormatBool(observed)
+		cell.PolicyNote = "policy=default; observed_cte_scan=" + strconv.FormatBool(observed)
 	}
 	return true
 }
