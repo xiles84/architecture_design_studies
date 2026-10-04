@@ -389,7 +389,15 @@ func runSelectJoinReport(resultsDir, reportOut string) error {
 		if err := json.Unmarshal(data, &r); err != nil {
 			return fmt.Errorf("%s: %w", p, err)
 		}
+		// A feasibility-only run measures probes, not the matrix; it has no
+		// cells to replicate and must not appear as a whole run.
+		if len(r.Cells) == 0 {
+			continue
+		}
 		runs = append(runs, r)
+	}
+	if len(runs) == 0 {
+		return fmt.Errorf("no whole join runs (with cells) at or under %s", resultsDir)
 	}
 	report, err := selectbench.RenderJoinReplicated(runs)
 	if err != nil {
