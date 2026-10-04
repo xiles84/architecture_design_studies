@@ -43,25 +43,35 @@ summary, not a second ledger.
 
 ## Current state
 
-### Join/CTE measurement family — **running; do not start databases (2026-10-04)**
+### Join/CTE measurement family — **measured, submitted for HIGH review (2026-10-04)**
 
-The ready task `task-20261002T131729Z-select-join-cte` was claimed by a LOW
-`deepseek-flash` session and resumed from the 2026-10-04 handoff. The join/CTE
-harness is implemented, unit-tested and committed: six inner-join spellings and
-forced `MATERIALIZED`/`NOT MATERIALIZED` on the two CTE forms, a generated
-reuse ladder (3 policies x {1,2,4,8,16} x {1%,100%} consumers), a 200,000-row
-rank-permutation fixture with exact thresholds, and independent Go oracles.
-Both single-node feasibility checks passed and are committed under
-`results/select-join-feas-*`; the report now keys materialization evidence on
-`CTE Scan` because PostgreSQL 17 prints no `Materialize` node for
-`AS MATERIALIZED` (checked by hand).
+The LOW `deepseek-flash` session completed `task-20261002T131729Z-select-join-cte`
+from the 2026-10-04 handoff. The join/CTE harness is implemented, unit-tested and
+committed: six inner-join spellings and forced `MATERIALIZED`/`NOT MATERIALIZED`
+on the two CTE forms, a generated reuse ladder (3 policies x {1,2,4,8,16} x
+{1%,100%} consumers), a 200,000-row rank-permutation fixture with exact
+thresholds, and independent Go oracles.
 
-Six whole runs (**3 PostgreSQL, 3 YugabyteDB single-node**, 5 trials, seeded
-interleaving, position control) are running sequentially under `ads-run-lock`
-as `select-join-pg{1,2,3}-20261004` and `select-join-yb{1,2,3}-20261004`.
-**Do not start databases until this note is replaced.** The 3-node YB RF=3 and
-colocated/non-colocated placement arms remain conditional on the fixed 2 GiB
-machine and will be recorded as gaps with resource evidence if they do not fit.
+**Six whole single-node runs are measured, all correctness-gated (91/91 valid
+each, 0 invalid/timeout/error):** 3x PostgreSQL 17.11 and 3x YugabyteDB 2025.2.6,
+5 trials, seeded interleaving, position control. Result: the six spellings are
+plan-identical within an engine; `MATERIALIZED` on a joined-output CTE costs
+6.8x-88x on PostgreSQL but 1.02x-1.61x on YugabyteDB; the reuse crossing exists
+only on PostgreSQL (`NOT MATERIALIZED` faster at a 1% consumer, slower at 100%),
+while on YugabyteDB it is uniformly ~9-11x slower. The engines differ in plan
+shape: PostgreSQL uses `facts_rank_idx` for the 1% predicate, YugabyteDB chooses
+a Seq Scan with a storage filter.
+
+Per-run reports and digests are under `results/select-join-{pg,yb}{1,2,3}-20261004/`;
+replicated report `reports/20261004T-select-join-replicated.md`; signed LOW
+analysis `reports/analyses/20261004T-select-join-cte--deepseek-flash--2026-10-04.md`;
+RESULT and Decision Log under the task's attempt directory. Two harness defects
+found by feasibility were fixed before the matrix. **The 3-node YB RF=3 and
+colocated/non-colocated arms are an explicit coverage gap** (single 2 GiB host,
+no balanced multi-endpoint client, Study 07 deferred); no placement comparison is
+claimed. A LOW signed interpretation does not authorize book promotion — HIGH
+`task-20261002T131729Z-select-synthesis` then `task-20261004T142623Z-select-book-high`
+own that. Benchmark lock is free.
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 

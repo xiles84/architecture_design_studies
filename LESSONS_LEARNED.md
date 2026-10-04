@@ -2632,5 +2632,32 @@ order the aggregate `DISTINCT ON` vs `ROW_NUMBER` sign was mixed at PostgreSQL l
 earlier "DISTINCT ON is fastest at scale" was narrowed rather than promoted; the access and existence
 signs reproduced. Interleaving is cheap; re-running a whole family after publishing its numbers is not.
 
+## PostgreSQL prints no `Materialize` node; evidence is `CTE Scan` (2026-10-04)
+
+A join/CTE cell was first judged "not materialized" because the harness looked for the word
+`Materialize` in `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` output. A direct check showed
+PostgreSQL 17 renders `WITH e AS MATERIALIZED (…) … FROM e` as a `CTE e` subplan plus
+`CTE Scan on e`, with **no `Materialize` node in the text plan**; an inlined CTE (default
+single reference, or `NOT MATERIALIZED`) prints neither. **Check a plan shape against the
+engine before making it a correctness gate** — the wrong signal marked every forced
+`MATERIALIZED` cell unsupported while the SQL was correct.
+
+The corrected signal, applied to the family, also showed the P4 boundary directly: a
+multi-referenced CTE is materialized *by default* on both engines (default and `MATERIALIZED`
+share a plan), so the interesting comparison is against `NOT MATERIALIZED`.
+
+## The same CTE keyword has engine-specific cost (2026-10-04)
+
+Forcing `MATERIALIZED` on a joined-output CTE (predicate outside the CTE) cost 6.8x-88x on
+PostgreSQL at 0.01-50% selectivity but only 1.02x-1.61x on YugabyteDB. The mechanism was in
+the plans, not the SQL: PostgreSQL used `facts_rank_idx` and the inline copy pushed the
+selective predicate into the join, while YugabyteDB chose a Seq Scan with
+`Storage Filter: (rank <= 2000)` for every spelling, so materializing the join removed no
+work the engine was using. Consistently, the reuse reversal (`NOT MATERIALIZED` faster at a
+low consumer selection, slower at a high one) reproduced only on PostgreSQL; on YugabyteDB
+it was uniformly ~9-11x slower at 16 references. **A CTE-materialization rule measured on
+one engine is a hypothesis about plan pushdown, not a portable syntax fact.** Record the
+index/scan choice beside the ratio, or the same number will be over-generalised.
+
 
 

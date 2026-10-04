@@ -16,12 +16,31 @@ and the current local `main` (integrated before implementation).
 - [x] Claim the task; integrate current local `main` into the retained worktree.
 - [x] Implement the join/CTE family (SQL, fixture, oracles, runner, report,
       tests) as a self-contained addition; commit before any run.
-- [ ] Build the benchmark image and run per-engine feasibility checks.
-- [ ] Run >=3 whole runs per single-node engine (5 trials, seeded interleaving,
-      position control).
-- [ ] Generate reports, RESULT.md, coverage matrix and exact input digests.
-- [ ] Attempt/record the 3-node YB subset and the colocated/non-colocated pair.
+- [x] Build the benchmark image and run per-engine feasibility checks.
+- [x] Run >=3 whole runs per single-node engine (5 trials, seeded interleaving,
+      position control): 6 runs, **91/91 valid each**.
+- [x] Generate reports, RESULT.md, coverage matrix and exact input digests.
+- [x] Establish the status of the 3-node YB subset and the placement pair as an
+      explicit resource/harness coverage gap (not run).
 - [ ] Submit for HIGH review.
+
+### Outcome summary
+
+Two harness defects were found by feasibility and fixed before the matrix
+(inverted control detection; a MATERIALIZED cell was judged by a non-existent
+`Materialize` node — PostgreSQL 17 prints a `CTE Scan` instead). The matrix:
+six inner-join spellings are plan-identical within an engine; `MATERIALIZED` on
+a joined-output CTE costs 6.8x–88x on PostgreSQL but 1.02x–1.61x on YugabyteDB;
+the reuse crossing exists only on PostgreSQL, where `NOT MATERIALIZED` is faster
+at a 1% consumer but slower at 100%, while on YugabyteDB it is uniformly ~9–11x
+slower. Measured pairs and gaps are in `RESULT.md`; interpretation in the signed
+analysis `reports/analyses/20261004T-select-join-cte--deepseek-flash--2026-10-04.md`.
+
+### Post-run calibration outcome
+
+The handoff's 200,000-row fixture and all six thresholds were **feasible on both
+engines** (exact counts, 179,911-row widest drain, token supported), so the
+calibration did not reject any axis. No axis was altered after measurement.
 
 ## Decision Log
 
