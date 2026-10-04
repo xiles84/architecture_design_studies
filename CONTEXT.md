@@ -43,14 +43,16 @@ summary, not a second ledger.
 
 ## Current state
 
-### Book theory/case revision — **source complete; release validation in progress (2026-10-04)**
+### Book theory/case revision — **Edition 3 preview 2 (2026-10-04)**
 
 The owner found the mixed pilot/legacy PDF confusing and specified two reading parts.
-The revision implements Theory → six topics → twenty strategies, then five study cases
+The verified 83-page revision implements Theory → six topics → twenty strategies, then five study cases
 with theory-linked variations, compact numbers and observed/inferred/unmeasured boundaries.
 Older chapters are preserved as sources but excluded from the reading path. Evidence
 cards live in the appendix. Queue theory has no measured case; SELECT timing promotion
-remains separate. Task `task-20261004T132000Z-book-theory-cases`; validation receipt:
+remains separate. All 31 active claims are linked; source, semantic and rendered checks pass.
+Release milestone: `repo/data-architecture-book-v3-preview-2`.
+Task `task-20261004T132000Z-book-theory-cases`; validation receipt:
 [`docs/book-theory-cases-20261004/`](docs/book-theory-cases-20261004/VALIDATION.md).
 
 ### Book release and consolidation — **Edition 3 preview 1 on local main (2026-10-04)**

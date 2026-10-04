@@ -15,7 +15,8 @@
 - **Layout:** keep costs, case pointer and checklist together; use short conceptual
   optimistic diagram and retain expanded sequence in appendix. Confidence High.
 
-Source/check passes are recorded in the validation report. Canonical clean-source
-build and rendered acceptance are in progress.
+Source, semantic resolver, canonical clean-source build and rendered acceptance
+passed. The validation report records all 83 pages and representative high-resolution
+proofs. Only generated dist outputs differ from the producing book source commit.
 
 NEXT MODEL: HIGH
