@@ -48,12 +48,24 @@ summary, not a second ledger.
 Three of the four SELECT measuring families are measured, reviewed and
 integrated into local `main`:
 
+Independent HIGH review (GPT-6, 2026-10-04) found a shared ordering gap:
+all 19 primary whole runs retain fixed cell order, contrary to the protocol's
+randomized/interleaved requirement. The measurements below remain saved,
+correctness-gated observations; they are not accepted for promotion as fully
+controlled replicated numeric claims. The [signed review](studies/01-charity-tree/reports/discussions/20261004T-select-evidence--gpt6.md)
+and [exact input check](docs/select-evidence-review-20261004/CHECKS.md) preserve the
+original analyses and explain the disagreement. Targeted correction task
+`task-20261004T100822Z-select-order-correction` carries a LOW handoff to record
+randomized/interleaved execution and rerun matched phases. Final HIGH synthesis
+must review that correction as well as the remaining join/CTE family.
+
 - **Access paths** (`task-20261002T131729Z-select-access-paths`, tag
   `study-01/select-v5-access-paths`): seven whole runs on a 12,000-row fixture
   (three PG, three YB, one PG position control), all cells oracle-gated. P11
-  (keyset vs OFFSET) is confirmed with an **engine-specific crossing** (PG between
-  depth 100 and 1,000; YB between 1,000 and 10,000); P10 (OR vs `UNION ALL`) is
-  **falsified as stated** — `OR` is never worse, and on YB is consistently faster;
+  (keyset vs OFFSET) has an observed **engine-specific sign change** (PG between
+  depth 10 and 1,000, with depth 100 unresolved; YB between 1,000 and 10,000); P10 (OR vs `UNION ALL`) is
+  **falsified in the measured regimes** — `UNION ALL` has no resolved
+  replicated advantage, and YB observations consistently favor `OR`;
   the expression index is a labelled physical arm that changes the plan on
   PostgreSQL only (0.845 → 0.265 ms).
 - **Aggregate / per-parent top-N** (`task-20261002T131729Z-select-aggregate-topn`,
@@ -61,14 +73,16 @@ integrated into local `main`:
   fixture (three PG, three YB, two position controls), both controls fired 6/6.
   P8's reversal holds only on PostgreSQL (correlated below ~10 parents,
   pre-aggregation only at 10,000) and not on YugabyteDB, where the correlated
-  subquery reaches 8,460 ms at 10,000 parents; P9's LATERAL probe wins only at one
-  parent and `DISTINCT ON` is the fastest top-N spelling at scale on both engines.
+  subquery reaches 8,460 ms at 10,000 parents; P9's LATERAL probe has an observed
+  advantage at one YB parent. `DISTINCT ON` is lower than ROW_NUMBER at scale on PG;
+  the YB 10,000-parent comparison has mixed signs (2/3 lower, 1/3 higher).
 - **Membership / absence** (`task-20261002T131729Z-select-existence`, tag
   `study-01/select-v3-existence`): six whole runs on three fanout fixtures holding
   10,000 child rows constant (three PG, three YB, two position controls); both
   controls fired 18/18. P6's `JOIN + DISTINCT` penalty grows with fanout on
   PostgreSQL (1.4× at fanout 1 to 3.6–4.4× at fanout 100, 3/3 runs) and is absent
-  on YugabyteDB; `IN` and `EXISTS` are interchangeable; nullable `NOT IN`
+  on YugabyteDB; `IN` and `EXISTS` have no resolved latency difference in this
+  bounded fixture; nullable `NOT IN`
   returned the empty set at every level, and on PostgreSQL `NOT EXISTS` beats the
   LEFT-JOIN/`NOT IN` anti-joins by 2–3× at fanout 100.
 

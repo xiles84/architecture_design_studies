@@ -10,6 +10,17 @@ experiments**.
 
 ## Measurement
 
+### Repeated whole runs do not balance a fixed spelling order
+
+The 2026-10-04 independent SELECT review checked 19 primary whole runs: each
+family/engine retained one identical non-repeat execution sequence. Required
+wrong-answer controls fired, but they do not validate the timing order. A
+first/last repeat of one spelling also does not balance every paired spelling's
+state exposure. Record and check randomized per-run order and interleaved
+sample rounds, and retain exact primary-input manifests before promoting a
+replicated numeric claim. The review and correction handoff live under
+`docs/select-evidence-review-20261004/`; all earlier evidence remains intact.
+
 ### Ordered truth must retain database row arrival order
 
 The 2026-10-03 SELECT HIGH source review found that canonicalization sorted
