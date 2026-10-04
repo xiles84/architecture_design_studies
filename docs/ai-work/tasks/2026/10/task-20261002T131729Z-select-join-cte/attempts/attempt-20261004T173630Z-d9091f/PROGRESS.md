@@ -27,7 +27,14 @@ reports, signed analysis and all ten producing tags are preserved unedited.
   - live gate extended: empty-input fixture and the filtered-child LEFT JOIN
     spelling `j11_optional_derived`, plus the existing firing WHERE control.
   - failing-before/passing-after tests in `harness/select_join_report_test.go`.
-- [ ] **C2 Study 01 domain arm** (person/donation/charity) + re-run matrix.
+- [~] **C2 Study 01 domain arm** (person/donation/charity) + re-run matrix.
+  - [x] Domain fixture/DDL/views implemented (`selectbench/joindomain.go`); the
+    catalogue is shared unchanged. Projection, generated keys and rank proxy
+    documented in `docs/select-query-templates/reviews/20261004-join-corrective/DOMAIN-ARM.md`.
+  - [x] PG live gate passes; exact threshold counts and rank-index evidence;
+    `cte-domain` runs `select-join-domain2-feas-pg-20261004`.
+  - [ ] Corrected single-node matrix: 3 whole runs/engine x 5 trials, both
+    engines, under new run ids.
 - [~] **C3 effective WSL resource recheck** and budget calibration.
   - [x] Attestation: 8 CPU / 16,109,780 kB effective (the 4 CPU / 2048 MiB podman
     config is stale metadata). Budget plan recorded in
