@@ -43,6 +43,22 @@ summary, not a second ledger.
 
 ## Current state
 
+### Book release and consolidation — **Edition 3 preview 1 on local main (2026-10-04)**
+
+The concept-first pilot and all outstanding committed branch work are integrated.
+`book/dist/data-architecture-reference.pdf` is the verified **98-page Edition 3
+preview 1**, tag `repo/data-architecture-book-v3-preview-1`: 31/31 claims,
+6/6 embedded fonts, 17 reproduced figures and clean source provenance.
+The remaining legacy conversion is clearly marked as unfinished. Shorter passages,
+tables and mechanism diagrams implement the owner's reading preference.
+Build proof and cleanup receipts: [`docs/book-release-20261004/`](docs/book-release-20261004/VALIDATION.md).
+
+Cleanup hash-preserved 120 loose/ignored artifacts, then removed 15 completed
+worktrees and 60 merged branches; this release checkout is disposed after closure.
+The unfinished join/CTE plan and ready worktree remain. The pilot and SELECT order
+correction tasks are completed; producing tags and signed evidence remain intact.
+Queue audit: zero errors, two existing completed-T2 coordination warnings. No push/pull.
+
 ### SELECT measuring families — **access paths, aggregate/top-N and membership/absence integrated (2026-10-04)**
 
 Three of the four SELECT measuring families are measured, reviewed and
@@ -78,7 +94,7 @@ the raw inputs and all 18 annotated producing tags were correct and unchanged.
 The [signed HIGH qualification](studies/01-charity-tree/reports/discussions/20261004T-select-order-review--gpt6.md)
 corrects the LOW analysis's YB level-10 sign (mixed) and keeps the near-equality
 level-10,000 aggregate effect unresolved. Source/checks and tagged raw evidence
-are consolidated for local-main integration under `study-01/select-v7-order-controls`.
+are integrated into local main under `study-01/select-v7-order-controls`; the task is completed.
 Original runs and analyses are retained; no SELECT timing claim is added to the book.
 
 - **Access paths** (`task-20261002T131729Z-select-access-paths`, tag

@@ -74,3 +74,18 @@ LF checkout rules fixed the build without rewriting any scientific evidence.
 
 Release milestone: `repo/data-architecture-book-v3-preview-1`. Local only;
 remote synchronization remains with the owner.
+
+## Cleanup observed after integration
+
+`CLEANUP-RESULT.json` and the three `REMOVED-*.json` receipts record 15 completed
+worktrees, 60 merged branches and 120 archived originals removed. Every original
+branch tip remains reachable from main; the unfinished join/CTE branch and ready
+worktree remain. No worktree removal was forced and no tag was deleted or moved.
+
+The post-integration queue audit covers 88 tasks: zero errors and two older
+completed-T2 coordination warnings. The release live-ref warning is resolved.
+The pilot and SELECT order correction both have completed queue receipts and tags.
+
+After release queue completion, remove its clean checkout and merged branch.
+The annotated `repo/book-release-cleanup-20261004` tag records the final verified
+counts including that disposal; the current JSON records the observed counts above.
