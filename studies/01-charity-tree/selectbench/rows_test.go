@@ -50,6 +50,13 @@ func rowsFromOracle(t *testing.T, group string, want any, fx Fixture) [][]any {
 			out = append(out, []any{r.OrderID, nv(r.Amount)})
 		}
 		return out
+	case "sel_predicate_alt":
+		v := want.([]PredAltRow)
+		out := make([][]any, 0, len(v))
+		for _, r := range v {
+			out = append(out, []any{r.OrderID, nv(r.Amount)})
+		}
+		return out
 	}
 	t.Fatalf("no row builder for group %s", group)
 	return nil

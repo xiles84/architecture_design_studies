@@ -206,6 +206,69 @@ func Absence(fx Fixture, pred Pred) []int {
 	return out
 }
 
+// --- predicate-alternative contract (P10) ---------------------------------
+//
+// A disjunction over two predicate arms. The contract is a BAG of child orders:
+// an order that satisfies both arms still appears exactly once, because OR has
+// no multiplicity. `UNION` restores that bag even when the arms overlap;
+// `UNION ALL` is the same bag only while the arms are provably disjoint. The
+// deliberately-wrong control is `UNION ALL` over overlapping arms, which returns
+// a duplicated bag and must be detected rather than timed.
+
+// PredAltRow is one order in the predicate-alternative bag.
+type PredAltRow struct {
+	OrderID int
+	Amount  *int
+}
+
+// PredicateAlt is the OR bag over two predicate arms, ordered by order id.
+// A nil arm contributes nothing, so the zero Args value yields the empty bag.
+func PredicateAlt(fx Fixture, predA, predB Pred) []PredAltRow {
+	var out []PredAltRow
+	for _, o := range fx.Orders {
+		if (predA != nil && predA(o)) || (predB != nil && predB(o)) {
+			out = append(out, PredAltRow{o.ID, o.Amount})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].OrderID < out[j].OrderID })
+	return out
+}
+
+// PredicateAltOverlap mirrors the deliberately-wrong x05: `UNION ALL` of one arm
+// with itself, so every matching order appears twice.
+func PredicateAltOverlap(fx Fixture, pred Pred) []PredAltRow {
+	var out []PredAltRow
+	for pass := 0; pass < 2; pass++ {
+		for _, o := range fx.Orders {
+			if pred != nil && pred(o) {
+				out = append(out, PredAltRow{o.ID, o.Amount})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].OrderID < out[j].OrderID })
+	return out
+}
+
+// OverlapCount counts orders satisfying BOTH arms. Zero is the disjointness
+// proof required before UNION ALL may be compared with OR as the same bag.
+func OverlapCount(fx Fixture, predA, predB Pred) int {
+	if predA == nil || predB == nil {
+		return 0
+	}
+	n := 0
+	for _, o := range fx.Orders {
+		if predA(o) && predB(o) {
+			n++
+		}
+	}
+	return n
+}
+
+// AmountLE / AmountGE are the disjunction's arms. NULL never satisfies either,
+// matching SQL's three-valued logic.
+func AmountLE(n int) Pred { return func(o Order) bool { return o.Amount != nil && *o.Amount <= n } }
+func AmountGE(n int) Pred { return func(o Order) bool { return o.Amount != nil && *o.Amount >= n } }
+
 // OptionalMatch is the bag of parents with qualifying children or NULLs, sorted
 // by (customer, order-with-NULL-last).
 func OptionalMatch(fx Fixture, pred Pred) []OptRow {

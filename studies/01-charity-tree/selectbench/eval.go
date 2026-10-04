@@ -12,6 +12,14 @@ type Args struct {
 	Limit  int
 	Offset int
 	Last   *PageRow
+	// PredA/PredB are the two arms of a predicate-alternative disjunction. The
+	// Go predicates fix the logical answer; PredASQL/PredBSQL carry the SQL text
+	// for the same arms, which is what lets indexable, expression and cast
+	// shapes be the *same question* asked in three spellings.
+	PredA    Pred
+	PredB    Pred
+	PredASQL string
+	PredBSQL string
 	// SQL-side parameters, rendered into the statement by Bind.
 	PredSQL          string
 	LastAmount       int
@@ -56,11 +64,28 @@ var Evaluators = map[string]EvalFunc{
 	// pagination
 	"s16_page_offset": func(fx Fixture, a Args) any { return Page(fx, a.Limit, a.Offset) },
 	"s17_page_keyset": func(fx Fixture, a Args) any { return KeysetPage(fx, a.Limit, a.Last) },
+	// predicate alternatives (OR vs overlap-safe UNION / UNION ALL)
+	"s18_or_predicate": func(fx Fixture, a Args) any {
+		a1, a2 := defaultArms(a)
+		return PredicateAlt(fx, a1, a2)
+	},
+	"s19_union_all_predicate": func(fx Fixture, a Args) any {
+		a1, a2 := defaultArms(a)
+		return PredicateAlt(fx, a1, a2)
+	},
+	"s20_union_predicate": func(fx Fixture, a Args) any {
+		a1, a2 := defaultArms(a)
+		return PredicateAlt(fx, a1, a2)
+	},
 	// deliberately wrong controls
 	"x01_optional_where":    func(fx Fixture, a Args) any { return ControlOptionalWhere(fx, a.Pred) },
 	"x02_not_in_nullable":   func(fx Fixture, a Args) any { return ControlNotNullIn(fx, a.Pred) },
 	"x03_distinct_on_name":  func(fx Fixture, a Args) any { return ControlDistinctOnName(fx, a.Pred) },
 	"x04_limit_before_join": func(fx Fixture, a Args) any { return ControlLimitBeforeJoin(fx, a.Pred, a.Limit) },
+	"x05_union_all_overlap": func(fx Fixture, a Args) any {
+		a1, _ := defaultArms(a)
+		return PredicateAltOverlap(fx, a1)
+	},
 }
 
 // KeysetPage returns the page strictly after the cursor under the declared order.

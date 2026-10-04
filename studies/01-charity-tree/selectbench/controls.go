@@ -21,6 +21,7 @@ var controlContracts = map[string]string{
 	"x02_not_in_nullable":   "sel_absence",
 	"x03_distinct_on_name":  "sel_membership",
 	"x04_limit_before_join": "sel_full_rows",
+	"x05_union_all_overlap": "sel_predicate_alt",
 }
 
 // DetectControlRows requires a successful query with the same column shape as
