@@ -24,6 +24,10 @@ while a headline single-run claim from T1 is outstanding, unless the domain task
 close a hole the charter names. T3 and T4 may run in parallel with T1/T2 where they touch different
 studies, because measurement is serial anyway.
 
+**Status (2026-10-05).** Tasks are now published for T1 (Study 05 `v3-01`/`v3-05`/`v3-06`) and for
+the five T2 sweeps. A HIGH gate review releases Study 09 only if the gate closes. See
+[`docs/gate-closure-20261005/PLAN.md`](gate-closure-20261005/PLAN.md).
+
 ## T1 — run-level replication and order (first)
 
 Re-measure the single-run headline claims as ≥3 whole runs each, with an independently randomized

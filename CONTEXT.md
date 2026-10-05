@@ -43,6 +43,30 @@ summary, not a second ledger.
 
 ## Current state
 
+### T1/T2 gate closure — **planned; seven tasks published (2026-10-05)**
+
+The charter keeps Study 09 behind "T1 and T2 before T5". HIGH (Claude Opus 5.5) planned the closing
+work in [`docs/gate-closure-20261005/PLAN.md`](docs/gate-closure-20261005/PLAN.md) and published
+seven ready tasks, all prefixed `task-20261005T151500Z-`. No measurement was run to plan them.
+
+- **T1 (LOW, priority 62):** `t1-study05-completion` gates impossible cache values first, then
+  replicates `v3-01`, `v3-05` and `v3-06` with verified tablets and leaders. The deferral premise
+  ("2 GiB machine") was false.
+- **T2 (LOW, priority 60):** five sweeps, each with at least five levels and three runs:
+  - `t2-study04-cardinality-sweep`;
+  - `t2-study01-donations-per-donor-sweep`;
+  - `t2-study01-hot-parent-skew-sweep` (adds a deterministic skew knob);
+  - `t2-study05-capacity-sweep`;
+  - `t2-study05-open-loop-knee-sweep`.
+- **Gate (HIGH, priority 58):** `t5-gate-review` depends on all six, decides the gate claim by
+  claim, and releases the Study 09 hierarchy tasks only if it is closed.
+- **Fixed decisions for every task:**
+  - sizing from the effective guest (8 CPUs, ≈15.36 GiB), reusing the primary's budgets;
+  - seeded randomized or AB/BA order;
+  - oracle gates with firing negative controls;
+  - registry discipline (`run_replicated` only with a prior prediction).
+- **Milestone:** `repo/gate-closure-plan-20261005`.
+
 ### Book Edition 3 preview 4 — **measured SELECT cases published (2026-10-05)**
 
 `task-20261004T142623Z-select-book-high` (HIGH, Claude Opus 5.5) added the
