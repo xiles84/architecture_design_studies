@@ -29,6 +29,7 @@ Results come from one shared-core host with no real network between cluster cont
 #table(columns: (1fr, 1.7fr), inset: 6pt, stroke: 0.4pt + palette.rule,
   table.header([Badge], [Meaning]),
   [Replicated], [Observed across whole runs; the card still names spread and limits.],
+  [Repeated — no prior prediction], [Observed across whole runs, but no direction was recorded before them.],
   [Single run], [Direction in one run, not a stable universal magnitude.],
   [Mechanism], [An implemented mechanism; no measured rate is implied.],
   [Analogy], [Transferred intuition, not evidence for the new workload.],

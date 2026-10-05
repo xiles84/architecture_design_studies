@@ -139,15 +139,16 @@ Summary numbers belong to the named comparison and environment, not to a univers
 #heading(level: 2, numbering: none, "Study-case coverage map") <case-coverage>
 #table(columns: (1fr, 1.7fr), inset: 6pt, stroke: 0.4pt + palette.rule,
   table.header([Case], [Theory put into practice]),
-  [#link(<case-charity>)[Charity donations]], [Schemas, indexes, copied keys, rollups and embedding; #link(<case-charity-join-plan>)[planned join/filter comparison].],
+  [#link(<case-charity>)[Charity donations]], [Schemas, indexes, copied keys, rollups and embedding; measured SELECT templates from #link(<case-charity-join-plan>)[join and filter] to #link(<case-charity-pagination>)[pagination], #link(<case-charity-placement>)[verified cluster placement] and the #link(<case-charity-select-guide>)[template guide].],
   [#link(<case-ticket>)[Ticket booking]], [Hot rows, history and current state.],
   [#link(<case-seating>)[Reserved seating]], [Expiry, ownership and bounded embedding.],
   [#link(<case-config>)[Configuration portal]], [Rollup maintenance and concurrent editing.],
   [#link(<case-cache>)[Cache consistency]], [Freshness, invalidation, fencing and cluster access.],
 )
-#gap[SELECT theory is supported by query protocols and correctness work, but the frozen registry
-does not yet promote the newer SELECT measurement families. Queues have no registered measured case.
-Their expected boundaries are teaching examples, not benchmark results.]
+#gap[The SELECT families are measured on one laptop with one sequential reader. Their YugabyteDB
+membership, absence and pagination figures come from scan-only plans, and only the join family has a
+cluster arm. Queues have no registered measured case. Their expected boundaries are teaching examples,
+not benchmark results.]
 
 #include "cases/01-charity-tree.typ"
 #include "cases/02-ticket-booking.typ"

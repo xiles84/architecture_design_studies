@@ -87,12 +87,12 @@ Theory: #link(<theory-cache-fencing>)[Lease and version fencing] and #link(<theo
 Theory: #link(<theory-placement>)[Placement and resource controls].
 
 #gap[
-  Physical tablet/leader placement is unverified. The layout labels describe intent, and all nodes share one host.
+  Physical tablet/leader placement is unverified in this case. The layout labels describe intent, and all nodes share one host. Only the #link(<case-charity-placement>)[Charity placement variation] records tablets and leaders.
   #claim-badge("v4-gap-01-physical-placement-unverified")
 ]
 
 #gap[
-  Endpoint coverage is partial: earlier clusters use one endpoint; this study's distribution records node count without a verified per-endpoint balance.
+  Endpoint coverage is partial: earlier clusters use one endpoint, and this study records node count without a per-endpoint balance. The Charity SELECT cluster runs record a balanced per-endpoint count.
   #claim-badge("v4-gap-02-endpoint-distribution-partial")
 ]
 

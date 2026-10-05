@@ -14,7 +14,7 @@ Strategies: #link(<theory-select-contract>)[The answer contract] · #link(<theor
   ([An inner join silently drops required parents.], [Deduplication removes meaningful repeated facts.], [A faster query answers a narrower question.],),
   ([Work required by the answer contract.], [None unless a maintained answer is introduced.], [Intermediate rows or maintained results.], [Validate all alternatives against the same oracle.], [Keep wrong-answer controls.],),
   flow-picture(([Business question], [Answer contract], [Oracle-checked result],), "The answer contract: the operation path.", [Business question → Answer contract → Oracle-checked result. Arrows show logical order, not a measured duration.]),
-  ([Same logical answer across alternatives.], [Base facts and query results.], [Execution resources; not a new storage invariant.], [None for plain query spelling.], [The returned relation.], [Source snapshots or external copies.], [Unspecified grain, multiplicity, NULLs, ties or order.], [Compare edge-case outputs before timing.],), "case-coverage", measured: false, example: [
+  ([Same logical answer across alternatives.], [Base facts and query results.], [Execution resources; not a new storage invariant.], [None for plain query spelling.], [The returned relation.], [Source snapshots or external copies.], [Unspecified grain, multiplicity, NULLs, ties or order.], [Compare edge-case outputs before timing.],), "case-charity-select-guide", measured: true, example: [
 #table(columns: (1fr, 1.5fr), inset: 5pt, stroke: 0.4pt + palette.rule,
 table.header([Business question], [Required grain]),
 [Who donated?], [One row per qualifying donor.],
@@ -35,7 +35,7 @@ A join can multiply donor rows. DISTINCT repairs only the intended grain; it mus
   ([A child WHERE predicate discards required outer-join parents.], [A subquery changes duplicates, aggregation or limit semantics.], [Written filter order is treated as a timing guarantee.],),
   ([The chosen scan and join, not the position of WHERE.], [No extra maintained state.], [Plan-dependent join and intermediate-row memory.], [Preserve duplicates and required unmatched parents.], [Compare EXPLAIN ANALYZE and replicated timings with matched inputs.],),
   flow-picture(([Equivalent SQL forms], [Optimizer transformations], [Chosen scan and join],), "Query spelling and execution.", [Different SQL expressions can become the same scan and join. This is a conceptual optimization path, not proof of a particular engine plan.]),
-  ([Return the same bag of customer-order rows.], [Customer and order base tables.], [Scan, join and client resources.], [None for these query forms.], [Transient joined rows.], [Results reflect the selected database snapshot.], [A changed answer or an unfavorable scan/join plan.], [Verify bags, sweep selectivity and compare plans across replicated runs.],), "case-charity-join-plan", measured: false, example: [
+  ([Return the same bag of customer-order rows.], [Customer and order base tables.], [Scan, join and client resources.], [None for these query forms.], [Transient joined rows.], [Results reflect the selected database snapshot.], [A changed answer or an unfavorable scan/join plan.], [Verify bags, sweep selectivity and compare plans across replicated runs.],), "case-charity-join-plan", measured: true, example: [
 *Illustrative tables:* `customers(id, name)` and `orders(id, customer_id, amount)`.
 Ana (id 1) has orders 11 and 14 worth 200 each. Ben (id 2) has an order worth 80 and one with NULL amount; Cara (id 3) has none.
 
@@ -124,7 +124,7 @@ Filtering the child input before LEFT JOIN is equivalent to the first form. EXIS
   ([A one-use materialized result includes mostly discarded rows.], [Separate evaluation blocks a useful outer predicate.], [Forced folding repeats expensive work across many references.],),
   ([Filter pushdown versus shared or repeated computation.], [No persisted rollup or refresh job for a SELECT CTE.], [Transient result memory and possible temporary-file spills.], [Both policies must preserve the same answer and snapshot.], [Inspect engine support, CTE scans, loops and temp/RPC counters.],),
   flow-picture(([Named CTE input], [Fold or evaluate separately], [Filter and reuse],), "The CTE execution choice.", [Folding combines the CTE with its parent for optimization. Materialization evaluates a separate result that consumers can reuse. No branch is universally faster.]),
-  ([Same values and multiplicities under either policy.], [Base facts and a transient CTE result.], [Repeated CPU work or intermediate memory/I/O.], [None; materialization here is per query, not a stored read model.], [The CTE output.], [Only the query snapshot; there is no later refresh lifecycle.], [Selective one-use access or repeated reuse with the wrong policy.], [Sweep selectivity and reuse separately with oracle checks and actual plan evidence.],), "case-charity-join-plan", measured: false, example: [
+  ([Same values and multiplicities under either policy.], [Base facts and a transient CTE result.], [Repeated CPU work or intermediate memory/I/O.], [None; materialization here is per query, not a stored read model.], [The CTE output.], [Only the query snapshot; there is no later refresh lifecycle.], [Selective one-use access or repeated reuse with the wrong policy.], [Sweep selectivity and reuse separately with oracle checks and actual plan evidence.],), "case-charity-cte-reuse", measured: true, example: [
 #table(columns: (1fr, 1.7fr), inset: 5pt, stroke: 0.4pt + palette.rule,
 table.header([Format], [Expected behavior on PostgreSQL 17]),
 [`WITH q AS (...)`], [A nonrecursive, side-effect-free, single-use CTE normally folds; multiple references normally materialize.],
@@ -147,7 +147,7 @@ These are predictions. Compare default, MATERIALIZED and NOT MATERIALIZED with i
   ([The output requires child details.], [NOT IN receives NULL without an explicit contract.], [An equivalent spelling is assumed faster everywhere.],),
   ([Plan-dependent probes or scans.], [No extra maintained state.], [Transient plan structures.], [Membership must preserve NULL and duplicate semantics.], [Inspect plans under measured fan-out regimes.],),
   flow-picture(([Parent candidate], [Related-row test], [Keep or reject parent],), "Membership and absence: the operation path.", [Parent candidate → Related-row test → Keep or reject parent. Arrows show logical order, not a measured duration.]),
-  ([Return exactly the required parent membership.], [Parent and child rows.], [Read execution resources.], [None for equivalent SQL spellings.], [Membership answer.], [The selected snapshot can differ from later writes.], [Wrong NULL behavior or changed output grain.], [Sweep fan-out with matched answers and negative controls.],), "case-coverage", measured: false, example: [
+  ([Return exactly the required parent membership.], [Parent and child rows.], [Read execution resources.], [None for equivalent SQL spellings.], [Membership answer.], [The selected snapshot can differ from later writes.], [Wrong NULL behavior or changed output grain.], [Sweep fan-out with matched answers and negative controls.],), "case-charity-membership", measured: true, example: [
 *Illustrative SQL:* these generic table names show the contract, not a benchmark implementation.
 ```sql
 SELECT p.id
@@ -167,7 +167,7 @@ Use NOT EXISTS for absence. A nullable NOT IN input can make a predicate unknown
   ([Every parent causes an expensive repeated scan.], [Pre-aggregation processes mostly unrequested data.], [A top-one query silently discards tied answers.],),
   ([Per-parent probes or shared processing.], [No extra writes for read-time aggregation.], [Intermediate aggregates, sorting or ranking.], [Empty groups and ties need an explicit rule.], [Measure several regimes and query plans.],),
   flow-picture(([Requested parents], [Probe or process together], [Totals or top-N],), "Aggregation and per-parent top-N: the operation path.", [Requested parents → Probe or process together → Totals or top-N. Arrows show logical order, not a measured duration.]),
-  ([Aggregate and top-N answers preserve empty groups and ties.], [Child facts plus transient processing.], [Query execution resources.], [None until a stored rollup is introduced.], [Read-time summaries and ranks.], [Maintained aggregates, if added separately.], [An unfavorable requested-parent count or access path.], [Sweep parent count with oracle checks and shuffled measurement order.],), "case-coverage", measured: false, example: [
+  ([Aggregate and top-N answers preserve empty groups and ties.], [Child facts plus transient processing.], [Query execution resources.], [None until a stored rollup is introduced.], [Read-time summaries and ranks.], [Maintained aggregates, if added separately.], [An unfavorable requested-parent count or access path.], [Sweep parent count with oracle checks and shuffled measurement order.],), "case-charity-aggregate", measured: true, example: [
 #table(columns: (1fr, 1.5fr), inset: 5pt, stroke: 0.4pt + palette.rule,
 table.header([Strategy], [Work it performs]),
 [Correlated aggregate], [Compute the child answer separately for each requested parent.],
@@ -183,12 +183,14 @@ COUNT of an empty set yields zero. A missing joined summary needs an explicit ze
   ([Users need arbitrary page-number jumps.], [Order lacks a stable tie-breaker.], [A shallow-page result is extrapolated to all depths.],),
   ([Continue after a key or scan and discard a prefix.], [Normal index maintenance.], [Cursor state plus access-path entries.], [Define behavior when rows appear, move or disappear.], [Version cursor formats and bound page sizes.],),
   flow-picture(([Ordered rows], [Last-key cursor], [Next matching page],), "Pagination and access paths: the operation path.", [Ordered rows → Last-key cursor → Next matching page. Arrows show logical order, not a measured duration.]),
-  ([Return the correct next page under the chosen order.], [Rows, index and cursor keys.], [Query execution resources.], [Only ordinary index maintenance.], [Continuation cursor.], [A cursor can refer to rows changed since its creation.], [Unsupported jumps or an unfavorable engine/depth regime.], [Verify identical pages and sweep depth by engine.],), "case-coverage", measured: false, example: [
+  ([Return the correct next page under the chosen order.], [Rows, index and cursor keys.], [Query execution resources.], [Only ordinary index maintenance.], [Continuation cursor.], [A cursor can refer to rows changed since its creation.], [Unsupported jumps or an unfavorable engine/depth regime.], [Verify identical pages and sweep depth by engine.],), "case-charity-pagination", measured: true, example: [
 *Illustrative ascending order:* the cursor holds both ordering keys.
 ```sql
 WHERE (created_at, id) > (:last_time, :last_id)
 ORDER BY created_at, id
 LIMIT :page_size
 ```
-The id resolves timestamp ties. OFFSET supports page-number navigation; this cursor supports continuation from a known key.
+The id resolves timestamp ties. OFFSET supports page-number navigation; this cursor supports continuation from a known key. A flat cost per page needs an index that matches the whole order.
+
+*Access paths for a disjunction.* One OR over an indexed column can use that index once. Rewriting it as UNION ALL is safe only when the branches cannot overlap. A predicate written as an expression needs an index on that same expression.
 ])

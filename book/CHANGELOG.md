@@ -1,5 +1,19 @@
 # CHANGELOG — *Data Architecture Reference*
 
+## Edition 3 preview 4 — 2026-10-05
+
+Publishes the reviewed SELECT results in the Charity donations case: join forms and the CTE
+fence, CTE reuse, membership and absence, totals and each donor's top donation, pagination and
+disjunctions, verified three-node placement, and a compact template guide. The 18 claims of the
+SELECT synthesis (`v6-sel-*`) are cited. YugabyteDB's scan-only access plans and the missing cluster
+arms are shown as a coverage gap.
+
+Each SELECT theory strategy now links to its measured variation; theory keeps expectations without
+numbers. The `repeated_controlled` badge reads "repeated — no prior prediction". The glossary adds
+tablet and leader, semi-join and anti-join, keyset pagination and position drift. The cache case's
+placement gaps name the verified Charity placement. Frozen evidence, signed analyses and producing
+tags are preserved. Milestone: `repo/book-select-query-templates-high-v1`.
+
 ## Edition 3 preview 3 — 2026-10-04
 
 Adds theory lessons for six equivalent join/filter forms, LEFT JOIN semantic

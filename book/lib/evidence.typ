@@ -247,7 +247,7 @@
 #let strength-label(s) = {
   if s == "run_replicated" { "replicated" }
   else if s == "single_run_directional" { "single run — direction only" }
-  else if s == "repeated_controlled" { "repeated within one run" }
+  else if s == "repeated_controlled" { "repeated — no prior prediction" }
   else if s == "mechanism_supported" { "mechanism" }
   else if s == "hardware_replicated" { "replicated on independent hardware" }
   else if s == "analogy" { "analogy" }
