@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261005T160000Z-book-derived-table-clarity` |
-| State | `approved_for_integration` |
-| Sequence | `6` |
+| State | `completed` |
+| Sequence | `7` |
 | Active attempt | none |
 | Active worker | `model=claude-opus-5-5 tool=Claude Code desktop effort=xhigh session=session-20261005-derived-table capability=HIGH role=integrator` |
-| Last event | `event-20261005T162725Z-integrated` |
-| Updated at | `2026-10-05T16:27:25Z` |
-| Next capability | HIGH |
-| Next work role | integrator |
+| Last event | `event-20261005T162915Z-completed` |
+| Updated at | `2026-10-05T16:29:15Z` |
+| Next capability |  |
+| Next work role |  |
 | Branch | `book/derived-table-clarity` |
 | Worktree | `.worktrees/book-derived-table-clarity` |
 
-Integrated into local `main`. NEXT: `queue complete`.
+Task complete. The immutable event files remain the record.
