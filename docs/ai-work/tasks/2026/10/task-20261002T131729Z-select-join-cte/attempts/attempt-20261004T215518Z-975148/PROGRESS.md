@@ -93,6 +93,32 @@ This attempt executes
 
 ## Status
 
-Code frozen at `b108fafe` (plus evidence commit `65f79e04`). `go vet` and
-`go test` pass. The matrix is starting; each run uses a new id under
-`select-join-v3-…-20261005` and an annotated producing tag.
+Code frozen at `b108fafe`, corrected by `7243fee0`; results committed at
+`a05d80e4`. `go vet` and `go test` pass. Claim `claim-f4eafb4a52e60123`.
+
+### Round-2 outcome (2026-10-05)
+
+- **Gate correction (decision 6).** The topology subset's thresholds are
+  `[20, 2000, 180000]`; gating on the first three required the rank index at
+  180000 (90%), where a sequential scan is the correct plan, and refused to
+  measure the subset (`select-join-v3-topo-single-i1-20261005` records gate
+  20/2000 used, 180000 NOT USED, no cells). The gate now checks the handoff's
+  named thresholds 20/200/2000, falling back to the two most selective; test
+  `TestGateThresholdsFor`. This changed the client build, so **every** affected
+  arm was re-run under the new frozen build (`v3b`); the v3 runs are retained as
+  a labelled cross-build observation, separated by client image digest.
+- **37 v3b runs, one build, all correctness-gated:** domain PG and YB range,
+  isolated and blended (91/91 each); topology single / equal-total / cluster3,
+  isolated and blended (30/30 each); colocated cluster3 isolated and blended
+  (30/30 each, `is_colocated = true`).
+- **M1 is fixed and visible:** YB index-scan plans went 0 → 66-67 per domain run;
+  `j01` at threshold 20 scans 110 storage rows (20 index rows) instead of
+  200,000. The corrected engine contrast for forced `MATERIALIZED` is PG ~97x vs
+  YB ~42x at 20 rows (v2 reported YB 1.4-1.7x on the hash arm).
+- **M2 is a measured arm, not a gap:** the colocated database was created and
+  run; placement evidence (`yb_table_properties`, `yb_local_tablets`,
+  `yb-admin list_tablets` leaders) is saved per cluster run.
+- Reports: `reports/select-join-v3b-domain-replicated-20261005.md`,
+  `reports/select-join-v3b-topology-20261005.md` (byte-identical re-render
+  proven). The pooled topology report and analyses v1/v2 moved to
+  `reports/outdated/` with `REPLACEMENTS-select-join.md`. v3 analysis published.
