@@ -3,15 +3,17 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261002T131729Z-select-join-cte` |
-| State | `awaiting_review` |
-| Sequence | `12` |
-| Active attempt | `attempt-20261004T215518Z-975148` |
-| Active worker | `model=deepseek-flash tool=opencode/CLI effort=unknown session=unknown capability=LOW role=executor` |
-| Last event | `event-20261005T002755Z-submitted` |
-| Updated at | `2026-10-05T00:27:55Z` |
-| Next capability | HIGH |
-| Next work role | reviewer |
+| State | `changes_requested` |
+| Sequence | `13` |
+| Active attempt | none |
+| Active worker | `model=claude-opus-5-5 tool=Claude Code desktop effort=unknown session=session-20261005-select-join-high-review-3 capability=HIGH role=reviewer` |
+| Last event | `event-20261005T021728Z-changes-requested` |
+| Updated at | `2026-10-05T02:17:28Z` |
+| Next capability | LOW |
+| Next work role | executor |
 | Branch | `study-01/select-join-cte` |
 | Worktree | `.worktrees/select-join-cte` |
 
-Awaiting HIGH review. Result: `docs/ai-work/tasks/2026/10/task-20261002T131729Z-select-join-cte/attempts/attempt-20261004T215518Z-975148/RESULT.md`.
+Corrections required: Apply HIGH corrective handoff 3: pre-split leader-spread distributed cluster arm with placement gate; one-build 30-run topology subset; v4 analysis fixing the inverted P4 verdict; minor reporting fixes. Domain matrix is final.
+
+Claim again with `queue claim --task task-20261002T131729Z-select-join-cte`.
