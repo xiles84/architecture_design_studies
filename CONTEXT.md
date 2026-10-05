@@ -43,6 +43,33 @@ summary, not a second ledger.
 
 ## Current state
 
+### Book Edition 3 preview 4 — **measured SELECT cases published (2026-10-05)**
+
+`task-20261004T142623Z-select-book-high` (HIGH, Claude Opus 5.5) added the
+reviewed SELECT results to the Charity donations case and integrated them under
+`repo/book-select-query-templates-high-v1`.
+
+- **Case variations:**
+  - join forms and the CTE fence;
+  - CTE reuse;
+  - membership and absence;
+  - totals and the top donation;
+  - pagination and disjunctions;
+  - verified three-node placement;
+  - a compact SELECT template guide.
+- **Coverage:** all 18 `v6-sel-*` claims are cited, and theory links each
+  SELECT strategy to its variation.
+- **Corrections:**
+  - the placement figure was regenerated, because it had said placement was
+    unverified everywhere;
+  - the `repeated_controlled` badge now reads "repeated — no prior prediction".
+- **Tracked PDF:** 98 pages, 49/49 claims, 4/4 fonts, sha256 `be83c942…`, built
+  from clean commit `bf03e408`.
+- **Receipt:** [validation](docs/book-select-high-20261005/VALIDATION.md), with
+  a 34/34 reader audit and inspected proofs.
+- **Old LOW task:** `select-book` still shows `ready` (queue v1 cannot retire
+  it). Do not execute it; this task delivered its scope.
+
 ### SELECT synthesis — **signed; 18 claims registered (2026-10-05)**
 
 `task-20261002T131729Z-select-synthesis` (HIGH, Claude Opus 5.5) scored P1–P12
@@ -70,8 +97,7 @@ v3b join domain and the v4 placement runs: 60 tagged runs, inputs digest
   scan-only (hash-sharded default indexes).
 - **Gaps narrowed:** `v4-gap-01` and `v4-gap-02` are now partially superseded,
   because the join runs verified placement and endpoint balance.
-- **Book PDF:** the tracked PDF predates these claims.
-- **Next:** HIGH `task-20261004T142623Z-select-book-high`.
+- **Book:** published in Edition 3 preview 4 (see above).
 - **Milestone:** `study-01/select-v6-analysis`. The queue's events record the
   integration.
 
@@ -139,7 +165,8 @@ The benchmark lock is free.
 The owner requested the missing comparison and specified LOW measurement followed
 by HIGH book-result authorship. Theory now shows six equivalent INNER JOIN forms,
 LEFT JOIN answer differences and CTE folding/materialization. The Charity donations
-case links a clearly planned variation; no new SELECT timing claim is promoted.
+case's planned variation was replaced by measured results in Edition 3 preview 4
+(see above).
 
 `task-20261002T131729Z-select-join-cte` is now integrated (see above).
 The [dated handoff](docs/select-query-templates/JOIN-HANDOFF-20261004.md) resolves
