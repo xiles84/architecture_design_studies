@@ -148,7 +148,33 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_NODE_BUDGET=$DB_CPUS CPU $DB_MEMORY" -e "ADS_CLIENT_BUDGET=$CLIENT_CPUS CPU $CLIENT_MEMORY" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology "$TOPOLOGY" -scale "$SCALE" -seed "$SEED" \
   -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG $TOPO_FLAG -phase "$PHASE" -placement "$PLACEMENT" -index-arm "$INDEX_ARM" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
-  -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1
+  -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1 &
+CLIENT_PID=$!
+# Distributed placement: the client creates and pre-splits the schema, then
+# waits for us to confirm that the three tablets' leaders are on three distinct
+# nodes. We poll the load balancer for up to five minutes, save the listing
+# before the run, and release the client only when the spread is real. If it
+# never spreads, the gate file is not written and the client aborts the run.
+if [[ "$TOPOLOGY" == cluster3 && "$PLACEMENT" == distributed ]]; then
+  KEYS_DB="$(printf '%s' "$DSN" | cut -d, -f1 | sed -E 's#.*/([^?]+)\?.*#\1#')"
+  for _ in $(seq 1 120); do [ -f "$OUTDIR/resources/placement-prepared" ] && break; sleep 2; done
+  leader_ok=0
+  listing=""
+  for _ in $(seq 1 150); do
+    listing="$(podman exec "${NODES[0]}" yb-admin --master_addresses "${NODES[0]}:7100" list_tablets "ysql.${KEYS_DB}" donation 2>&1 || true)"
+    n="$(printf '%s\n' "$listing" | awk 'NR>1 && $3!="" {print $3}' | sort -u | grep -c .)"
+    if [ "$n" -ge 3 ]; then leader_ok=1; break; fi
+    sleep 2
+  done
+  printf '%s\n' "$listing" >"$OUTDIR/resources/placement-leaders-before.txt"
+  : >"$OUTDIR/resources/leader-summary.txt"
+  for t in charity person donation donation_rank_idx donation_person_idx; do
+    L="$(podman exec "${NODES[0]}" yb-admin --master_addresses "${NODES[0]}:7100" list_tablets "ysql.${KEYS_DB}" "$t" 2>/dev/null | awk 'NR>1 && $3!="" {print $3}' | sort -u | paste -sd, -)"
+    printf '%s: %s\n' "$t" "$L" >>"$OUTDIR/resources/leader-summary.txt"
+  done
+  [ "$leader_ok" = 1 ] && : >"$OUTDIR/resources/placement-gate.ok"
+fi
+wait "$CLIENT_PID"
 RESULT_RC=$?
 set -e
 cat "$OUTDIR/resources/client.log"

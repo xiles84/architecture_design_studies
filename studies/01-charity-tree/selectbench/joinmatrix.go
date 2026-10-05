@@ -281,8 +281,19 @@ type JoinResult struct {
 	// runner from the before/after cpu.stat files. It is loaded at render time,
 	// because the "after" file exists only once the run has finished.
 	NodeThrottle []NodeThrottleStat `json:"node_throttle,omitempty"`
-	Notes        []string           `json:"notes,omitempty"`
-	Error        string             `json:"error,omitempty"`
+	// LeaderNodes is the per-relation set of tablet leader nodes, written by the
+	// runner from yb-admin and loaded at render time. It is the placement
+	// evidence review 3 requires: tablet and leader placement, not container
+	// locality.
+	LeaderNodes []LeaderLine `json:"leader_nodes,omitempty"`
+	Notes       []string     `json:"notes,omitempty"`
+	Error       string       `json:"error,omitempty"`
+}
+
+// LeaderLine is one relation's distinct tablet-leader nodes.
+type LeaderLine struct {
+	Relation string   `json:"relation"`
+	Nodes    []string `json:"nodes"`
 }
 
 // NodeThrottleStat is one container's CPU-throttling delta over the run.

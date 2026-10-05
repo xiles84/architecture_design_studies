@@ -234,6 +234,16 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 		}
 		b.WriteString("\n")
 	}
+	if len(r.LeaderNodes) > 0 {
+		b.WriteString("Tablet leaders per relation (placement evidence; the runner read these through yb-admin):\n\n| relation | leader nodes |\n|---|---|\n")
+		for _, l := range r.LeaderNodes {
+			fmt.Fprintf(&b, "| %s | %s |\n", l.Relation, orUnknown(strings.Join(l.Nodes, ", ")))
+		}
+		b.WriteString("\n")
+	}
+	if v := r.Provenance.Settings["shards_per_tserver"]; v != "" {
+		fmt.Fprintf(&b, "Effective sharding flag (from the engine): `%s`. A relation with fewer tablets than this setting was created without an explicit split; the per-table `num_tablets` above is the authority.\n\n", v)
+	}
 
 	b.WriteString("## Throttling (cgroup `cpu.stat` deltas)\n\n")
 	if bp, bt, bu, ok := parseCPUStat(r.Provenance.ClientCPUStatBefore); ok {
@@ -253,13 +263,17 @@ func RenderJoinRun(r JoinResult, inputsDigest string) (string, error) {
 	b.WriteString("\n")
 
 	b.WriteString("## Access path per cell\n\n")
-	b.WriteString("_Engine-reported from each cell's own plan: whether the rank index or a sequential scan was used, rows scanned, PostgreSQL buffers and filter removals, and reader retries of transient conflicts. A cell that scanned the whole table at a selective threshold is a different physical regime, not a faster query._\n\n")
-	b.WriteString("| axis | status | index scan | seq scan | storage rows scanned | index rows scanned | buffers hit/read | rows removed | retries |\n|---|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("_Engine-reported from each cell's own plan. The two scan flags are **whole-plan** booleans: they are true when any node of the plan is an index scan / sequential scan, including small parent-table scans, so they are not the rank access path. `storage rows scanned` is the engine's own count (YugabyteDB); PostgreSQL does not print one and it is shown as n/a. A cell that scanned the whole child table at a selective threshold is a different physical regime, not a faster query._\n\n")
+	b.WriteString("| axis | status | whole-plan index scan | whole-plan seq scan | storage rows scanned | index rows scanned | buffers hit/read | rows removed | retries |\n|---|---|---|---|---|---|---|---|---|\n")
 	accessCells := append([]Cell(nil), r.Cells...)
 	sort.Slice(accessCells, func(i, j int) bool { return accessCells[i].Axis < accessCells[j].Axis })
 	for _, c := range accessCells {
-		fmt.Fprintf(&b, "| %s | %s | %v | %v | %d | %d | %d/%d | %d | %d |\n",
-			c.Axis, c.Status, c.PlanIndexScan, c.PlanSeqScan, c.StorageRowsScanned, c.IndexRowsScanned, c.BufSharedHit, c.BufSharedRead, c.RowsRemovedByFilter, c.Retries)
+		storage := "n/a"
+		if c.StorageRowsScanned > 0 || r.Engine == "yugabyte" {
+			storage = fmt.Sprint(c.StorageRowsScanned)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %v | %v | %s | %d | %d/%d | %d | %d |\n",
+			c.Axis, c.Status, c.PlanIndexScan, c.PlanSeqScan, storage, c.IndexRowsScanned, c.BufSharedHit, c.BufSharedRead, c.RowsRemovedByFilter, c.Retries)
 	}
 	b.WriteString("\n")
 
@@ -527,7 +541,7 @@ func RenderJoinReplicated(runs []JoinResult) (string, error) {
 		}
 	}
 	b.WriteString("\n## Per-run endpoint, writer, retry and throttling evidence\n\n")
-	b.WriteString("| run | topology | phase | index arm | endpoints (ops) | writer offered/completed/failed | writer rate/s | reader retries | overlap | node throttled periods (usec) | client throttled periods (usec) |\n|---|---|---|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("| run | topology | phase | index arm | placement | tablets (donation, rank idx) | donation leaders | endpoints (ops) | writer offered/completed/failed | writer rate/s | reader retries | overlap | node throttled periods (usec) | client throttled periods (usec) |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, r := range runs {
 		eps := "single"
 		if len(r.Endpoints) > 1 {
@@ -564,8 +578,30 @@ func RenderJoinReplicated(runs []JoinResult) (string, error) {
 				clientThrottle = fmt.Sprintf("%d (%d) [periods %d]", at-bt, au-bu, ap-bp)
 			}
 		}
-		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %d | %d/%d | %s | %s |\n",
-			r.RunID, r.Topology, orUnknown(r.Phase), orUnknown(r.Provenance.Settings["index_arm"]), eps, w, rate,
+		tablets := "-"
+		for _, p := range r.Placement {
+			base := p.Table
+			if i := strings.LastIndex(base, "."); i >= 0 {
+				base = base[i+1:]
+			}
+			if base == "donation" || base == "donation_rank_idx" {
+				if tablets == "-" {
+					tablets = ""
+				} else {
+					tablets += ", "
+				}
+				tablets += fmt.Sprintf("%s=%d", base, p.NumTablets)
+			}
+		}
+		leaders := "not recorded"
+		for _, l := range r.LeaderNodes {
+			if l.Relation == "donation" {
+				leaders = strings.Join(l.Nodes, ",")
+			}
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %d | %d/%d | %s | %s |\n",
+			r.RunID, r.Topology, orUnknown(r.Phase), orUnknown(r.Provenance.Settings["index_arm"]),
+			orUnknown(r.Provenance.Settings["placement"]), tablets, leaders, eps, w, rate,
 			retries, r.WriterOverlapSamples, r.WriterSamples, nodeThrottle, clientThrottle)
 	}
 	b.WriteString("\n")

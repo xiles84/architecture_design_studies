@@ -74,3 +74,22 @@ func TestParseAccessMetrics(t *testing.T) {
 		t.Fatalf("rows removed = %d", h.RowsRemovedByFilter)
 	}
 }
+
+// Review 3, P1: the "non-colocated" arm was one tablet per relation on one
+// leader. The distributed arm must pre-split the relations and the range index.
+func TestJoinDomainDistributedPlacement(t *testing.T) {
+	ddl := JoinDomainSchemaSQLOptions("distributed", IndexArmYBRange)
+	if strings.Count(ddl, "SPLIT INTO 3 TABLETS") != 4 {
+		t.Fatalf("distributed arm must split three tables + the person index, got %d", strings.Count(ddl, "SPLIT INTO 3 TABLETS"))
+	}
+	if !strings.Contains(ddl, "donation (rank ASC) SPLIT AT VALUES ((66667), (133334))") {
+		t.Fatal("distributed arm must pre-split the range rank index at the thirds")
+	}
+	if strings.Contains(ddl, "colocation") {
+		t.Fatal("the distributed arm is non-colocated; it must not carry a colocation clause")
+	}
+	single := JoinDomainSchemaSQLOptions("noncolocated-single-tablet", IndexArmYBRange)
+	if strings.Contains(single, "SPLIT") {
+		t.Fatal("the single-tablet arm must not split")
+	}
+}

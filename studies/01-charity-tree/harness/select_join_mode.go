@@ -472,6 +472,18 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 		result.Placement = queryPlacements(ctx, q, arm.schema,
 			[]string{"charity", "person", "donation", "donation_pkey", "donation_rank_idx", "donation_person_idx"})
 	}
+	// The distributed arm's placement gate (review 3, P1): the tables and the
+	// range index must actually be split into three tablets, and the runners
+	// must confirm the leaders are on three distinct nodes before any cell is
+	// measured. The tablet half is checked here from the engine's own metadata;
+	// the leader half is confirmed by the runner through a file handshake,
+	// because leaders are only visible through yb-admin.
+	if note, err := distributedPlacementGate(out, arm.placement, result.Placement); err != nil {
+		result.Notes = append(result.Notes, err.Error())
+		return writeJoinOutputs(result, err, feasibilityOnly, out, reportOut)
+	} else if note != "" {
+		result.Notes = append(result.Notes, note)
+	}
 	result.Controls = append(result.Controls, gateControls...)
 
 	// The limit-before-join control is proved on the large fixture (the edge
@@ -546,6 +558,15 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 
 	version := ""
 	_ = pools[0].QueryRow(ctx, "SELECT version()").Scan(&version)
+	// The effective sharding flag is recorded so a one-tablet outcome can be
+	// explained or explicitly marked unexplained (review 3, minor).
+	shardsSetting := ""
+	if engine == "yugabyte" {
+		var ysqlShards, ybShards string
+		_ = pools[0].QueryRow(ctx, "SHOW ysql_num_shards_per_tserver").Scan(&ysqlShards)
+		_ = pools[0].QueryRow(ctx, "SHOW yb_num_shards_per_tserver").Scan(&ybShards)
+		shardsSetting = "ysql_num_shards_per_tserver=" + ysqlShards + " yb_num_shards_per_tserver=" + ybShards
+	}
 	result.Endpoints = endpoints
 	result.EndpointOps = q.ops
 	result.EndpointConns = q.conns()
@@ -570,6 +591,9 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	}
 	result.Provenance.Settings["node_budget"] = envOr("ADS_NODE_BUDGET", "unknown")
 	result.Provenance.Settings["client_budget"] = envOr("ADS_CLIENT_BUDGET", "unknown")
+	if shardsSetting != "" {
+		result.Provenance.Settings["shards_per_tserver"] = shardsSetting
+	}
 	result.Notes = append(result.Notes, joinGaps(engine, topology, phase, len(endpoints), result.Provenance.Settings["node_budget"], result.Provenance.Settings["client_budget"], arm.indexArm)...)
 	return writeJoinOutputs(result, nil, feasibilityOnly, out, reportOut)
 }
@@ -731,6 +755,7 @@ func runSelectJoinReport(resultsDir, reportOut, armFilter string) error {
 		// advertised a digest the run never had.
 		digest := joinInputsDigest(data)
 		r.NodeThrottle = loadNodeThrottle(resultsDir)
+		r.LeaderNodes = loadLeaderSummary(resultsDir)
 		report, err := selectbench.RenderJoinRun(r, digest)
 		if err != nil {
 			return err
@@ -766,6 +791,7 @@ func runSelectJoinReport(resultsDir, reportOut, armFilter string) error {
 			continue
 		}
 		r.NodeThrottle = loadNodeThrottle(filepath.Dir(p))
+		r.LeaderNodes = loadLeaderSummary(filepath.Dir(p))
 		runs = append(runs, r)
 	}
 	if len(runs) == 0 {
@@ -789,6 +815,33 @@ func loadNodeThrottle(runDir string) []selectbench.NodeThrottleStat {
 	var out []selectbench.NodeThrottleStat
 	if err := json.Unmarshal(data, &out); err != nil {
 		return nil
+	}
+	return out
+}
+
+// loadLeaderSummary reads the runner's per-relation tablet-leader summary
+// (`relation: node1,node2`), so the report can show where each relation's
+// tablets are led. A run without the file renders "not recorded".
+func loadLeaderSummary(runDir string) []selectbench.LeaderLine {
+	data, err := os.ReadFile(filepath.Join(runDir, "resources", "leader-summary.txt"))
+	if err != nil {
+		return nil
+	}
+	var out []selectbench.LeaderLine
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || !strings.Contains(line, ":") {
+			continue
+		}
+		parts := strings.SplitN(line, ":", 2)
+		rel := strings.TrimSpace(parts[0])
+		var nodes []string
+		for _, n := range strings.Split(strings.TrimSpace(parts[1]), ",") {
+			if n = strings.TrimSpace(n); n != "" {
+				nodes = append(nodes, n)
+			}
+		}
+		out = append(out, selectbench.LeaderLine{Relation: rel, Nodes: nodes})
 	}
 	return out
 }
@@ -872,6 +925,42 @@ func containsInt(xs []int, v int) bool {
 		}
 	}
 	return false
+}
+
+// distributedPlacementGate enforces the split half of the placement gate for the
+// distributed arm and performs the leader handshake with the runner. It returns
+// a note on success, or an error that aborts the run before any cell. The gate
+// file handshake exists because tablet leaders are only visible through
+// yb-admin, which the client container does not have.
+func distributedPlacementGate(out, placement string, tables []selectbench.TablePlacement) (string, error) {
+	if placement != "distributed" {
+		return "", nil
+	}
+	want := map[string]int{"donation": 3, "donation_rank_idx": 3}
+	for _, p := range tables {
+		base := p.Table
+		if i := strings.LastIndex(base, "."); i >= 0 {
+			base = base[i+1:]
+		}
+		if n, ok := want[base]; ok && p.NumTablets != n {
+			return "", fmt.Errorf("distributed placement gate: %s has %d tablets, want %d", base, p.NumTablets, n)
+		}
+	}
+	dir := filepath.Join(filepath.Dir(out), "resources")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "placement-prepared"), []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o644); err != nil {
+		return "", err
+	}
+	deadline := time.Now().Add(10 * time.Minute)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(filepath.Join(dir, "placement-gate.ok")); err == nil {
+			return "distributed placement gate: three tablets confirmed by the engine, leader spread confirmed by the runner", nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return "", fmt.Errorf("distributed placement gate: the runner did not confirm leader spread within 10 minutes")
 }
 
 // gateThresholdsFor returns the thresholds the physical-arm gate checks: the

@@ -210,15 +210,31 @@ func JoinDomainIndexArmApplies(engine, arm string) bool {
 // index the planner ignores, must surface as evidence, never be assumed.
 func JoinDomainSchemaSQLOptions(placement, indexArm string) string {
 	clause := ""
+	personIdx := "CREATE INDEX donation_person_idx ON " + JoinDomainSchema + ".donation (person_id);"
+	rankIndex := "CREATE INDEX donation_rank_idx ON " + JoinDomainSchema + ".donation (rank);"
 	switch placement {
 	case "colocated":
 		clause = " WITH (colocation = true)"
-	case "noncolocated":
+	case "noncolocated", "noncolocated-single-tablet":
+		// The engine default: non-colocated, one tablet per relation on this
+		// cluster (review 3 found the missing split). Kept as a labelled arm.
 		clause = " WITH (colocation = false)"
+	case "distributed":
+		// Pre-split, non-colocated: parent tables and the person index each get
+		// three tablets, so the load balancer can spread their leaders. Without
+		// an explicit split every relation was one tablet on one leader, which
+		// is not a distributed data scenario (review 3, P1).
+		clause = " SPLIT INTO 3 TABLETS"
+		personIdx = "CREATE INDEX donation_person_idx ON " + JoinDomainSchema + ".donation (person_id) SPLIT INTO 3 TABLETS;"
 	}
-	rankIndex := "CREATE INDEX donation_rank_idx ON " + JoinDomainSchema + ".donation (rank);"
 	if indexArm == IndexArmYBRange {
-		rankIndex = "CREATE INDEX donation_rank_idx ON " + JoinDomainSchema + ".donation (rank ASC);"
+		if placement == "distributed" {
+			// Range splits at the 1/3 and 2/3 points of the 200,000-row rank
+			// domain, so the three tablets are meaningful ranges.
+			rankIndex = "CREATE INDEX donation_rank_idx ON " + JoinDomainSchema + ".donation (rank ASC) SPLIT AT VALUES ((66667), (133334));"
+		} else {
+			rankIndex = "CREATE INDEX donation_rank_idx ON " + JoinDomainSchema + ".donation (rank ASC);"
+		}
 	}
 	return `CREATE SCHEMA IF NOT EXISTS ` + JoinDomainSchema + `;
 DROP VIEW IF EXISTS ` + JoinDomainSchema + `.facts;
@@ -244,7 +260,7 @@ CREATE TABLE ` + JoinDomainSchema + `.donation (
   maintenance_updates integer NOT NULL DEFAULT 0
 )` + clause + `;
 ` + rankIndex + `
-CREATE INDEX donation_person_idx ON ` + JoinDomainSchema + `.donation (person_id);
+` + personIdx + `
 CREATE VIEW ` + JoinDomainSchema + `.customers AS
   SELECT p.person_id AS id, ch.name AS name
   FROM ` + JoinDomainSchema + `.person p
