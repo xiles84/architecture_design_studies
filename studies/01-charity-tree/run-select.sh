@@ -221,6 +221,13 @@ if [[ "$TOPOLOGY" == cluster3 ]]; then
       podman exec "${NODES[0]}" yb-admin --master_addresses "${NODES[0]}:7100" list_tablets "ysql.${KEYS_DB}" "$t" 2>&1 || true
     done
   } >"$OUTDIR/resources/placement.txt" 2>&1
+  # Per-relation leader summary, derived from the same raw listing, so the
+  # report can name where each relation's tablets are led (review 3, item 4).
+  : >"$OUTDIR/resources/leader-summary.txt"
+  for t in charity person donation donation_rank_idx donation_person_idx; do
+    L="$(awk -v t="$t" '$0=="## "t{f=1;next} /^## /{f=0} f' "$OUTDIR/resources/placement.txt" | grep -oE 'yb-n[0-9]+:9100' | sort -u | paste -sd, -)"
+    printf '%s: %s\n' "$t" "$L" >>"$OUTDIR/resources/leader-summary.txt"
+  done
 fi
 # Re-render the per-run report so it carries the throttling deltas. The re-render
 # hashes the same join.json bytes, so the advertised digest is unchanged.
