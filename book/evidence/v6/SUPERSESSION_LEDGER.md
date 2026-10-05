@@ -357,6 +357,43 @@ tablet/leader placement record exists) and remain explicit coverage gaps. Four c
 `20260927T-v2-08-tier-axis--deepseek-flash--2026-09-27`,
 `20260928T-v2-09-buyer-sweep--deepseek-flash--2026-09-28`.
 
+**Study 01 SELECT synthesis: 18 claims added, two gaps narrowed (2026-10-05, task
+`task-20261002T131729Z-select-synthesis`, Claude Opus 5.5, HIGH).** The four SELECT measuring
+families are scored against the protocol's twelve predictions in the signed analysis
+`20261005T-select-synthesis--claude-opus-5-5--2026-10-05`. Seventeen measured claims and one
+coverage gap (`v6-sel-01` … `v6-sel-17`, `v6-sel-gap-01`) are **added**. All are `normalized-facts`,
+`study 01-charity-tree`, `isolate` (the gap `not_applicable`).
+
+- **Anchors.** Each claim anchors every run it rests on: 60 tagged runs in total, namely the
+  randomized-order access/aggregate/existence runs, the v3b join domain and the v4 placement runs.
+  The report is the generated `studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md`,
+  which prints each run's `sha256(json)` and the cell tokens the support keys resolve to.
+- **Strengths.** Thirteen are `run_replicated` with a recorded prediction:
+  - ten confirmed;
+  - `v6-sel-04` (P4 at the PostgreSQL selective consumer), `v6-sel-10` (P8 on YugabyteDB) and
+    `v6-sel-13` (P10) falsified.
+
+  Four are `repeated_controlled` because no direction was recorded before their runs:
+  - `IN` vs `EXISTS` (`v6-sel-06`);
+  - the PostgreSQL anti-join margins (`v6-sel-08`);
+  - the expression index (`v6-sel-14`);
+  - colocated vs distributed placement (`v6-sel-17`).
+
+  The fixed-order SELECT primaries are not anchored: GPT-6's evidence review showed their order was
+  confounded.
+- **Gaps narrowed.** `v4-gap-01-physical-placement-unverified` and
+  `v4-gap-02-endpoint-distribution-partial` are now `partially_superseded` by `v6-sel-16` and
+  `v6-sel-17`. The SELECT join cluster runs verified three tablets with three leader nodes before and
+  after every distributed run, and recorded balanced per-endpoint reader and writer operations. Each
+  gap's statement is narrowed to what remains open: Study 05's key-locality labels, Study 04 y1/y2,
+  Study 01 D7/D24 and Study 03 L3 placement intent, the single-endpoint study 01/02 design runs, and
+  no real network. Their anchors, trials and confounds are unchanged.
+- **Validator.** The run-tag pattern now also accepts the `run/study-01/…` namespace the SELECT
+  runners use (`TestRunTagPatternAcceptsBothNamespaces`). The carry-forward test lists the 18
+  additions and the two narrowed gaps.
+- **Book.** The tracked PDF was built from the previous registry digest, so it does not yet render
+  these claims. `task-20261004T142623Z-select-book-high` rebuilds it.
+
 ---
 
 ## Frozen predecessor text: v4 → v5

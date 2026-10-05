@@ -3387,7 +3387,7 @@
     },
     {
       "claim_id": "v4-gap-01-physical-placement-unverified",
-      "statement": "Physical tablet and leader placement remains unverified even though the Study 05 key-locality pair has now been executed: v3-06 records the colocated layout ahead on both reads, but its runner could not produce a tablet/leader distribution, so the layout labels are intent rather than observed placement. Study 04's y1/y2 pair is still unexecuted, Study 01 D7/D24 and Study 03 L3 remain placement intent with measured effects, and every node still runs as a container on one host.",
+      "statement": "Physical tablet and leader placement is verified only for Study 01's SELECT join placement arms of 2026-10-05: every distributed run recorded three tablets per relation, with leaders on three nodes before and after the cells (v6-sel-16, v6-sel-17). Elsewhere it remains unverified. The Study 05 key-locality pair has been executed: v3-06 records the colocated layout ahead on both reads, but its runner could not produce a tablet/leader distribution, so the layout labels are intent rather than observed placement. Study 04's y1/y2 pair is still unexecuted, Study 01 D7/D24 and Study 03 L3 remain placement intent with measured effects, and every node still runs as a container on one host.",
       "family": "rolldown-duplicated",
       "study": "05-cache-consistency",
       "strength": "gap",
@@ -3445,10 +3445,23 @@
         "state": "open",
         "artifact": "book/evidence/v4/SUPERSESSION_LEDGER.md; external review of the Edition 1 draft, finding R04 (2026-09-24)"
       },
-      "status": "active",
+      "status": "partially_superseded",
       "gap_kind": [
         "instrument",
         "coverage"
+      ],
+      "superseded_by": [
+        "v6-sel-16-placement-splitting-effect",
+        "v6-sel-17-placement-colocated-vs-distributed"
+      ],
+      "closed_dimensions": [
+        "tablet and leader placement verified for the Study 01 SELECT join workload on yb-cluster3 (2026-10-05)"
+      ],
+      "remaining_dimensions": [
+        "Study 05 key-locality pair (v3-06): placement labels are intent, not observed",
+        "Study 04 y1/y2 pair unexecuted",
+        "Study 01 D7/D24 and Study 03 L3 remain placement intent",
+        "every node runs as a container on one host"
       ],
       "evidence_form": "not_applicable",
       "attribution": {
@@ -3466,7 +3479,7 @@
     },
     {
       "claim_id": "v4-gap-02-endpoint-distribution-partial",
-      "statement": "Client endpoint distribution is measured only for the 2026-09-23 Study 05 three-node cells, where the client spreads operations round-robin over all three endpoints (v3-05). The earlier multi-node cells still reach the cluster through a single endpoint: the study 01 and study 02 yb-cluster3 runs each set one DSN against yb-n1. Their cluster ratios therefore still stand in for cluster access through one endpoint, the Study 05 spread is recorded as a node count rather than a per-endpoint balance, and no run has a real network between nodes.",
+      "statement": "Client endpoint distribution is measured for the 2026-09-23 Study 05 three-node cells, where the client spreads operations round-robin over all three endpoints (v3-05). It is also measured per endpoint for Study 01's SELECT join cluster runs of 2026-10-05, where reader and writer operations were balanced across the three nodes (for example 168/168/168 reads; v6-sel-16, v6-sel-17). The earlier multi-node cells still reach the cluster through a single endpoint: the study 01 design runs and the study 02 yb-cluster3 runs each set one DSN against yb-n1. Their cluster ratios therefore still stand in for cluster access through one endpoint, the Study 05 spread is recorded as a node count rather than a per-endpoint balance, and no run has a real network between nodes.",
       "family": "normalized-facts",
       "study": "05-cache-consistency",
       "strength": "gap",
@@ -3524,10 +3537,22 @@
         "state": "open",
         "artifact": "book/evidence/v4/SUPERSESSION_LEDGER.md; external review of the Edition 1 draft, finding R04 (2026-09-24)"
       },
-      "status": "active",
+      "status": "partially_superseded",
       "gap_kind": [
         "coverage",
         "instrument"
+      ],
+      "superseded_by": [
+        "v6-sel-16-placement-splitting-effect",
+        "v6-sel-17-placement-colocated-vs-distributed"
+      ],
+      "closed_dimensions": [
+        "per-endpoint reader and writer balance measured for the Study 01 SELECT join cluster runs (2026-10-05)"
+      ],
+      "remaining_dimensions": [
+        "study 01 design runs and study 02 yb-cluster3 runs connect through one endpoint",
+        "the Study 05 three-node spread is recorded as a node count, not a per-endpoint balance",
+        "no real network between nodes"
       ],
       "evidence_form": "not_applicable",
       "attribution": {
@@ -4230,6 +4255,2958 @@
         "text": "R1 in the repeat protocol: the n4/n3 ratio rises with the tier in every repetition.",
         "source": "studies/04-configuration-portal/INTERACTION-REPEAT.md",
         "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-01-inner-join-spellings-same-plan",
+      "statement": "For a filtered inner join over Study 01's 200,000-donation fixture, five alternative spellings (JOIN ... ON with the filter, a filtered derived table, a CTE naming the filtered input, a CTE naming the joined rows, and a comma join) ran the same plan as JOIN ... WHERE in all 120 spelling, selectivity, engine and phase pairs: selectivity 0.01% to 90%, PostgreSQL btree and YugabyteDB range index, isolated and blended phases, three runs each. The 27 pairs whose sign agreed across runs had identical plans, magnitudes of 0.2-40% and directions that changed between phases, so no difference is attributable to the spelling.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 12,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "one laptop, single-node engines and one sequential reader: latency of a drained result, not throughput",
+        "a no-resolved-difference statement bounded by this fixture, six selectivity levels and two engines, not an equivalence theorem: the domain position control moved one cell by up to 42% (0.868-1.419), more than any stable spelling sign",
+        "YugabyteDB used the range-sharded rank index (rank ASC); with the engine's default hash-sharded index no spelling had a selective path to use",
+        "plan equality compares normalized plan trees (node types, relations and indexes), not costs or row estimates"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-join-v3b-domain-pg-i1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "724642ee2a9420bed8795540dfb5132831794dbb5f4c0588ace27cf0707614da",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "093d13091d8585b37c203fd328653867313ca3d810fe35372267895672eaae8f",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "6a2111f1912b1cd00d196e68d818df6cf08c060976d579f884c1b6e033110d3d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "4ad32c4a1ab1d6ca5968ee0a7bb75f9580e86aa1e6ec5df69ce60d8ec0dd3f8c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "eee9aedad20795de40569abd06dda87c0e0280d29c5f1e953bc46100bd5a2306",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "db176a1e371b3c5b22dd520f8087ebf675cf7129560391c68294592c11370cb6",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "aed6b10e8425f3871462de7a93c38b198680edb2c1ef539e7a94d85c90c8ffa6",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "6da46b4f1e2f9b5782d3d345e55a8b8f87df08804be165c472414a92cdefedb0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "68a755a4e33271cef1b47a2a6e22925bcf393e554a509635321141c29deda022",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "28deac3dcf98eeb5da0432bc8fb437001b425cc7b793e3e2c6f78a35de377235",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "5d23235fbf9206d0c6da526df936bb9cd18736e0d6d4515beb92705a6d59389a",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "824b5579aeac034ee9c3afe73c771ad5f097531d215069a6a29649c67c1e30b7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 1092,
+        "reported_failed": 0,
+        "source": "the twelve v3b domain runs, 91 cells each",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x01_optional_where and x02_join_limit_before fired in all 12 runs; every timed cell passed the independent Go oracle before timing."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "cte_joined_outer",
+            "operation": "bag join at 0.01% selectivity",
+            "metric": "latency ratio to join_where, plan equality"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=cte_joined_outer;threshold=20",
+          "expected": "same plan 3/3 in every set; isolated PostgreSQL ratios 0.70-1.11"
+        },
+        {
+          "key": {
+            "topology": "yugabytedb-1node",
+            "design": "comma_join",
+            "operation": "bag join at 90% selectivity",
+            "metric": "latency ratio to join_where, plan equality"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=comma_join;threshold=180000",
+          "expected": "same plan 3/3 in every set"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT inner-join spelling pairs against join_where (same data, indexes and settings)"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 12,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P1 (the six spellings show no resolved difference in most regimes), P2 (derived table against plain join: no resolved difference) and P12 (spellings converge as the predicate becomes unselective): confirmed. No pair differed with a different plan at any selectivity, so the six never diverged.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-02-materialized-joined-cte-penalty",
+      "statement": "Forcing MATERIALIZED on a CTE that contains the join, with the selective filter applied outside it, multiplied the query time against the same CTE left to the engine. On PostgreSQL the factor was 84-101x at 0.01% selectivity, 51-64x at 0.1% and 23-27x at 1%, falling to 1.02-1.44x at 90%. On YugabyteDB with a range index it was 34-49x, 20-29x and 8.1-9.5x, falling to 0.93-1.03x at 90%. Three runs per engine and phase. With the filter inside the CTE, forcing MATERIALIZED cost at most 1.61x on PostgreSQL and 0.71-1.25x on YugabyteDB.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 12,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the penalty is plan-explained on both engines (the materialization boundary keeps the outside filter from reaching the join), measured as end-to-end latency of one reader",
+        "YugabyteDB at 90% is inside its position drift (0.93-1.03x), so no reversal is claimed",
+        "with a hash-sharded YugabyteDB index the same hint looked nearly free (earlier runs: 1.4-1.7x) because there was no selective path to lose; this claim holds for the range-index arm"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-join-v3b-domain-pg-i1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "724642ee2a9420bed8795540dfb5132831794dbb5f4c0588ace27cf0707614da",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "093d13091d8585b37c203fd328653867313ca3d810fe35372267895672eaae8f",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "6a2111f1912b1cd00d196e68d818df6cf08c060976d579f884c1b6e033110d3d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "4ad32c4a1ab1d6ca5968ee0a7bb75f9580e86aa1e6ec5df69ce60d8ec0dd3f8c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "eee9aedad20795de40569abd06dda87c0e0280d29c5f1e953bc46100bd5a2306",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "db176a1e371b3c5b22dd520f8087ebf675cf7129560391c68294592c11370cb6",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "aed6b10e8425f3871462de7a93c38b198680edb2c1ef539e7a94d85c90c8ffa6",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "6da46b4f1e2f9b5782d3d345e55a8b8f87df08804be165c472414a92cdefedb0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "68a755a4e33271cef1b47a2a6e22925bcf393e554a509635321141c29deda022",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "28deac3dcf98eeb5da0432bc8fb437001b425cc7b793e3e2c6f78a35de377235",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "5d23235fbf9206d0c6da526df936bb9cd18736e0d6d4515beb92705a6d59389a",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "824b5579aeac034ee9c3afe73c771ad5f097531d215069a6a29649c67c1e30b7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 1092,
+        "reported_failed": 0,
+        "source": "the twelve v3b domain runs, 91 cells each",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x01_optional_where and x02_join_limit_before fired in all 12 runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "cte_joined_outer_mat",
+            "operation": "bag join at 0.01% selectivity",
+            "metric": "latency ratio to the default CTE"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=cte_joined_outer_mat;threshold=20",
+          "expected": "99.078, 100.694, 97.473 (PostgreSQL isolated)"
+        },
+        {
+          "key": {
+            "topology": "yugabytedb-1node",
+            "design": "cte_joined_outer_mat",
+            "operation": "bag join at 90% selectivity",
+            "metric": "latency ratio to the default CTE"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=cte_joined_outer_mat;threshold=180000",
+          "expected": "1.025, 0.959, 0.934 (YugabyteDB isolated)"
+        },
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "cte_filtered_mat",
+            "operation": "bag join at 1% selectivity",
+            "metric": "latency ratio to the default CTE"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=cte_filtered_mat;threshold=2000",
+          "expected": "1.091, 1.265, 1.039 (PostgreSQL isolated)"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT CTE policy pairs: forced MATERIALIZED against the default CTE (same SQL body)"
+        ],
+        "note": "Each pair differs only in the MATERIALIZED keyword."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 12,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "crossover": {
+        "dimension": "selectivity of the outside filter (0.01%, 0.1%, 1%, 10%, 50%, 90%)",
+        "levels": 6,
+        "reversal_observed": false,
+        "crossing_interval": null
+      },
+      "prediction": {
+        "text": "P3 (MATERIALIZED is slower for a selective one-use predicate, because the boundary blocks pushing the predicate into the scan): confirmed, with the refinement that the cost depends on whether the filter is outside or inside the CTE.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-03-cte-reuse-crossing",
+      "statement": "For one expensive CTE referenced n times, NOT MATERIALIZED against MATERIALIZED crossed between one and two references on PostgreSQL at the unselective (100%) consumer and on YugabyteDB at both consumers. At n=2 NOT MATERIALIZED took 1.43-2.06x the MATERIALIZED time and at n=16 3.9-12.1x, in every run of both phases. At n=1 the ratio was 0.81-0.94 on YugabyteDB at the 1% consumer (6 of 6 runs) and 0.87-1.07 at the 100% consumers. Both engines' default policy ran MATERIALIZED's plan from two references.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 12,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the YugabyteDB one-reference advantage at the 1% consumer is small (6-19%) but has the same sign in all six runs",
+        "the n=1 point at the 100% consumers is mixed in sign, so the crossing is bracketed between 1 and 2 references, not located",
+        "one CTE body and two consumer selectivities on one fixture"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-join-v3b-domain-yb-i1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "aed6b10e8425f3871462de7a93c38b198680edb2c1ef539e7a94d85c90c8ffa6",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "724642ee2a9420bed8795540dfb5132831794dbb5f4c0588ace27cf0707614da",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "093d13091d8585b37c203fd328653867313ca3d810fe35372267895672eaae8f",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "6a2111f1912b1cd00d196e68d818df6cf08c060976d579f884c1b6e033110d3d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "4ad32c4a1ab1d6ca5968ee0a7bb75f9580e86aa1e6ec5df69ce60d8ec0dd3f8c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "eee9aedad20795de40569abd06dda87c0e0280d29c5f1e953bc46100bd5a2306",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "db176a1e371b3c5b22dd520f8087ebf675cf7129560391c68294592c11370cb6",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "6da46b4f1e2f9b5782d3d345e55a8b8f87df08804be165c472414a92cdefedb0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-i3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-i3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "68a755a4e33271cef1b47a2a6e22925bcf393e554a509635321141c29deda022",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "28deac3dcf98eeb5da0432bc8fb437001b425cc7b793e3e2c6f78a35de377235",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "5d23235fbf9206d0c6da526df936bb9cd18736e0d6d4515beb92705a6d59389a",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-yb-b3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-yb-b3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "824b5579aeac034ee9c3afe73c771ad5f097531d215069a6a29649c67c1e30b7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 1092,
+        "reported_failed": 0,
+        "source": "the twelve v3b domain runs, 91 cells each",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x01_optional_where and x02_join_limit_before fired in all 12 runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "yugabytedb-1node",
+            "design": "reuse notmat",
+            "operation": "CTE referenced twice, 1% consumer",
+            "metric": "latency ratio NOT MATERIALIZED / MATERIALIZED"
+          },
+          "status": "valid",
+          "resolves_to": "family=reuse;policy=notmat;refs=2;consumer=1%",
+          "expected": "1.502, 1.460, 1.430 (YugabyteDB isolated)"
+        },
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "reuse notmat",
+            "operation": "CTE referenced twice, 100% consumer",
+            "metric": "latency ratio NOT MATERIALIZED / MATERIALIZED"
+          },
+          "status": "valid",
+          "resolves_to": "family=reuse;policy=notmat;refs=2;consumer=100%",
+          "expected": "1.926, 2.059, 1.703 (PostgreSQL isolated)"
+        },
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "reuse default",
+            "operation": "CTE referenced twice",
+            "metric": "plan equality with MATERIALIZED"
+          },
+          "status": "valid",
+          "resolves_to": "family=reuse;policy=default;refs=2;consumer=100%",
+          "expected": "plan shape equal 3/3"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT CTE reuse pairs: NOT MATERIALIZED against MATERIALIZED at each reference count"
+        ],
+        "note": "Each pair differs only in the materialization keyword."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 12,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "crossover": {
+        "dimension": "references to one CTE (1, 2, 4, 8, 16)",
+        "levels": 5,
+        "reversal_observed": true,
+        "crossing_interval": "[1, 2] references (PostgreSQL 100% consumer; YugabyteDB 1% and 100% consumers)"
+      },
+      "prediction": {
+        "text": "P4 (MATERIALIZED is faster above a reuse threshold, with a bounded crossing): confirmed in these three engine and consumer regimes.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-04-cte-reuse-postgresql-selective-no-crossing",
+      "statement": "On PostgreSQL with a selective (1%) consumer, NOT MATERIALIZED stayed faster than MATERIALIZED at every reuse count from 1 to 16: 0.17-0.27x at one reference and 0.68-0.81x at sixteen, in all six runs. The default policy materialized from two references, so forcing NOT MATERIALIZED was 1.2-4.8x faster at 2-16 references.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the ratio rises with the reference count (0.17-0.27 at 1 to 0.68-0.81 at 16), so a crossing beyond 16 references is possible and untested",
+        "one CTE body and one consumer selectivity on one fixture"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-join-v3b-domain-pg-i1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "724642ee2a9420bed8795540dfb5132831794dbb5f4c0588ace27cf0707614da",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "093d13091d8585b37c203fd328653867313ca3d810fe35372267895672eaae8f",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-i3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-i3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "6a2111f1912b1cd00d196e68d818df6cf08c060976d579f884c1b6e033110d3d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b1-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b1-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "4ad32c4a1ab1d6ca5968ee0a7bb75f9580e86aa1e6ec5df69ce60d8ec0dd3f8c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b2-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b2-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "eee9aedad20795de40569abd06dda87c0e0280d29c5f1e953bc46100bd5a2306",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v3b-domain-pg-b3-20261005",
+          "run_tag": "run/study-01/select-join-v3b-domain-pg-b3-20261005",
+          "repo_commit": "7243fee074bfb16fc5ad8b6afc1a2d7549080935",
+          "inputs_digest": "db176a1e371b3c5b22dd520f8087ebf675cf7129560391c68294592c11370cb6",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 546,
+        "reported_failed": 0,
+        "source": "the six PostgreSQL v3b domain runs, 91 cells each",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x01_optional_where and x02_join_limit_before fired in all six runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "reuse notmat",
+            "operation": "CTE referenced 16 times, 1% consumer",
+            "metric": "latency ratio NOT MATERIALIZED / MATERIALIZED"
+          },
+          "status": "valid",
+          "resolves_to": "family=reuse;policy=notmat;refs=16;consumer=1%",
+          "expected": "0.712, 0.806, 0.683 (isolated)"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT CTE reuse pairs: NOT MATERIALIZED against MATERIALIZED at each reference count"
+        ],
+        "note": "Each pair differs only in the materialization keyword."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "crossover": {
+        "dimension": "references to one CTE (1, 2, 4, 8, 16)",
+        "levels": 5,
+        "reversal_observed": false,
+        "crossing_interval": null
+      },
+      "prediction": {
+        "text": "P4's falsifier (no crossing across five or more reuse levels) fired for this regime: NOT MATERIALIZED never lost between 1 and 16 references.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "falsified"
+      }
+    },
+    {
+      "claim_id": "v6-sel-05-membership-join-distinct-penalty",
+      "statement": "For the set of parents with a qualifying child, JOIN + DISTINCT took 1.40-1.69x the EXISTS time at child fanout 1, 1.38-1.44x at fanout 10 and 3.64-4.23x at fanout 100 on PostgreSQL, in all three randomized-order runs. On YugabyteDB it was 1.10-1.16x at fanout 1 and 0.95-1.01x at fanouts 10 and 100, with no growth.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "fanout and parent count change together (10,000 child rows over 10,000, 1,000 and 100 parents), so the growth cannot be attributed to fanout alone",
+        "the YugabyteDB runs used the default hash-sharded indexes and none of their 64 plans used an index",
+        "single-node engines, one sequential reader; position drift 22% (PostgreSQL) and 13% (YugabyteDB)",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-existence-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "a1cd2e20e7fd50961ed5562a099cd46e5b993e69847f8822daf4e3696d74f042",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-existence-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "5a12edf5d2b7a1df53338b019e7e77cec89e64d80302731659073759283f4f39",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b2cce0c8c6ad02cc39a45e93ddfe29dcd26f23988af6ebc3700a63965286eafd",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b8e15f58e4e81a72c956ddd1e23bb656a932cf3a33ce8b41f59111be6fe9a82c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "703b92c3644821ed9ddb95fb5a5e4566ea8d342cc63a998e02f5be3a11dc6749",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "62979fd70cec76ac2cfc6f2441d73310d61cd0108485bb3abae839bbf451f262",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 128,
+        "reported_failed": 0,
+        "source": "the six randomized-order existence runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x02_not_in_nullable and x07_membership_multiplier fired at every fanout level in all six runs (18/18 each)."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "join_distinct",
+            "operation": "parent membership at fanout 100",
+            "metric": "latency ratio to EXISTS"
+          },
+          "status": "valid",
+          "resolves_to": "family=membership;stmt=join_distinct;fanout=100",
+          "expected": "4.064, 3.638, 4.228 (PostgreSQL)"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT membership spelling pairs on one fixture per fanout level"
+        ],
+        "note": "The spelling difference is isolated at each level; its growth across levels is not attributable to fanout alone because the parent count changes with it."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P6 (EXISTS/IN avoid the row multiplication that JOIN + DISTINCT must undo, and the cost rises with fanout): confirmed on PostgreSQL; on YugabyteDB the penalty is small and does not grow.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-06-membership-in-exists-no-difference",
+      "statement": "IN and EXISTS over the same membership question had no resolved latency difference on either engine. IN/EXISTS was 0.86-1.30 on PostgreSQL with mixed signs at every fanout, and 0.94-1.07 on YugabyteDB, inside each engine's measured position drift (22% and 13%). Every cell returned the oracle's parent set.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "repeated_controlled",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "no resolved difference on these fixtures, not an equivalence result: no equivalence bound was set",
+        "the YugabyteDB runs used the default hash-sharded indexes and none of their plans used an index",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-existence-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "a1cd2e20e7fd50961ed5562a099cd46e5b993e69847f8822daf4e3696d74f042",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-existence-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "5a12edf5d2b7a1df53338b019e7e77cec89e64d80302731659073759283f4f39",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b2cce0c8c6ad02cc39a45e93ddfe29dcd26f23988af6ebc3700a63965286eafd",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b8e15f58e4e81a72c956ddd1e23bb656a932cf3a33ce8b41f59111be6fe9a82c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "703b92c3644821ed9ddb95fb5a5e4566ea8d342cc63a998e02f5be3a11dc6749",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "62979fd70cec76ac2cfc6f2441d73310d61cd0108485bb3abae839bbf451f262",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 128,
+        "reported_failed": 0,
+        "source": "the six randomized-order existence runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x02_not_in_nullable and x07_membership_multiplier fired at every fanout level in all six runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "in",
+            "operation": "parent membership at fanout 1",
+            "metric": "latency ratio to EXISTS"
+          },
+          "status": "valid",
+          "resolves_to": "family=membership;stmt=in;fanout=1",
+          "expected": "1.298, 0.857, 0.964 (mixed)"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT membership spelling pairs on one fixture per fanout level"
+        ],
+        "note": "The pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      }
+    },
+    {
+      "claim_id": "v6-sel-07-nullable-not-in-empty",
+      "statement": "A NOT IN over a child key that contains a NULL returned no rows at every fanout level in all six runs (18 of 18 checks, PostgreSQL and YugabyteDB), although the oracle's set of parents without a qualifying child was non-empty. NOT EXISTS, LEFT JOIN ... IS NULL and NOT IN over a NOT NULL subquery returned the oracle's set.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 1
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "an answer-contract result: for every outer row the NOT IN predicate is FALSE or UNKNOWN once the subquery holds a NULL, so no row qualifies; it is not UNKNOWN for every row",
+        "one fixture with NULL child keys at three fanout levels",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-existence-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b8e15f58e4e81a72c956ddd1e23bb656a932cf3a33ce8b41f59111be6fe9a82c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-existence-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "a1cd2e20e7fd50961ed5562a099cd46e5b993e69847f8822daf4e3696d74f042",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "5a12edf5d2b7a1df53338b019e7e77cec89e64d80302731659073759283f4f39",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b2cce0c8c6ad02cc39a45e93ddfe29dcd26f23988af6ebc3700a63965286eafd",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "703b92c3644821ed9ddb95fb5a5e4566ea8d342cc63a998e02f5be3a11dc6749",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "62979fd70cec76ac2cfc6f2441d73310d61cd0108485bb3abae839bbf451f262",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 128,
+        "reported_failed": 0,
+        "source": "the six randomized-order existence runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "The nullable NOT IN is the deliberately wrong control x02; it is seen to return 0 rows in 18 of 18 checks."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node and yugabytedb-1node",
+            "design": "x02_not_in_nullable",
+            "operation": "parent absence with a NULL child key",
+            "metric": "rows returned"
+          },
+          "status": "control",
+          "resolves_to": "x02_not_in_nullable",
+          "expected": "0 rows in 18 of 18 checks"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT absence spellings on one fixture per fanout level"
+        ],
+        "note": "The NOT IN variants differ only in whether the subquery can yield NULL."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P7 (NOT EXISTS and the anti-join are safe; nullable NOT IN can return nothing): confirmed in every check on both engines.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-08-anti-join-not-exists-postgresql",
+      "statement": "For parents without a qualifying child at fanout 100, NOT EXISTS on PostgreSQL took 0.21-0.24 ms against 0.64-0.69 ms for LEFT JOIN ... IS NULL (2.71-3.27x) and 0.67-0.72 ms for NOT IN over a NOT NULL subquery (2.85-3.16x), in all three runs. At fanouts 1 and 10 the NOT-NULL NOT IN was 1.09-1.19x and LEFT JOIN ... IS NULL 0.88-1.08x. On YugabyteDB the three spellings were within 0.997-1.097x of each other.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "repeated_controlled",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "fanout and parent count change together (100 parents at fanout 100)",
+        "the YugabyteDB runs used the default hash-sharded indexes and none of their plans used an index",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-existence-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "a1cd2e20e7fd50961ed5562a099cd46e5b993e69847f8822daf4e3696d74f042",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-existence-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "5a12edf5d2b7a1df53338b019e7e77cec89e64d80302731659073759283f4f39",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b2cce0c8c6ad02cc39a45e93ddfe29dcd26f23988af6ebc3700a63965286eafd",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b8e15f58e4e81a72c956ddd1e23bb656a932cf3a33ce8b41f59111be6fe9a82c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "703b92c3644821ed9ddb95fb5a5e4566ea8d342cc63a998e02f5be3a11dc6749",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "62979fd70cec76ac2cfc6f2441d73310d61cd0108485bb3abae839bbf451f262",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 128,
+        "reported_failed": 0,
+        "source": "the six randomized-order existence runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x02_not_in_nullable and x07_membership_multiplier fired at every fanout level in all six runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "left_is_null",
+            "operation": "parent absence at fanout 100",
+            "metric": "latency ratio to NOT EXISTS"
+          },
+          "status": "valid",
+          "resolves_to": "family=absence;stmt=left_is_null;fanout=100",
+          "expected": "3.273, 2.710, 2.756"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT absence spellings on one fixture per fanout level"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      }
+    },
+    {
+      "claim_id": "v6-sel-09-aggregate-correlated-postgresql-crossover",
+      "statement": "On PostgreSQL a correlated scalar SUM per parent was 0.47-0.90x the join-then-GROUP-BY time for one parent, mixed in sign at 10 parents, and 1.26-1.72x at 100, 1.08-1.27x at 1,000 and 2.49-2.70x at 10,000 parents, in all three randomized-order runs.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the aggregate family's position drift is 29% on PostgreSQL (one cell 0.710 last/first), larger than the 1,000-parent effect",
+        "pre-aggregation overtook post-join only at 10,000 parents (0.77-0.80x), inside that drift; it is not claimed",
+        "one fixture of 10,000 parents with two children each; the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-aggregate-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "76268c647e965cd579b85330b32ccdf716c959230c56fe0d71216ce23ab39dc2",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-aggregate-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b742e387f0cd26e3a730227db33212c88c0535251e947928e0e6c480cbce0b35",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "5285f21e2330e7118cb9fd7d3fc06576ad2fcc8d6b5c0619825f0b3726cd4823",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 91,
+        "reported_failed": 0,
+        "source": "the three randomized-order PostgreSQL aggregate runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x05_aggregate_double_count and x06_topn_rank_ties fired in all three runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "correlated",
+            "operation": "per-parent SUM for 10,000 parents",
+            "metric": "latency ratio to post-join aggregate"
+          },
+          "status": "valid",
+          "resolves_to": "family=aggregate;stmt=correlated;parent_max=10000",
+          "expected": "2.654, 2.493, 2.703"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT parent-aggregate spelling pairs at each parent count"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 3,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "crossover": {
+        "dimension": "parents requested (1, 10, 100, 1,000, 10,000)",
+        "levels": 5,
+        "reversal_observed": true,
+        "crossing_interval": "[1, 100] parents (10 unresolved)"
+      },
+      "prediction": {
+        "text": "P8 (correlated wins at small parent sets and loses at large ones): confirmed on PostgreSQL.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-10-aggregate-yugabytedb-no-reversal",
+      "statement": "On single-node YugabyteDB the correlated scalar SUM never beat join-then-GROUP-BY. It was 1.07-1.23x at one parent, 1.93-2.00x at 10, 8.6-11.9x at 100, 41-46x at 1,000 and 398-541x at 10,000 parents: 6.7-20.0 s per query, against 16-17 ms on PostgreSQL. Pre-aggregation never beat post-join with a stable sign. All three randomized-order runs.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the per-probe cost (about 0.5-2 ms per parent) suggests a separate storage request per probe, but no RPC counters were parsed, so the mechanism is a hypothesis",
+        "the aggregate family's position drift on YugabyteDB is 74% (one cell 1.743 last/first)",
+        "single node; the customer_id index is hash-sharded and serves the equality probes (43/91 plans used an index)",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-aggregate-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "21ad333d1e4ff8a9da998c1a748ec21beca168a49d122da6c11658dcb9ced477",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-aggregate-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "e21df42d7c564cc456eba1e11a5d0ec43eaed59d7849ccdfd21b1be390eb2ab7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "971d1d0df2e057b6aaae034b0834b4a706559e22842bdec96ecb822cddd03014",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 91,
+        "reported_failed": 0,
+        "source": "the three randomized-order YugabyteDB aggregate runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x05_aggregate_double_count and x06_topn_rank_ties fired in all three runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "yugabytedb-1node",
+            "design": "correlated",
+            "operation": "per-parent SUM for 10,000 parents",
+            "metric": "latency (ms) and ratio to post-join aggregate"
+          },
+          "status": "valid",
+          "resolves_to": "family=aggregate;stmt=correlated;parent_max=10000",
+          "expected": "8695.735, 6726.911, 19981.692 ms; 540.732, 397.802, 534.089x"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT parent-aggregate spelling pairs at each parent count"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 3,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "crossover": {
+        "dimension": "parents requested (1, 10, 100, 1,000, 10,000)",
+        "levels": 5,
+        "reversal_observed": false,
+        "crossing_interval": null
+      },
+      "prediction": {
+        "text": "P8's falsifier (no reversal across five or more parent-selection levels) fired on YugabyteDB: neither the correlated nor the pre-aggregated spelling ever beat the post-join aggregate.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "falsified"
+      }
+    },
+    {
+      "claim_id": "v6-sel-11-topn-lateral-probe-crossover",
+      "statement": "For the top row per parent, a LATERAL index probe against ROW_NUMBER() was, on YugabyteDB, 0.54-0.70x at one parent, 1.12-1.25x at 10, 6.1-7.0x at 100, 44-49x at 1,000 and 257-289x at 10,000 parents. On PostgreSQL it was 0.56-0.98x at one parent (inside the 29% position drift), mixed at 10, and 1.19-2.20x from 100 to 10,000 parents. All three randomized-order runs per engine.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the PostgreSQL one-parent advantage is below its family's position drift in two of three runs, so its magnitude is unresolved",
+        "position drift 29% (PostgreSQL) and 74% (YugabyteDB) in the aggregate family",
+        "N=1 only; ROW_NUMBER needs a total-order tiebreak, enforced by the x06 control",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-aggregate-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "21ad333d1e4ff8a9da998c1a748ec21beca168a49d122da6c11658dcb9ced477",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-aggregate-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "e21df42d7c564cc456eba1e11a5d0ec43eaed59d7849ccdfd21b1be390eb2ab7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "971d1d0df2e057b6aaae034b0834b4a706559e22842bdec96ecb822cddd03014",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "76268c647e965cd579b85330b32ccdf716c959230c56fe0d71216ce23ab39dc2",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b742e387f0cd26e3a730227db33212c88c0535251e947928e0e6c480cbce0b35",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "5285f21e2330e7118cb9fd7d3fc06576ad2fcc8d6b5c0619825f0b3726cd4823",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 182,
+        "reported_failed": 0,
+        "source": "the six randomized-order aggregate runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x06_topn_rank_ties (ROW_NUMBER without a tiebreak) and x05_aggregate_double_count fired in all six runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "yugabytedb-1node",
+            "design": "lateral",
+            "operation": "top row per parent for 10,000 parents",
+            "metric": "latency ratio to ROW_NUMBER"
+          },
+          "status": "valid",
+          "resolves_to": "family=topn;stmt=lateral;parent_max=10000",
+          "expected": "275.449, 257.346, 288.877"
+        },
+        {
+          "key": {
+            "topology": "yugabytedb-1node",
+            "design": "lateral",
+            "operation": "top row for one parent",
+            "metric": "latency ratio to ROW_NUMBER"
+          },
+          "status": "valid",
+          "resolves_to": "family=topn;stmt=lateral;parent_max=1",
+          "expected": "0.696, 0.699, 0.539"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT per-parent top-N spelling pairs at each parent count"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "crossover": {
+        "dimension": "parents requested (1, 10, 100, 1,000, 10,000)",
+        "levels": 5,
+        "reversal_observed": true,
+        "crossing_interval": "[1, 10] parents on YugabyteDB; [1, 100] on PostgreSQL with the one-parent side unresolved in magnitude"
+      },
+      "prediction": {
+        "text": "P9 (the indexed probe wins at small parent sets and loses at large ones, with a bounded crossing): confirmed on YugabyteDB; on PostgreSQL the losing side is confirmed and the winning side is within drift.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-12-topn-distinct-on-postgresql",
+      "statement": "On PostgreSQL, DISTINCT ON for the top row per parent took 0.61-0.64x the ROW_NUMBER() time at 10,000 parents, 0.61-0.92x at 1,000 and 0.44-0.85x at one parent, in all three randomized-order runs; at 10 and 100 parents the sign was mixed. On YugabyteDB it was 0.89-0.93x at 1,000 parents and 0.70-1.00x at 10,000, with one run practically equal.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "DISTINCT ON is PostgreSQL-dialect SQL and answers N=1 only",
+        "the PostgreSQL 1,000-parent and one-parent ranges include runs inside the 29% position drift; only the 10,000-parent effect clearly exceeds it",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-aggregate-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "76268c647e965cd579b85330b32ccdf716c959230c56fe0d71216ce23ab39dc2",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-aggregate-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b742e387f0cd26e3a730227db33212c88c0535251e947928e0e6c480cbce0b35",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "5285f21e2330e7118cb9fd7d3fc06576ad2fcc8d6b5c0619825f0b3726cd4823",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "21ad333d1e4ff8a9da998c1a748ec21beca168a49d122da6c11658dcb9ced477",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "e21df42d7c564cc456eba1e11a5d0ec43eaed59d7849ccdfd21b1be390eb2ab7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-aggregate-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-aggregate-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "971d1d0df2e057b6aaae034b0834b4a706559e22842bdec96ecb822cddd03014",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 182,
+        "reported_failed": 0,
+        "source": "the six randomized-order aggregate runs",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x06_topn_rank_ties and x05_aggregate_double_count fired in all six runs."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "distinct_on",
+            "operation": "top row per parent for 10,000 parents",
+            "metric": "latency ratio to ROW_NUMBER"
+          },
+          "status": "valid",
+          "resolves_to": "family=topn;stmt=distinct_on;parent_max=10000",
+          "expected": "0.610, 0.628, 0.635"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT per-parent top-N spelling pairs at each parent count"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "The fixed-order analysis's hypothesis that DISTINCT ON is the fastest top-1 spelling at scale on both engines, re-tested under randomized order: confirmed on PostgreSQL at 10,000 parents; on YugabyteDB it holds at 1,000 parents and is practically unresolved at 10,000.",
+        "source": "studies/01-charity-tree/reports/analyses/20261003T-select-agg--deepseek-flash--2026-10-03.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-13-or-not-beaten-by-union",
+      "statement": "Rewriting a two-arm disjunction as UNION ALL or UNION never beat OR by a resolved margin. On PostgreSQL, UNION ALL took 1.23-1.55x and UNION 1.25-1.50x the OR time on the broad shapes, and 0.86-1.14x (mixed in sign or within 7%) on the selective shapes, where one BitmapOr served both arms. On YugabyteDB both took 1.32-1.87x OR, and no plan used an index.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "a bounded non-observation of the OR-blocks-an-index mechanism on these shapes, not a rule that OR never loses",
+        "the YugabyteDB runs used the default hash-sharded amount index, so 0/103 of their plans used an index and their margins compare one scan against two",
+        "one selective threshold (about 0.95% per arm) on a 12,000-row fixture",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-access-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "0783debd960ffb0e76f9cf0771a11a3c065e433a6e1efa11519f06447204a0f4",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-access-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "357620cf7fb2687698f082b5d1a7294fe72f41fb8c30d93def9d9156a43c12f5",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "f0b0f2c1bf41c51187b6a1fe78d73d735bd6d0a5fcd98ac849bfc37fc0c56aa0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "9a3b8b777b99388a1cb983808a53bb0f976aad693cb14e7dd4f4fe8da8b99d7f",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "818eaca45753f59f49626bb1135e68dec19cf9359c611f6048632cbb478e4b9d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "ee27b23999ddd2405173c950ed2128986d7f723807e30232c02190a5532c2e52",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 206,
+        "reported_failed": 0,
+        "source": "the six randomized-order access runs",
+        "controls_present": 1,
+        "controls_fired": 1,
+        "note": "x05_union_all_overlap fired in all 36 shape checks and every measured pair of arms was disjoint; x01-x03 cannot fire on this fixture and are recorded as absent."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "union_all",
+            "operation": "broad indexable disjunction",
+            "metric": "latency ratio to OR"
+          },
+          "status": "valid",
+          "resolves_to": "shape=broad/indexable;spelling=union_all",
+          "expected": "1.523, 1.406, 1.373"
+        },
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "union_all",
+            "operation": "selective indexable disjunction",
+            "metric": "latency ratio to OR"
+          },
+          "status": "valid",
+          "resolves_to": "shape=selective/indexable;spelling=union_all",
+          "expected": "0.941, 0.932, 1.000 (mixed)"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT predicate-alternative pairs (same disjoint arms and indexes)"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "P10 (OR can block an index while overlap-safe UNION ALL uses two index arms): falsified in the tested shapes; the expected UNION ALL advantage never appeared.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "falsified"
+      }
+    },
+    {
+      "claim_id": "v6-sel-14-expression-index-postgresql",
+      "statement": "With the query text unchanged, adding an expression index matching (amount + 0) cut PostgreSQL's selective expression OR to 0.28-0.33x of its time without the index, and the plan switched to the expression index. The broad expression shape was unchanged (0.82-1.09x, a sequential scan either way).",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "repeated_controlled",
+      "trials": {
+        "whole_run_replications": 3,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the index arm runs as its own seeded phase after the default arm, so phase position is not balanced; the plan change explains the effect",
+        "on YugabyteDB the same arm read 0.75-0.89x but no YugabyteDB plan used any index, so that change is not attributable to the index",
+        "a one-batch index-maintenance probe is too noisy to price the index",
+        "the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-access-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "0783debd960ffb0e76f9cf0771a11a3c065e433a6e1efa11519f06447204a0f4",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-access-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "357620cf7fb2687698f082b5d1a7294fe72f41fb8c30d93def9d9156a43c12f5",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "f0b0f2c1bf41c51187b6a1fe78d73d735bd6d0a5fcd98ac849bfc37fc0c56aa0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 103,
+        "reported_failed": 0,
+        "source": "the three randomized-order PostgreSQL access runs",
+        "controls_present": 1,
+        "controls_fired": 1,
+        "note": "x05_union_all_overlap fired in every shape check."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "expression_index",
+            "operation": "selective expression OR",
+            "metric": "latency ratio index present / absent"
+          },
+          "status": "valid",
+          "resolves_to": "shape=selective/expression;index=expression_index;spelling=or",
+          "expected": "0.330, 0.280, 0.303"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT expression-index arm: same SQL with the index present and absent"
+        ],
+        "note": "The changed factor is the physical index, not the SQL."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 3,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      }
+    },
+    {
+      "claim_id": "v6-sel-15-keyset-offset-crossover",
+      "statement": "For five-row pages under a fixed snapshot, keyset pagination against OFFSET was 1.06-1.29x at page depths 1-100, 0.73-0.82x at 1,000 and 0.21-0.24x at 10,000 on PostgreSQL. On single-node YugabyteDB it was 1.20-1.36x at depths 1-1,000 and 0.69-0.72x at 10,000. All three randomized-order runs; both spellings returned the same page at every depth.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 6,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the keyset spelling orders by (amount DESC NULLS LAST, id) with a NULL-aware three-way OR and no (amount, id) composite index; PostgreSQL served it with a BitmapOr and a top-N sort, and its cost fell with depth (0.90-1.01 to 0.45-0.49 ms), so the flat-cost component of the prediction is untested",
+        "the YugabyteDB runs used the default hash-sharded amount index and no plan used an index, so their crossing describes scan plans",
+        "one 12,000-row fixture; the run environment page is xiles-podman-select-order-correction-20261004, which documents this same host and measurement slot"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-access-postgres-1-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "0783debd960ffb0e76f9cf0771a11a3c065e433a6e1efa11519f06447204a0f4",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-access-postgres-2-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "357620cf7fb2687698f082b5d1a7294fe72f41fb8c30d93def9d9156a43c12f5",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-postgres-3-20261004",
+          "run_tag": "run/study-01/select-order-access-postgres-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "f0b0f2c1bf41c51187b6a1fe78d73d735bd6d0a5fcd98ac849bfc37fc0c56aa0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "postgresql-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "9a3b8b777b99388a1cb983808a53bb0f976aad693cb14e7dd4f4fe8da8b99d7f",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "818eaca45753f59f49626bb1135e68dec19cf9359c611f6048632cbb478e4b9d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "ee27b23999ddd2405173c950ed2128986d7f723807e30232c02190a5532c2e52",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 206,
+        "reported_failed": 0,
+        "source": "the six randomized-order access runs",
+        "controls_present": 1,
+        "controls_fired": 1,
+        "note": "Page equality under a fixed REPEATABLE READ snapshot held at all 30 depth checks; x05_union_all_overlap fired in every shape check."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "keyset",
+            "operation": "page at depth 10,000",
+            "metric": "latency ratio to OFFSET"
+          },
+          "status": "valid",
+          "resolves_to": "depth=10000;spelling=keyset",
+          "expected": "0.239, 0.211, 0.226"
+        },
+        {
+          "key": {
+            "topology": "postgresql-1node",
+            "design": "keyset",
+            "operation": "page at depth 100",
+            "metric": "latency ratio to OFFSET"
+          },
+          "status": "valid",
+          "resolves_to": "depth=100;spelling=keyset",
+          "expected": "1.064, 1.168, 1.077"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT pagination pairs at each depth (same order, page size and snapshot)"
+        ],
+        "note": "Each pair differs only in its SQL text."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 6,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "crossover": {
+        "dimension": "page depth in rows (1, 10, 100, 1,000, 10,000)",
+        "levels": 5,
+        "reversal_observed": true,
+        "crossing_interval": "[100, 1,000] on PostgreSQL; [1,000, 10,000] on single-node YugabyteDB"
+      },
+      "prediction": {
+        "text": "P11 (keyset's advantage grows with page depth): confirmed in direction with an engine-specific crossing; the flat keyset cost it assumed was not tested because no matching composite index exists.",
+        "source": "studies/01-charity-tree/protocols/select-query-templates.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-16-placement-splitting-effect",
+      "statement": "On a 3-node YugabyteDB cluster (RF3, 2 CPU/3 GiB per node), pre-splitting the joined relations into three tablets, with leaders gated onto three nodes, changed join times against the single-tablet layout in every run. A 2,000-row join took 0.73x (isolated) and 0.71x (blended), and a 180,000-row join 0.54x and 0.71x. The 20-row join was 1.22x slower in the isolated phase and unresolved in the blended phase. At 180,000 rows the split layout was also 0.71-0.76x the single node and the equal-total single node.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "run_replicated",
+      "trials": {
+        "whole_run_replications": 24,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the nodes are containers on one laptop, so this is data placement without a network",
+        "tablet count and leader spread change together in this pair; a split single-node arm was not run",
+        "the 1 CPU client was throttled in 32-46% of its CFS periods in every run; point reads are the most exposed",
+        "placement was verified by yb_table_properties and yb-admin leader listings before and after each distributed run"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-join-v4-topo-distributed-i1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-i1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "1e89ee032810798eedb2bc9d723a7bd8386f9717146a338ac038608541db9805",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-i2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-i2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "c379b5634cc0c83d6c5dda73cbabb8240e851f6bdedc2c45499d4b6853647554",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-i3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-i3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "261a8263c1f684e8bb2ab17c74a9216b2f4c722b6c9cbc7dad47db99e13674dc",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-b1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-b1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "ca8e03004e7caf4a78d0441c47b3804975c22e3924cc1156f775731c60a23b24",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-b2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-b2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "233446b75e88c47c953204b767c1ef54ff47c91967edbe07448dceab512448a7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-b3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-b3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "1e62a6d00eb0c539c464a0418f5fa923fbde0556ece7132df02b25d848c5a782",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-tablet-i1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-tablet-i1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "6122526384aa46083db9172dc68a117e37915dd37a9807571f85973be1ae4a3a",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-tablet-i2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-tablet-i2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "020584f5fd06c11a3b471d4e25265c7ac45ecf5d310ed241e5e9ff4a7d1395b1",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-tablet-i3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-tablet-i3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "34447d84de019b9cadd9dc7faf9ad95497d2c6212ce3eb4bfca4f79b5d799b9d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-tablet-b1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-tablet-b1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "cc9d1cbf384650d419ca7fb3f16bcc9905806cda53b4f640ebe25024346aaaa2",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-tablet-b2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-tablet-b2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "9bbb7a64c3dc758819f23782c3d16987a59c490cd657008ceaf5faf1bb6fc16a",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-tablet-b3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-tablet-b3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "00fd931d2a48a57a27f502788a1ea816a3a69d7365f1016c6e129d4a8e0d9a6b",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-single-i1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-single-i1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "5ff0161edb2e32cb4c63da0123451f452b614e6c9ef4330c1c4724292cd9c92a",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-single-i2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-single-i2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "a63c107a532494fd6f8f9bbe8f49ca6e095cc14c0bead22fc848ac0e6a61693e",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-single-i3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-single-i3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "a99d6402480ba00cece3985fbe62f122e1519382e6e02ed4cd47ed5b9218d42d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-single-b1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-single-b1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "8321c3ddbaeb64c88aa2315bd66bd90c9cacdf42177e4b4540c1749b92205d27",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-single-b2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-single-b2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "82d73027d7f16910d7cbf4e49cc60d32f8da47ef39a3a5c1104607ef6a11db63",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-single-b3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-single-b3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "339cf3f56a1f3e809ce65c22ec1e1227e135ef71f45fc7267205cd18f1a94d81",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-equal-i1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-equal-i1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "64dcb81ee841e6d5e8e980097756dfe625516647b960dc1693ac2570685697d7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node-equal-total",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-equal-i2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-equal-i2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "bffe080fefcb13b42d5b1f89a1906d70060534d141e743c0fe13234b1449c26e",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node-equal-total",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-equal-i3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-equal-i3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "eb1eda2ea2f9f4df1f54c640b91c49ca45a903827d648ce2474d1535b5e99432",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node-equal-total",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-equal-b1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-equal-b1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "5b2b8c1a474427784366133e9a46b5d6b023eb5d2fdc72210a01c7cbea6181b0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node-equal-total",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-equal-b2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-equal-b2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "81698f69d454c8a835180e6bdc7c6f7a0c1c3ed6785717fbb80932bc01c8eacd",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node-equal-total",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-equal-b3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-equal-b3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "f6b9c08cf1e49b8c28b767a485a5bb4fbeee295d6c2605ab8743972334a3e1dd",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node-equal-total",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 720,
+        "reported_failed": 0,
+        "source": "the 24 v4 topology runs of the distributed, single-tablet, single and equal-total arms",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x01_optional_where and x02_join_limit_before fired in every run; every distributed run passed the placement gate (three tablets, three leader nodes)."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "yugabytedb-3node-rf3",
+            "design": "distributed against noncolocated-single-tablet",
+            "operation": "bag join at 90% selectivity",
+            "metric": "latency, per-run medians"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=join_where;threshold=180000",
+          "expected": "75.46, 79.13, 77.05 ms against 142.83, 146.73, 107.74 ms (isolated)"
+        },
+        {
+          "key": {
+            "topology": "yugabytedb-3node-rf3",
+            "design": "distributed against noncolocated-single-tablet",
+            "operation": "bag join at 0.01% selectivity",
+            "metric": "latency, per-run medians"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=join_where;threshold=20",
+          "expected": "3.31, 2.87, 3.18 ms against 1.87, 2.75, 2.61 ms (isolated)"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT placement pair: noncolocated-single-tablet against distributed (same cluster, data, index, budgets and endpoints)"
+        ],
+        "note": "The arms differ only in placement DDL; tablet count and leader spread change together."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 24,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      },
+      "prediction": {
+        "text": "Review 3's discriminating prediction (if the distributed arm is slower than single-tablet at the point read, data spread has a measurable cost on this host): confirmed in the isolated phase, unresolved in the blended phase.",
+        "source": "studies/01-charity-tree/reports/discussions/20261005T-select-join-review-3--claude-opus-5-5.md",
+        "verdict": "confirmed"
+      }
+    },
+    {
+      "claim_id": "v6-sel-17-placement-colocated-vs-distributed",
+      "statement": "On the same 3-node cluster, a colocated database, with all relations in one shared tablet led by one node, was compared with the pre-split distributed layout in every run. It took 0.71x (isolated) and 0.75x (blended) at a 20-row join, 0.78x and 0.82x at 2,000 rows, and 1.21x and 1.54x at 180,000 rows. Its forced-MATERIALIZED penalty at 2,000 rows was larger in every run: per-run medians 16.8x against 8.5x isolated, and 11.8x against 8.4x blended.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "repeated_controlled",
+      "trials": {
+        "whole_run_replications": 12,
+        "fresh_load_trials_per_cell": 1,
+        "inner_iterations": 5
+      },
+      "transfer": "direct",
+      "comparability": "within-run",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the nodes are containers on one laptop, so this is data placement without a network",
+        "no direction was recorded before the runs; the pair is reported as measured",
+        "the colocated tablet's leader sat on one node per run (yb-n2 or yb-n3)",
+        "the 1 CPU client was throttled in 32-46% of its CFS periods in every run"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-join-v4-topo-colocated-i1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-colocated-i1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "771f30fddb4e5880544603c9cc85e1424602ea23efe11e298b93cb35f0f11a38",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-join-v4-topo-colocated-i2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-colocated-i2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "88e0feb9497ff35fc6cadf0e9abcbdc8d5d90c7655d3c6b6b9caf84aa32aad26",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-colocated-i3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-colocated-i3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "efa57cff77782a8c5bad2db94a32b3437bb84a5ca5d51709bff14055937684fa",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-colocated-b1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-colocated-b1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "93eb5f6087c05d62860f236404ceb449cc9526da746005adc3a396506d030522",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-colocated-b2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-colocated-b2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "a3dc08acf943eb0f29692a94c144eee7b13abc3364ca7ecfd00f31ec0ad332c0",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-colocated-b3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-colocated-b3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "b4e20666adf6f00ecb4771f4d9c949f8d857571a0fd4e190953dbe1b4fafaa89",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-i1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-i1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "1e89ee032810798eedb2bc9d723a7bd8386f9717146a338ac038608541db9805",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-i2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-i2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "c379b5634cc0c83d6c5dda73cbabb8240e851f6bdedc2c45499d4b6853647554",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-i3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-i3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "261a8263c1f684e8bb2ab17c74a9216b2f4c722b6c9cbc7dad47db99e13674dc",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-b1-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-b1-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "ca8e03004e7caf4a78d0441c47b3804975c22e3924cc1156f775731c60a23b24",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-b2-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-b2-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "233446b75e88c47c953204b767c1ef54ff47c91967edbe07448dceab512448a7",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-join-v4-topo-distributed-b3-20261005",
+          "run_tag": "run/study-01/select-join-v4-topo-distributed-b3-20261005",
+          "repo_commit": "ba821e7b686ac3adb1cda56dd45f15c8ae699ef8",
+          "inputs_digest": "1e62a6d00eb0c539c464a0418f5fa923fbde0556ece7132df02b25d848c5a782",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-3node-rf3",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": 360,
+        "reported_failed": 0,
+        "source": "the 12 v4 topology runs of the colocated and distributed arms",
+        "controls_present": 2,
+        "controls_fired": 2,
+        "note": "x01_optional_where and x02_join_limit_before fired in every run; placement listings were saved for every run."
+      },
+      "support": [
+        {
+          "key": {
+            "topology": "yugabytedb-3node-rf3",
+            "design": "colocated against distributed",
+            "operation": "bag join at 90% selectivity",
+            "metric": "latency, per-run medians"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=join_where;threshold=180000",
+          "expected": "89.38, 126.07, 92.93 ms against 75.46, 79.13, 77.05 ms (isolated)"
+        },
+        {
+          "key": {
+            "topology": "yugabytedb-3node-rf3",
+            "design": "colocated",
+            "operation": "forced MATERIALIZED at 1% selectivity",
+            "metric": "latency ratio to the default CTE"
+          },
+          "status": "valid",
+          "resolves_to": "family=bag;stmt=cte_joined_outer_mat;threshold=2000",
+          "expected": "16.80, 18.01, 11.54 (isolated)"
+        }
+      ],
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "evidence_form": "isolate",
+      "attribution": {
+        "withheld": false,
+        "isolated_by": [
+          "01 SELECT placement pair: colocated against distributed (same cluster, data, index, budgets and endpoints)"
+        ],
+        "note": "The arms differ only in placement DDL."
+      },
+      "control_coverage": "present",
+      "replication": {
+        "runs": 12,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "run-level"
+      }
+    },
+    {
+      "claim_id": "v6-sel-gap-01-yugabytedb-scan-only-and-single-node-families",
+      "statement": "Three SELECT families lack measurements that their YugabyteDB and cluster conclusions would need. The access-path and membership/absence runs used the default hash-sharded single-column indexes, so none of their 167 YugabyteDB plans used an index and their YugabyteDB margins describe scan plans. The access, aggregate and membership families ran on single nodes only, with no 3-node, equal-total or placement arm. Keyset pagination was never measured with a matching composite (amount, id) index.",
+      "family": "normalized-facts",
+      "study": "01-charity-tree",
+      "strength": "gap",
+      "trials": {
+        "whole_run_replications": 0,
+        "fresh_load_trials_per_cell": 0,
+        "inner_iterations": 0
+      },
+      "transfer": "not-applicable",
+      "comparability": "not-applicable",
+      "comparability_record": null,
+      "confounds": [],
+      "limits": [
+        "the join/CTE family closes the index arm (range-sharded rank index) and the placement arm for its own workload only",
+        "a range-index arm on YugabyteDB is a physical-design change and must be measured as its own isolate pair"
+      ],
+      "anchors": [
+        {
+          "run_id": "select-order-access-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "9a3b8b777b99388a1cb983808a53bb0f976aad693cb14e7dd4f4fe8da8b99d7f",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "primary"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "818eaca45753f59f49626bb1135e68dec19cf9359c611f6048632cbb478e4b9d",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-access-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-access-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "ee27b23999ddd2405173c950ed2128986d7f723807e30232c02190a5532c2e52",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-1-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-1-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "b8e15f58e4e81a72c956ddd1e23bb656a932cf3a33ce8b41f59111be6fe9a82c",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-2-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-2-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "703b92c3644821ed9ddb95fb5a5e4566ea8d342cc63a998e02f5be3a11dc6749",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        },
+        {
+          "run_id": "select-order-existence-yugabyte-3-20261004",
+          "run_tag": "run/study-01/select-order-existence-yugabyte-3-20261004",
+          "repo_commit": "ca2a38fbf9e53da00344578258138db9e01d3545",
+          "inputs_digest": "62979fd70cec76ac2cfc6f2441d73310d61cd0108485bb3abae839bbf451f262",
+          "report": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md",
+          "analysis": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md",
+          "environment": "host-zenbook-ux5406sa",
+          "topology": "yugabytedb-1node",
+          "role": "corroborating"
+        }
+      ],
+      "run_level": {
+        "reported_cells": null,
+        "reported_failed": null,
+        "source": "the evidence tables' index-use rows: access-yb 0/103 and exist-yb 0/64 cells whose plan contains an index node",
+        "controls_present": 0,
+        "controls_fired": 0,
+        "note": "Records what the YugabyteDB and cluster readings of the access, aggregate and existence families cannot support; adds no measurement of its own."
+      },
+      "support": [],
+      "gap_basis": "studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md (cells whose plan contains an index node: access-yb 0/103, exist-yb 0/64; the three families have no cluster run)",
+      "legacy_provenance_incomplete": false,
+      "supersedes": null,
+      "review": {
+        "state": "open",
+        "artifact": "studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md"
+      },
+      "status": "active",
+      "gap_kind": [
+        "coverage"
+      ],
+      "evidence_form": "not_applicable",
+      "attribution": {
+        "withheld": true,
+        "isolated_by": [],
+        "note": "A coverage gap."
+      },
+      "control_coverage": "not_applicable",
+      "replication": {
+        "runs": 0,
+        "order": "randomized",
+        "across_run_spread_pct": null,
+        "tier": "single-run"
       }
     }
   ],

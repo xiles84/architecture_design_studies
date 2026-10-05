@@ -166,7 +166,10 @@ func LoadConfounds(path string) (*V2Confounds, error) {
 	return &c, nil
 }
 
-var v2TagPattern = regexp.MustCompile(`^run/0[1-5]-`)
+// v2TagPattern accepts the two run-tag namespaces the corpus uses:
+// run/<NN-study-name>/... for the original study runners and
+// run/study-<NN>/... for Study 01's additive SELECT runners (2026-10).
+var v2TagPattern = regexp.MustCompile(`^run/(0[1-5]-|study-0[1-5]/)`)
 
 // ValidateV2 is the semantic resolver: a green run means every atomic support
 // key resolves to a token in the primary anchor's cited report, every anchor

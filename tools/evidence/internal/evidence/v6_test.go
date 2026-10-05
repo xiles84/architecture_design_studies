@@ -58,10 +58,37 @@ func TestV6RegistryValidates(t *testing.T) {
 			t.Errorf("unexpected error: %v", e)
 		}
 	}
-	// 29 carried from v5 plus v2-17 (the first bounded crossover) and v2-18 (the
-	// first interaction).
-	if len(doc.Claims) != 31 {
-		t.Fatalf("want 31 claims, got %d", len(doc.Claims))
+	// 29 carried from v5 plus v2-17 (the first bounded crossover), v2-18 (the
+	// first interaction) and the 18 Study 01 SELECT claims of the 2026-10-05
+	// synthesis (v6-sel-*).
+	if len(doc.Claims) != 49 {
+		t.Fatalf("want 49 claims, got %d", len(doc.Claims))
+	}
+}
+
+// TestRunTagPatternAcceptsBothNamespaces pins the two run-tag namespaces the
+// corpus uses, so the SELECT runs' run/study-01/... tags resolve without
+// opening the pattern to arbitrary tags.
+func TestRunTagPatternAcceptsBothNamespaces(t *testing.T) {
+	for _, tag := range []string{
+		"run/01-charity-tree/20260913T124917Z-v3",
+		"run/05-cache-consistency/20260923T1215Z-res2-placement-yb3",
+		"run/study-01/select-order-access-postgres-1-20261004",
+		"run/study-01/select-join-v4-topo-distributed-i1-20261005",
+	} {
+		if !v2TagPattern.MatchString(tag) {
+			t.Errorf("run tag %q should be accepted", tag)
+		}
+	}
+	for _, tag := range []string{
+		"study-01/select-v2-join-cte",
+		"run/charity-tree/x",
+		"run/study-1/x",
+		"run/study-01-select/x",
+	} {
+		if v2TagPattern.MatchString(tag) {
+			t.Errorf("tag %q should be rejected as a run tag", tag)
+		}
 	}
 }
 
@@ -82,6 +109,26 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 	added := map[string]bool{
 		"v2-17-optimistic-pessimistic-crossover": true,
 		"v2-18-maintenance-size-interaction":     true,
+		// The Study 01 SELECT synthesis (2026-10-05): 17 measured claims and
+		// one coverage gap, each anchored to the generated evidence tables.
+		"v6-sel-01-inner-join-spellings-same-plan":                   true,
+		"v6-sel-02-materialized-joined-cte-penalty":                  true,
+		"v6-sel-03-cte-reuse-crossing":                               true,
+		"v6-sel-04-cte-reuse-postgresql-selective-no-crossing":       true,
+		"v6-sel-05-membership-join-distinct-penalty":                 true,
+		"v6-sel-06-membership-in-exists-no-difference":               true,
+		"v6-sel-07-nullable-not-in-empty":                            true,
+		"v6-sel-08-anti-join-not-exists-postgresql":                  true,
+		"v6-sel-09-aggregate-correlated-postgresql-crossover":        true,
+		"v6-sel-10-aggregate-yugabytedb-no-reversal":                 true,
+		"v6-sel-11-topn-lateral-probe-crossover":                     true,
+		"v6-sel-12-topn-distinct-on-postgresql":                      true,
+		"v6-sel-13-or-not-beaten-by-union":                           true,
+		"v6-sel-14-expression-index-postgresql":                      true,
+		"v6-sel-15-keyset-offset-crossover":                          true,
+		"v6-sel-16-placement-splitting-effect":                       true,
+		"v6-sel-17-placement-colocated-vs-distributed":               true,
+		"v6-sel-gap-01-yugabytedb-scan-only-and-single-node-families": true,
 	}
 	if len(v6.Claims) != len(v5.Claims)+len(added) {
 		t.Fatalf("claim count drifted: v6 %d v5 %d plus %d declared additions",
@@ -130,6 +177,11 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		"v3-02-churn-600-through-vs-aside":          true,
 		"v3-03-equal-total-framing-labelled":        true,
 		"v3-04-yb-single-strict-relaxed":            true,
+		// The Study 01 SELECT synthesis (2026-10-05) verified tablet/leader
+		// placement and per-endpoint balance for its join cluster runs, so both
+		// gaps are narrowed and partially superseded by v6-sel-16/17.
+		"v4-gap-01-physical-placement-unverified": true,
+		"v4-gap-02-endpoint-distribution-partial": true,
 	}
 	// Claims whose wording was made plainer without touching the evidence. Their
 	// statement and limits may differ from v5; their confounds, trial counts and
