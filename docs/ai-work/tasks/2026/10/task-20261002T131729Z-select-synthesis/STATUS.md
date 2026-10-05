@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Task | `task-20261002T131729Z-select-synthesis` |
-| State | `ready` |
-| Sequence | `1` |
-| Active attempt | none |
-| Active worker | `model=GPT-6 tool=Codex-desktop effort=unknown session=session-20261002-select-query-tasks capability=HIGH role=planner` |
-| Last event | `event-20261002T133636Z-published` |
-| Updated at | `2026-10-02T13:36:36Z` |
-| Next capability | HIGH |
-| Next work role | analyst |
+| State | `claimed` |
+| Sequence | `2` |
+| Active attempt | `attempt-20261005T133549Z-3446d3` |
+| Active worker | `model=claude-opus-5-5 tool=Claude Code desktop effort=xhigh session=session-20261005-select-synthesis-high capability=HIGH role=analyst` |
+| Last event | `event-20261005T133549Z-claimed` |
+| Updated at | `2026-10-05T13:35:49Z` |
+| Next capability | LOW |
+| Next work role | executor |
 | Branch | `study-01/select-synthesis` |
 | Worktree | `.worktrees/select-synthesis` |
 
-Published by model=GPT-6 tool=Codex-desktop effort=unknown session=session-20261002-select-query-tasks capability=HIGH role=planner. The immutable event files are authoritative for history.
+Claimed by model=claude-opus-5-5 tool=Claude Code desktop effort=xhigh session=session-20261005-select-synthesis-high capability=HIGH role=analyst until 2026-10-05T15:35:49Z. Worktree `.worktrees/select-synthesis`.
