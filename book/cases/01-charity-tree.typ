@@ -83,6 +83,11 @@ Theory: #link(<theory-select-contract>)[Answer contracts], #link(<theory-select-
 *Observed — the six forms:* the six #link(<theory-select-join-filter>)[join and filter forms] ran the same plan in all 120 engine, phase and selectivity pairs. No form is faster. Write the one that reads best. \
 #claim-badge("v6-sel-01-inner-join-spellings-same-plan")
 
+*Observed — the filtered derived table:* filtering donations in a derived table, then joining, ran the same plan as JOIN … WHERE at every selectivity from 0.01% to 90%, on both engines and in both phases. It never outperformed the plain join, and no measured situation favours it. \
+#claim-badge("v6-sel-01-inner-join-spellings-same-plan")
+
+*Inferred — when a derived table is more than a spelling:* the planner merges a derived table that only filters. It keeps a separate step when the derived table groups, deduplicates, limits or ranks rows. The measured example is pre-aggregation, in the #link(<case-charity-aggregate>)[totals variation].
+
 *Observed — a CTE fence:* forcing MATERIALIZED on a CTE that holds the join, with the filter outside, cost 84–101x on PostgreSQL and 34–49x on YugabyteDB at 0.01%. At 90% it cost 1.02–1.44x and 0.93–1.03x. With the filter inside the CTE, forcing it cost at most 1.61x on PostgreSQL. \
 #claim-badge("v6-sel-02-materialized-joined-cte-penalty")
 
@@ -133,6 +138,11 @@ Theory: #link(<theory-select-contract>)[Answer contracts], #link(<theory-select-
 
 *Observed — totals on YugabyteDB:* the correlated SUM never won. It took 1.07–1.23x at one donor and 398–541x at 10,000: 6.7–20.0 s per query, against 16–17 ms on PostgreSQL. \
 #claim-badge("v6-sel-10-aggregate-yugabytedb-no-reversal")
+
+*Observed — pre-aggregation in a derived table:* grouping each donor's donations in a derived table before the join took 5.7–7.9x the join-then-GROUP-BY time for one donor and 1.56–1.90x at 1,000 donors on PostgreSQL. Only at 10,000 donors did it dip to 0.77–0.80x, inside the measurement drift. On YugabyteDB it never won. \
+#claim-badge("v6-sel-18-aggregate-preagg-derived-table")
+
+*Not measured — the textbook case for pre-aggregation:* joining two child collections at once multiplies rows, and grouping each first avoids that. This fixture joins one child collection, so that advantage was not tested; the multiplied answer was detected as a wrong answer instead.
 
 *Observed — the top donation:* a LATERAL probe per donor beat `ROW_NUMBER()` only for one donor on YugabyteDB, at 0.54–0.70x. It lost from 10 donors, reaching 257–289x at 10,000. On PostgreSQL it lost from 100 donors. \
 #claim-badge("v6-sel-11-topn-lateral-probe-crossover")
@@ -190,12 +200,12 @@ Start from the answer, then the readable form. Switch only where the observed bo
   #set par(justify: false)
   #table(columns: (1.1fr, 1fr, 2fr), inset: 6pt, stroke: 0.4pt + palette.rule,
     table.header([Required answer], [Start with], [Switch or avoid — observed]),
-    [Donations with a filter], [Any readable join form], [Avoid MATERIALIZED on a CTE with a selective outer filter. #ids("v6-sel-01", "v6-sel-02")],
+    [Donations with a filter], [Any readable join form], [A filtered derived table is the same plan: no measured gain. Avoid MATERIALIZED on a CTE with a selective outer filter. #ids("v6-sel-01", "v6-sel-02")],
     [A CTE used several times], [The engine's default], [Inline only for a selective PostgreSQL consumer. #ids("v6-sel-03", "v6-sel-04")],
     [Donors with optional donations], [LEFT JOIN, filter in ON], [Never move the child filter to WHERE. #ids("v6-sel-01")],
     [Donors who donated], [EXISTS or IN], [Avoid JOIN plus DISTINCT at high fanout on PostgreSQL. #ids("v6-sel-05", "v6-sel-06")],
     [Donors who never donated], [NOT EXISTS], [Never NOT IN over a nullable key. #ids("v6-sel-07", "v6-sel-08")],
-    [One total per donor], [Join, then GROUP BY], [Correlated SUM only for very few donors, on PostgreSQL. #ids("v6-sel-09", "v6-sel-10")],
+    [One total per donor], [Join, then GROUP BY], [Correlated SUM only for very few donors, on PostgreSQL. A pre-aggregating derived table lost below 10,000 donors. #ids("v6-sel-09", "v6-sel-10", "v6-sel-18")],
     [Top donation per donor], [`ROW_NUMBER()` with a tiebreak], [LATERAL for a single donor; DISTINCT ON at scale on PostgreSQL. #ids("v6-sel-11", "v6-sel-12")],
     [The next page], [OFFSET for shallow pages], [Keyset past about depth 1,000 on PostgreSQL. #ids("v6-sel-15")],
     [Either of two ranges], [OR], [UNION ALL never won; index the expression you filter on. #ids("v6-sel-13", "v6-sel-14")],

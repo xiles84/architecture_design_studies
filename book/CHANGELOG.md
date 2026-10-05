@@ -1,5 +1,15 @@
 # CHANGELOG — *Data Architecture Reference*
 
+## Edition 3 preview 5 — 2026-10-05
+
+Answers the owner's question of when a derived table outperforms the other SELECT forms. The
+Charity case now says plainly that the filtered derived table ran the same plan as `JOIN … WHERE` in
+every measured pair and never outperformed (`v6-sel-01`). It adds the one measured derived table that
+changes the plan, pre-aggregation (`v6-sel-18`, registered from existing evidence): it lost at
+1–1,000 donors on PostgreSQL, dipped only inside the drift at 10,000, and never won on YugabyteDB.
+Theory explains when a derived table stops being a spelling; the template guide names both results.
+Milestone: `repo/book-derived-table-clarity-v1`.
+
 ## Edition 3 preview 4 — 2026-10-05
 
 Publishes the reviewed SELECT results in the Charity donations case: join forms and the CTE

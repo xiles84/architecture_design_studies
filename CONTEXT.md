@@ -43,6 +43,14 @@ summary, not a second ledger.
 
 ## Current state
 
+### Book Edition 3 preview 5 — **derived-table question answered (2026-10-05)**
+
+Owner feedback asked when a filtered derived table outperforms other SELECT forms. The answer is that
+it never did. `task-20261005T160000Z-book-derived-table-clarity` added that statement to the Charity
+case, guide and theory, and registered `v6-sel-18`, the pre-aggregating derived table: slower at
+1–1,000 parents on PostgreSQL, below 1 only inside the drift at 10,000, never faster on YugabyteDB.
+The registry has 50 claims with 0 errors. Milestone: `repo/book-derived-table-clarity-v1`.
+
 ### T1/T2 gate closure — **planned; seven tasks published (2026-10-05)**
 
 The charter keeps Study 09 behind "T1 and T2 before T5". HIGH (Claude Opus 5.5) planned the closing

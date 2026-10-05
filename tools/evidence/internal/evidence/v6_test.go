@@ -60,9 +60,9 @@ func TestV6RegistryValidates(t *testing.T) {
 	}
 	// 29 carried from v5 plus v2-17 (the first bounded crossover), v2-18 (the
 	// first interaction) and the 18 Study 01 SELECT claims of the 2026-10-05
-	// synthesis (v6-sel-*).
-	if len(doc.Claims) != 49 {
-		t.Fatalf("want 49 claims, got %d", len(doc.Claims))
+	// synthesis (v6-sel-*), plus v6-sel-18 registered for the derived-table question.
+	if len(doc.Claims) != 50 {
+		t.Fatalf("want 50 claims, got %d", len(doc.Claims))
 	}
 }
 
@@ -129,6 +129,9 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		"v6-sel-16-placement-splitting-effect":                       true,
 		"v6-sel-17-placement-colocated-vs-distributed":               true,
 		"v6-sel-gap-01-yugabytedb-scan-only-and-single-node-families": true,
+		// Registered 2026-10-05 from the same synthesis evidence after owner feedback
+		// asked when a derived table outperforms other forms.
+		"v6-sel-18-aggregate-preagg-derived-table": true,
 	}
 	if len(v6.Claims) != len(v5.Claims)+len(added) {
 		t.Fatalf("claim count drifted: v6 %d v5 %d plus %d declared additions",

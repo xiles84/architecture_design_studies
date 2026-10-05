@@ -96,6 +96,8 @@ WHERE o.customer_id = c.id AND o.amount > 100;
 ])
 *Expected performance:* the direct join, ON filter and comma join often converge to the same plan. Simple derived tables and folded CTEs can converge too. A plan match is a hypothesis to test, not a guarantee of identical end-to-end timing.
 
+*When does a derived table help?* A derived table that only filters is merged into the join, so it is a spelling, not an optimization. It becomes a separate step only when it groups, deduplicates, limits or ranks rows. Then it can help or hurt, and it may answer a different question.
+
 *A different answer with LEFT JOIN.* The first expression keeps Ben and Cara with NULL order columns. The second drops them:
 #query-example("Preserve every customer", [
 ```sql

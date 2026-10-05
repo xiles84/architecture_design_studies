@@ -394,6 +394,22 @@ coverage gap (`v6-sel-01` … `v6-sel-17`, `v6-sel-gap-01`) are **added**. All a
 - **Book.** The tracked PDF was built from the previous registry digest, so it does not yet render
   these claims. `task-20261004T142623Z-select-book-high` rebuilds it.
 
+**`v6-sel-18` added for the derived-table question (2026-10-05, task
+`task-20261005T160000Z-book-derived-table-clarity`, Claude Opus 5.5, HIGH).** The owner asked
+when a derived table outperforms the other SELECT forms.
+
+- **Filtered derived table:** already covered by `v6-sel-01`. It ran the same plan as
+  `JOIN … WHERE` in every measured pair.
+- **Pre-aggregating derived table:** the one measured derived table that changes the plan. It is now
+  registered from the same synthesis evidence, the six randomized-order aggregate runs, with no new
+  measurement.
+  - PostgreSQL: it lost at 1–1,000 parents, with the 10,000-parent dip inside the 29% drift.
+  - YugabyteDB: it never won.
+  - Prediction verdict: `unresolved`.
+  - Limit: the two-child-collection multiplier it is meant to avoid was not exercised.
+- **Supersedes an earlier note.** The synthesis analysis noted this result as "not registered". That
+  note predates this entry.
+
 ---
 
 ## Frozen predecessor text: v4 → v5
