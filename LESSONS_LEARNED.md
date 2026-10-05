@@ -2805,3 +2805,21 @@ cell tokens the claims resolve to; two generations were byte-identical.
 Evidence: `studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md`,
 `docs/select-query-templates/synthesis-20261005/` and the ledger entry of
 2026-10-05 in `book/evidence/v6/SUPERSESSION_LEDGER.md`.
+
+## A badge label must follow the schema, not the first claim that used it (2026-10-05)
+
+The book rendered `repeated_controlled` as "repeated within one run". The
+registry schema allows that strength for repeated whole runs or fresh loads, and
+no active claim had used it until the SELECT synthesis. That synthesis registered
+four claims at this strength with 3–12 whole runs each, so every badge would have
+understated them. The label now reads "repeated — no prior prediction", which is
+the actual difference from `run_replicated`.
+
+- **Derive a plain-language label from the schema's definition.** Check it again
+  when a strength is first used.
+- **From PowerShell, keep shell variables out of a double-quoted `wsl … bash -c`
+  argument.** PowerShell expanded `$?` to `True` in the build wrapper, so the log
+  recorded `exit=\True`. Judge such a build by its own verification lines, or use
+  single quotes.
+
+Evidence: `docs/book-select-high-20261005/` and `book/lib/evidence.typ`.
