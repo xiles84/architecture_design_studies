@@ -2823,3 +2823,22 @@ the actual difference from `run_replicated`.
   single quotes.
 
 Evidence: `docs/book-select-high-20261005/` and `book/lib/evidence.typ`.
+
+## Check every "same plan" sentence against the plans, not against the topology (2026-10-05)
+
+The query-plan appendix declares each node-tree statement in its spec (`expect: same|different`), and
+the generator recomputes it. The first draft expected the colocated and distributed placements to run
+the same 180,000-row join plan, because the claim compares layouts, not plans. The generator refused.
+The colocated run read `person` and `charity` through primary-key index scans, while the distributed
+run scanned them sequentially. The note now says what differs.
+
+- **Placement can change access paths.** Do not describe a placement pair as "same plan, different
+  storage" until the node trees have been compared.
+- **Resolve a cross-run label by run and axis.** The first render named the compared plan by its
+  axis alone and printed this exhibit's label for a plan from another run.
+- **In Typst, `as` is a keyword.** Read a JSON field named `as` with `.at("as")`.
+- **The `select-order` YugabyteDB plans were captured without `DIST`.** They carry no storage request
+  counts, so they cannot settle the per-probe explanation in `v6-sel-10`.
+
+Evidence: `book/appendix/query-plans.spec.json`, `tools/evidence/internal/evidence/plans.go` and
+`docs/book-plan-appendix-20261005/`.

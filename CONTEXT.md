@@ -43,6 +43,16 @@ summary, not a second ledger.
 
 ## Current state
 
+### Book Edition 3 preview 6 — **query-plan appendix (2026-10-05)**
+
+The owner asked for an appendix of the `EXPLAIN ANALYZE` plans the tests captured.
+`task-20261005T190500Z-book-plan-appendix` added *Query plans behind the SELECT claims*. It holds 45
+trimmed plans in 25 exhibits, covering every measured SELECT claim; `v6-sel-07` records rows only, and
+the appendix says so. `tools/evidence plans` extracts the plans from committed result files. It accepts
+only runs that are anchors of the claim and whose sha256 matches the anchor's digest, and it recomputes
+every node-tree statement. `go test` fails when `book/appendix/query-plans.json` is stale. Studies 02 and
+03 also store plans, but they are not in this appendix yet. Milestone: `repo/book-plan-appendix-v1`.
+
 ### Book Edition 3 preview 5 — **derived-table question answered (2026-10-05)**
 
 Owner feedback asked when a filtered derived table outperforms other SELECT forms. The answer is that

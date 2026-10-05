@@ -3,9 +3,11 @@
 //
 //	evidence validate [--repo DIR] [--claims FILE] [--schema FILE] [--list-inputs]
 //	evidence extract  [--repo DIR]
+//	evidence plans    [--repo DIR] [--spec FILE] [--out FILE] [--write]
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -30,6 +32,8 @@ func run(args []string, out, errOut io.Writer) int {
 	switch cmd {
 	case "validate":
 		return runValidate(args, out, errOut)
+	case "plans":
+		return runPlans(args, out, errOut)
 	case "extract":
 		return runExtract(args, out, errOut)
 	case "validate-v2":
@@ -732,4 +736,69 @@ func errStrings(errs []error) []string {
 		out = append(out, e.Error())
 	}
 	return out
+}
+
+// runPlans builds the query-plan appendix data from the authored exhibit spec.
+// By default it only checks that the committed data is current (exit 1 if not);
+// --write regenerates it. Either way every exhibit is verified against the
+// registry anchor it quotes.
+func runPlans(args []string, out, errOut io.Writer) int {
+	fs := flag.NewFlagSet("plans", flag.ContinueOnError)
+	fs.SetOutput(errOut)
+	repo := fs.String("repo", ".", "repository root")
+	claims := fs.String("claims", "book/evidence/v6/claims.json", "registry whose anchors the exhibits must cite (repo-relative)")
+	spec := fs.String("spec", "book/appendix/query-plans.spec.json", "authored exhibit list (repo-relative)")
+	dataOut := fs.String("out", "book/appendix/query-plans.json", "generated plan data (repo-relative)")
+	write := fs.Bool("write", false, "write the generated data instead of checking it")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	root, err := filepath.Abs(*repo)
+	if err != nil {
+		fmt.Fprintln(errOut, err)
+		return 2
+	}
+	reg, _, err := evidence.LoadV2(filepath.Join(root, *claims))
+	if err != nil {
+		fmt.Fprintf(errOut, "read registry: %v\n", err)
+		return 2
+	}
+	s, err := evidence.LoadPlanSpec(filepath.Join(root, *spec))
+	if err != nil {
+		fmt.Fprintf(errOut, "read spec: %v\n", err)
+		return 2
+	}
+	data, errs := evidence.BuildPlanData(root, *spec, *claims, s, reg)
+	for _, e := range errs {
+		fmt.Fprintf(errOut, "  [FAIL] %v\n", e)
+	}
+	if len(errs) > 0 {
+		fmt.Fprintf(errOut, "plans: %d error(s); nothing written\n", len(errs))
+		return 1
+	}
+	encoded, err := evidence.EncodePlanData(data)
+	if err != nil {
+		fmt.Fprintln(errOut, err)
+		return 2
+	}
+	target := filepath.Join(root, *dataOut)
+	plans := 0
+	for _, e := range data.Exhibits {
+		plans += len(e.Plans)
+	}
+	if *write {
+		if err := os.WriteFile(target, encoded, 0o644); err != nil {
+			fmt.Fprintln(errOut, err)
+			return 2
+		}
+		fmt.Fprintf(out, "plans: wrote %s (%d exhibits, %d plans)\n", *dataOut, len(data.Exhibits), plans)
+		return 0
+	}
+	current, err := os.ReadFile(target)
+	if err != nil || !bytes.Equal(bytes.ReplaceAll(current, []byte("\r\n"), []byte("\n")), encoded) {
+		fmt.Fprintf(errOut, "plans: %s is missing or stale; run `go run . plans --repo ../.. --write`\n", *dataOut)
+		return 1
+	}
+	fmt.Fprintf(out, "plans: %s is current (%d exhibits, %d plans)\n", *dataOut, len(data.Exhibits), plans)
+	return 0
 }

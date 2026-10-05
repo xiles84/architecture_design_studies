@@ -23,7 +23,7 @@
 #let mono-font = "DejaVu Sans Mono"
 
 #let book-title = "Data Architecture Reference"
-#let book-edition = "Edition 3 preview 5"
+#let book-edition = "Edition 3 preview 6"
 
 // ---- page geometry and running matter --------------------------------
 
@@ -90,16 +90,23 @@
     #text(size: 10.5pt, weight: "bold", fill: palette.accent)[#it]
   ]
   // forced hyphenation of commands. `raw` is the only block code the book uses.
-  show raw.where(block: true): it => block(
-    width: 100%,
-    inset: 8pt,
-    radius: 3pt,
-    stroke: 0.5pt + palette.rule,
-    fill: palette.surface,
-  )[
-    #set text(font: mono-font, size: 9pt, hyphenate: false)
-    #it
-  ]
+  // Query plans (`lang: "explain"`, the plan appendix) are quoted engine output up to
+  // 120 columns wide; at 9pt a node line would wrap and lose the indentation that
+  // shows the tree, so they are set smaller and tighter.
+  show raw.where(block: true): it => {
+    let plan = it.lang == "explain"
+    block(
+      width: 100%,
+      inset: if plan { 5pt } else { 8pt },
+      radius: 3pt,
+      stroke: 0.5pt + palette.rule,
+      fill: palette.surface,
+    )[
+      #set text(font: mono-font, size: if plan { 6.3pt } else { 9pt }, hyphenate: false)
+      #set par(leading: 0.42em, justify: false) if plan
+      #it
+    ]
+  }
   body
 }
 

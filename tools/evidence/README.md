@@ -22,6 +22,8 @@ go run . validate --repo ../.. \
 go run . validate --repo ../.. \
   --claims book/evidence/claims.json --schema book/evidence/claims.schema.json   # historical v1
 go run . extract     --repo ../..                # candidate claims from analysis front-matter
+go run . plans       --repo ../..                # check the query-plan appendix data is current
+go run . plans       --repo ../.. --write        # regenerate book/appendix/query-plans.json
 go test ./...
 ```
 
@@ -97,3 +99,19 @@ adds the v6 positive check, the byte-identical carry-forward test against v5, a 
 completeness check, and four lint negative controls: a package with no isolation pair, a confounded
 claim with no withheld attribution, `control_coverage: present` beside zero fired controls, and a
 crossover reversal with three levels and no interval.
+
+## Query-plan appendix (`plans`)
+
+`book/appendix/query-plans.spec.json` lists the plan exhibits the book quotes. Each one names a claim, one
+of its anchored runs, a result file and the cell axes to show. `plans` resolves every exhibit and refuses it
+when:
+
+- the run is not an anchor of the claim, or the claim is a gap or not active;
+- the result file's sha256 differs from the anchor's `inputs_digest`;
+- a cell is missing, did not pass the correctness gate, or has no plan;
+- a declared node-tree statement (`expect: same|different`) is contradicted by the plans.
+
+It then trims each plan by a fixed rule (node lines without cost estimates, plus a list of decisive
+attributes) and writes `book/appendix/query-plans.json`, which `book/appendix/query-plans.typ` renders.
+Without `--write` it only checks that the committed file is current, and `go test` does the same, so the
+appendix cannot drift from the evidence it quotes.

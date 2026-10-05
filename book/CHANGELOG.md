@@ -1,5 +1,17 @@
 # CHANGELOG — *Data Architecture Reference*
 
+## Edition 3 preview 6 — 2026-10-05
+
+Adds the appendix *Query plans behind the SELECT claims*, which the owner asked for. It quotes the
+stored `EXPLAIN ANALYZE` plans for every measured SELECT claim (`v6-sel-01`..`18`); `v6-sel-07` is a
+negative control that records rows, not a plan, and the appendix says so. There are 45 plans in 25 exhibits,
+with a reading note per claim. The plans are extracted by `tools/evidence plans` from committed result
+files. Each exhibit's run must be an anchor of its claim, and the file's sha256 must equal the
+anchor's digest. Every same or different node-tree statement is recomputed, and `go test` fails if
+the generated data is stale. The trim rule, kept attributes and the full plan's location are printed.
+The Charity template guide and the reproduction section link to the appendix. Milestone:
+`repo/book-plan-appendix-v1`.
+
 ## Edition 3 preview 5 — 2026-10-05
 
 Answers the owner's question of when a derived table outperforms the other SELECT forms. The

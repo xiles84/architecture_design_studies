@@ -50,5 +50,6 @@ The pinned Podman build records its source commit, source hash, registry digest,
 - Open the cited claim card and follow its reports, input digest and run tags.
 - A run tag identifies producing code; committed results live separately in the study's results directory.
 - Use the named study runner. It acquires the benchmark lock; never start a competing database manually.
+- The SELECT claims' `EXPLAIN ANALYZE` plans are quoted, with their digests, in #link(<appendix-query-plans>)[Query plans behind the SELECT claims].
 
 The full claim cards below are the audit trail. Their detailed limits are separate from the teaching chapters.

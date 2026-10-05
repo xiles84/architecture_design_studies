@@ -158,6 +158,7 @@ not benchmark results.]
 
 #heading(level: 1, numbering: none, "Appendix · Evidence and reproduction")
 #include "appendix/reading-results.typ"
+#include "appendix/query-plans.typ"
 
 // ------------------------------------------------------------------- glossary
 #pagebreak()

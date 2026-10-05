@@ -111,23 +111,23 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		"v2-18-maintenance-size-interaction":     true,
 		// The Study 01 SELECT synthesis (2026-10-05): 17 measured claims and
 		// one coverage gap, each anchored to the generated evidence tables.
-		"v6-sel-01-inner-join-spellings-same-plan":                   true,
-		"v6-sel-02-materialized-joined-cte-penalty":                  true,
-		"v6-sel-03-cte-reuse-crossing":                               true,
-		"v6-sel-04-cte-reuse-postgresql-selective-no-crossing":       true,
-		"v6-sel-05-membership-join-distinct-penalty":                 true,
-		"v6-sel-06-membership-in-exists-no-difference":               true,
-		"v6-sel-07-nullable-not-in-empty":                            true,
-		"v6-sel-08-anti-join-not-exists-postgresql":                  true,
-		"v6-sel-09-aggregate-correlated-postgresql-crossover":        true,
-		"v6-sel-10-aggregate-yugabytedb-no-reversal":                 true,
-		"v6-sel-11-topn-lateral-probe-crossover":                     true,
-		"v6-sel-12-topn-distinct-on-postgresql":                      true,
-		"v6-sel-13-or-not-beaten-by-union":                           true,
-		"v6-sel-14-expression-index-postgresql":                      true,
-		"v6-sel-15-keyset-offset-crossover":                          true,
-		"v6-sel-16-placement-splitting-effect":                       true,
-		"v6-sel-17-placement-colocated-vs-distributed":               true,
+		"v6-sel-01-inner-join-spellings-same-plan":                    true,
+		"v6-sel-02-materialized-joined-cte-penalty":                   true,
+		"v6-sel-03-cte-reuse-crossing":                                true,
+		"v6-sel-04-cte-reuse-postgresql-selective-no-crossing":        true,
+		"v6-sel-05-membership-join-distinct-penalty":                  true,
+		"v6-sel-06-membership-in-exists-no-difference":                true,
+		"v6-sel-07-nullable-not-in-empty":                             true,
+		"v6-sel-08-anti-join-not-exists-postgresql":                   true,
+		"v6-sel-09-aggregate-correlated-postgresql-crossover":         true,
+		"v6-sel-10-aggregate-yugabytedb-no-reversal":                  true,
+		"v6-sel-11-topn-lateral-probe-crossover":                      true,
+		"v6-sel-12-topn-distinct-on-postgresql":                       true,
+		"v6-sel-13-or-not-beaten-by-union":                            true,
+		"v6-sel-14-expression-index-postgresql":                       true,
+		"v6-sel-15-keyset-offset-crossover":                           true,
+		"v6-sel-16-placement-splitting-effect":                        true,
+		"v6-sel-17-placement-colocated-vs-distributed":                true,
 		"v6-sel-gap-01-yugabytedb-scan-only-and-single-node-families": true,
 		// Registered 2026-10-05 from the same synthesis evidence after owner feedback
 		// asked when a derived table outperforms other forms.
@@ -175,11 +175,11 @@ func TestV6CarriesV5ForwardExceptTheReplicatedClaim(t *testing.T) {
 		// Study 05's T1 replication (2026-10-02): five claims re-scoped or
 		// promoted run-level, so their statements, limits, trial counts and
 		// anchors may all move.
-		"v2-14-cache-throughput-gain":               true,
-		"v2-16-strict-freshness-read-cost":          true,
-		"v3-02-churn-600-through-vs-aside":          true,
-		"v3-03-equal-total-framing-labelled":        true,
-		"v3-04-yb-single-strict-relaxed":            true,
+		"v2-14-cache-throughput-gain":        true,
+		"v2-16-strict-freshness-read-cost":   true,
+		"v3-02-churn-600-through-vs-aside":   true,
+		"v3-03-equal-total-framing-labelled": true,
+		"v3-04-yb-single-strict-relaxed":     true,
 		// The Study 01 SELECT synthesis (2026-10-05) verified tablet/leader
 		// placement and per-endpoint balance for its join cluster runs, so both
 		// gaps are narrowed and partially superseded by v6-sel-16/17.

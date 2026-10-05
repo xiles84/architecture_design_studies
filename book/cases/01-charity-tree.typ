@@ -212,7 +212,7 @@ Start from the answer, then the readable form. Switch only where the observed bo
   )
 ]
 
-The full claim behind each id is linked from the badges above. Every row comes from one laptop, one sequential reader and named engines; no row is a universal ranking.
+The full claim behind each id is linked from the badges above, and the plans each claim compares are quoted in #link(<appendix-query-plans>)[Query plans behind the SELECT claims]. Every row comes from one laptop, one sequential reader and named engines; no row is a universal ranking.
 
 #gap[
   Native document, key-value, graph and wide-column engines were not measured. SQL JSON storage cannot establish their performance.
