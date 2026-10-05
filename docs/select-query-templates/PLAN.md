@@ -1,6 +1,6 @@
 # SELECT query templates: examples, measurements and selection guidance
 
-Status: protocol/harness and three measurement families integrated; join/CTE remains ready and unmeasured. See the dated amendment below for the current execution route.
+Status (2026-10-05): protocol/harness and all four measurement families integrated; the HIGH synthesis is signed and its claims registered (`v6-sel-*`, [book handoff](BOOK-HANDOFF-20261005.md)). HIGH book publication (`select-book-high`) is next. The dated amendment below records the route.
 Owner request: [REQUEST.md](REQUEST.md). Existing goal: goal-20260922T025912Z-data-architecture-book.
 Planner: GPT-6 / Codex desktop / effort unknown; user-declared HIGH.
 Publication task: task-20261002T131729Z-select-query-task-publication.

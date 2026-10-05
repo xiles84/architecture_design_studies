@@ -2713,7 +2713,13 @@ still ran.
 
 The shared SELECT teaching DDL has the same default: integrated YB access and
 existence plans show 0 index scans. Evidence:
-`docs/select-query-templates/reviews/20261004-join-high-2/CHECKS.md`.
+`docs/select-query-templates/reviews/20261004-join-high-2/CHECKS.md`. The SELECT
+synthesis (2026-10-05) confirmed it in the randomized-order runs: 0/103 YB
+access cells and 0/64 YB existence cells had an index node, against 51/103 and
+12/64 on PostgreSQL. Those families' YugabyteDB conclusions (the `OR` margin, the
+keyset crossing depth) therefore describe scan plans. They are registered as a
+gap (`v6-sel-gap-01`), not as engine behaviour. **Count index use per engine
+before a cross-engine comparison reaches a reader.**
 
 ## A feature check must run where the feature can exist (2026-10-04)
 
@@ -2778,3 +2784,24 @@ were not:
 
 Evidence: `docs/select-query-templates/reviews/20261005-join-high-4/CHECKS.md`
 and the signed discussion `20261005T-select-join-review-4--claude-opus-5-5`.
+
+## A claim can only cite a digest that some report prints (2026-10-05)
+
+The registry accepts an anchor only when its `inputs_digest` appears verbatim in
+the cited report and analysis. None of the SELECT cross-run reports prints a
+digest. The per-run access, aggregate and existence reports print only image
+digests, and the order-correction manifests print file hashes but no cells. The
+SELECT synthesis therefore generated its own numbers-only evidence tables. A Go
+program reads the tagged runs and prints each run's `sha256(json)` beside the
+cell tokens the claims resolve to; two generations were byte-identical.
+
+- **A cross-run report should print each input's digest.** Otherwise no claim
+  can anchor to it without a derived table.
+- **The validator's run-tag pattern encodes a naming convention.** The SELECT
+  runners' `run/study-01/…` tags failed `^run/0[1-5]-` until the pattern was
+  widened, with a test. Check a new runner's tag namespace against the registry
+  before its results are registered.
+
+Evidence: `studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md`,
+`docs/select-query-templates/synthesis-20261005/` and the ledger entry of
+2026-10-05 in `book/evidence/v6/SUPERSESSION_LEDGER.md`.

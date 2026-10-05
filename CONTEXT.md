@@ -43,14 +43,45 @@ summary, not a second ledger.
 
 ## Current state
 
+### SELECT synthesis — **signed; 18 claims registered (2026-10-05)**
+
+`task-20261002T131729Z-select-synthesis` (HIGH, Claude Opus 5.5) scored P1–P12
+across all four SELECT families. It used the randomized-order runs only, plus the
+v3b join domain and the v4 placement runs: 60 tagged runs, inputs digest
+`baaaab36…`.
+
+- **Outputs:**
+  - the [signed analysis](studies/01-charity-tree/reports/analyses/20261005T-select-synthesis--claude-opus-5-5--2026-10-05.md)
+    with the selection matrix;
+  - the generated [evidence tables](studies/01-charity-tree/reports/20261005T-select-synthesis-evidence.md);
+  - registered claims `v6-sel-01` … `v6-sel-17` plus gap `v6-sel-gap-01`
+    (evidence validate: 49 claims, 0 errors);
+  - the [book handoff](docs/select-query-templates/BOOK-HANDOFF-20261005.md).
+- **Main findings:**
+  - The six inner-join spellings ran one plan in all 120 pairs.
+  - Forced `MATERIALIZED` with the filter outside the CTE costs 84–101x on
+    PostgreSQL and 34–49x on YugabyteDB at 0.01%.
+  - Nullable `NOT IN` returned 0 rows in 18/18 checks.
+  - The per-parent probe and aggregate templates lose from ~10–100 parents,
+    and at every count for YugabyteDB's correlated aggregate.
+  - Keyset beats `OFFSET` past depth 1,000 on PostgreSQL.
+  - `UNION ALL` never beat `OR`.
+- **Recorded as gap `v6-sel-gap-01`:** YugabyteDB access/existence plans were
+  scan-only (hash-sharded default indexes).
+- **Gaps narrowed:** `v4-gap-01` and `v4-gap-02` are now partially superseded,
+  because the join runs verified placement and endpoint balance.
+- **Book PDF:** the tracked PDF predates these claims.
+- **Next:** HIGH `task-20261004T142623Z-select-book-high`.
+- **Milestone:** `study-01/select-v6-analysis`. The queue's events record the
+  integration.
+
 ### Join/CTE measurement family — **approved by review 4 and integrated (2026-10-05)**
 
 `task-20261002T131729Z-select-join-cte` (branch `study-01/select-join-cte`) was
 approved by an independent fourth HIGH review and integrated into local `main`
 under `study-01/select-v2-join-cte`. The queue's integrated/completed events
-record the outcome. No SELECT timing claim is promoted; that belongs to
-`select-synthesis`, which is now eligible, and then to `select-book-high`. The
-benchmark lock is free.
+record the outcome. Its SELECT claims are now registered by the synthesis above.
+The benchmark lock is free.
 
 - **Accepted placement evidence (review 4):** 30 `select-join-v4-topo-*` runs
   from one commit (`ba821e7b`) and one client build. The arms are single,
@@ -93,10 +124,9 @@ benchmark lock is free.
     (Claude Opus 5.5): approved round 3 (LOW attempt
     `attempt-20261005T111913Z-13271e`), with [checks](docs/select-query-templates/reviews/20261005-join-high-4/CHECKS.md)
     and the signed qualification above.
-- **Open for `select-synthesis`:**
-  - The shared SELECT teaching DDL has the same YB hash default. Integrated YB
-    access/existence runs show 0 index scans (access 0/51 vs PostgreSQL
-    29/26).
+- **Carried into the synthesis:**
+  - YB access/existence plans are scan-only (0/103 and 0/64 index nodes),
+    now registered as `v6-sel-gap-01`.
   - Unsplit hash tables get one tablet despite the configured
     `ysql_num_shards_per_tserver=2` (unexplained).
   - The 1 CPU client is throttled in 32–46% of its CFS periods.
@@ -168,7 +198,7 @@ and [exact input check](docs/select-evidence-review-20261004/CHECKS.md) preserve
 original analyses and explain the disagreement. Targeted correction task
 `task-20261004T100822Z-select-order-correction` executed that targeted handoff.
 The independent correction review below qualifies its interpretation. With the
-join/CTE family integrated (2026-10-05), final HIGH `select-synthesis` is eligible.
+join/CTE family integrated (2026-10-05), the HIGH `select-synthesis` scored all four families (see above).
 
 **The correction is measured and accepted by HIGH for integration (2026-10-04).** 18 whole runs
 (`results/select-order-*`) use a seeded per-run permutation with interleaved
