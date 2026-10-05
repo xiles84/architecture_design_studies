@@ -43,13 +43,34 @@ summary, not a second ledger.
 
 ## Current state
 
-### Join/CTE measurement family — **third HIGH review: one narrow LOW correction left (2026-10-05)**
+### Join/CTE measurement family — **approved by review 4 and integrated (2026-10-05)**
 
-`task-20261002T131729Z-select-join-cte` (branch `study-01/select-join-cte`,
-worktree `.worktrees/select-join-cte`) is `changes_requested`. It is not yet
-integrated into local `main`, and no SELECT timing claim is promoted. The
+`task-20261002T131729Z-select-join-cte` (branch `study-01/select-join-cte`) was
+approved by an independent fourth HIGH review and integrated into local `main`
+under `study-01/select-v2-join-cte`. The queue's integrated/completed events
+record the outcome. No SELECT timing claim is promoted; that belongs to
+`select-synthesis`, which is now eligible, and then to `select-book-high`. The
 benchmark lock is free.
 
+- **Accepted placement evidence (review 4):** 30 `select-join-v4-topo-*` runs
+  from one commit (`ba821e7b`) and one client build. The arms are single,
+  equal-total, single-tablet, `distributed` and colocated, each isolated and
+  blended, ×3. All runs are 30/30 valid with controls firing. The distributed
+  arm passed its placement gate (three tablets, leaders on three nodes before
+  and after every run). Report `reports/select-join-v4-topology-20261005.md`
+  re-renders byte-identically. Aggregate inputs digest: `acc5d121…`.
+- **What it establishes** (separated in every run, both phases):
+  - splitting (single-tablet → distributed) is 0.73x/0.71x at 2,000 rows and
+    0.54x/0.71x at 180,000 rows, with the point read 1.22x slower (isolated
+    only);
+  - colocated vs distributed: colocated is faster at 20 and 2,000 rows,
+    1.21–1.54x slower at 180,000 rows, and has the larger forced-MAT penalty;
+  - the equal-total single node does not reproduce the scan gain.
+- **Read v4 with its qualification.** The v4 analysis's measurements and P4
+  ladder are correct (YB 1% consumer: replicated sign change between n=1 and
+  n=2). Its TL;DR baseline, its "penalty ratio as plan cost" wording, and its
+  "blended moves comparisons under 10%" claim are corrected in the signed
+  [review-4 discussion](studies/01-charity-tree/reports/discussions/20261005T-select-join-review-4--claude-opus-5-5.md).
 - **Accepted evidence (review 3):** 37 `select-join-v3b-*` runs from one
   client build, all valid, controls firing, digests stable.
   - Domain matrix, PostgreSQL btree and YugabyteDB range index (`rank ASC`),
@@ -67,30 +88,21 @@ benchmark lock is free.
     limits;
   - [review 3](docs/select-query-templates/reviews/20261005-join-high-3/REVIEW.md)
     (Claude Opus 5.5), with
-    [signed discussion](studies/01-charity-tree/reports/discussions/20261005T-select-join-review-3--claude-opus-5-5.md).
-- **Round-3 delivery (LOW, attempt `attempt-20261005T111913Z-13271e`):** done and
-  submitted. The `distributed` arm pre-splits the three tables and the person
-  index into 3 tablets and the range rank index at
-  `((66667),(133334))`; the placement gate requires `num_tablets = 3` and three
-  distinct tablet leaders (yb-admin handshake, before/after listings saved) and
-  all six distributed runs passed with every relation led on
-  yb-n1/n2/n3. The engine-default arm is relabelled
-  `noncolocated-single-tablet`. The 30-run subset (single, equal-total,
-  distributed, single-tablet, colocated × isolated/blended × 3) is one build,
-  all 30/30 valid; report `reports/select-join-v4-topology-20261005.md`
-  re-renders byte-identically and renders tablets, leaders, endpoints, writer
-  and throttling per run. v4 analysis supersedes v3 (moved to
-  `reports/outdated/`): splitting is 0.71x single-node at the 90% scan but 1.19x
-  at a point read; colocated is cheapest at a point read (0.66x at 2,000 rows)
-  but its materializing plan is 17.24x its default; P4 now follows the per-run
-  signs — a replicated YB sign change between n=1 and n=2 at the 1% consumer.
-  Next: HIGH `select-synthesis` and `select-book-high`.
-- **Open for `select-synthesis`:** the shared SELECT teaching DDL has the same
-  YB hash default. Integrated YB access/existence runs show 0 index scans
-  (access 0/51 vs PostgreSQL 29/26).
+    [signed discussion](studies/01-charity-tree/reports/discussions/20261005T-select-join-review-3--claude-opus-5-5.md);
+  - [review 4](docs/select-query-templates/reviews/20261005-join-high-4/REVIEW.md)
+    (Claude Opus 5.5): approved round 3 (LOW attempt
+    `attempt-20261005T111913Z-13271e`), with [checks](docs/select-query-templates/reviews/20261005-join-high-4/CHECKS.md)
+    and the signed qualification above.
+- **Open for `select-synthesis`:**
+  - The shared SELECT teaching DDL has the same YB hash default. Integrated YB
+    access/existence runs show 0 index scans (access 0/51 vs PostgreSQL
+    29/26).
+  - Unsplit hash tables get one tablet despite the configured
+    `ysql_num_shards_per_tserver=2` (unexplained).
+  - The 1 CPU client is throttled in 32–46% of its CFS periods.
 - Review checkpoint tags: `study-01/select-join-high-review-20261004`,
-  `…-review-2-20261004` and `…-review-3-20261005`. The completion tag
-  `study-01/select-v2-join-cte` is absent.
+  `…-review-2-20261004` and `…-review-3-20261005`; completion tag
+  `study-01/select-v2-join-cte`.
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**
 
@@ -99,8 +111,7 @@ by HIGH book-result authorship. Theory now shows six equivalent INNER JOIN forms
 LEFT JOIN answer differences and CTE folding/materialization. The Charity donations
 case links a clearly planned variation; no new SELECT timing claim is promoted.
 
-Resume `task-20261002T131729Z-select-join-cte` after claiming its corrections in
-the retained worktree; the HIGH review above controls the next attempt.
+`task-20261002T131729Z-select-join-cte` is now integrated (see above).
 The [dated handoff](docs/select-query-templates/JOIN-HANDOFF-20261004.md) resolves
 the yielded worker's matrix/fixture questions and requires randomized order controls.
 Existing HIGH `select-synthesis` reviews it; new HIGH
@@ -156,8 +167,8 @@ controlled replicated numeric claims. The [signed review](studies/01-charity-tre
 and [exact input check](docs/select-evidence-review-20261004/CHECKS.md) preserve the
 original analyses and explain the disagreement. Targeted correction task
 `task-20261004T100822Z-select-order-correction` executed that targeted handoff.
-The independent correction review below qualifies its interpretation. Final HIGH
-synthesis still waits for the remaining join/CTE family.
+The independent correction review below qualifies its interpretation. With the
+join/CTE family integrated (2026-10-05), final HIGH `select-synthesis` is eligible.
 
 **The correction is measured and accepted by HIGH for integration (2026-10-04).** 18 whole runs
 (`results/select-order-*`) use a seeded per-run permutation with interleaved
@@ -213,9 +224,8 @@ Original runs and analyses are retained; no SELECT timing claim is added to the 
 Evidence: replicated reports
 `studies/01-charity-tree/reports/20261003T-select-access-replicated.md` and
 `.../20261003T-select-agg-replicated.md` and `.../20261004T-select-exist-replicated.md`,
-with signed analyses beside each. The remaining family (join/CTE) now has six
-saved synthetic single-node runs and an independent HIGH review requiring LOW
-corrections, as recorded above; its worktree is retained. The benchmark lock is free.
+with signed analyses beside each. The fourth family (join/CTE) is integrated as
+recorded above. The benchmark lock is free.
 
 ### HIGH task sweep — **cache and queue repair integrated; SELECT harness validated (2026-10-03)**
 
@@ -690,6 +700,13 @@ validation does not complete SELECT evidence synthesis or its four measuring tas
   starts, runs and completes cleanly here — `20261002T150337Z-feas` on `yb-single` did, which is what made the
   `v2-10` replication possible — so `yb-cluster3` and study 07's three-node topology remain unmeasurable while
   `yb-single` does not. Every published YB run before this date still carries the declared-envelope gap.
+  **Premise corrected 2026-10-05 (join/CTE review 4):** the "2 GiB" figure is the Podman machine's
+  configured profile, and under WSL2 it is not the guest's limit. Saved guest snapshots show 8 CPUs and
+  ≈15.36 GiB, and `yb-cluster3` completed 30 placement runs on this machine (`select-join-v3b-*` and
+  `select-join-v4-topo-*`, all cells valid). The **"`yb-cluster3` cannot fit"** deferrals (Study 05
+  `v3-05`/`v3-06`, the YB-cluster halves noted in the T1 replications) are therefore re-openable. They need
+  new HIGH-planned tasks with sizing derived from the effective guest; this is not an owner resource
+  decision.
 - **Study 03's replication history, corrected (passes `study-03/v2-11-replication`, `…-order-reversed`;
   both superseded by `study-03/v2-11-memory-envelope` and then `study-03/close-out`).** An earlier version of
   this bullet said neither pass registered, which was true when written and is not true now: `v2-11` is
@@ -1205,7 +1222,10 @@ impossible values must be zero, so the claim keeps a limit and the **gate's cove
 during churn is a new gap**; and the book's "p99 falls an order of magnitude" prose was corrected in the
 same change. **Deferred/gaps:** `v3-01`'s 1800 s horizon was not re-run; `v3-05` and `v3-06` need
 `yb-cluster3`, which the fixed 2 GiB machine cannot carry, and no tablet/leader placement record exists, so
-the required colocated/non-colocated comparison remains an explicit coverage gap. Eight runs tagged; analysis
+the required colocated/non-colocated comparison remains an explicit coverage gap. (Corrected 2026-10-05:
+`yb-cluster3` does run here, and Study 01's join/CTE placement gate is a working tablet/leader
+instrument, so both deferrals are re-openable; see the sizing BLOCKER entry under the empirical-method
+layer.) Eight runs tagged; analysis
 `studies/05-cache-consistency/reports/analyses/20261002T-t1-replication--deepseek-flash--2026-10-02.md`.
 Merged into local `main` at `7c53e24`; the task is complete and the worktree removed.
 

@@ -2381,7 +2381,9 @@ a container tool — use a private descriptor (`done 3< plan`). **Treat a cell c
 failure**, not as a fast run: the runner's own completion line and failed-cell count say nothing about cells
 that were never attempted. And **check the published runs still add up** before trusting a clean summary —
 here the older manifests count 100 and 192 cells, so they predate the behaviour, but that was verified rather
-than assumed.
+than assumed. **Recurred 2026-10-05:** the join/CTE v4 driver fed its 30-run plan through a heredoc, and a
+sub-command consumed it after the six `single` runs. The worker noticed the missing 24 and ran them from a
+Bash array — the rule above, applied late.
 
 ### A prediction must name only what the plan actually runs
 The same tranche falsified a prediction of mine because it asked for something the scoped plan never
@@ -2749,3 +2751,30 @@ colocation.
   conclusion is drawn.
 
 Evidence: `docs/select-query-templates/reviews/20261005-join-high-3/CHECKS.md`.
+
+## Reading a placement matrix: phases, penalties and configured flags (2026-10-05)
+
+The gated v4 placement runs were sound. Three statements in their analysis
+were not:
+
+- **A light writer can reverse a placement comparison.** With a 10/s
+  maintenance writer, colocated vs single node at 180,000 rows went from
+  0.85x (isolated) to 1.16x (blended), and equal-total vs single at 2,000
+  rows went from 0.83x to 1.16x. The analysis said the blended phase moved
+  comparisons by "under ~10%". Before generalising across phases, check the
+  run-range separation of each pair **in each phase**. Cite a direction only
+  where every run of one arm lies beyond every run of the other.
+- **A ratio of penalties is not a plan cost.** Dividing one arm's
+  MAT/default ratio by the baseline's (17.24 / 9.55 = 1.81) produced
+  "colocated's materializing plan costs 1.81x the single node's", while the
+  plan's own time was 1.14x. Name the quantity in every ratio: a penalty
+  within an arm, or a time across arms.
+- **A recorded flag is a request until the running process confirms it.**
+  `ysql_num_shards_per_tserver=2` was read from the container's arguments.
+  Unsplit hash tables still got one tablet, where 2 × 3 tservers predicts
+  six. Read effective values from the running server (its flags or metadata
+  endpoint), and keep an outcome that contradicts the recorded value marked
+  unexplained.
+
+Evidence: `docs/select-query-templates/reviews/20261005-join-high-4/CHECKS.md`
+and the signed discussion `20261005T-select-join-review-4--claude-opus-5-5`.
