@@ -43,57 +43,45 @@ summary, not a second ledger.
 
 ## Current state
 
-### Join/CTE measurement family — **second HIGH review: LOW corrections required (2026-10-04)**
+### Join/CTE measurement family — **third HIGH review: one narrow LOW correction left (2026-10-05)**
 
 `task-20261002T131729Z-select-join-cte` (branch `study-01/select-join-cte`,
-worktree `.worktrees/select-join-cte`) is `changes_requested` again. It is not
+worktree `.worktrees/select-join-cte`) is `changes_requested`. It is not yet
 integrated into local `main`, and no SELECT timing claim is promoted. The
 benchmark lock is free.
 
-- **Measured so far (all correctness-gated, tags `run/study-01/select-join-*`):**
-  - six synthetic single-node runs (first submission);
-  - the frozen Study 01 domain matrix `select-join-domain2-{pg,yb}{1,2,3}-20261004`
-    (91/91 valid each; isolated phase only);
-  - an 18-run YB topology subset (single 2 CPU/3 GiB, equal-total 6 CPU/9 GiB,
-    cluster3 RF3; isolated and blended; 30/30 valid);
-  - placement, blend, calibration and smoke checks.
-  - The signed LOW analyses are `…select-join-cte--deepseek-flash…` and its
-    successor `…select-join-cte-v2--deepseek-flash…`.
-- **Review 1** (GPT-6, [review](docs/select-query-templates/reviews/20261004-join-high/REVIEW.md)):
-  reproducibility, resource, domain, blended, topology and engine-plan
-  corrections. Most were delivered and accepted in review 2.
-- **Review 2** (Claude Opus 5.5, [review](docs/select-query-templates/reviews/20261004-join-high-2/REVIEW.md),
-  [handoff](docs/select-query-templates/reviews/20261004-join-high-2/CORRECTIVE-HANDOFF.md),
-  [signed discussion](studies/01-charity-tree/reports/discussions/20261004T-select-join-review-2--claude-opus-5-5.md)):
-  - The YB rank index is hash-sharded (`CREATE INDEX … (rank)`), so 0 of 273
-    YB domain plans use it and every YB cell is a full 200k-row scan. The v2
-    PG-vs-YB materialization contrast is an index artefact until a
-    range-index (`rank ASC`) arm is measured.
-  - The colocated arm was never attempted on a `COLOCATION = true` database.
-  - The topology report pools the two single-node budgets.
-  - Generated limits contradict blended and equal-total runs; per-node
-    throttling is unrendered.
-  - The domain matrix has no blended phase.
-  - The attempt has no Decision Log of its own.
-- **Next (LOW):** about 36 new runs per handoff 2 (YB range arm, PG/YB domain
-  isolated+blended, topology subset, colocated cluster3), reporting fixes and a
-  v3 analysis. Then HIGH `select-synthesis` and `select-book-high`.
-- **Round-2 progress (LOW, attempt `attempt-20261004T215518Z-975148`):**
-  complete and submitted for review. The range-index arm is implemented and
-  gate-validated (`indexdef … (rank ASC)`; gate used at 20/200/2000). 37 runs
-  under one frozen build (`select-join-v3b-*`): domain PG/YB range isolated and
-  blended (91/91), topology single / equal-total / cluster3 and **colocated
-  cluster3**, isolated and blended (30/30). The corrected engine contrast for
-  forced `MATERIALIZED` is PostgreSQL ~97x vs YugabyteDB ~42x at 20 rows — the
-  v2 "YB 1.4-1.7x" was a hash-index artefact. Reports
-  `reports/select-join-v3b-{domain-replicated,topology}-20261005.md`; v3 signed
-  analysis; the pooled report and analyses v1/v2 are in `reports/outdated/`.
-- **Open for `select-synthesis`:** the shared teaching DDL has the same YB
-  default. Integrated YB access/existence runs show 0 index scans (access
-  0/51 vs PostgreSQL 29/26), so YB access/existence verdicts may describe
-  hash-only physical designs.
-- Review checkpoint tags: `study-01/select-join-high-review-20261004` and
-  `study-01/select-join-high-review-2-20261004`. The completion tag
+- **Accepted evidence (review 3):** 37 `select-join-v3b-*` runs from one
+  client build, all valid, controls firing, digests stable.
+  - Domain matrix, PostgreSQL btree and YugabyteDB range index (`rank ASC`),
+    isolated and blended, 3 runs each (91/91). **Final — not re-run.**
+  - Forced `MATERIALIZED` on the joined-output CTE at threshold 20 costs
+    97.9x on PostgreSQL and 45.6x on YugabyteDB (isolated, report medians).
+    The earlier "YB 1.4–1.7x" came from a hash-sharded index.
+  - Older runs are retained as labelled observations: synthetic, `domain2`,
+    hash-index topology, and pre-gate-fix v3.
+- **Review history:**
+  - [review 1](docs/select-query-templates/reviews/20261004-join-high/REVIEW.md)
+    (GPT-6): domain arm, blended phase, resources, engine plans, digests;
+  - [review 2](docs/select-query-templates/reviews/20261004-join-high-2/REVIEW.md)
+    (Claude Opus 5.5): YB hash index, colocated arm, pooled budgets, stale
+    limits;
+  - [review 3](docs/select-query-templates/reviews/20261005-join-high-3/REVIEW.md)
+    (Claude Opus 5.5), with
+    [signed discussion](studies/01-charity-tree/reports/discussions/20261005T-select-join-review-3--claude-opus-5-5.md).
+- **Left (LOW, [handoff 3](docs/select-query-templates/reviews/20261005-join-high-3/CORRECTIVE-HANDOFF.md)):**
+  - The "non-colocated" cluster arm had one tablet per relation, with every
+    leader on one node (6/6 runs). Add a pre-split, leader-spread
+    `distributed` arm with a placement gate.
+  - Re-run the 30-run topology subset (5 arms × isolated/blended × 3) under
+    one build.
+  - Write a v4 analysis. It must fix the inverted P4 verdict: YB at the 1%
+    consumer changes sign between n=1 and n=2 in 6/6 runs.
+  - Then HIGH `select-synthesis` and `select-book-high`.
+- **Open for `select-synthesis`:** the shared SELECT teaching DDL has the same
+  YB hash default. Integrated YB access/existence runs show 0 index scans
+  (access 0/51 vs PostgreSQL 29/26).
+- Review checkpoint tags: `study-01/select-join-high-review-20261004`,
+  `…-review-2-20261004` and `…-review-3-20261005`. The completion tag
   `study-01/select-v2-join-cte` is absent.
 
 ### Join/filter theory and case route — **Edition 3 preview 3 (2026-10-04)**

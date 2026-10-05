@@ -2733,3 +2733,19 @@ recorded `occurred_at 20:00:00Z`, while their commits were made at 19:52Z and
 
 Events are immutable and the audit cannot detect a plausible past time. `--now`
 is for tests; live coordination uses the wall clock and real heartbeats.
+
+## "Non-colocated" is a label until tablets and leaders say otherwise (2026-10-05)
+
+A YugabyteDB 3-node arm labelled non-colocated created every relation with
+one tablet, in spite of `ysql_num_shards_per_tserver=2`. In all six runs, all
+five leaders sat on one node. That is effectively the same leader placement as
+the colocated arm. The saved `yb_table_properties` and `yb-admin list_tablets`
+evidence showed it, but the analysis still credited a "local point read" to
+colocation.
+
+- **Gate a distributed arm on its tablet count and leader spread** before
+  measuring.
+- **Name the measured placement** (tablets and leaders) wherever a placement
+  conclusion is drawn.
+
+Evidence: `docs/select-query-templates/reviews/20261005-join-high-3/CHECKS.md`.
