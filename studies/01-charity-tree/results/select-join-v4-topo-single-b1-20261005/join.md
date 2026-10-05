@@ -197,6 +197,16 @@ Physical-arm gate (default join must use the rank index at its three most select
 - threshold 20: used
 - threshold 2000: used
 
+Tablet leaders per relation (placement evidence; the runner read these through yb-admin):
+
+| relation | leader nodes |
+|---|---|
+| charity | yb-single:9100 |
+| person | yb-single:9100 |
+| donation | yb-single:9100 |
+| donation_rank_idx | yb-single:9100 |
+| donation_person_idx | yb-single:9100 |
+
 Effective sharding flag (from the engine): `ysql_num_shards_per_tserver=2`. A relation with fewer tablets than this setting was created without an explicit split; the per-table `num_tablets` above is the authority.
 
 ## Throttling (cgroup `cpu.stat` deltas)

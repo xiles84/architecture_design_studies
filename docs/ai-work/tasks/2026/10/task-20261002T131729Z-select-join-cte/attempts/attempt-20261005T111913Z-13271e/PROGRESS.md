@@ -53,3 +53,12 @@
 ## Status
 
 Complete against the round-3 acceptance list; submitted for review.
+
+7. **Single-node leader evidence and report reproducibility.** The single-node
+   arms have no `placement.txt`; their leader summary is written from the run's
+   own recorded endpoint (`yb-single`), so the leader column is evidence from
+   the run, not an inferred label. A render-time Go fallback for that case was
+   written, then **reverted**: it landed after the 30 runs, so the frozen
+   producing image would not have reproduced the report. The committed v4
+   topology report is verified byte-identical to a re-render using the recorded
+   producing image `b6ea3c007cf4` on a copy of the 30 runs.
