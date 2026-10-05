@@ -68,15 +68,23 @@ benchmark lock is free.
   - [review 3](docs/select-query-templates/reviews/20261005-join-high-3/REVIEW.md)
     (Claude Opus 5.5), with
     [signed discussion](studies/01-charity-tree/reports/discussions/20261005T-select-join-review-3--claude-opus-5-5.md).
-- **Left (LOW, [handoff 3](docs/select-query-templates/reviews/20261005-join-high-3/CORRECTIVE-HANDOFF.md)):**
-  - The "non-colocated" cluster arm had one tablet per relation, with every
-    leader on one node (6/6 runs). Add a pre-split, leader-spread
-    `distributed` arm with a placement gate.
-  - Re-run the 30-run topology subset (5 arms × isolated/blended × 3) under
-    one build.
-  - Write a v4 analysis. It must fix the inverted P4 verdict: YB at the 1%
-    consumer changes sign between n=1 and n=2 in 6/6 runs.
-  - Then HIGH `select-synthesis` and `select-book-high`.
+- **Round-3 delivery (LOW, attempt `attempt-20261005T111913Z-13271e`):** done and
+  submitted. The `distributed` arm pre-splits the three tables and the person
+  index into 3 tablets and the range rank index at
+  `((66667),(133334))`; the placement gate requires `num_tablets = 3` and three
+  distinct tablet leaders (yb-admin handshake, before/after listings saved) and
+  all six distributed runs passed with every relation led on
+  yb-n1/n2/n3. The engine-default arm is relabelled
+  `noncolocated-single-tablet`. The 30-run subset (single, equal-total,
+  distributed, single-tablet, colocated × isolated/blended × 3) is one build,
+  all 30/30 valid; report `reports/select-join-v4-topology-20261005.md`
+  re-renders byte-identically and renders tablets, leaders, endpoints, writer
+  and throttling per run. v4 analysis supersedes v3 (moved to
+  `reports/outdated/`): splitting is 0.71x single-node at the 90% scan but 1.19x
+  at a point read; colocated is cheapest at a point read (0.66x at 2,000 rows)
+  but its materializing plan is 17.24x its default; P4 now follows the per-run
+  signs — a replicated YB sign change between n=1 and n=2 at the 1% consumer.
+  Next: HIGH `select-synthesis` and `select-book-high`.
 - **Open for `select-synthesis`:** the shared SELECT teaching DDL has the same
   YB hash default. Integrated YB access/existence runs show 0 index scans
   (access 0/51 vs PostgreSQL 29/26).
