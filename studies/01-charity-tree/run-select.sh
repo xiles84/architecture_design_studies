@@ -139,6 +139,10 @@ for i in "${!NODES[@]}"; do
   podman exec "$n" cat /sys/fs/cgroup/cpu.max >"$OUTDIR/resources/node-${idx}-cpu.max" 2>/dev/null || true
   podman exec "$n" cat /sys/fs/cgroup/memory.max >"$OUTDIR/resources/node-${idx}-memory.max" 2>/dev/null || true
 done
+# The tservers' effective sharding flag lives in the container's own arguments,
+# not a GUC (SHOW ysql_num_shards_per_tserver is empty), so read it from the
+# node's inspect data and hand it to the client to record.
+YB_SHARDS_FLAG="$(podman inspect "$NODE" 2>/dev/null | grep -oE 'ysql_num_shards_per_tserver=[0-9]+' | head -1)"
 set +e
 podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEMORY" \
   -v "$(winpath "$(hostpath "$OUTDIR")"):/results" \
@@ -146,6 +150,7 @@ podman run --rm --network "$NETWORK" --cpus "$CLIENT_CPUS" --memory "$CLIENT_MEM
   -e "ADS_RUN_TAG=$TAG" -e "ADS_BENCH_IMAGE=$IMAGE" -e "ADS_BENCH_IMAGE_ID=$IMAGE_ID" \
   -e "ADS_ENGINE_IMAGE=$ENGINE_IMAGE" -e "ADS_ENGINE_IMAGE_ID=$ENGINE_IMAGE_ID" \
   -e "ADS_NODE_BUDGET=$DB_CPUS CPU $DB_MEMORY" -e "ADS_CLIENT_BUDGET=$CLIENT_CPUS CPU $CLIENT_MEMORY" \
+  -e "ADS_YB_SHARDS_PER_TSERVER=$YB_SHARDS_FLAG" \
   "$IMAGE" -cmd "$CLIENT_CMD" -engine "$ENGINE" -topology "$TOPOLOGY" -scale "$SCALE" -seed "$SEED" \
   -trials "$TRIALS" -page-limit "$PAGE_LIMIT" $POSITION_FLAG $FEASIBILITY_FLAG $TOPO_FLAG -phase "$PHASE" -placement "$PLACEMENT" -index-arm "$INDEX_ARM" -environment "$ENVIRONMENT" -run-id "$RUN_ID" -dsn "$DSN" \
   -out "/results/$OUT_JSON" -report-out "/results/$OUT_MD" >"$OUTDIR/resources/client.log" 2>&1 &
@@ -162,14 +167,14 @@ if [[ "$TOPOLOGY" == cluster3 && "$PLACEMENT" == distributed ]]; then
   listing=""
   for _ in $(seq 1 150); do
     listing="$(podman exec "${NODES[0]}" yb-admin --master_addresses "${NODES[0]}:7100" list_tablets "ysql.${KEYS_DB}" donation 2>&1 || true)"
-    n="$(printf '%s\n' "$listing" | awk 'NR>1 && $3!="" {print $3}' | sort -u | grep -c .)"
+    n="$(printf '%s\n' "$listing" | grep -oE 'yb-n[0-9]+:9100' | sort -u | grep -c .)"
     if [ "$n" -ge 3 ]; then leader_ok=1; break; fi
     sleep 2
   done
   printf '%s\n' "$listing" >"$OUTDIR/resources/placement-leaders-before.txt"
   : >"$OUTDIR/resources/leader-summary.txt"
   for t in charity person donation donation_rank_idx donation_person_idx; do
-    L="$(podman exec "${NODES[0]}" yb-admin --master_addresses "${NODES[0]}:7100" list_tablets "ysql.${KEYS_DB}" "$t" 2>/dev/null | awk 'NR>1 && $3!="" {print $3}' | sort -u | paste -sd, -)"
+    L="$(podman exec "${NODES[0]}" yb-admin --master_addresses "${NODES[0]}:7100" list_tablets "ysql.${KEYS_DB}" "$t" 2>/dev/null | grep -oE 'yb-n[0-9]+:9100' | sort -u | paste -sd, -)"
     printf '%s: %s\n' "$t" "$L" >>"$OUTDIR/resources/leader-summary.txt"
   done
   [ "$leader_ok" = 1 ] && : >"$OUTDIR/resources/placement-gate.ok"

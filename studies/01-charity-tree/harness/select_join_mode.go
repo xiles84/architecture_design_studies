@@ -560,8 +560,8 @@ func runSelectJoinMode(dsn, engine, topology, scale, out, reportOut string, seed
 	_ = pools[0].QueryRow(ctx, "SELECT version()").Scan(&version)
 	// The effective sharding flag is recorded so a one-tablet outcome can be
 	// explained or explicitly marked unexplained (review 3, minor).
-	shardsSetting := ""
-	if engine == "yugabyte" {
+	shardsSetting := os.Getenv("ADS_YB_SHARDS_PER_TSERVER")
+	if engine == "yugabyte" && shardsSetting == "" {
 		var ysqlShards, ybShards string
 		_ = pools[0].QueryRow(ctx, "SHOW ysql_num_shards_per_tserver").Scan(&ysqlShards)
 		_ = pools[0].QueryRow(ctx, "SHOW yb_num_shards_per_tserver").Scan(&ybShards)
