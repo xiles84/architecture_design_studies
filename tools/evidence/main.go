@@ -3,7 +3,7 @@
 //
 //	evidence validate [--repo DIR] [--claims FILE] [--schema FILE] [--list-inputs]
 //	evidence extract  [--repo DIR]
-//	evidence plans    [--repo DIR] [--spec FILE] [--out FILE] [--write]
+//	evidence plans    [--repo DIR] [--spec FILE] [--sql FILE] [--out FILE] [--write]
 package main
 
 import (
@@ -748,6 +748,7 @@ func runPlans(args []string, out, errOut io.Writer) int {
 	repo := fs.String("repo", ".", "repository root")
 	claims := fs.String("claims", "book/evidence/v6/claims.json", "registry whose anchors the exhibits must cite (repo-relative)")
 	spec := fs.String("spec", "book/appendix/query-plans.spec.json", "authored exhibit list (repo-relative)")
+	sqlRel := fs.String("sql", "book/appendix/query-plans.sql.json", "bound SQL from studies/01-charity-tree/selectbench/cmd/appendixsql (repo-relative)")
 	dataOut := fs.String("out", "book/appendix/query-plans.json", "generated plan data (repo-relative)")
 	write := fs.Bool("write", false, "write the generated data instead of checking it")
 	if err := fs.Parse(args); err != nil {
@@ -768,7 +769,12 @@ func runPlans(args []string, out, errOut io.Writer) int {
 		fmt.Fprintf(errOut, "read spec: %v\n", err)
 		return 2
 	}
-	data, errs := evidence.BuildPlanData(root, *spec, *claims, s, reg)
+	q, err := evidence.LoadPlanSQL(filepath.Join(root, *sqlRel))
+	if err != nil {
+		fmt.Fprintf(errOut, "read SQL: %v\n", err)
+		return 2
+	}
+	data, errs := evidence.BuildPlanData(root, *spec, *sqlRel, *claims, s, q, reg)
 	for _, e := range errs {
 		fmt.Fprintf(errOut, "  [FAIL] %v\n", e)
 	}

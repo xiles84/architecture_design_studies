@@ -11,13 +11,18 @@ import (
 const (
 	planSpecRel     = "book/appendix/query-plans.spec.json"
 	planDataRel     = "book/appendix/query-plans.json"
+	planSQLRel      = "book/appendix/query-plans.sql.json"
 	planRegistryRel = "book/evidence/v6/claims.json"
 )
 
-func loadPlanFixture(t *testing.T) (string, *PlanSpec, *V2Document) {
+func loadPlanFixture(t *testing.T) (string, *PlanSpec, *PlanSQL, *V2Document) {
 	t.Helper()
 	root := repoRoot(t)
 	spec, err := LoadPlanSpec(filepath.Join(root, filepath.FromSlash(planSpecRel)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := LoadPlanSQL(filepath.Join(root, filepath.FromSlash(planSQLRel)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +30,7 @@ func loadPlanFixture(t *testing.T) (string, *PlanSpec, *V2Document) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return root, spec, reg
+	return root, spec, q, reg
 }
 
 // TestTrimPlanKeepsTreeAndDecisiveAttributes pins the trim: node lines lose only
@@ -83,8 +88,8 @@ func TestPlanShapeIgnoresNumbersNotNodes(t *testing.T) {
 // TestPlanAppendixDataIsCurrent is the staleness gate: the committed data must be
 // exactly what the generator builds from the committed spec, registry and results.
 func TestPlanAppendixDataIsCurrent(t *testing.T) {
-	root, spec, reg := loadPlanFixture(t)
-	data, errs := BuildPlanData(root, planSpecRel, planRegistryRel, spec, reg)
+	root, spec, q, reg := loadPlanFixture(t)
+	data, errs := BuildPlanData(root, planSpecRel, planSQLRel, planRegistryRel, spec, q, reg)
 	for _, e := range errs {
 		t.Errorf("unexpected error: %v", e)
 	}
@@ -107,7 +112,7 @@ func TestPlanAppendixDataIsCurrent(t *testing.T) {
 // TestPlanAppendixCoversEveryMeasuredSelectClaim: every active, measured v6-sel
 // claim has an exhibit, except the ones the appendix explains it cannot show.
 func TestPlanAppendixCoversEveryMeasuredSelectClaim(t *testing.T) {
-	_, spec, reg := loadPlanFixture(t)
+	_, spec, _, reg := loadPlanFixture(t)
 	// v6-sel-07's evidence is a negative control that records rows, not a plan.
 	noPlan := map[string]bool{"v6-sel-07-nullable-not-in-empty": true}
 	shown := map[string]bool{}
@@ -128,7 +133,7 @@ func TestPlanAppendixCoversEveryMeasuredSelectClaim(t *testing.T) {
 // generator must refuse a run the claim does not cite, a shape statement the plans
 // contradict, an axis that does not exist and a gap claim.
 func TestPlanExhibitsRejectUnanchoredRunsAndWrongShapes(t *testing.T) {
-	root, _, reg := loadPlanFixture(t)
+	root, _, q, reg := loadPlanFixture(t)
 	cases := []struct {
 		name string
 		ex   ExhibitSpec
@@ -150,7 +155,7 @@ func TestPlanExhibitsRejectUnanchoredRunsAndWrongShapes(t *testing.T) {
 			Plans: []PlanRef{{Axis: "shape=selective/indexable;spelling=or"}}}, "is a gap"},
 	}
 	for _, tc := range cases {
-		_, errs := BuildPlanData(root, planSpecRel, planRegistryRel, &PlanSpec{Schema: PlanSpecSchema, Exhibits: []ExhibitSpec{tc.ex}}, reg)
+		_, errs := BuildPlanData(root, planSpecRel, planSQLRel, planRegistryRel, &PlanSpec{Schema: PlanSpecSchema, Exhibits: []ExhibitSpec{tc.ex}}, q, reg)
 		found := false
 		for _, e := range errs {
 			if strings.Contains(e.Error(), tc.want) {
@@ -161,4 +166,49 @@ func TestPlanExhibitsRejectUnanchoredRunsAndWrongShapes(t *testing.T) {
 			t.Errorf("%s: want an error containing %q, got %v", tc.name, tc.want, errs)
 		}
 	}
+}
+
+// TestPlanSQLMustMatchTheCellAndItsCode: the bound SQL is accepted only for the
+// exact statement and parameters the cell ran, and only while every catalogue
+// source is unchanged since the producing commit. A commit that predates the join
+// catalogue must be refused, and a full plan set with no matching SQL must fail.
+func TestPlanSQLMustMatchTheCellAndItsCode(t *testing.T) {
+	root, spec, q, reg := loadPlanFixture(t)
+
+	stale := *q
+	stale.Statements = append([]PlanSQLEntry(nil), q.Statements...)
+	for i := range stale.Statements {
+		if stale.Statements[i].Params != "" {
+			stale.Statements[i].Params += ",extra=1"
+			break
+		}
+	}
+	_, errs := BuildPlanData(root, planSpecRel, planSQLRel, planRegistryRel, spec, &stale, reg)
+	if !errorsContain(errs, "but the cell ran") {
+		t.Errorf("a parameter mismatch was accepted: %v", errs)
+	}
+
+	empty := &PlanSQL{Schema: PlanSQLSchema, Catalogues: q.Catalogues}
+	_, errs = BuildPlanData(root, planSpecRel, planSQLRel, planRegistryRel, spec, empty, reg)
+	if !errorsContain(errs, "no SQL for") {
+		t.Errorf("missing SQL was accepted: %v", errs)
+	}
+
+	c := &sourceChecker{root: root, cache: map[string]error{}}
+	// ca2a38fb produced the access/aggregate/existence runs, before the join catalogue existed.
+	if err := c.check("ca2a38fbf9e53da00344578258138db9e01d3545", "studies/01-charity-tree/selectbench/joincatalog.go"); err == nil {
+		t.Error("a source file absent at the producing commit was accepted")
+	}
+	if err := c.check("ca2a38fbf9e53da00344578258138db9e01d3545", "studies/01-charity-tree/selectbench/bind.go"); err != nil {
+		t.Errorf("an unchanged source was refused: %v", err)
+	}
+}
+
+func errorsContain(errs []error, want string) bool {
+	for _, e := range errs {
+		if strings.Contains(e.Error(), want) {
+			return true
+		}
+	}
+	return false
 }

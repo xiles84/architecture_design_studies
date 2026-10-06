@@ -2,10 +2,13 @@
 #import "../lib/evidence.typ": claim-badge
 #set heading(numbering: none)
 
-// The plans, their provenance and the node-tree checks are generated data:
+// The plans, their SQL, their provenance and the node-tree checks are generated
+// data. `selectbench/cmd/appendixsql` (Study 01) binds each quoted cell's statement
+// with the harness's own catalogue and binder into query-plans.sql.json;
 // `tools/evidence plans --write` resolves every exhibit in query-plans.spec.json
-// against its claim's registry anchor, verifies the result file's sha256 and each
-// same/different node-tree statement, and writes query-plans.json. `go test` in
+// against its claim's registry anchor, verifies the result file's sha256, the SQL
+// against the cell and its catalogue sources against the producing commit, and
+// each same/different node-tree statement, and writes query-plans.json. `go test` in
 // tools/evidence fails when that file is stale. Only the reading notes are authored
 // here, and they describe what the quoted plan shows, nothing the claim does not.
 #let plan-data = json("query-plans.json")
@@ -23,9 +26,10 @@
 // The plan a node-tree statement compares against, named by its printed label when
 // any exhibit quotes it (looked up by run and axis, so a cross-run comparison never
 // borrows this exhibit's label), otherwise by its axis and run.
+#let plan-hits(run, axis) = (plan-data.exhibits.filter(x => x.run_id == run)
+  .map(x => x.plans.filter(p => p.axis == axis)).flatten())
 #let plan-ref(run, axis, here) = {
-  let hits = plan-data.exhibits.filter(x => x.run_id == run)
-    .map(x => x.plans.filter(p => p.axis == axis)).flatten()
+  let hits = plan-hits(run, axis)
   let name = if hits.len() > 0 { ["#hits.first().label"] } else { box(raw(axis)) }
   if run == here { name } else [#name in run #box(raw(run))]
 }
@@ -36,35 +40,84 @@
   #claim-badge(id)
 ]
 
+// The bound SQL the harness sent after `EXPLAIN (...)`. A rule on the left marks it
+// as the query, set apart from the shaded plan beneath it.
+#let sql-box(q) = block(
+  width: 100%,
+  inset: (x: 6pt, y: 5pt),
+  radius: 2pt,
+  stroke: (left: 2pt + palette.accent, rest: 0.5pt + palette.rule),
+  above: 0.3em,
+  below: 0.45em,
+  breakable: false,
+)[
+  #set par(justify: false, leading: 0.5em)
+  #set text(size: 7.4pt, hyphenate: false)
+  #raw(q, lang: "sql")
+]
+
+// Statement SQL printed once: a later node-tree check that names the same text
+// points back to it instead of repeating it.
+#let shown-sql = state("plan-appendix-shown-sql", (:))
+#let sql-once(q, where) = {
+  context {
+    let seen = shown-sql.get()
+    if q in seen {
+      text(size: 8pt, fill: palette.muted)[Same SQL as in the #seen.at(q) exhibit above.]
+    } else {
+      sql-box(q)
+    }
+  }
+  shown-sql.update(s => {
+    if q not in s { s.insert(q, where) }
+    s
+  })
+}
+
+#let plan-caption(label, detail) = block(above: 0.7em, below: 0.15em, width: 100%, sticky: true)[
+  #set par(justify: false)
+  #text(size: 9pt, weight: "bold")[#label]
+  #h(0.4em) #text(size: 7.5pt, fill: palette.muted)[#detail]
+]
+
 #let plan-exhibit(id) = {
   let e = exhibits.at(id)
-  block(above: 1.1em, below: 0.5em, width: 100%, sticky: true)[
+  let where = engine-name(e.topology)
+  block(above: 1.1em, below: 0.4em, width: 100%, sticky: true)[
     #set par(justify: false)
     #set text(size: 8pt, fill: palette.muted)
     #text(fill: palette.ink, weight: "bold")[#engine-name(e.topology)] · run #box(raw(e.run_id)) · tag #box(raw(e.run_tag)) \
     #raw(e.results_path) · sha256 #raw(e.inputs_digest)
   ]
   for p in e.plans {
-    block(above: 0.6em, below: 0.3em, width: 100%, sticky: true)[
+    plan-caption(p.label, [SQL #raw(p.statement) · parameters #raw(p.params)])
+    sql-box(p.sql)
+    shown-sql.update(s => {
+      if p.sql not in s { s.insert(p.sql, where) }
+      s
+    })
+    block(above: 0.35em, below: 0.15em, width: 100%, sticky: true)[
       #set par(justify: false)
-      #text(size: 9pt, weight: "bold")[#p.label]
-      #h(0.4em) #text(size: 7.5pt, fill: palette.muted)[#raw(p.statement) · #raw(p.axis) · #p.lines_kept of #p.lines_total lines kept]
+      #text(size: 7.5pt, fill: palette.muted)[Plan · #raw(p.axis) · #p.lines_kept of #p.lines_total lines kept]
     ]
     raw(p.text, block: true, lang: "explain")
   }
-  // One line per compared plan and verdict, listing every statement checked against it.
+  // One line per compared plan and verdict, listing every statement checked against it,
+  // then the SQL of each checked statement (and of a compared plan this appendix does
+  // not quote), so every "same node tree" sentence can be read against its queries.
   let groups = ()
   for s in e.shapes {
     let key = s.as_run + "|" + s.at("as") + "|" + s.expect
     let i = groups.position(g => g.key == key)
     if i == none {
-      groups.push((key: key, target: s.at("as"), as_run: s.as_run, expect: s.expect, items: (s,)))
+      groups.push((key: key, target: s.at("as"), as_run: s.as_run, expect: s.expect,
+        target-statement: s.as_statement, target-sql: s.as_sql, items: (s,)))
     } else {
       groups.at(i).items.push(s)
     }
   }
   if groups.len() > 0 {
-    block(above: 0.5em, below: 0.9em, width: 100%, breakable: false)[
+    block(above: 0.6em, below: 0.2em, width: 100%, sticky: true)[
       #set par(justify: false)
       #set text(size: 8.5pt)
       *Checked by the generator.*
@@ -74,6 +127,19 @@
         #plan-ref(g.as_run, g.target, e.run_id).
       ]).join(linebreak())
     ]
+    for g in groups {
+      for s in g.items {
+        if s.label != "this plan" {
+          plan-caption(s.label, [SQL #raw(s.statement)])
+          sql-once(s.sql, where)
+        }
+      }
+      if plan-hits(g.as_run, g.target).len() == 0 {
+        plan-caption([Compared plan, not quoted here], [SQL #raw(g.target-statement)])
+        sql-once(g.target-sql, where)
+      }
+    }
+    v(0.6em)
   }
 }
 
@@ -95,6 +161,16 @@ anchors and the file's digest equals the anchor's. It also recomputes every "sam
 types, relations, indexes and nesting. The run shown is one of three to twenty-four behind each
 claim.
 
+*Where the SQL comes from.* A result cell records the name of its catalogue statement and the
+parameters it was bound with, not the SQL text. Each plan is therefore preceded by that statement
+with its parameters bound, rebuilt by the study's own catalogue and binder: the code that ran it.
+The generator refuses the SQL unless the statement and parameters match the cell. It also requires
+every file the catalogue is built from to be byte-identical at the run's producing commit. Some
+statements carry constant switches, such as `WHERE 1 = 0 OR c.id <= 1`. These let one catalogue
+statement serve several arms of a run, and the plans show the planner folding the constant part
+away. The membership, aggregate and access SQL reads the `customers` and `orders` tables of the
+teaching fixture directly.
+
 #block(breakable: false)[
   #set par(justify: false)
   #set text(size: 9pt)
@@ -114,6 +190,9 @@ membership runs used the plain options, so their YugabyteDB plans carry no reque
 
 // ------------------------------------------------------------------ join
 #heading(level: 3, numbering: none, "Join spellings and CTE fences")
+
+The join, CTE and placement SQL reads two views. `customers` joins `person` to `charity`, and
+`facts` reads `donation`. The planner expands both views, so the plans name the three tables.
 
 #plan-claim("Filtered join spellings", "v6-sel-01-inner-join-spellings-same-plan")
 

@@ -1,5 +1,19 @@
 # CHANGELOG — *Data Architecture Reference*
 
+## Edition 3 preview 7 — 2026-10-06
+
+The query-plan appendix now prints, before every plan, the SQL that produced it, as the owner asked:
+the plain plans made the query hard to identify. Result cells keep only the statement name and the
+bound parameters. A new DB-free exporter, `studies/01-charity-tree/selectbench/cmd/appendixsql`,
+therefore rebuilds each statement with the harness's own catalogue and binder, including the
+generated CTE-reuse statements.
+
+`tools/evidence plans` refuses the SQL unless its statement and parameters match the cell. It also
+requires every catalogue source file to be byte-identical at the run's producing commit, checked
+with git. The statements in each node-tree check show their SQL too, printed once and referenced
+afterwards. The join section explains that `customers` and `facts` are views over person, charity
+and donation. Milestone: `repo/book-plan-appendix-sql-v1`.
+
 ## Edition 3 preview 6 — 2026-10-05
 
 Adds the appendix *Query plans behind the SELECT claims*, which the owner asked for. It quotes the

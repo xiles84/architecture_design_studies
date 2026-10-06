@@ -1,7 +1,8 @@
 {
-  "schema": "ads-plan-exhibits/1",
+  "schema": "ads-plan-exhibits/2",
   "generated_by": "tools/evidence plans",
   "spec": "book/appendix/query-plans.spec.json",
+  "sql": "book/appendix/query-plans.sql.json",
   "registry": "book/evidence/v6/claims.json",
   "trim": {
     "description": "Node lines are kept with their actual time, rows and loops; the planner's cost estimate is removed from each node line. Of the other lines only the listed attributes are kept. Output column lists, buffer counts, YugabyteDB per-request storage metrics and estimates, and memory figures are removed. Indentation and order are unchanged.",
@@ -56,6 +57,8 @@
           "axis": "family=bag;stmt=join_where;threshold=2000",
           "label": "JOIN ... WHERE, rank <= 2,000 (1% of donations)",
           "statement": "j01_join_where",
+          "params": "threshold=2000",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "text": "Hash Join (actual time=0.385..1.231 rows=2000 loops=1)\n  Hash Cond: (p.charity_id = ch.charity_id)\n  ->  Hash Join (actual time=0.374..1.070 rows=2000 loops=1)\n        Hash Cond: (d.person_id = p.person_id)\n        ->  Bitmap Heap Scan on selectjoin_domain.donation d (actual time=0.166..0.660 rows=2000 loops=1)\n              Recheck Cond: (d.rank <= 2000)\n              ->  Bitmap Index Scan on donation_rank_idx (actual time=0.081..0.081 rows=2000 loops=1)\n                    Index Cond: (d.rank <= 2000)\n        ->  Hash (actual time=0.206..0.206 rows=2000 loops=1)\n              ->  Seq Scan on selectjoin_domain.person p (actual time=0.003..0.087 rows=2000 loops=1)\n  ->  Hash (actual time=0.010..0.010 rows=50 loops=1)\n        ->  Seq Scan on selectjoin_domain.charity ch (actual time=0.004..0.006 rows=50 loops=1)\nPlanning Time: 0.123 ms\nExecution Time: 1.288 ms",
           "lines_total": 36,
           "lines_kept": 14
@@ -66,40 +69,55 @@
           "axis": "family=bag;stmt=filtered_derived;threshold=2000",
           "label": "filtered derived table",
           "statement": "j03_filtered_derived",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c\nJOIN (SELECT * FROM facts WHERE rank <= 2000) f ON f.customer_id = c.id;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=join_on;threshold=2000",
           "label": "filter in JOIN ... ON",
           "statement": "j02_join_on",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id AND f.rank <= 2000;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=cte_filtered;threshold=2000",
           "label": "CTE naming the filtered input",
           "statement": "j04_cte_filtered",
+          "sql": "WITH e AS (SELECT * FROM facts WHERE rank <= 2000)\nSELECT c.id AS customer_id, c.name AS customer_name, e.id AS fact_id, e.amount\nFROM customers c JOIN e ON e.customer_id = c.id;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=cte_joined_outer;threshold=2000",
           "label": "CTE naming the joined rows",
           "statement": "j05_cte_joined_outer",
+          "sql": "WITH e AS (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=comma_join;threshold=2000",
           "label": "comma join",
           "statement": "j06_comma_join",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c, facts f\nWHERE c.id = f.customer_id AND f.rank <= 2000;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         }
       ]
@@ -118,6 +136,8 @@
           "axis": "family=bag;stmt=join_where;threshold=2000",
           "label": "JOIN ... WHERE, rank <= 2,000 (1% of donations)",
           "statement": "j01_join_where",
+          "params": "threshold=2000",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "text": "Hash Join (actual time=4.696..7.879 rows=2000 loops=1)\n  Hash Cond: (p.charity_id = ch.charity_id)\n  ->  Hash Join (actual time=4.410..7.354 rows=2000 loops=1)\n        Hash Cond: (d.person_id = p.person_id)\n        ->  Index Scan using donation_rank_idx on donation d (actual time=3.299..5.961 rows=2000 loops=1)\n              Index Cond: (rank <= 2000)\n              Storage Table Read Requests: 2\n              Storage Table Rows Scanned: 2000\n              Storage Index Read Requests: 2\n              Storage Index Rows Scanned: 2000\n        ->  Hash (actual time=1.091..1.091 rows=2000 loops=1)\n              ->  Seq Scan on person p (actual time=0.534..0.889 rows=2000 loops=1)\n                    Storage Table Read Requests: 2\n                    Storage Table Rows Scanned: 2000\n  ->  Hash (actual time=0.281..0.281 rows=50 loops=1)\n        ->  Seq Scan on charity ch (actual time=0.266..0.270 rows=50 loops=1)\n              Storage Table Read Requests: 1\n              Storage Table Rows Scanned: 50\nPlanning Time: 0.201 ms\nExecution Time: 8.067 ms\nStorage Read Requests: 7\nStorage Rows Scanned: 6050",
           "lines_total": 96,
           "lines_kept": 22
@@ -128,40 +148,55 @@
           "axis": "family=bag;stmt=filtered_derived;threshold=2000",
           "label": "filtered derived table",
           "statement": "j03_filtered_derived",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c\nJOIN (SELECT * FROM facts WHERE rank <= 2000) f ON f.customer_id = c.id;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-yb-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=join_on;threshold=2000",
           "label": "filter in JOIN ... ON",
           "statement": "j02_join_on",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id AND f.rank <= 2000;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-yb-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=cte_filtered;threshold=2000",
           "label": "CTE naming the filtered input",
           "statement": "j04_cte_filtered",
+          "sql": "WITH e AS (SELECT * FROM facts WHERE rank <= 2000)\nSELECT c.id AS customer_id, c.name AS customer_name, e.id AS fact_id, e.amount\nFROM customers c JOIN e ON e.customer_id = c.id;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-yb-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=cte_joined_outer;threshold=2000",
           "label": "CTE naming the joined rows",
           "statement": "j05_cte_joined_outer",
+          "sql": "WITH e AS (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-yb-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         },
         {
           "axis": "family=bag;stmt=comma_join;threshold=2000",
           "label": "comma join",
           "statement": "j06_comma_join",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c, facts f\nWHERE c.id = f.customer_id AND f.rank <= 2000;",
           "as": "family=bag;stmt=join_where;threshold=2000",
           "as_run": "select-join-v3b-domain-yb-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;",
           "expect": "same"
         }
       ]
@@ -180,6 +215,8 @@
           "axis": "family=bag;stmt=cte_joined_outer_mat;threshold=2000",
           "label": "CTE holding the join, forced MATERIALIZED, filter outside",
           "statement": "j05m_cte_joined_outer_mat",
+          "params": "threshold=2000",
+          "sql": "WITH e AS MATERIALIZED (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "text": "CTE Scan on e (actual time=0.278..75.369 rows=2000 loops=1)\n  Filter: (e.rank <= 2000)\n  Rows Removed by Filter: 198000\n  CTE e\n    ->  Hash Join (actual time=0.237..45.796 rows=200000 loops=1)\n          Hash Cond: (p.charity_id = ch.charity_id)\n          ->  Hash Join (actual time=0.223..30.250 rows=200000 loops=1)\n                Hash Cond: (d.person_id = p.person_id)\n                ->  Seq Scan on selectjoin_domain.donation d (actual time=0.003..9.698 rows=200000 loops=1)\n                ->  Hash (actual time=0.218..0.219 rows=2000 loops=1)\n                      ->  Seq Scan on selectjoin_domain.person p (actual time=0.003..0.093 rows=2000 loops=1)\n          ->  Hash (actual time=0.012..0.013 rows=50 loops=1)\n                ->  Seq Scan on selectjoin_domain.charity ch (actual time=0.005..0.008 rows=50 loops=1)\nPlanning Time: 0.186 ms\nExecution Time: 77.915 ms",
           "lines_total": 37,
           "lines_kept": 15
@@ -190,8 +227,11 @@
           "axis": "family=bag;stmt=cte_joined_outer_mat;threshold=2000",
           "label": "this plan",
           "statement": "j05m_cte_joined_outer_mat",
+          "sql": "WITH e AS MATERIALIZED (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "as": "family=bag;stmt=cte_joined_outer;threshold=2000",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "j05_cte_joined_outer",
+          "as_sql": "WITH e AS (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "expect": "different"
         }
       ]
@@ -210,6 +250,8 @@
           "axis": "family=bag;stmt=cte_joined_outer_mat;threshold=2000",
           "label": "CTE holding the join, forced MATERIALIZED, filter outside",
           "statement": "j05m_cte_joined_outer_mat",
+          "params": "threshold=2000",
+          "sql": "WITH e AS MATERIALIZED (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "text": "CTE Scan on e (actual time=2.264..106.292 rows=2000 loops=1)\n  Filter: (rank <= 2000)\n  Rows Removed by Filter: 198000\n  CTE e\n    ->  Hash Join (actual time=2.253..66.380 rows=200000 loops=1)\n          Hash Cond: (d.person_id = p.person_id)\n          ->  Seq Scan on donation d (actual time=0.787..29.892 rows=200000 loops=1)\n                Storage Table Read Requests: 196\n                Storage Table Rows Scanned: 200000\n          ->  Hash (actual time=1.455..1.458 rows=2000 loops=1)\n                ->  Hash Join (actual time=0.903..1.261 rows=2000 loops=1)\n                      Hash Cond: (p.charity_id = ch.charity_id)\n                      ->  Seq Scan on person p (actual time=0.590..0.708 rows=2000 loops=1)\n                            Storage Table Read Requests: 2\n                            Storage Table Rows Scanned: 2000\n                      ->  Hash (actual time=0.303..0.304 rows=50 loops=1)\n                            ->  Seq Scan on charity ch (actual time=0.284..0.290 rows=50 loops=1)\n                                  Storage Table Read Requests: 1\n                                  Storage Table Rows Scanned: 50\nPlanning Time: 0.187 ms\nExecution Time: 107.291 ms\nStorage Read Requests: 199\nStorage Rows Scanned: 202050",
           "lines_total": 95,
           "lines_kept": 23
@@ -220,8 +262,11 @@
           "axis": "family=bag;stmt=cte_joined_outer_mat;threshold=2000",
           "label": "this plan",
           "statement": "j05m_cte_joined_outer_mat",
+          "sql": "WITH e AS MATERIALIZED (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "as": "family=bag;stmt=cte_joined_outer;threshold=2000",
           "as_run": "select-join-v3b-domain-yb-i1-20261005",
+          "as_statement": "j05_cte_joined_outer",
+          "as_sql": "WITH e AS (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;",
           "expect": "different"
         }
       ]
@@ -240,6 +285,8 @@
           "axis": "family=reuse;policy=mat;refs=2;consumer=100%",
           "label": "two references, MATERIALIZED, unselective consumer",
           "statement": "r_mat_n2_c100",
+          "params": "consumer_max=200000,threshold=2000",
+          "sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "text": "Sort (actual time=7.370..7.371 rows=2 loops=1)\n  Sort Key: (1)\n  Sort Method: quicksort  Memory: 25kB\n  CTE e\n    ->  Index Scan using donation_rank_idx on donation d (actual time=3.129..6.672 rows=2000 loops=1)\n          Index Cond: (rank <= 2000)\n          Storage Table Read Requests: 2\n          Storage Table Rows Scanned: 2000\n          Storage Index Read Requests: 2\n          Storage Index Rows Scanned: 2000\n  ->  Append (actual time=7.125..7.362 rows=2 loops=1)\n        ->  Aggregate (actual time=7.125..7.125 rows=1 loops=1)\n              ->  CTE Scan on e (actual time=3.131..6.962 rows=2000 loops=1)\n                    Filter: (consumer_id <= 200000)\n        ->  Aggregate (actual time=0.235..0.235 rows=1 loops=1)\n              ->  CTE Scan on e e_1 (actual time=0.001..0.081 rows=2000 loops=1)\n                    Filter: (consumer_id <= 200000)\nPlanning Time: 0.143 ms\nExecution Time: 7.424 ms\nStorage Read Requests: 4\nStorage Rows Scanned: 4000",
           "lines_total": 53,
           "lines_kept": 21
@@ -248,6 +295,8 @@
           "axis": "family=reuse;policy=notmat;refs=2;consumer=100%",
           "label": "two references, NOT MATERIALIZED, unselective consumer",
           "statement": "r_notmat_n2_c100",
+          "params": "consumer_max=200000,threshold=2000",
+          "sql": "WITH e AS NOT MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "text": "Sort (actual time=14.889..14.891 rows=2 loops=1)\n  Sort Key: (1)\n  Sort Method: quicksort  Memory: 25kB\n  ->  Append (actual time=7.736..14.880 rows=2 loops=1)\n        ->  Aggregate (actual time=7.735..7.736 rows=1 loops=1)\n              ->  Index Scan using donation_rank_idx on donation d (actual time=3.863..6.473 rows=2000 loops=1)\n                    Index Cond: (rank <= 2000)\n                    Storage Filter: (donation_id <= 200000)\n                    Storage Table Read Requests: 2\n                    Storage Table Rows Scanned: 2000\n                    Storage Index Read Requests: 2\n                    Storage Index Rows Scanned: 2000\n        ->  Aggregate (actual time=7.141..7.141 rows=1 loops=1)\n              ->  Index Scan using donation_rank_idx on donation d_1 (actual time=3.075..5.884 rows=2000 loops=1)\n                    Index Cond: (rank <= 2000)\n                    Storage Filter: (donation_id <= 200000)\n                    Storage Table Read Requests: 2\n                    Storage Table Rows Scanned: 2000\n                    Storage Index Read Requests: 2\n                    Storage Index Rows Scanned: 2000\nPlanning Time: 0.171 ms\nExecution Time: 14.950 ms\nStorage Read Requests: 8\nStorage Rows Scanned: 8000",
           "lines_total": 72,
           "lines_kept": 24
@@ -258,8 +307,11 @@
           "axis": "family=reuse;policy=default;refs=2;consumer=100%",
           "label": "engine default, two references",
           "statement": "r_default_n2_c100",
+          "sql": "WITH e AS (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "as": "family=reuse;policy=mat;refs=2;consumer=100%",
           "as_run": "select-join-v3b-domain-yb-i1-20261005",
+          "as_statement": "r_mat_n2_c100",
+          "as_sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "expect": "same"
         }
       ]
@@ -278,6 +330,8 @@
           "axis": "family=reuse;policy=mat;refs=2;consumer=100%",
           "label": "two references, MATERIALIZED, unselective consumer",
           "statement": "r_mat_n2_c100",
+          "params": "consumer_max=200000,threshold=2000",
+          "sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "text": "Sort (actual time=2.747..2.748 rows=2 loops=1)\n  Sort Key: (1)\n  Sort Method: quicksort  Memory: 25kB\n  CTE e\n    ->  Bitmap Heap Scan on selectjoin_domain.donation d (actual time=0.205..2.198 rows=2000 loops=1)\n          Recheck Cond: (d.rank <= 2000)\n          ->  Bitmap Index Scan on donation_rank_idx (actual time=0.103..0.103 rows=2000 loops=1)\n                Index Cond: (d.rank <= 2000)\n  ->  Append (actual time=2.580..2.743 rows=2 loops=1)\n        ->  Aggregate (actual time=2.579..2.580 rows=1 loops=1)\n              ->  CTE Scan on e (actual time=0.207..2.455 rows=2000 loops=1)\n                    Filter: (e.consumer_id <= 200000)\n        ->  Aggregate (actual time=0.162..0.162 rows=1 loops=1)\n              ->  CTE Scan on e e_1 (actual time=0.001..0.090 rows=2000 loops=1)\n                    Filter: (e_1.consumer_id <= 200000)\nPlanning Time: 0.077 ms\nExecution Time: 2.770 ms",
           "lines_total": 30,
           "lines_kept": 17
@@ -288,16 +342,22 @@
           "axis": "family=reuse;policy=default;refs=2;consumer=100%",
           "label": "engine default, two references",
           "statement": "r_default_n2_c100",
+          "sql": "WITH e AS (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "as": "family=reuse;policy=mat;refs=2;consumer=100%",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "r_mat_n2_c100",
+          "as_sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "expect": "same"
         },
         {
           "axis": "family=reuse;policy=notmat;refs=2;consumer=100%",
           "label": "NOT MATERIALIZED, two references",
           "statement": "r_notmat_n2_c100",
+          "sql": "WITH e AS NOT MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "as": "family=reuse;policy=mat;refs=2;consumer=100%",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "r_mat_n2_c100",
+          "as_sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref",
           "expect": "different"
         }
       ]
@@ -316,6 +376,8 @@
           "axis": "family=reuse;policy=mat;refs=1;consumer=1%",
           "label": "one reference, MATERIALIZED, 1% consumer",
           "statement": "r_mat_n1_c1",
+          "params": "consumer_max=2000,threshold=2000",
+          "sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref",
           "text": "Aggregate (actual time=2.196..2.197 rows=1 loops=1)\n  CTE e\n    ->  Bitmap Heap Scan on selectjoin_domain.donation d (actual time=0.194..1.960 rows=2000 loops=1)\n          Recheck Cond: (d.rank <= 2000)\n          ->  Bitmap Index Scan on donation_rank_idx (actual time=0.100..0.100 rows=2000 loops=1)\n                Index Cond: (d.rank <= 2000)\n  ->  CTE Scan on e (actual time=0.195..2.194 rows=17 loops=1)\n        Filter: (e.consumer_id <= 2000)\n        Rows Removed by Filter: 1983\nPlanning Time: 0.050 ms\nExecution Time: 2.214 ms",
           "lines_total": 19,
           "lines_kept": 11
@@ -324,6 +386,8 @@
           "axis": "family=reuse;policy=notmat;refs=1;consumer=1%",
           "label": "one reference, NOT MATERIALIZED, 1% consumer",
           "statement": "r_notmat_n1_c1",
+          "params": "consumer_max=2000,threshold=2000",
+          "sql": "WITH e AS NOT MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref",
           "text": "Aggregate (actual time=0.143..0.144 rows=1 loops=1)\n  ->  Index Scan using donation_pkey on selectjoin_domain.donation d (actual time=0.015..0.121 rows=17 loops=1)\n        Index Cond: (d.donation_id <= 2000)\n        Filter: (d.rank <= 2000)\n        Rows Removed by Filter: 1983\nPlanning Time: 0.050 ms\nExecution Time: 0.153 ms",
           "lines_total": 11,
           "lines_kept": 7
@@ -334,8 +398,11 @@
           "axis": "family=reuse;policy=default;refs=2;consumer=1%",
           "label": "engine default, two references",
           "statement": "r_default_n2_c1",
+          "sql": "WITH e AS (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref",
           "as": "family=reuse;policy=mat;refs=2;consumer=1%",
           "as_run": "select-join-v3b-domain-pg-i1-20261005",
+          "as_statement": "r_mat_n2_c1",
+          "as_sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref",
           "expect": "same"
         }
       ]
@@ -354,6 +421,8 @@
           "axis": "family=membership;stmt=exists;fanout=100",
           "label": "EXISTS, fanout 100",
           "statement": "s06_exists_parent",
+          "params": "pred=amount > 100",
+          "sql": "SELECT c.id, c.name FROM customers c\nWHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id AND (amount > 100));",
           "text": "Nested Loop Semi Join (actual time=0.007..0.079 rows=99 loops=1)\n  ->  Seq Scan on customers c (actual time=0.003..0.006 rows=100 loops=1)\n  ->  Index Scan using orders_customer_idx on orders o (actual time=0.001..0.001 rows=1 loops=100)\n        Index Cond: (customer_id = c.id)\n        Filter: (amount > 100)\n        Rows Removed by Filter: 0\nPlanning Time: 0.070 ms\nExecution Time: 0.087 ms",
           "lines_total": 13,
           "lines_kept": 8
@@ -362,6 +431,8 @@
           "axis": "family=membership;stmt=join_distinct;fanout=100",
           "label": "JOIN + DISTINCT, fanout 100",
           "statement": "s08_join_distinct_parent",
+          "params": "pred=amount > 100",
+          "sql": "SELECT DISTINCT c.id, c.name FROM customers c\nJOIN orders o ON o.customer_id = c.id WHERE (amount > 100);",
           "text": "HashAggregate (actual time=1.429..1.435 rows=99 loops=1)\n  Group Key: c.id, c.name\n  ->  Hash Join (actual time=0.015..0.923 rows=7240 loops=1)\n        Hash Cond: (o.customer_id = c.id)\n        ->  Seq Scan on orders o (actual time=0.003..0.394 rows=7314 loops=1)\n              Filter: (amount > 100)\n              Rows Removed by Filter: 2686\n        ->  Hash (actual time=0.010..0.010 rows=100 loops=1)\n              ->  Seq Scan on customers c (actual time=0.001..0.005 rows=100 loops=1)\nPlanning Time: 0.057 ms\nExecution Time: 1.446 ms",
           "lines_total": 20,
           "lines_kept": 11
@@ -383,6 +454,8 @@
           "axis": "family=membership;stmt=exists;fanout=100",
           "label": "EXISTS, fanout 100",
           "statement": "s06_exists_parent",
+          "params": "pred=amount > 100",
+          "sql": "SELECT c.id, c.name FROM customers c\nWHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id AND (amount > 100));",
           "text": "Hash Join (actual time=4.554..4.580 rows=99 loops=1)\n  Hash Cond: (o.customer_id = c.id)\n  ->  HashAggregate (actual time=4.240..4.246 rows=100 loops=1)\n        Group Key: o.customer_id\n        ->  Seq Scan on orders o (actual time=0.623..2.969 rows=7314 loops=1)\n              Storage Filter: (amount > 100)\n  ->  Hash (actual time=0.308..0.309 rows=100 loops=1)\n        ->  Seq Scan on customers c (actual time=0.267..0.279 rows=100 loops=1)\nPlanning Time: 0.156 ms\nExecution Time: 4.632 ms",
           "lines_total": 13,
           "lines_kept": 10
@@ -391,6 +464,8 @@
           "axis": "family=membership;stmt=join_distinct;fanout=100",
           "label": "JOIN + DISTINCT, fanout 100",
           "statement": "s08_join_distinct_parent",
+          "params": "pred=amount > 100",
+          "sql": "SELECT DISTINCT c.id, c.name FROM customers c\nJOIN orders o ON o.customer_id = c.id WHERE (amount > 100);",
           "text": "HashAggregate (actual time=4.977..4.985 rows=99 loops=1)\n  Group Key: c.id, c.name\n  ->  Hash Join (actual time=1.248..3.518 rows=7240 loops=1)\n        Hash Cond: (o.customer_id = c.id)\n        ->  Seq Scan on orders o (actual time=0.741..1.649 rows=7314 loops=1)\n              Storage Filter: (amount > 100)\n        ->  Hash (actual time=0.495..0.496 rows=100 loops=1)\n              ->  Seq Scan on customers c (actual time=0.457..0.468 rows=100 loops=1)\nPlanning Time: 0.168 ms\nExecution Time: 5.042 ms",
           "lines_total": 13,
           "lines_kept": 10
@@ -412,6 +487,8 @@
           "axis": "family=membership;stmt=in;fanout=100",
           "label": "IN, fanout 100",
           "statement": "s07_in_parent",
+          "params": "pred=amount > 100",
+          "sql": "SELECT c.id, c.name FROM customers c\nWHERE c.id IN (SELECT o.customer_id FROM orders o WHERE (amount > 100));",
           "text": "Nested Loop Semi Join (actual time=0.006..0.072 rows=99 loops=1)\n  ->  Seq Scan on customers c (actual time=0.002..0.006 rows=100 loops=1)\n  ->  Index Scan using orders_customer_idx on orders o (actual time=0.001..0.001 rows=1 loops=100)\n        Index Cond: (customer_id = c.id)\n        Filter: (amount > 100)\n        Rows Removed by Filter: 0\nPlanning Time: 0.066 ms\nExecution Time: 0.080 ms",
           "lines_total": 13,
           "lines_kept": 8
@@ -422,8 +499,11 @@
           "axis": "family=membership;stmt=in;fanout=100",
           "label": "IN",
           "statement": "s07_in_parent",
+          "sql": "SELECT c.id, c.name FROM customers c\nWHERE c.id IN (SELECT o.customer_id FROM orders o WHERE (amount > 100));",
           "as": "family=membership;stmt=exists;fanout=100",
           "as_run": "select-order-existence-postgres-1-20261004",
+          "as_statement": "s06_exists_parent",
+          "as_sql": "SELECT c.id, c.name FROM customers c\nWHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id AND (amount > 100));",
           "expect": "same"
         }
       ]
@@ -442,6 +522,8 @@
           "axis": "family=absence;stmt=not_exists;fanout=100",
           "label": "NOT EXISTS, fanout 100",
           "statement": "s09_not_exists",
+          "params": "pred=amount > 100",
+          "sql": "SELECT c.id, c.name FROM customers c\nWHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id AND (amount > 100));",
           "text": "Nested Loop Anti Join (actual time=0.068..0.068 rows=1 loops=1)\n  ->  Seq Scan on customers c (actual time=0.002..0.005 rows=100 loops=1)\n  ->  Index Scan using orders_customer_idx on orders o (actual time=0.001..0.001 rows=1 loops=100)\n        Index Cond: (customer_id = c.id)\n        Filter: (amount > 100)\n        Rows Removed by Filter: 0\nPlanning Time: 0.052 ms\nExecution Time: 0.073 ms",
           "lines_total": 13,
           "lines_kept": 8
@@ -450,6 +532,8 @@
           "axis": "family=absence;stmt=left_is_null;fanout=100",
           "label": "LEFT JOIN ... IS NULL, fanout 100",
           "statement": "s10_left_anti",
+          "params": "pred=amount > 100",
+          "sql": "SELECT c.id, c.name FROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id AND (amount > 100)\nWHERE o.id IS NULL;",
           "text": "Hash Right Join (actual time=0.734..0.735 rows=1 loops=1)\n  Hash Cond: (o.customer_id = c.id)\n  Filter: (o.id IS NULL)\n  Rows Removed by Filter: 7240\n  ->  Seq Scan on orders o (actual time=0.002..0.372 rows=7314 loops=1)\n        Filter: (amount > 100)\n        Rows Removed by Filter: 2686\n  ->  Hash (actual time=0.012..0.012 rows=100 loops=1)\n        ->  Seq Scan on customers c (actual time=0.004..0.007 rows=100 loops=1)\nPlanning Time: 0.063 ms\nExecution Time: 0.742 ms",
           "lines_total": 18,
           "lines_kept": 11
@@ -458,6 +542,8 @@
           "axis": "family=absence;stmt=not_in_notnull;fanout=100",
           "label": "NOT IN over a NOT NULL subquery, fanout 100",
           "statement": "e13_not_in_notnull",
+          "params": "pred=amount > 100",
+          "sql": "SELECT c.id, c.name FROM customers c\nWHERE c.id NOT IN (SELECT o.customer_id FROM orders o\n                   WHERE o.customer_id IS NOT NULL AND (amount > 100));",
           "text": "Seq Scan on customers c (actual time=0.852..0.852 rows=1 loops=1)\n  Filter: (NOT (ANY (id = (hashed SubPlan 1).col1)))\n  Rows Removed by Filter: 99\n  SubPlan 1\n    ->  Seq Scan on orders o (actual time=0.003..0.437 rows=7240 loops=1)\n          Filter: ((customer_id IS NOT NULL) AND (amount > 100))\n          Rows Removed by Filter: 2760\nPlanning Time: 0.035 ms\nExecution Time: 0.860 ms",
           "lines_total": 11,
           "lines_kept": 9
@@ -479,6 +565,8 @@
           "axis": "family=aggregate;stmt=correlated;parent_max=1",
           "label": "correlated scalar SUM, one parent",
           "statement": "a03_aggregate_correlated_sel",
+          "params": "parent_max=1",
+          "sql": "SELECT c.id, c.name,\n       COALESCE((SELECT SUM(o.amount) FROM orders o WHERE o.customer_id = c.id), 0) AS total,\n       (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS children\nFROM customers c\nWHERE 1 = 0 OR c.id <= 1;",
           "text": "Index Scan using customers_pkey on customers c (actual time=0.006..0.007 rows=1 loops=1)\n  Index Cond: (id <= 1)\n  SubPlan 1\n    ->  Aggregate (actual time=0.002..0.003 rows=1 loops=1)\n          ->  Index Scan using orders_customer_idx on orders o (actual time=0.001..0.001 rows=2 loops=1)\n                Index Cond: (customer_id = c.id)\n  SubPlan 2\n    ->  Aggregate (actual time=0.002..0.002 rows=1 loops=1)\n          ->  Index Only Scan using orders_customer_idx on orders o_1 (actual time=0.001..0.001 rows=2 loops=1)\n                Index Cond: (customer_id = c.id)\n                Heap Fetches: 2\nPlanning Time: 0.042 ms\nExecution Time: 0.015 ms",
           "lines_total": 20,
           "lines_kept": 13
@@ -487,6 +575,8 @@
           "axis": "family=aggregate;stmt=post_join;parent_max=10000",
           "label": "join then GROUP BY, 10,000 parents",
           "statement": "a01_aggregate_join_sel",
+          "params": "parent_max=10000",
+          "sql": "SELECT c.id, c.name, COALESCE(SUM(o.amount), 0) AS total, COUNT(o.id) AS children\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000\nGROUP BY c.id, c.name;",
           "text": "HashAggregate (actual time=4.552..5.101 rows=10000 loops=1)\n  Group Key: c.id\n  ->  Hash Right Join (actual time=0.782..3.088 rows=19936 loops=1)\n        Hash Cond: (o.customer_id = c.id)\n        ->  Seq Scan on orders o (actual time=0.002..0.629 rows=20000 loops=1)\n        ->  Hash (actual time=0.773..0.774 rows=10000 loops=1)\n              ->  Seq Scan on customers c (actual time=0.005..0.415 rows=10000 loops=1)\n                    Filter: (id <= 10000)\nPlanning Time: 0.221 ms\nExecution Time: 5.316 ms",
           "lines_total": 19,
           "lines_kept": 10
@@ -495,6 +585,8 @@
           "axis": "family=aggregate;stmt=correlated;parent_max=10000",
           "label": "correlated scalar SUM, 10,000 parents",
           "statement": "a03_aggregate_correlated_sel",
+          "params": "parent_max=10000",
+          "sql": "SELECT c.id, c.name,\n       COALESCE((SELECT SUM(o.amount) FROM orders o WHERE o.customer_id = c.id), 0) AS total,\n       (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS children\nFROM customers c\nWHERE 10000 = 0 OR c.id <= 10000;",
           "text": "Seq Scan on customers c (actual time=0.020..16.428 rows=10000 loops=1)\n  Filter: (id <= 10000)\n  SubPlan 1\n    ->  Aggregate (actual time=0.001..0.001 rows=1 loops=10000)\n          ->  Index Scan using orders_customer_idx on orders o (actual time=0.000..0.000 rows=2 loops=10000)\n                Index Cond: (customer_id = c.id)\n  SubPlan 2\n    ->  Aggregate (actual time=0.001..0.001 rows=1 loops=10000)\n          ->  Index Only Scan using orders_customer_idx on orders o_1 (actual time=0.000..0.000 rows=2 loops=10000)\n                Index Cond: (customer_id = c.id)\n                Heap Fetches: 19936\nPlanning Time: 0.119 ms\nExecution Time: 16.657 ms",
           "lines_total": 20,
           "lines_kept": 13
@@ -516,6 +608,8 @@
           "axis": "family=aggregate;stmt=post_join;parent_max=10000",
           "label": "join then GROUP BY, 10,000 parents",
           "statement": "a01_aggregate_join_sel",
+          "params": "parent_max=10000",
+          "sql": "SELECT c.id, c.name, COALESCE(SUM(o.amount), 0) AS total, COUNT(o.id) AS children\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000\nGROUP BY c.id, c.name;",
           "text": "HashAggregate (actual time=12.898..13.552 rows=10000 loops=1)\n  Group Key: c.id\n  ->  Hash Right Join (actual time=4.527..9.567 rows=19936 loops=1)\n        Hash Cond: (o.customer_id = c.id)\n        ->  Seq Scan on orders o (actual time=0.372..2.095 rows=20000 loops=1)\n        ->  Hash (actual time=4.142..4.143 rows=10000 loops=1)\n              ->  Seq Scan on customers c (actual time=0.775..2.882 rows=10000 loops=1)\n                    Storage Filter: (id <= 10000)\nPlanning Time: 0.189 ms\nExecution Time: 14.456 ms",
           "lines_total": 13,
           "lines_kept": 10
@@ -524,6 +618,8 @@
           "axis": "family=aggregate;stmt=correlated;parent_max=10000",
           "label": "correlated scalar SUM, 10,000 parents",
           "statement": "a03_aggregate_correlated_sel",
+          "params": "parent_max=10000",
+          "sql": "SELECT c.id, c.name,\n       COALESCE((SELECT SUM(o.amount) FROM orders o WHERE o.customer_id = c.id), 0) AS total,\n       (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS children\nFROM customers c\nWHERE 10000 = 0 OR c.id <= 10000;",
           "text": "Seq Scan on customers c (actual time=1.676..6845.886 rows=10000 loops=1)\n  Storage Filter: (id <= 10000)\n  SubPlan 1\n    ->  Finalize Aggregate (actual time=0.449..0.449 rows=1 loops=10000)\n          ->  Index Scan using orders_customer_idx on orders o (actual time=0.435..0.437 rows=1 loops=10000)\n                Index Cond: (customer_id = c.id)\n                Partial Aggregate: true\n  SubPlan 2\n    ->  Finalize Aggregate (actual time=0.232..0.232 rows=1 loops=10000)\n          ->  Index Only Scan using orders_customer_idx on orders o_1 (actual time=0.220..0.221 rows=1 loops=10000)\n                Index Cond: (customer_id = c.id)\n                Heap Fetches: 0\n                Partial Aggregate: true\nPlanning Time: 0.121 ms\nExecution Time: 6848.900 ms",
           "lines_total": 16,
           "lines_kept": 15
@@ -545,6 +641,8 @@
           "axis": "family=aggregate;stmt=post_join;parent_max=1",
           "label": "join then GROUP BY, one parent",
           "statement": "a01_aggregate_join_sel",
+          "params": "parent_max=1",
+          "sql": "SELECT c.id, c.name, COALESCE(SUM(o.amount), 0) AS total, COUNT(o.id) AS children\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE 1 = 0 OR c.id <= 1\nGROUP BY c.id, c.name;",
           "text": "GroupAggregate (actual time=0.006..0.007 rows=1 loops=1)\n  Group Key: c.id\n  ->  Nested Loop Left Join (actual time=0.003..0.004 rows=2 loops=1)\n        ->  Index Scan using customers_pkey on customers c (actual time=0.001..0.001 rows=1 loops=1)\n              Index Cond: (id <= 1)\n        ->  Index Scan using orders_customer_idx on orders o (actual time=0.001..0.002 rows=2 loops=1)\n              Index Cond: (customer_id = c.id)\nPlanning Time: 0.092 ms\nExecution Time: 0.016 ms",
           "lines_total": 15,
           "lines_kept": 9
@@ -553,6 +651,8 @@
           "axis": "family=aggregate;stmt=pre_agg;parent_max=1",
           "label": "pre-aggregating derived table, one parent",
           "statement": "a02_aggregate_preagg_sel",
+          "params": "parent_max=1",
+          "sql": "SELECT c.id, c.name, COALESCE(a.total, 0) AS total, COALESCE(a.children, 0) AS children\nFROM customers c\nLEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children\n           FROM orders GROUP BY customer_id) a ON a.customer_id = c.id\nWHERE 1 = 0 OR c.id <= 1;",
           "text": "Hash Right Join (actual time=3.299..3.563 rows=1 loops=1)\n  Hash Cond: (orders.customer_id = c.id)\n  ->  HashAggregate (actual time=2.570..3.205 rows=10001 loops=1)\n        Group Key: orders.customer_id\n        ->  Seq Scan on orders (actual time=0.003..0.737 rows=20000 loops=1)\n  ->  Hash (actual time=0.002..0.003 rows=1 loops=1)\n        ->  Index Scan using customers_pkey on customers c (actual time=0.001..0.002 rows=1 loops=1)\n              Index Cond: (id <= 1)\nPlanning Time: 0.067 ms\nExecution Time: 3.582 ms",
           "lines_total": 19,
           "lines_kept": 10
@@ -561,6 +661,8 @@
           "axis": "family=aggregate;stmt=pre_agg;parent_max=10000",
           "label": "pre-aggregating derived table, 10,000 parents",
           "statement": "a02_aggregate_preagg_sel",
+          "params": "parent_max=10000",
+          "sql": "SELECT c.id, c.name, COALESCE(a.total, 0) AS total, COALESCE(a.children, 0) AS children\nFROM customers c\nLEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children\n           FROM orders GROUP BY customer_id) a ON a.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000;",
           "text": "Hash Right Join (actual time=2.903..4.406 rows=10000 loops=1)\n  Hash Cond: (orders.customer_id = c.id)\n  ->  HashAggregate (actual time=2.137..2.722 rows=10001 loops=1)\n        Group Key: orders.customer_id\n        ->  Seq Scan on orders (actual time=0.004..0.644 rows=20000 loops=1)\n  ->  Hash (actual time=0.760..0.760 rows=10000 loops=1)\n        ->  Seq Scan on customers c (actual time=0.007..0.392 rows=10000 loops=1)\n              Filter: (id <= 10000)\nPlanning Time: 0.113 ms\nExecution Time: 4.630 ms",
           "lines_total": 19,
           "lines_kept": 10
@@ -582,6 +684,8 @@
           "axis": "family=aggregate;stmt=pre_agg;parent_max=10000",
           "label": "pre-aggregating derived table, 10,000 parents",
           "statement": "a02_aggregate_preagg_sel",
+          "params": "parent_max=10000",
+          "sql": "SELECT c.id, c.name, COALESCE(a.total, 0) AS total, COALESCE(a.children, 0) AS children\nFROM customers c\nLEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children\n           FROM orders GROUP BY customer_id) a ON a.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000;",
           "text": "Hash Left Join (actual time=11.732..15.070 rows=10000 loops=1)\n  Hash Cond: (c.id = a.customer_id)\n  ->  Seq Scan on customers c (actual time=0.783..2.511 rows=10000 loops=1)\n        Storage Filter: (id <= 10000)\n  ->  Hash (actual time=10.931..10.932 rows=10000 loops=1)\n        ->  Subquery Scan on a (actual time=8.120..9.768 rows=10001 loops=1)\n              ->  HashAggregate (actual time=8.118..8.732 rows=10001 loops=1)\n                    Group Key: orders.customer_id\n                    ->  Seq Scan on orders (actual time=0.691..4.845 rows=20000 loops=1)\nPlanning Time: 0.129 ms\nExecution Time: 15.994 ms",
           "lines_total": 14,
           "lines_kept": 11
@@ -603,6 +707,8 @@
           "axis": "family=topn;stmt=lateral;parent_max=1",
           "label": "LATERAL probe, one parent",
           "statement": "a05_topn_lateral_sel",
+          "params": "n=1,parent_max=1",
+          "sql": "SELECT c.id, o.id, o.amount\nFROM customers c\nCROSS JOIN LATERAL (\n  SELECT o.id, o.amount FROM orders o\n  WHERE o.customer_id = c.id\n  ORDER BY o.amount DESC NULLS LAST, o.id ASC\n  LIMIT 1) o\nWHERE 1 = 0 OR c.id <= 1\nORDER BY c.id ASC, o.amount DESC NULLS LAST, o.id ASC;",
           "text": "Sort (actual time=2.367..2.368 rows=1 loops=1)\n  Sort Key: c.id, o_1.amount DESC NULLS LAST, o_1.id\n  Sort Method: quicksort  Memory: 25kB\n  ->  Nested Loop (actual time=2.357..2.361 rows=1 loops=1)\n        ->  Seq Scan on customers c (actual time=1.901..1.903 rows=1 loops=1)\n              Storage Filter: (id <= 1)\n        ->  Limit (actual time=0.452..0.454 rows=1 loops=1)\n              ->  Sort (actual time=0.451..0.452 rows=1 loops=1)\n                    Sort Key: o_1.amount DESC NULLS LAST, o_1.id\n                    Sort Method: quicksort  Memory: 25kB\n                    ->  Index Scan using orders_customer_idx on orders o_1 (actual time=0.426..0.436 rows=2 loops=1)\n                          Index Cond: (customer_id = c.id)\nPlanning Time: 0.099 ms\nExecution Time: 2.422 ms",
           "lines_total": 15,
           "lines_kept": 14
@@ -611,6 +717,8 @@
           "axis": "family=topn;stmt=rownumber;parent_max=10000",
           "label": "ROW_NUMBER(), 10,000 parents",
           "statement": "a04_topn_rownumber_sel",
+          "params": "n=1,parent_max=10000",
+          "sql": "SELECT customer_id, id, amount FROM (\n  SELECT o.customer_id, o.id, o.amount,\n         ROW_NUMBER() OVER (PARTITION BY o.customer_id\n                            ORDER BY o.amount DESC NULLS LAST, o.id ASC) AS rn\n  FROM orders o\n  WHERE o.customer_id IS NOT NULL\n    AND (10000 = 0 OR o.customer_id <= 10000)) t\nWHERE rn <= 1\nORDER BY customer_id ASC, amount DESC NULLS LAST, id ASC;",
           "text": "Subquery Scan on t (actual time=9.878..33.715 rows=10000 loops=1)\n  ->  WindowAgg (actual time=9.876..32.501 rows=10000 loops=1)\n        Run Condition: (row_number() OVER (?) <= 1)\n        ->  Sort (actual time=9.859..10.919 rows=19936 loops=1)\n              Sort Key: o.customer_id, o.amount DESC NULLS LAST, o.id\n              Sort Method: quicksort  Memory: 1853kB\n              ->  Seq Scan on orders o (actual time=0.955..5.825 rows=19936 loops=1)\n                    Storage Filter: ((customer_id IS NOT NULL) AND (customer_id <= 10000))\nPlanning Time: 0.110 ms\nExecution Time: 34.784 ms",
           "lines_total": 11,
           "lines_kept": 10
@@ -619,6 +727,8 @@
           "axis": "family=topn;stmt=lateral;parent_max=10000",
           "label": "LATERAL probe, 10,000 parents",
           "statement": "a05_topn_lateral_sel",
+          "params": "n=1,parent_max=10000",
+          "sql": "SELECT c.id, o.id, o.amount\nFROM customers c\nCROSS JOIN LATERAL (\n  SELECT o.id, o.amount FROM orders o\n  WHERE o.customer_id = c.id\n  ORDER BY o.amount DESC NULLS LAST, o.id ASC\n  LIMIT 1) o\nWHERE 10000 = 0 OR c.id <= 10000\nORDER BY c.id ASC, o.amount DESC NULLS LAST, o.id ASC;",
           "text": "Sort (actual time=4757.319..4758.330 rows=10000 loops=1)\n  Sort Key: c.id, o_1.amount DESC NULLS LAST, o_1.id\n  Sort Method: quicksort  Memory: 931kB\n  ->  Nested Loop (actual time=1.650..4752.536 rows=10000 loops=1)\n        ->  Seq Scan on customers c (actual time=0.934..6.951 rows=10000 loops=1)\n              Storage Filter: (id <= 10000)\n        ->  Limit (actual time=0.473..0.473 rows=1 loops=10000)\n              ->  Sort (actual time=0.472..0.472 rows=1 loops=10000)\n                    Sort Key: o_1.amount DESC NULLS LAST, o_1.id\n                    Sort Method: quicksort  Memory: 25kB\n                    ->  Index Scan using orders_customer_idx on orders o_1 (actual time=0.453..0.455 rows=2 loops=10000)\n                          Index Cond: (customer_id = c.id)\nPlanning Time: 0.226 ms\nExecution Time: 4759.134 ms",
           "lines_total": 15,
           "lines_kept": 14
@@ -640,6 +750,8 @@
           "axis": "family=topn;stmt=rownumber;parent_max=10000",
           "label": "ROW_NUMBER(), 10,000 parents",
           "statement": "a04_topn_rownumber_sel",
+          "params": "n=1,parent_max=10000",
+          "sql": "SELECT customer_id, id, amount FROM (\n  SELECT o.customer_id, o.id, o.amount,\n         ROW_NUMBER() OVER (PARTITION BY o.customer_id\n                            ORDER BY o.amount DESC NULLS LAST, o.id ASC) AS rn\n  FROM orders o\n  WHERE o.customer_id IS NOT NULL\n    AND (10000 = 0 OR o.customer_id <= 10000)) t\nWHERE rn <= 1\nORDER BY customer_id ASC, amount DESC NULLS LAST, id ASC;",
           "text": "Subquery Scan on t (actual time=0.023..6.054 rows=10000 loops=1)\n  ->  WindowAgg (actual time=0.023..5.624 rows=10000 loops=1)\n        Run Condition: (row_number() OVER (?) <= 1)\n        ->  Incremental Sort (actual time=0.019..3.171 rows=19936 loops=1)\n              Sort Key: o.customer_id, o.amount DESC NULLS LAST, o.id\n              Presorted Key: o.customer_id\n              ->  Index Scan using orders_customer_idx on orders o (actual time=0.007..1.373 rows=19936 loops=1)\n                    Index Cond: ((customer_id IS NOT NULL) AND (customer_id <= 10000))\nPlanning Time: 0.123 ms\nExecution Time: 6.264 ms",
           "lines_total": 17,
           "lines_kept": 10
@@ -648,6 +760,8 @@
           "axis": "family=topn;stmt=distinct_on;parent_max=10000",
           "label": "DISTINCT ON, 10,000 parents",
           "statement": "a06_topn_distinct_on_sel",
+          "params": "parent_max=10000",
+          "sql": "SELECT DISTINCT ON (o.customer_id) o.customer_id, o.id, o.amount\nFROM orders o\nWHERE o.customer_id IS NOT NULL\n  AND (10000 = 0 OR o.customer_id <= 10000)\nORDER BY o.customer_id ASC, o.amount DESC NULLS LAST, o.id ASC;",
           "text": "Unique (actual time=0.019..3.906 rows=10000 loops=1)\n  ->  Incremental Sort (actual time=0.019..3.048 rows=19936 loops=1)\n        Sort Key: customer_id, amount DESC NULLS LAST, id\n        Presorted Key: customer_id\n        ->  Index Scan using orders_customer_idx on orders o (actual time=0.007..1.418 rows=19936 loops=1)\n              Index Cond: ((customer_id IS NOT NULL) AND (customer_id <= 10000))\nPlanning Time: 0.092 ms\nExecution Time: 4.137 ms",
           "lines_total": 14,
           "lines_kept": 8
@@ -669,6 +783,8 @@
           "axis": "shape=selective/indexable;spelling=or",
           "label": "OR, selective indexable arms",
           "statement": "s18_or_predicate",
+          "params": "pred_a=amount <= 5,pred_b=amount >= 496",
+          "sql": "SELECT id, amount FROM orders WHERE (amount <= 5) OR (amount >= 496) ORDER BY id;",
           "text": "Sort (actual time=0.062..0.068 rows=251 loops=1)\n  Sort Key: id\n  Sort Method: quicksort  Memory: 30kB\n  ->  Bitmap Heap Scan on orders (actual time=0.013..0.047 rows=251 loops=1)\n        Recheck Cond: ((amount <= 5) OR (amount >= 496))\n        ->  BitmapOr (actual time=0.006..0.007 rows=0 loops=1)\n              ->  Bitmap Index Scan on orders_amount_idx (actual time=0.004..0.004 rows=114 loops=1)\n                    Index Cond: (amount <= 5)\n              ->  Bitmap Index Scan on orders_amount_idx (actual time=0.003..0.003 rows=137 loops=1)\n                    Index Cond: (amount >= 496)\nPlanning Time: 0.043 ms\nExecution Time: 0.080 ms",
           "lines_total": 20,
           "lines_kept": 12
@@ -677,6 +793,8 @@
           "axis": "shape=selective/indexable;spelling=union_all",
           "label": "UNION ALL, selective indexable arms",
           "statement": "s19_union_all_predicate",
+          "params": "pred_a=amount <= 5,pred_b=amount >= 496",
+          "sql": "SELECT id, amount FROM orders WHERE (amount <= 5)\nUNION ALL\nSELECT id, amount FROM orders WHERE (amount >= 496)\nORDER BY id;",
           "text": "Sort (actual time=0.098..0.109 rows=251 loops=1)\n  Sort Key: orders.id\n  Sort Method: quicksort  Memory: 30kB\n  ->  Append (actual time=0.011..0.076 rows=251 loops=1)\n        ->  Bitmap Heap Scan on orders (actual time=0.011..0.034 rows=114 loops=1)\n              Recheck Cond: (amount <= 5)\n              ->  Bitmap Index Scan on orders_amount_idx (actual time=0.004..0.005 rows=114 loops=1)\n                    Index Cond: (amount <= 5)\n        ->  Bitmap Heap Scan on orders orders_1 (actual time=0.008..0.030 rows=137 loops=1)\n              Recheck Cond: (amount >= 496)\n              ->  Bitmap Index Scan on orders_amount_idx (actual time=0.004..0.004 rows=137 loops=1)\n                    Index Cond: (amount >= 496)\nPlanning Time: 0.063 ms\nExecution Time: 0.124 ms",
           "lines_total": 24,
           "lines_kept": 14
@@ -685,6 +803,8 @@
           "axis": "shape=broad/indexable;spelling=or",
           "label": "OR, broad arms",
           "statement": "s18_or_predicate",
+          "params": "pred_a=amount <= 100,pred_b=amount >= 400",
+          "sql": "SELECT id, amount FROM orders WHERE (amount <= 100) OR (amount >= 400) ORDER BY id;",
           "text": "Index Scan using orders_pkey on orders (actual time=0.011..0.773 rows=4652 loops=1)\n  Filter: ((amount <= 100) OR (amount >= 400))\n  Rows Removed by Filter: 7348\nPlanning Time: 0.053 ms\nExecution Time: 0.883 ms",
           "lines_total": 6,
           "lines_kept": 5
@@ -693,6 +813,8 @@
           "axis": "shape=broad/indexable;spelling=union_all",
           "label": "UNION ALL, broad arms",
           "statement": "s19_union_all_predicate",
+          "params": "pred_a=amount <= 100,pred_b=amount >= 400",
+          "sql": "SELECT id, amount FROM orders WHERE (amount <= 100)\nUNION ALL\nSELECT id, amount FROM orders WHERE (amount >= 400)\nORDER BY id;",
           "text": "Sort (actual time=1.233..1.345 rows=4652 loops=1)\n  Sort Key: orders.id\n  Sort Method: quicksort  Memory: 302kB\n  ->  Append (actual time=0.008..0.767 rows=4652 loops=1)\n        ->  Index Scan using orders_amount_idx on orders (actual time=0.008..0.306 rows=2273 loops=1)\n              Index Cond: (amount <= 100)\n        ->  Index Scan using orders_amount_idx on orders orders_1 (actual time=0.004..0.272 rows=2379 loops=1)\n              Index Cond: (amount >= 400)\nPlanning Time: 0.053 ms\nExecution Time: 1.451 ms",
           "lines_total": 14,
           "lines_kept": 10
@@ -714,6 +836,8 @@
           "axis": "shape=selective/indexable;spelling=or",
           "label": "OR, selective indexable arms",
           "statement": "s18_or_predicate",
+          "params": "pred_a=amount <= 5,pred_b=amount >= 496",
+          "sql": "SELECT id, amount FROM orders WHERE (amount <= 5) OR (amount >= 496) ORDER BY id;",
           "text": "Sort (actual time=3.625..3.636 rows=251 loops=1)\n  Sort Key: id\n  Sort Method: quicksort  Memory: 36kB\n  ->  Seq Scan on orders (actual time=3.465..3.544 rows=251 loops=1)\n        Storage Filter: ((amount <= 5) OR (amount >= 496))\nPlanning Time: 0.057 ms\nExecution Time: 3.704 ms",
           "lines_total": 8,
           "lines_kept": 7
@@ -735,6 +859,8 @@
           "axis": "shape=selective/expression;spelling=or",
           "label": "selective OR on (amount + 0), no expression index",
           "statement": "s18_or_predicate",
+          "params": "pred_a=(amount + 0) <= 5,pred_b=(amount + 0) >= 496",
+          "sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 5) OR ((amount + 0) >= 496) ORDER BY id;",
           "text": "Index Scan using orders_pkey on orders (actual time=0.008..0.617 rows=251 loops=1)\n  Filter: (((amount + 0) <= 5) OR ((amount + 0) >= 496))\n  Rows Removed by Filter: 11749\nPlanning Time: 0.025 ms\nExecution Time: 0.628 ms",
           "lines_total": 6,
           "lines_kept": 5
@@ -743,6 +869,8 @@
           "axis": "shape=selective/expression;index=expression_index;spelling=or",
           "label": "the same SQL with the expression index present",
           "statement": "s18_or_predicate",
+          "params": "pred_a=(amount + 0) <= 5,pred_b=(amount + 0) >= 496",
+          "sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 5) OR ((amount + 0) >= 496) ORDER BY id;",
           "text": "Sort (actual time=0.057..0.063 rows=251 loops=1)\n  Sort Key: id\n  Sort Method: quicksort  Memory: 30kB\n  ->  Bitmap Heap Scan on orders (actual time=0.010..0.042 rows=251 loops=1)\n        Recheck Cond: (((amount + 0) <= 5) OR ((amount + 0) >= 496))\n        ->  BitmapOr (actual time=0.005..0.005 rows=0 loops=1)\n              ->  Bitmap Index Scan on orders_amount_expr_idx (actual time=0.003..0.003 rows=114 loops=1)\n                    Index Cond: ((amount + 0) <= 5)\n              ->  Bitmap Index Scan on orders_amount_expr_idx (actual time=0.002..0.002 rows=137 loops=1)\n                    Index Cond: ((amount + 0) >= 496)\nPlanning Time: 0.035 ms\nExecution Time: 0.074 ms",
           "lines_total": 20,
           "lines_kept": 12
@@ -753,8 +881,11 @@
           "axis": "shape=broad/expression;index=expression_index;spelling=or",
           "label": "broad expression shape with the index",
           "statement": "s18_or_predicate",
+          "sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 100) OR ((amount + 0) >= 400) ORDER BY id;",
           "as": "shape=broad/expression;spelling=or",
           "as_run": "select-order-access-postgres-1-20261004",
+          "as_statement": "s18_or_predicate",
+          "as_sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 100) OR ((amount + 0) >= 400) ORDER BY id;",
           "expect": "same"
         }
       ]
@@ -773,6 +904,8 @@
           "axis": "depth=10000;spelling=offset",
           "label": "OFFSET, page depth 10,000",
           "statement": "s16_page_offset",
+          "params": "limit=5,offset=10000",
+          "sql": "SELECT id, amount FROM orders ORDER BY amount DESC NULLS LAST, id ASC LIMIT 5 OFFSET 10000;",
           "text": "Limit (actual time=2.489..2.489 rows=5 loops=1)\n  ->  Sort (actual time=2.074..2.297 rows=10005 loops=1)\n        Sort Key: amount DESC NULLS LAST, id\n        Sort Method: quicksort  Memory: 853kB\n        ->  Seq Scan on orders (actual time=0.005..0.451 rows=12000 loops=1)\nPlanning Time: 0.028 ms\nExecution Time: 2.495 ms",
           "lines_total": 10,
           "lines_kept": 7
@@ -781,6 +914,8 @@
           "axis": "depth=10000;spelling=keyset",
           "label": "keyset, page depth 10,000",
           "statement": "s17_page_keyset",
+          "params": "cursor_set=1,last_amount=67,last_id=4310,last_is_null=0,limit=5",
+          "sql": "SELECT id, amount FROM orders\nWHERE 1 = 0\n   OR (0 = 1 AND amount IS NULL AND id > 4310)\n   OR (0 = 0 AND\n       (amount < 67 OR (amount = 67 AND id > 4310) OR amount IS NULL))\nORDER BY amount DESC NULLS LAST, id ASC LIMIT 5;",
           "text": "Limit (actual time=0.329..0.330 rows=5 loops=1)\n  ->  Sort (actual time=0.328..0.329 rows=5 loops=1)\n        Sort Key: amount DESC NULLS LAST, id\n        Sort Method: top-N heapsort  Memory: 25kB\n        ->  Bitmap Heap Scan on orders (actual time=0.040..0.219 rows=2000 loops=1)\n              Recheck Cond: ((amount < 67) OR (amount = 67) OR (amount IS NULL))\n              Filter: ((amount < 67) OR ((amount = 67) AND (id > 4310)) OR (amount IS NULL))\n              Rows Removed by Filter: 6\n              ->  BitmapOr (actual time=0.031..0.031 rows=0 loops=1)\n                    ->  Bitmap Index Scan on orders_amount_idx (actual time=0.023..0.023 rows=1460 loops=1)\n                          Index Cond: (amount < 67)\n                    ->  Bitmap Index Scan on orders_amount_idx (actual time=0.001..0.001 rows=24 loops=1)\n                          Index Cond: (amount = 67)\n                    ->  Bitmap Index Scan on orders_amount_idx (actual time=0.006..0.006 rows=522 loops=1)\n                          Index Cond: (amount IS NULL)\nPlanning Time: 0.050 ms\nExecution Time: 0.339 ms",
           "lines_total": 25,
           "lines_kept": 17
@@ -802,6 +937,8 @@
           "axis": "depth=10000;spelling=offset",
           "label": "OFFSET, page depth 10,000",
           "statement": "s16_page_offset",
+          "params": "limit=5,offset=10000",
+          "sql": "SELECT id, amount FROM orders ORDER BY amount DESC NULLS LAST, id ASC LIMIT 5 OFFSET 10000;",
           "text": "Limit (actual time=7.202..7.205 rows=5 loops=1)\n  ->  Sort (actual time=5.852..6.254 rows=10005 loops=1)\n        Sort Key: amount DESC NULLS LAST, id\n        Sort Method: quicksort  Memory: 947kB\n        ->  Seq Scan on orders (actual time=0.475..2.720 rows=12000 loops=1)\nPlanning Time: 0.050 ms\nExecution Time: 7.246 ms",
           "lines_total": 8,
           "lines_kept": 7
@@ -810,6 +947,8 @@
           "axis": "depth=10000;spelling=keyset",
           "label": "keyset, page depth 10,000",
           "statement": "s17_page_keyset",
+          "params": "cursor_set=1,last_amount=67,last_id=4310,last_is_null=0,limit=5",
+          "sql": "SELECT id, amount FROM orders\nWHERE 1 = 0\n   OR (0 = 1 AND amount IS NULL AND id > 4310)\n   OR (0 = 0 AND\n       (amount < 67 OR (amount = 67 AND id > 4310) OR amount IS NULL))\nORDER BY amount DESC NULLS LAST, id ASC LIMIT 5;",
           "text": "Limit (actual time=4.516..4.517 rows=5 loops=1)\n  ->  Sort (actual time=4.514..4.515 rows=5 loops=1)\n        Sort Key: amount DESC NULLS LAST, id\n        Sort Method: top-N heapsort  Memory: 25kB\n        ->  Seq Scan on orders (actual time=2.191..4.234 rows=2000 loops=1)\n              Storage Filter: ((amount < 67) OR ((amount = 67) AND (id > 4310)) OR (amount IS NULL))\nPlanning Time: 0.094 ms\nExecution Time: 4.553 ms",
           "lines_total": 9,
           "lines_kept": 8
@@ -831,6 +970,8 @@
           "axis": "family=bag;stmt=join_where;threshold=180000",
           "label": "single-tablet layout, 180,000-row join",
           "statement": "j01_join_where",
+          "params": "threshold=180000",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;",
           "text": "Hash Join (actual time=3.591..112.546 rows=180000 loops=1)\n  Hash Cond: (d.person_id = p.person_id)\n  ->  Seq Scan on donation d (actual time=1.475..79.753 rows=180000 loops=1)\n        Storage Filter: (rank <= 180000)\n        Storage Table Read Requests: 176\n        Storage Table Rows Scanned: 200000\n  ->  Hash (actual time=2.082..2.086 rows=2000 loops=1)\n        ->  Hash Join (actual time=1.464..1.862 rows=2000 loops=1)\n              Hash Cond: (p.charity_id = ch.charity_id)\n              ->  Seq Scan on person p (actual time=0.884..1.018 rows=2000 loops=1)\n                    Storage Table Read Requests: 2\n                    Storage Table Rows Scanned: 2000\n              ->  Hash (actual time=0.564..0.566 rows=50 loops=1)\n                    ->  Seq Scan on charity ch (actual time=0.543..0.549 rows=50 loops=1)\n                          Storage Table Read Requests: 1\n                          Storage Table Rows Scanned: 50\nPlanning Time: 0.303 ms\nExecution Time: 127.005 ms\nStorage Read Requests: 179\nStorage Rows Scanned: 202050",
           "lines_total": 92,
           "lines_kept": 20
@@ -852,6 +993,8 @@
           "axis": "family=bag;stmt=join_where;threshold=180000",
           "label": "three tablets, leaders on three nodes, 180,000-row join",
           "statement": "j01_join_where",
+          "params": "threshold=180000",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;",
           "text": "Hash Join (actual time=3.423..48.973 rows=180000 loops=1)\n  Hash Cond: (d.person_id = p.person_id)\n  ->  Seq Scan on donation d (actual time=1.202..17.381 rows=180000 loops=1)\n        Storage Filter: (rank <= 180000)\n        Storage Table Read Requests: 59\n        Storage Table Rows Scanned: 200000\n  ->  Hash (actual time=2.207..2.210 rows=2000 loops=1)\n        ->  Hash Join (actual time=1.627..1.988 rows=2000 loops=1)\n              Hash Cond: (p.charity_id = ch.charity_id)\n              ->  Seq Scan on person p (actual time=1.024..1.144 rows=2000 loops=1)\n                    Storage Table Read Requests: 1\n                    Storage Table Rows Scanned: 2000\n              ->  Hash (actual time=0.589..0.590 rows=50 loops=1)\n                    ->  Seq Scan on charity ch (actual time=0.571..0.576 rows=50 loops=1)\n                          Storage Table Read Requests: 1\n                          Storage Table Rows Scanned: 50\nPlanning Time: 0.198 ms\nExecution Time: 62.579 ms\nStorage Read Requests: 61\nStorage Rows Scanned: 202050",
           "lines_total": 92,
           "lines_kept": 20
@@ -862,8 +1005,11 @@
           "axis": "family=bag;stmt=join_where;threshold=180000",
           "label": "this plan",
           "statement": "j01_join_where",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;",
           "as": "family=bag;stmt=join_where;threshold=180000",
           "as_run": "select-join-v4-topo-tablet-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;",
           "expect": "same"
         }
       ]
@@ -882,6 +1028,8 @@
           "axis": "family=bag;stmt=join_where;threshold=180000",
           "label": "colocated database, 180,000-row join",
           "statement": "j01_join_where",
+          "params": "threshold=180000",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;",
           "text": "Hash Join (actual time=3.408..93.237 rows=180000 loops=1)\n  Hash Cond: (d.person_id = p.person_id)\n  ->  Seq Scan on donation d (actual time=1.228..62.004 rows=180000 loops=1)\n        Storage Filter: (rank <= 180000)\n        Storage Table Read Requests: 176\n        Storage Table Rows Scanned: 200000\n  ->  Hash (actual time=2.157..2.163 rows=2000 loops=1)\n        ->  Hash Join (actual time=1.439..1.949 rows=2000 loops=1)\n              Hash Cond: (p.charity_id = ch.charity_id)\n              ->  Index Scan using person_pkey on person p (actual time=0.912..1.155 rows=2000 loops=1)\n                    Storage Table Read Requests: 2\n                    Storage Table Rows Scanned: 2000\n              ->  Hash (actual time=0.517..0.520 rows=50 loops=1)\n                    ->  Index Scan using charity_pkey on charity ch (actual time=0.493..0.503 rows=50 loops=1)\n                          Storage Table Read Requests: 1\n                          Storage Table Rows Scanned: 50\nPlanning Time: 0.196 ms\nExecution Time: 106.642 ms\nStorage Read Requests: 179\nStorage Rows Scanned: 202050",
           "lines_total": 96,
           "lines_kept": 20
@@ -892,8 +1040,11 @@
           "axis": "family=bag;stmt=join_where;threshold=180000",
           "label": "this plan",
           "statement": "j01_join_where",
+          "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;",
           "as": "family=bag;stmt=join_where;threshold=180000",
           "as_run": "select-join-v4-topo-distributed-i1-20261005",
+          "as_statement": "j01_join_where",
+          "as_sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;",
           "expect": "different"
         }
       ]

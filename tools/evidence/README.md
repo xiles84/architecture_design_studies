@@ -24,6 +24,7 @@ go run . validate --repo ../.. \
 go run . extract     --repo ../..                # candidate claims from analysis front-matter
 go run . plans       --repo ../..                # check the query-plan appendix data is current
 go run . plans       --repo ../.. --write        # regenerate book/appendix/query-plans.json
+# first, from studies/01-charity-tree: go run ./selectbench/cmd/appendixsql -repo ../..
 go test ./...
 ```
 
@@ -110,6 +111,12 @@ when:
 - the result file's sha256 differs from the anchor's `inputs_digest`;
 - a cell is missing, did not pass the correctness gate, or has no plan;
 - a declared node-tree statement (`expect: same|different`) is contradicted by the plans.
+
+Each quoted cell also needs its SQL in `book/appendix/query-plans.sql.json`. That file is written by
+`studies/01-charity-tree/selectbench/cmd/appendixsql`, which binds the cell's statement with the
+harness's own catalogue and binder. `plans` refuses an entry whose statement or parameters differ from
+the cell, an entry no exhibit uses, and any catalogue source file listed in that file that is not
+byte-identical at the exhibit's producing commit (`git show <commit>:<path>`).
 
 It then trims each plan by a fixed rule (node lines without cost estimates, plus a list of decisive
 attributes) and writes `book/appendix/query-plans.json`, which `book/appendix/query-plans.typ` renders.

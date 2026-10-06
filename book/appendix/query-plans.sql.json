@@ -1,0 +1,580 @@
+{
+  "schema": "ads-plan-sql/1",
+  "generated_by": "studies/01-charity-tree/selectbench/cmd/appendixsql",
+  "catalogues": {
+    "join": [
+      "studies/01-charity-tree/selectbench/bind.go",
+      "studies/01-charity-tree/selectbench/catalog.go",
+      "studies/01-charity-tree/selectbench/joincatalog.go",
+      "studies/01-charity-tree/selectbench/joinfixture.go",
+      "studies/01-charity-tree/selectbench/sql/join/select_join_catalog.sql"
+    ],
+    "teaching": [
+      "studies/01-charity-tree/selectbench/bind.go",
+      "studies/01-charity-tree/selectbench/catalog.go",
+      "studies/01-charity-tree/selectbench/sql/select_aggregate_catalog.sql",
+      "studies/01-charity-tree/selectbench/sql/select_catalog.sql",
+      "studies/01-charity-tree/selectbench/sql/select_existence_catalog.sql"
+    ]
+  },
+  "statements": [
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=comma_join;threshold=2000",
+      "statement": "j06_comma_join",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c, facts f\nWHERE c.id = f.customer_id AND f.rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=cte_filtered;threshold=2000",
+      "statement": "j04_cte_filtered",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS (SELECT * FROM facts WHERE rank <= 2000)\nSELECT c.id AS customer_id, c.name AS customer_name, e.id AS fact_id, e.amount\nFROM customers c JOIN e ON e.customer_id = c.id;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=cte_joined_outer;threshold=2000",
+      "statement": "j05_cte_joined_outer",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=cte_joined_outer_mat;threshold=2000",
+      "statement": "j05m_cte_joined_outer_mat",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS MATERIALIZED (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=filtered_derived;threshold=2000",
+      "statement": "j03_filtered_derived",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c\nJOIN (SELECT * FROM facts WHERE rank <= 2000) f ON f.customer_id = c.id;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=join_on;threshold=2000",
+      "statement": "j02_join_on",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id AND f.rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=join_where;threshold=2000",
+      "statement": "j01_join_where",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=default;refs=2;consumer=1%",
+      "statement": "r_default_n2_c1",
+      "params": "consumer_max=2000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=default;refs=2;consumer=100%",
+      "statement": "r_default_n2_c100",
+      "params": "consumer_max=200000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=mat;refs=1;consumer=1%",
+      "statement": "r_mat_n1_c1",
+      "params": "consumer_max=2000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=mat;refs=2;consumer=1%",
+      "statement": "r_mat_n2_c1",
+      "params": "consumer_max=2000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=mat;refs=2;consumer=100%",
+      "statement": "r_mat_n2_c100",
+      "params": "consumer_max=200000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=notmat;refs=1;consumer=1%",
+      "statement": "r_notmat_n1_c1",
+      "params": "consumer_max=2000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS NOT MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 2000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-pg-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=notmat;refs=2;consumer=100%",
+      "statement": "r_notmat_n2_c100",
+      "params": "consumer_max=200000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS NOT MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=comma_join;threshold=2000",
+      "statement": "j06_comma_join",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c, facts f\nWHERE c.id = f.customer_id AND f.rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=cte_filtered;threshold=2000",
+      "statement": "j04_cte_filtered",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS (SELECT * FROM facts WHERE rank <= 2000)\nSELECT c.id AS customer_id, c.name AS customer_name, e.id AS fact_id, e.amount\nFROM customers c JOIN e ON e.customer_id = c.id;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=cte_joined_outer;threshold=2000",
+      "statement": "j05_cte_joined_outer",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=cte_joined_outer_mat;threshold=2000",
+      "statement": "j05m_cte_joined_outer_mat",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS MATERIALIZED (\n  SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount, f.rank\n  FROM customers c JOIN facts f ON f.customer_id = c.id\n)\nSELECT customer_id, customer_name, fact_id, amount FROM e WHERE rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=filtered_derived;threshold=2000",
+      "statement": "j03_filtered_derived",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c\nJOIN (SELECT * FROM facts WHERE rank <= 2000) f ON f.customer_id = c.id;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=join_on;threshold=2000",
+      "statement": "j02_join_on",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id AND f.rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=join_where;threshold=2000",
+      "statement": "j01_join_where",
+      "params": "threshold=2000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 2000;"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=default;refs=2;consumer=100%",
+      "statement": "r_default_n2_c100",
+      "params": "consumer_max=200000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=mat;refs=2;consumer=100%",
+      "statement": "r_mat_n2_c100",
+      "params": "consumer_max=200000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v3b-domain-yb-i1-20261005",
+      "file": "join.json",
+      "axis": "family=reuse;policy=notmat;refs=2;consumer=100%",
+      "statement": "r_notmat_n2_c100",
+      "params": "consumer_max=200000,threshold=2000",
+      "catalogue": "join",
+      "sql": "WITH e AS NOT MATERIALIZED (\n  SELECT f.id AS consumer_id, ascii(substr(md5(repeat(f.id::text, 32)), 1, 1)) AS cksum\n  FROM facts f WHERE f.rank <= 2000\n)\nSELECT 1 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nUNION ALL\nSELECT 2 AS ref, COALESCE(sum(cksum), 0)::bigint AS checksum FROM e WHERE e.consumer_id <= 200000\nORDER BY ref"
+    },
+    {
+      "run_id": "select-join-v4-topo-colocated-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=join_where;threshold=180000",
+      "statement": "j01_join_where",
+      "params": "threshold=180000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;"
+    },
+    {
+      "run_id": "select-join-v4-topo-distributed-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=join_where;threshold=180000",
+      "statement": "j01_join_where",
+      "params": "threshold=180000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;"
+    },
+    {
+      "run_id": "select-join-v4-topo-tablet-i1-20261005",
+      "file": "join.json",
+      "axis": "family=bag;stmt=join_where;threshold=180000",
+      "statement": "j01_join_where",
+      "params": "threshold=180000",
+      "catalogue": "join",
+      "sql": "SELECT c.id AS customer_id, c.name AS customer_name, f.id AS fact_id, f.amount\nFROM customers c JOIN facts f ON f.customer_id = c.id\nWHERE f.rank <= 180000;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "depth=10000;spelling=keyset",
+      "statement": "s17_page_keyset",
+      "params": "cursor_set=1,last_amount=67,last_id=4310,last_is_null=0,limit=5",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders\nWHERE 1 = 0\n   OR (0 = 1 AND amount IS NULL AND id > 4310)\n   OR (0 = 0 AND\n       (amount < 67 OR (amount = 67 AND id > 4310) OR amount IS NULL))\nORDER BY amount DESC NULLS LAST, id ASC LIMIT 5;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "depth=10000;spelling=offset",
+      "statement": "s16_page_offset",
+      "params": "limit=5,offset=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders ORDER BY amount DESC NULLS LAST, id ASC LIMIT 5 OFFSET 10000;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=broad/expression;index=expression_index;spelling=or",
+      "statement": "s18_or_predicate",
+      "params": "pred_a=(amount + 0) <= 100,pred_b=(amount + 0) >= 400",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 100) OR ((amount + 0) >= 400) ORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=broad/expression;spelling=or",
+      "statement": "s18_or_predicate",
+      "params": "pred_a=(amount + 0) <= 100,pred_b=(amount + 0) >= 400",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 100) OR ((amount + 0) >= 400) ORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=broad/indexable;spelling=or",
+      "statement": "s18_or_predicate",
+      "params": "pred_a=amount <= 100,pred_b=amount >= 400",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE (amount <= 100) OR (amount >= 400) ORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=broad/indexable;spelling=union_all",
+      "statement": "s19_union_all_predicate",
+      "params": "pred_a=amount <= 100,pred_b=amount >= 400",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE (amount <= 100)\nUNION ALL\nSELECT id, amount FROM orders WHERE (amount >= 400)\nORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=selective/expression;index=expression_index;spelling=or",
+      "statement": "s18_or_predicate",
+      "params": "pred_a=(amount + 0) <= 5,pred_b=(amount + 0) >= 496",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 5) OR ((amount + 0) >= 496) ORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=selective/expression;spelling=or",
+      "statement": "s18_or_predicate",
+      "params": "pred_a=(amount + 0) <= 5,pred_b=(amount + 0) >= 496",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE ((amount + 0) <= 5) OR ((amount + 0) >= 496) ORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=selective/indexable;spelling=or",
+      "statement": "s18_or_predicate",
+      "params": "pred_a=amount <= 5,pred_b=amount >= 496",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE (amount <= 5) OR (amount >= 496) ORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-postgres-1-20261004",
+      "file": "access.json",
+      "axis": "shape=selective/indexable;spelling=union_all",
+      "statement": "s19_union_all_predicate",
+      "params": "pred_a=amount <= 5,pred_b=amount >= 496",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE (amount <= 5)\nUNION ALL\nSELECT id, amount FROM orders WHERE (amount >= 496)\nORDER BY id;"
+    },
+    {
+      "run_id": "select-order-access-yugabyte-1-20261004",
+      "file": "access.json",
+      "axis": "depth=10000;spelling=keyset",
+      "statement": "s17_page_keyset",
+      "params": "cursor_set=1,last_amount=67,last_id=4310,last_is_null=0,limit=5",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders\nWHERE 1 = 0\n   OR (0 = 1 AND amount IS NULL AND id > 4310)\n   OR (0 = 0 AND\n       (amount < 67 OR (amount = 67 AND id > 4310) OR amount IS NULL))\nORDER BY amount DESC NULLS LAST, id ASC LIMIT 5;"
+    },
+    {
+      "run_id": "select-order-access-yugabyte-1-20261004",
+      "file": "access.json",
+      "axis": "depth=10000;spelling=offset",
+      "statement": "s16_page_offset",
+      "params": "limit=5,offset=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders ORDER BY amount DESC NULLS LAST, id ASC LIMIT 5 OFFSET 10000;"
+    },
+    {
+      "run_id": "select-order-access-yugabyte-1-20261004",
+      "file": "access.json",
+      "axis": "shape=selective/indexable;spelling=or",
+      "statement": "s18_or_predicate",
+      "params": "pred_a=amount <= 5,pred_b=amount >= 496",
+      "catalogue": "teaching",
+      "sql": "SELECT id, amount FROM orders WHERE (amount <= 5) OR (amount >= 496) ORDER BY id;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=correlated;parent_max=1",
+      "statement": "a03_aggregate_correlated_sel",
+      "params": "parent_max=1",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name,\n       COALESCE((SELECT SUM(o.amount) FROM orders o WHERE o.customer_id = c.id), 0) AS total,\n       (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS children\nFROM customers c\nWHERE 1 = 0 OR c.id <= 1;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=correlated;parent_max=10000",
+      "statement": "a03_aggregate_correlated_sel",
+      "params": "parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name,\n       COALESCE((SELECT SUM(o.amount) FROM orders o WHERE o.customer_id = c.id), 0) AS total,\n       (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS children\nFROM customers c\nWHERE 10000 = 0 OR c.id <= 10000;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=post_join;parent_max=1",
+      "statement": "a01_aggregate_join_sel",
+      "params": "parent_max=1",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name, COALESCE(SUM(o.amount), 0) AS total, COUNT(o.id) AS children\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE 1 = 0 OR c.id <= 1\nGROUP BY c.id, c.name;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=post_join;parent_max=10000",
+      "statement": "a01_aggregate_join_sel",
+      "params": "parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name, COALESCE(SUM(o.amount), 0) AS total, COUNT(o.id) AS children\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000\nGROUP BY c.id, c.name;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=pre_agg;parent_max=1",
+      "statement": "a02_aggregate_preagg_sel",
+      "params": "parent_max=1",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name, COALESCE(a.total, 0) AS total, COALESCE(a.children, 0) AS children\nFROM customers c\nLEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children\n           FROM orders GROUP BY customer_id) a ON a.customer_id = c.id\nWHERE 1 = 0 OR c.id <= 1;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=pre_agg;parent_max=10000",
+      "statement": "a02_aggregate_preagg_sel",
+      "params": "parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name, COALESCE(a.total, 0) AS total, COALESCE(a.children, 0) AS children\nFROM customers c\nLEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children\n           FROM orders GROUP BY customer_id) a ON a.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=topn;stmt=distinct_on;parent_max=10000",
+      "statement": "a06_topn_distinct_on_sel",
+      "params": "parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT DISTINCT ON (o.customer_id) o.customer_id, o.id, o.amount\nFROM orders o\nWHERE o.customer_id IS NOT NULL\n  AND (10000 = 0 OR o.customer_id <= 10000)\nORDER BY o.customer_id ASC, o.amount DESC NULLS LAST, o.id ASC;"
+    },
+    {
+      "run_id": "select-order-aggregate-postgres-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=topn;stmt=rownumber;parent_max=10000",
+      "statement": "a04_topn_rownumber_sel",
+      "params": "n=1,parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT customer_id, id, amount FROM (\n  SELECT o.customer_id, o.id, o.amount,\n         ROW_NUMBER() OVER (PARTITION BY o.customer_id\n                            ORDER BY o.amount DESC NULLS LAST, o.id ASC) AS rn\n  FROM orders o\n  WHERE o.customer_id IS NOT NULL\n    AND (10000 = 0 OR o.customer_id <= 10000)) t\nWHERE rn <= 1\nORDER BY customer_id ASC, amount DESC NULLS LAST, id ASC;"
+    },
+    {
+      "run_id": "select-order-aggregate-yugabyte-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=correlated;parent_max=10000",
+      "statement": "a03_aggregate_correlated_sel",
+      "params": "parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name,\n       COALESCE((SELECT SUM(o.amount) FROM orders o WHERE o.customer_id = c.id), 0) AS total,\n       (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS children\nFROM customers c\nWHERE 10000 = 0 OR c.id <= 10000;"
+    },
+    {
+      "run_id": "select-order-aggregate-yugabyte-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=post_join;parent_max=10000",
+      "statement": "a01_aggregate_join_sel",
+      "params": "parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name, COALESCE(SUM(o.amount), 0) AS total, COUNT(o.id) AS children\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000\nGROUP BY c.id, c.name;"
+    },
+    {
+      "run_id": "select-order-aggregate-yugabyte-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=aggregate;stmt=pre_agg;parent_max=10000",
+      "statement": "a02_aggregate_preagg_sel",
+      "params": "parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name, COALESCE(a.total, 0) AS total, COALESCE(a.children, 0) AS children\nFROM customers c\nLEFT JOIN (SELECT customer_id, SUM(amount) AS total, COUNT(*) AS children\n           FROM orders GROUP BY customer_id) a ON a.customer_id = c.id\nWHERE 10000 = 0 OR c.id <= 10000;"
+    },
+    {
+      "run_id": "select-order-aggregate-yugabyte-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=topn;stmt=lateral;parent_max=1",
+      "statement": "a05_topn_lateral_sel",
+      "params": "n=1,parent_max=1",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, o.id, o.amount\nFROM customers c\nCROSS JOIN LATERAL (\n  SELECT o.id, o.amount FROM orders o\n  WHERE o.customer_id = c.id\n  ORDER BY o.amount DESC NULLS LAST, o.id ASC\n  LIMIT 1) o\nWHERE 1 = 0 OR c.id <= 1\nORDER BY c.id ASC, o.amount DESC NULLS LAST, o.id ASC;"
+    },
+    {
+      "run_id": "select-order-aggregate-yugabyte-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=topn;stmt=lateral;parent_max=10000",
+      "statement": "a05_topn_lateral_sel",
+      "params": "n=1,parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, o.id, o.amount\nFROM customers c\nCROSS JOIN LATERAL (\n  SELECT o.id, o.amount FROM orders o\n  WHERE o.customer_id = c.id\n  ORDER BY o.amount DESC NULLS LAST, o.id ASC\n  LIMIT 1) o\nWHERE 10000 = 0 OR c.id <= 10000\nORDER BY c.id ASC, o.amount DESC NULLS LAST, o.id ASC;"
+    },
+    {
+      "run_id": "select-order-aggregate-yugabyte-1-20261004",
+      "file": "aggregate.json",
+      "axis": "family=topn;stmt=rownumber;parent_max=10000",
+      "statement": "a04_topn_rownumber_sel",
+      "params": "n=1,parent_max=10000",
+      "catalogue": "teaching",
+      "sql": "SELECT customer_id, id, amount FROM (\n  SELECT o.customer_id, o.id, o.amount,\n         ROW_NUMBER() OVER (PARTITION BY o.customer_id\n                            ORDER BY o.amount DESC NULLS LAST, o.id ASC) AS rn\n  FROM orders o\n  WHERE o.customer_id IS NOT NULL\n    AND (10000 = 0 OR o.customer_id <= 10000)) t\nWHERE rn <= 1\nORDER BY customer_id ASC, amount DESC NULLS LAST, id ASC;"
+    },
+    {
+      "run_id": "select-order-existence-postgres-1-20261004",
+      "file": "existence.json",
+      "axis": "family=absence;stmt=left_is_null;fanout=100",
+      "statement": "s10_left_anti",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name FROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id AND (amount > 100)\nWHERE o.id IS NULL;"
+    },
+    {
+      "run_id": "select-order-existence-postgres-1-20261004",
+      "file": "existence.json",
+      "axis": "family=absence;stmt=not_exists;fanout=100",
+      "statement": "s09_not_exists",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name FROM customers c\nWHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id AND (amount > 100));"
+    },
+    {
+      "run_id": "select-order-existence-postgres-1-20261004",
+      "file": "existence.json",
+      "axis": "family=absence;stmt=not_in_notnull;fanout=100",
+      "statement": "e13_not_in_notnull",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name FROM customers c\nWHERE c.id NOT IN (SELECT o.customer_id FROM orders o\n                   WHERE o.customer_id IS NOT NULL AND (amount > 100));"
+    },
+    {
+      "run_id": "select-order-existence-postgres-1-20261004",
+      "file": "existence.json",
+      "axis": "family=membership;stmt=exists;fanout=100",
+      "statement": "s06_exists_parent",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name FROM customers c\nWHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id AND (amount > 100));"
+    },
+    {
+      "run_id": "select-order-existence-postgres-1-20261004",
+      "file": "existence.json",
+      "axis": "family=membership;stmt=in;fanout=100",
+      "statement": "s07_in_parent",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name FROM customers c\nWHERE c.id IN (SELECT o.customer_id FROM orders o WHERE (amount > 100));"
+    },
+    {
+      "run_id": "select-order-existence-postgres-1-20261004",
+      "file": "existence.json",
+      "axis": "family=membership;stmt=join_distinct;fanout=100",
+      "statement": "s08_join_distinct_parent",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT DISTINCT c.id, c.name FROM customers c\nJOIN orders o ON o.customer_id = c.id WHERE (amount > 100);"
+    },
+    {
+      "run_id": "select-order-existence-yugabyte-1-20261004",
+      "file": "existence.json",
+      "axis": "family=membership;stmt=exists;fanout=100",
+      "statement": "s06_exists_parent",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT c.id, c.name FROM customers c\nWHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id AND (amount > 100));"
+    },
+    {
+      "run_id": "select-order-existence-yugabyte-1-20261004",
+      "file": "existence.json",
+      "axis": "family=membership;stmt=join_distinct;fanout=100",
+      "statement": "s08_join_distinct_parent",
+      "params": "pred=amount > 100",
+      "catalogue": "teaching",
+      "sql": "SELECT DISTINCT c.id, c.name FROM customers c\nJOIN orders o ON o.customer_id = c.id WHERE (amount > 100);"
+    }
+  ]
+}

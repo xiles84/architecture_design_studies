@@ -43,7 +43,7 @@ summary, not a second ledger.
 
 ## Current state
 
-### Book Edition 3 preview 6 — **query-plan appendix (2026-10-05)**
+### Book Edition 3 preview 7 — **query-plan appendix with SQL (2026-10-06)**
 
 The owner asked for an appendix of the `EXPLAIN ANALYZE` plans the tests captured.
 `task-20261005T190500Z-book-plan-appendix` added *Query plans behind the SELECT claims*. It holds 45
@@ -52,6 +52,11 @@ the appendix says so. `tools/evidence plans` extracts the plans from committed r
 only runs that are anchors of the claim and whose sha256 matches the anchor's digest, and it recomputes
 every node-tree statement. `go test` fails when `book/appendix/query-plans.json` is stale. Studies 02 and
 03 also store plans, but they are not in this appendix yet. Milestone: `repo/book-plan-appendix-v1`.
+
+After the owner's feedback, `task-20261005T194500Z-book-plan-appendix-sql` printed the executed SQL
+before every plan. The SQL is rebuilt by the harness's own binder
+(`studies/01-charity-tree/selectbench/cmd/appendixsql`) and checked against each cell and, with git,
+against the producing commit's catalogue sources. Milestone: `repo/book-plan-appendix-sql-v1`.
 
 ### Book Edition 3 preview 5 — **derived-table question answered (2026-10-05)**
 
