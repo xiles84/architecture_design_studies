@@ -41,8 +41,9 @@
 ]
 
 // The bound SQL the harness sent after `EXPLAIN (...)`. A rule on the left marks it
-// as the query, set apart from the shaded plan beneath it.
-#let sql-box(q) = block(
+// as the query, set apart from the shaded plan beneath it. Before a plan it is sticky,
+// so a query never ends one page while its plan starts the next.
+#let sql-box(q, sticky: false) = block(
   width: 100%,
   inset: (x: 6pt, y: 5pt),
   radius: 2pt,
@@ -50,6 +51,7 @@
   above: 0.3em,
   below: 0.45em,
   breakable: false,
+  sticky: sticky,
 )[
   #set par(justify: false, leading: 0.5em)
   #set text(size: 7.4pt, hyphenate: false)
@@ -90,12 +92,13 @@
     #raw(e.results_path) · sha256 #raw(e.inputs_digest)
   ]
   for p in e.plans {
-    plan-caption(p.label, [SQL #raw(p.statement) · parameters #raw(p.params)])
-    sql-box(p.sql)
+    // Recorded before the caption so nothing sits between the query and its plan.
     shown-sql.update(s => {
       if p.sql not in s { s.insert(p.sql, where) }
       s
     })
+    plan-caption(p.label, [SQL #raw(p.statement) · parameters #raw(p.params)])
+    sql-box(p.sql, sticky: true)
     block(above: 0.35em, below: 0.15em, width: 100%, sticky: true)[
       #set par(justify: false)
       #text(size: 7.5pt, fill: palette.muted)[Plan · #raw(p.axis) · #p.lines_kept of #p.lines_total lines kept]
