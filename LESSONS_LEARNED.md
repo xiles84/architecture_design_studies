@@ -1,5 +1,9 @@
 # Lessons learned
 
+## Evidence metadata must be derived, not copied
+
+The coverage matrix retained outdated scientific maturity counts after the active claim registry had expanded. Derived metadata should be validated against the current registry at build time. Preserve dated analyses as historical snapshots rather than silently rewriting them. Distinguish claim strength, replication tier, independent review, and prediction preregistration: they are not interchangeable measures of scientific confidence.
+
 ## Query examples and case evidence can advance separately
 
 The 2026-10-04 theory update adds equivalent join forms while its matrix remains

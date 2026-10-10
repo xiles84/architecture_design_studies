@@ -1,5 +1,9 @@
 # Project context
 
+## 2026-10-10 — Scientific evidence metadata repair
+
+The active 50-claim evidence registry was reconciled with the coverage matrix. Active counts now come from `claims.json`, and a new source gate rejects inconsistent coverage totals. The stale book evidence README was corrected. Validation covered the book source checker, 50 registry claims, the stale-counter negative control and uncached Go tests. Historical signed analyses were not rewritten. This task did not rerun benchmarks or resolve the cache correctness-gate gap.
+
 **What this repository is.** Architecture Design Studies measures what architecture decisions
 actually cost. Each study changes one modelling decision, builds designs that differ only in that
 decision, loads identical deterministic data, and reports reads, writes, storage and correctness
