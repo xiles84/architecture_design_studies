@@ -1,8 +1,10 @@
 # Data Architecture Reference
 
+> **Current evidence:** the registry version is selected by the book build configuration. The active evidence package maintains the claim registry and coverage statistics. Preview-specific sections below document historical milestones.
+
 The book has two reader parts:
 
-- **Theory:** six topic groups, twenty strategy lessons with diagrams, selection boundaries and costs.
+- **Theory:** six topic groups and their strategy lessons with diagrams, selection boundaries and costs.
 - **Study cases:** five business cases, theory-linked variations and compact evidence summaries.
 
 The appendix holds result-reading guidance, reproduction, glossary and full claim cards.

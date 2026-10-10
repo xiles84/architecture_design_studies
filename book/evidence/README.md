@@ -8,13 +8,13 @@ and the Typst sources are checked by [`check.sh`](check.sh) before every build.
 
 | File | Purpose |
 |---|---|
-| `v6/claims.json` | **the active registry.** All 29 v5 claims carried forward byte-identical, plus the empirical-architecture method metadata: `evidence_form` (isolate / interaction / package / not_applicable), `attribution` (withheld + `isolated_by`), `control_coverage`, and a `replication` record; `prediction` and `crossover` are defined and currently unused |
+| `v6/claims.json` | **Active claim registry.** Contains current claims and their scientific method metadata; historical migration provenance is preserved. |
 | `v6/schema.json` | the committed JSON Schema the active registry must satisfy, including the method enums |
 | `v6/confounds.json` | the six confounds that must be published beside the numbers they affect |
-| `v6/coverage.json` | the coverage matrix (`measured` / `measured-but-confounded` / `planned` / `gap` / `not_applicable`) with review state, extended with the method dimensions: evidence-form classification, interaction experiments, recorded predictions, bounded crossovers, run-level replication, read-path controls |
+| `v6/coverage.json` | Coverage dimensions and `active_claim_summary`, checked against the active registry. |
 | `v6/method_migration.json` | the per-claim record of how each v6 field was assigned, so the classification is auditable rather than inferred |
 | `v6/SUPERSESSION_LEDGER.md` | the attributed v5 → v6 change record (frozen v4 → v5 text below it) |
-| `v6/ANALYSIS.md` | the signed method-metadata analysis: what v6 adds, the four machine-checked rules, and the findings (0 interaction claims, 0 predictions, 0 bounded crossovers, 20/29 withheld attributions, 15 claims with no fired control) |
+| `v6/ANALYSIS.md` | Historical signed analysis of the initial v6 method-metadata pass. Its original counts are a dated snapshot, not the live registry totals. |
 | `v5/*` | **frozen** predecessor: the five claims re-scoped by the 2026-09-24 claim-versus-limit audit (v2-07, v2-10, v2-14, v2-16, v3-06) |
 | `v4/*`, `v3/*`, `v2/*`, `claims.json`, `claims.schema.json` | **frozen** historical packages at tags `repo/book-evidence-registry-v4`, `-v3`, `-v2`, `-v1`. Never edited; a later package carries their still-active claims forward and records what it retires. |
 | `check.sh`, `check-waivers.txt` | the structural source rules the build runs (including `concept-checklist` against `book/concepts/CHECKLIST.md`), and the standing exceptions to them |
@@ -91,3 +91,9 @@ change in the version's ledger, or — when the change is a retirement — in th
    is what the v4 lifecycle fields exist to expose.
 7. Run `go run . validate --repo ../..` and `go test -count=1 ./...` — both must be green before the
    claim is used, and the tests must not be served from the cache (see the note above the command list).
+
+## Current coverage statistics
+
+The active totals are derived from `v6/claims.json` and stored in `v6/coverage.json` under `active_claim_summary`. The build rejects stale totals through `check-active-coverage.sh`. These counts do not establish independent review or preregistration.
+
+The signed `v6/ANALYSIS.md` preserves the original 2026-09-25 conclusions and must not be silently updated.

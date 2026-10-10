@@ -182,6 +182,15 @@ else
   done < <(grep -E '^\| `[a-z0-9-]+` \|(.*\|){7}' "$CHECKLIST" | sed -n 's/^| `\([a-z0-9-]*\)` |.*/\1/p')
 fi
 
+# ACTIVE_COVERAGE_CHECK
+# Fail the build if the active coverage summary has stale counts.
+if [[ "$REGISTRY_VERSION" == "v6" ]]; then
+  if ! bash "$HERE/check-active-coverage.sh" \
+      "$REGISTRY" "$BOOK_DIR/evidence/v6/coverage.json"; then
+    failure "active-coverage" "coverage summary is inconsistent"
+  fi
+fi
+
 if [[ "$failures" -gt 0 ]]; then
   printf 'check: %d failure(s)\n' "$failures" >&2
   exit 1
