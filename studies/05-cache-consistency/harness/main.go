@@ -321,8 +321,11 @@ func runCell(ctx context.Context, res *CellResult, d Design, dsn, explainPath st
 	if d.Freshness == FreshStrict && !d.NegativeControl && res.StrictViolations > 0 {
 		return fmt.Errorf("STRICT CONTRACT VIOLATED: %d stale-after-ack read(s); the cell cannot support a performance conclusion", res.StrictViolations)
 	}
-	if res.ImpossibleValues > 0 {
-		return fmt.Errorf("IMPOSSIBLE CACHE VALUE: %d read(s) returned a state the database never held; the cell is invalid", res.ImpossibleValues)
+	// Every source of read evidence is an independent fail-closed
+	// signal. A phase or churn finding cannot be hidden by a
+	// missing or inconsistent aggregate counter.
+	if err := rejectImpossibleReadEvidence(res); err != nil {
+		return err
 	}
 	// A negative control that did not fire is a finding about the workload, not a
 	// licence to soften the invariant.
