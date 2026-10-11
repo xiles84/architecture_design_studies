@@ -1468,3 +1468,7 @@ Merged into local `main` at `7c53e24`; the task is complete and the worktree rem
 ## 2026-10-11 — Cache churn gate interpretation
 
 A scientific audit corrected the interpretation of run `20261002T191609Z`. The preliminary verification gate passed 14 checks, but the cache-aside cell subsequently recorded one impossible value and final cell acceptance aborted. The historical report remains unchanged. The anomaly's root cause and independent intermediate-commit verification remain open.
+
+## 2026-10-11 — Cache gate consolidation into main
+
+Validated cache hardening and the existing churn manuscript correction are consolidated. The harness synchronizes wrong-read diagnostic samples, uses an authoritative impossible-read event count, and rejects nonzero evidence in cell, phase, churn or instance results. Run `20261002T191609Z` passed 14 preliminary verification checks, but final cell acceptance aborted after one impossible cache value. Its root cause and independent proof of intermediate committed states remain open. No historical measurements were altered or new benchmarks performed.

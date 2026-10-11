@@ -2869,3 +2869,7 @@ Evidence: `book/appendix/query-plans.sql.json`, `tools/evidence/internal/evidenc
 ## Distinguish preliminary gates from final acceptance
 
 A verification sub-gate can pass while the complete benchmark cell fails. Interpret `gate.passed` separately from the cell's final error/aborted status. An impossible-value observation remains a genuine correctness finding even when the acceptance mechanism correctly excludes it. Never rewrite signed historical measurements to correct a later scientific interpretation.
+
+## Cache correctness — acceptance versus commit proof
+
+Distinguish preliminary verification from final benchmark acceptance. Protect diagnostic samples under their logging mutex, avoid double-counting overlapping phase snapshots, and reject impossible values from every independent result source. Detecting and rejecting an anomalous value does not explain its root cause; independent committed-state investigation remains necessary.
