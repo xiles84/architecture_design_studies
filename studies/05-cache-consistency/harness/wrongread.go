@@ -120,11 +120,11 @@ func (l *readLog) NoteAck(keyID int64) {
 }
 
 func (l *readLog) Record(o ReadOutcome) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if o.Kind == KindStale && len(l.staleSamples) < staleSampleLimit {
 		l.staleSamples = append(l.staleSamples, o)
 	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
 	l.total++
 	l.bySource[o.Source]++
 	if o.CacheHit {

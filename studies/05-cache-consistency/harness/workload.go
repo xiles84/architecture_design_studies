@@ -320,9 +320,8 @@ func (c *cell) resetWrong(phase string) {
 func (c *cell) phaseWrong(name string) {
 	s := c.ad.log.Summary()
 	c.res.Wrong = append(c.res.Wrong, PhaseWrong{Phase: name, Summary: s})
-	if s.ImpossibleValues > 0 {
-		c.res.ImpossibleValues += s.ImpossibleValues
-	}
+	// The adapter's atomic counter owns the cell-wide impossible total.
+	// Phase snapshots can overlap and must not be accumulated here.
 }
 
 func (c *cell) snapshotCache() {
