@@ -67,12 +67,12 @@ Theory: #link(<theory-cache-fencing>)[Lease and version fencing] and #link(<theo
 *Observed duration:* a sustained 1801 s phase crosses 6.0 real TTL boundaries with no wrong reads. Hard expiry never fires; early expiration does.
 #claim-badge("v3-01-churn-crosses-real-ttl")
 
-*Observed comparison:* at 601 s, write-through and write-aside each cross 2.0 real TTL boundaries with no wrong reads; neither is declared faster. One aside cell nevertheless records an impossible cache value that its gate misses.
+*Observed comparison:* at 601 s, write-through and write-aside each cross 2.0 real TTL boundaries with no wrong reads; neither is declared faster. One cache-aside cell recorded an impossible value. Its preliminary verification passed, but final cell acceptance correctly aborted.
 #claim-badge("v3-02-churn-600-through-vs-aside")
 
 *Thrives — scoped evidence:* the tested coordination survives sustained churn for acknowledged-write freshness.
 
-*Dies — observed validation gap:* no wrong reads is insufficient if an impossible value can pass the churn gate. The committed-state floor remains incompletely enforced there.
+*Dies — observed correctness limit:* zero stale-after-ack reads does not guarantee every returned value was a committed state. The final gate rejected the anomalous cell, but the cause remains unexplained. End-of-phase ledger checks do not reconstruct every intermediate commit.
 
 === Variation: count cache resources and locality honestly
 

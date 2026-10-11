@@ -1464,3 +1464,7 @@ Merged into local `main` at `7c53e24`; the task is complete and the worktree rem
 - Imported historical receipts (EH-01, EH-02, Studies 03–05): [`docs/ai-work/tasks/`](docs/ai-work/tasks/)
 - Original handoffs and review receipts: [`docs/handoffs/`](docs/handoffs/) (read-only history)
 - Per-study detail: each study's `reports/`, `HANDOFF.md`, `PROGRESS.md`, `ESCALATIONS.md`
+
+## 2026-10-11 — Cache churn gate interpretation
+
+A scientific audit corrected the interpretation of run `20261002T191609Z`. The preliminary verification gate passed 14 checks, but the cache-aside cell subsequently recorded one impossible value and final cell acceptance aborted. The historical report remains unchanged. The anomaly's root cause and independent intermediate-commit verification remain open.

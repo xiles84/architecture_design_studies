@@ -2865,3 +2865,7 @@ commits.
 
 Evidence: `book/appendix/query-plans.sql.json`, `tools/evidence/internal/evidence/plans.go` and
 `docs/book-plan-appendix-sql-20261006/`.
+
+## Distinguish preliminary gates from final acceptance
+
+A verification sub-gate can pass while the complete benchmark cell fails. Interpret `gate.passed` separately from the cell's final error/aborted status. An impossible-value observation remains a genuine correctness finding even when the acceptance mechanism correctly excludes it. Never rewrite signed historical measurements to correct a later scientific interpretation.
