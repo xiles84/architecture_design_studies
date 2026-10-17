@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "task_id": "task-20261017T000000Z-parent-row-lock-versus-cas",
+  "goal_id": "goal-20260922T025912Z-data-architecture-book",
+  "root_task_id": "task-20260922T025912Z-publish-book-pipeline-handoff",
+  "parent_task_id": "task-20260922T025912Z-publish-book-pipeline-handoff",
+  "title": "Benchmark parent row lock versus optimistic CAS update for OneToMany invariants",
+  "kind": "scientific_protocol",
+  "created_at": "2026-10-17T14:48:07Z",
+  "created_by": {
+    "model": "gpt-6",
+    "tool": "chatgpt",
+    "effort": "unspecified",
+    "session_capability": "HIGH",
+    "work_role": "planner"
+  },
+  "priority": 46,
+  "not_before": "2026-10-17T14:48:07Z",
+  "minimum_capability": "HIGH",
+  "preferred_capability": "HIGH",
+  "work_role": "analyst",
+  "dependencies": [
+    "task-20261017T000000Z-collision-workload-methodology",
+    "task-20261017T000000Z-concurrency-teaching-reference"
+  ],
+  "source_request": "docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/REQUEST.md",
+  "source_handoff": "docs/ai-work/goals/goal-20260922T025912Z-data-architecture-book/REQUEST.md",
+  "canonical_branch": "research/parent-row-lock-versus-cas",
+  "canonical_worktree": ".worktrees/research-parent-row-lock-versus-cas",
+  "owned_paths": [
+    "studies",
+    "book/concepts",
+    "book/chapters",
+    "docs/ai-work"
+  ],
+  "forbidden_paths": [
+    "studies/*/results",
+    "book/evidence",
+    "book/dist",
+    "docs/ai-work/tasks/2026/10/task-20261005T151500Z-t1-study05-completion",
+    "signed scientific results"
+  ],
+  "acceptance_criteria": [
+    "Make INSERT INTO child the PRIMARY use case, not an incidental variation: test creating the first child, inserting concurrent siblings for the same parent, capacity-bound inserts, duplicate logical child creation, and failed/rolled-back inserts.",
+    "Choose precise shared invariants spanning a parent and newly created children (e.g. max active children, reservation capacity, or unique child allocation); ensure all arms enforce exactly the SAME invariant atomically even when two children do not exist at the initial read.",
+    "Compare (A) SELECT parent ... FOR UPDATE then check capacity/child predicate then INSERT child, (B) read version/predicate then CAS UPDATE parent version/counter and INSERT child in the SAME transaction, and (C) atomic conditional UPDATE parent SET reserved=reserved+1 WHERE reserved<capacity RETURNING ... followed by INSERT child.",
+    "Include child-first then parent-CAS vs parent-CAS-first then child INSERT; explain rollback, visibility, FK/unique-index interactions, deadlocks, conflict detection and whether wasted insert work or parent writes are incurred.",
+    "Explain explicitly why a CAS on a non-existent child row cannot protect concurrent child INSERTs, when a parent CAS acts as a serialization point, and why optimistic CAS loses correctness if any competing child writer bypasses the agreed protocol.",
+    "Compare additional valid alternatives: unique/exclusion constraints or slot-allocation tables where expressible, SERIALIZABLE transactions, parent advisory locks, and database-enforced constraints; never assume one mechanism alone protects arbitrary COUNT(child) predicates.",
+    "Distinguish SELECT FOR UPDATE locking from UPDATE: parent tuple/WAL cost, version changes, indexes, bloat, FK lock footprints, round trips, retries, aborted child inserts and contention on the hot parent row; distinguish PostgreSQL and YugabyteDB behavior.",
+    "Benchmark both LOW and HIGH collision, parent-key distribution (uniform/hotspot), children per parent, 1 vs N concurrent inserts, success/failure ratios and read/write mix. Capture correctness anomalies, inserted-child throughput, p50/p95/p99 latency, lock wait, abort/retry, WAL and CPU.",
+    "Provide two-transaction SQL schedules for same-parent concurrent inserts, near-capacity races and duplicate insert races, plus transactional rollback/retry/idempotency tests; include book-ready explanations and evidence provenance without inventing results."
+  ],
+  "expected_artifacts": [
+    "study protocol / reader-ready chapter drafts",
+    "SQL/design examples",
+    "review notes and evidence references"
+  ],
+  "validation": [
+    "Independent HIGH review of correctness, evidence status, and source/protocol changes",
+    "No measurements without separate approved run gates"
+  ],
+  "review_policy": "HIGH",
+  "integration_required": true,
+  "required_tag": "repo/research-parent-row-lock-versus-cas-v1",
+  "benchmark_required": false,
+  "revalidate_after": null
+}
